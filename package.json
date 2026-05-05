@@ -1,0 +1,11 @@
+{
+  "name": "my-apps",
+  "private": true,
+  "workspaces": ["apps"],
+  "scripts": {
+    "dev": "npm run dev -w apps",
+    "build": "npm run build -w apps",
+    "start": "npm run start -w apps",
+    "lint": "npm run lint -w apps"
+  }
+}

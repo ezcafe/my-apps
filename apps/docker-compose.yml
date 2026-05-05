@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:18
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: money
+      POSTGRES_PASSWORD: money
+      POSTGRES_DB: money
+    # postgres:18+ — mount parent dir only (see https://github.com/docker-library/postgres/pull/1259).
+    volumes:
+      - money_pg_data:/var/lib/postgresql
+
+volumes:
+  money_pg_data:

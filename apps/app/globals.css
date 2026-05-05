@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light dark;
+  --background: #fafafa;
+  --foreground: #111827;
+  --muted: #6b7280;
+  --border: color-mix(in oklab, var(--foreground) 12%, transparent);
+  --surface: #ffffff;
+}
+
+.dark {
+  --background: #0c0c0e;
+  --foreground: #f4f4f5;
+  --muted: #a1a1aa;
+  --border: color-mix(in oklab, var(--foreground) 18%, transparent);
+  --surface: #141417;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-surface: var(--surface);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer utilities {
+  .shell-main {
+    container-type: inline-size;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(0.75rem, 2cqi, 1.5rem);
+    padding: clamp(0.75rem, 3cqi, 1.75rem);
+    max-inline-size: min(120rem, 100%);
+    margin-inline: auto;
+    width: 100%;
+  }
+
+  .auto-fit-2 {
+    display: grid;
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(min(100%, 22rem), 1fr)
+    );
+    gap: clamp(1rem, 2cqi, 1.75rem);
+    align-items: start;
+  }
+}

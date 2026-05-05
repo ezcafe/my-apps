@@ -1,0 +1,1 @@
+ALTER TABLE "money_account" ADD COLUMN "balance_minor" bigint DEFAULT 0 NOT NULL;
