@@ -355,6 +355,13 @@ export function MoneyCsvImportWizard({
   }, [kind, headers, dbFieldByCsvCol]);
 
   const defs = useMemo(() => (kind ? moneyImportFieldDefs(kind) : []), [kind]);
+  const txAllCategoryEntities = useMemo(
+    () =>
+      categories
+        .filter((c) => !Boolean((c as MoneyCategoryRow & { archived?: boolean }).archived))
+        .map((c) => ({ id: c.id, name: c.name })),
+    [categories],
+  );
 
   const valueFields = useMemo(() => {
     if (!kind) return [];
@@ -393,13 +400,26 @@ export function MoneyCsvImportWizard({
         if (f.valueKind === "enum" || f.valueKind === "bool") {
           next[f.key] = pruneAndAutoFillEnumBoolPicks(f, mergedKeys, prev[f.key]);
         } else if (f.fk) {
-          const entities = fkEntityRowsForField(f.fk, accounts, merchants, categories);
+          const entities =
+            kind === "transactions" && f.key === "categoryId" && f.fk === "category_leaf"
+              ? txAllCategoryEntities
+              : fkEntityRowsForField(f.fk, accounts, merchants, categories);
           next[f.key] = pruneAndAutoFillFkPicks(f, mergedKeys, entities, prev[f.key]);
         }
       }
       return next;
     });
-  }, [kind, parsedRows, columnByField, headers, accounts, merchants, categories, defs]);
+  }, [
+    kind,
+    parsedRows,
+    columnByField,
+    headers,
+    accounts,
+    merchants,
+    categories,
+    defs,
+    txAllCategoryEntities,
+  ]);
 
   useEffect(() => {
     syncValuePicks();
@@ -425,7 +445,9 @@ export function MoneyCsvImportWizard({
       );
       const keys = mergeMatchValueRowKeys(distinct, valuePicksByField[f.key]);
       const entities = f.fk
-        ? fkEntityRowsForField(f.fk, accounts, merchants, categories)
+        ? kind === "transactions" && f.key === "categoryId" && f.fk === "category_leaf"
+          ? txAllCategoryEntities
+          : fkEntityRowsForField(f.fk, accounts, merchants, categories)
         : [];
       for (const k of keys) {
         const pick = valuePicksByField[f.key]?.[k];
@@ -447,6 +469,7 @@ export function MoneyCsvImportWizard({
     accounts,
     merchants,
     categories,
+    txAllCategoryEntities,
   ]);
 
   const refreshEntityLists = useCallback(async () => {
@@ -743,12 +766,7 @@ export function MoneyCsvImportWizard({
                     : [];
                 const txCategoryEntities =
                   kind === "transactions" && f.key === "categoryId" && f.fk === "category_leaf"
-                    ? categories
-                        .filter(
-                          (c) =>
-                            !Boolean((c as MoneyCategoryRow & { archived?: boolean }).archived),
-                        )
-                        .map((c) => ({ id: c.id, name: c.name }))
+                    ? txAllCategoryEntities
                     : null;
                 const entitiesForSelect = txCategoryEntities ?? entities;
                 return (
