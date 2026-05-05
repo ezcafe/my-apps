@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
 import { moneyApiJson } from "@/lib/money-fetch";
-import { MoneySettingsImportSection } from "@/components/money-settings/money-settings-import";
 import { MoneySettingsResetSection } from "@/components/money-settings/money-settings-reset";
 import {
   inputCls,
@@ -94,7 +93,7 @@ export function MoneyWorkspaceSettings() {
   }, [refreshMoneyWorkspaceContext]);
 
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 max-w-4xl">
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -357,8 +356,6 @@ export function MoneyWorkspaceSettings() {
             ))}
           </ul>
         </SettingsSection>
-
-        <MoneySettingsImportSection />
 
         {workspaceList.find((w) => w.id === moneyWorkspaceId)?.role ===
         "owner" ? (

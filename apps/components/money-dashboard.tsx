@@ -191,7 +191,7 @@ export function MoneyDashboard() {
   const dateTimeLocalCls = `${inputCls} [&::-webkit-datetime-edit]:font-sans [&::-webkit-datetime-edit-fields-wrapper]:font-sans`;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="min-w-0 max-w-4xl space-y-6">
       {bootstrapErr ? (
         <Alert
           variant="error"

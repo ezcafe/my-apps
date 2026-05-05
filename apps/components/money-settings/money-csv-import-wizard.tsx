@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import {
   inputCls,
-  MoneySettingsBackLink,
   primaryBtnCls,
   secondaryBtnCls,
 } from "@/components/money-settings/money-settings-shared";
@@ -605,7 +604,6 @@ export function MoneyCsvImportWizard({
 
   return (
     <div className="min-w-0 max-w-4xl">
-      <MoneySettingsBackLink />
       <h2 className="text-xl font-semibold text-foreground">Import</h2>
       <p className="mt-1 text-sm text-muted">
         CSV import for your workspace. More sources (e.g. PDF) may be added later.

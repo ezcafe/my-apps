@@ -39,6 +39,37 @@ function minorToMajorInput(minor: number): string {
   return (minor / 100).toFixed(2);
 }
 
+function TransactionEditBreadcrumbs() {
+  const itemClass = "text-sm font-medium text-muted hover:text-foreground";
+  const currentClass = "text-sm font-medium text-foreground";
+
+  return (
+    <nav aria-label="Breadcrumb">
+      <ol className="flex flex-wrap items-center gap-2">
+        <li>
+          <Link href="/money" className={itemClass}>
+            Money
+          </Link>
+        </li>
+        <li aria-hidden className="text-muted">
+          /
+        </li>
+        <li>
+          <Link href="/money/analytics" className={itemClass}>
+            Analytics
+          </Link>
+        </li>
+        <li aria-hidden className="text-muted">
+          /
+        </li>
+        <li className={currentClass} aria-current="page">
+          Edit transaction
+        </li>
+      </ol>
+    </nav>
+  );
+}
+
 export function TransactionEditForm({ transactionId }: { transactionId: string }) {
   const router = useRouter();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -194,27 +225,15 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
   if (!loaded && err) {
     return (
       <div className="flex flex-col gap-3">
+        <TransactionEditBreadcrumbs />
         <Alert variant="error" title="Couldn’t load transaction" description={err} />
-        <Link
-          href="/money/analytics"
-          className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-        >
-          Back to analytics
-        </Link>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="text-sm">
-        <Link
-          href="/money/analytics"
-          className="font-medium text-foreground underline-offset-2 hover:underline"
-        >
-          ← Analytics
-        </Link>
-      </p>
+      <TransactionEditBreadcrumbs />
       {err ? (
         <Alert variant="error" title={err} />
       ) : null}
