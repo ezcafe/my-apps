@@ -5,6 +5,7 @@ import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear, scalePoint } from "@visx/scale";
+import { colorByIndex } from "@/components/charts/chart-colors";
 
 type Point = { date: string; cumulative: number };
 
@@ -61,15 +62,32 @@ function LineInner({
       className="block max-w-full"
     >
       <Group left={margin.left} top={margin.top}>
+        <defs>
+          <linearGradient id="analytics-line-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={colorByIndex(0)} />
+            <stop offset="50%" stopColor={colorByIndex(4)} />
+            <stop offset="100%" stopColor={colorByIndex(6)} />
+          </linearGradient>
+        </defs>
         <LinePath
           data={points}
           x={(p) => p.x}
           y={(p) => p.y}
-          stroke="currentColor"
+          stroke="url(#analytics-line-gradient)"
           strokeWidth={2}
           curve={curveMonotoneX}
-          opacity={0.85}
+          opacity={0.95}
         />
+        {points.map((p, i) => (
+          <circle
+            key={`pt-${i}`}
+            cx={p.x}
+            cy={p.y}
+            r={2.25}
+            fill={colorByIndex(i)}
+            opacity={0.95}
+          />
+        ))}
       </Group>
     </svg>
   );

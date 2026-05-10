@@ -67,6 +67,7 @@ export async function ensureUserBootstrap(userSub: string) {
         name: "Personal",
         kind: "personal",
         ownedByUserSub: userSub,
+        defaultCurrency: null,
       })
       .returning();
 

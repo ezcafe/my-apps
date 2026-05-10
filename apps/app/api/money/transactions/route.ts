@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 import { db } from "@/db";
 import {
   moneyAccount,
@@ -156,7 +157,7 @@ export async function POST(req: Request) {
   }
 
   const accountRow = await db
-    .select({ id: moneyAccount.id })
+    .select({ id: moneyAccount.id, name: moneyAccount.name })
     .from(moneyAccount)
     .where(
       and(
@@ -167,6 +168,26 @@ export async function POST(req: Request) {
     .limit(1);
 
   if (!accountRow.length) return badRequest("Invalid account");
+  let toAccountId: string | null = null;
+  let toAccountRow: { id: string; name: string }[] = [];
+  if (parsed.data.kind === "transfer") {
+    toAccountId = parsed.data.toAccountId ?? null;
+    if (!toAccountId) return badRequest("Destination account is required");
+    if (toAccountId === parsed.data.accountId) {
+      return badRequest("From and destination accounts must be different");
+    }
+    toAccountRow = await db
+      .select({ id: moneyAccount.id, name: moneyAccount.name })
+      .from(moneyAccount)
+      .where(
+        and(
+          eq(moneyAccount.id, toAccountId),
+          eq(moneyAccount.workspaceId, ctx.workspaceId),
+        ),
+      )
+      .limit(1);
+    if (!toAccountRow.length) return badRequest("Invalid destination account");
+  }
 
   const kind = parsed.data.kind;
   const occurredAt = parsed.data.occurredAt
@@ -257,42 +278,114 @@ export async function POST(req: Request) {
 
       const uniqueTags = [...new Set([...baseTagIds, ...fromNames])];
 
-      const [row] = await tx
+      if (kind !== "transfer") {
+        const [row] = await tx
+          .insert(moneyTransaction)
+          .values({
+            workspaceId: ctx.workspaceId,
+            accountId: parsed.data.accountId,
+            kind,
+            amountMinor: parsed.data.amountMinor,
+            occurredAt,
+            categoryId: afterRules.categoryId ?? null,
+            merchantId: afterRules.merchantId ?? parsed.data.merchantId ?? null,
+            notes: parsed.data.notes ?? null,
+            createdBySub: ctx.userSub,
+          })
+          .returning();
+
+        if (uniqueTags.length) {
+          await tx.insert(moneyTransactionTag).values(
+            uniqueTags.map((tagId) => ({
+              transactionId: row.id,
+              tagId,
+            })),
+          );
+        }
+
+        const balanceRow: TxRowForBalance = {
+          id: row.id,
+          accountId: row.accountId,
+          kind: row.kind,
+          amountMinor: row.amountMinor,
+          occurredAt: row.occurredAt,
+          createdAt: row.createdAt,
+          transferPairId: row.transferPairId,
+        };
+        await applyTransactionBalanceEffect(tx, ctx.workspaceId, balanceRow, 1);
+        return { row, uniqueTags };
+      }
+
+      const transferPairId = randomUUID();
+      const fromAccountName = accountRow[0].name;
+      const toAccountName = toAccountRow[0].name;
+      const customNotes = parsed.data.notes?.trim();
+      const fromTransferNote = `Transfer to ${toAccountName}${
+        customNotes ? ` | ${customNotes}` : ""
+      }`;
+      const toTransferNote = `Transfer from ${fromAccountName}${
+        customNotes ? ` | ${customNotes}` : ""
+      }`;
+      const transferValues = {
+        workspaceId: ctx.workspaceId,
+        kind,
+        amountMinor: parsed.data.amountMinor,
+        occurredAt,
+        categoryId: null,
+        merchantId: null,
+        createdBySub: ctx.userSub,
+        transferPairId,
+      } as const;
+      const [fromRow] = await tx
         .insert(moneyTransaction)
         .values({
-          workspaceId: ctx.workspaceId,
+          ...transferValues,
           accountId: parsed.data.accountId,
-          kind,
-          amountMinor: parsed.data.amountMinor,
-          occurredAt,
-          categoryId: afterRules.categoryId ?? null,
-          merchantId: afterRules.merchantId ?? parsed.data.merchantId ?? null,
-          notes: parsed.data.notes ?? null,
-          createdBySub: ctx.userSub,
+          notes: fromTransferNote,
+        })
+        .returning();
+      const [toRow] = await tx
+        .insert(moneyTransaction)
+        .values({
+          ...transferValues,
+          accountId: toAccountId!,
+          notes: toTransferNote,
         })
         .returning();
 
       if (uniqueTags.length) {
         await tx.insert(moneyTransactionTag).values(
-          uniqueTags.map((tagId) => ({
-            transactionId: row.id,
-            tagId,
-          })),
+          [fromRow.id, toRow.id].flatMap((transactionId) =>
+            uniqueTags.map((tagId) => ({
+              transactionId,
+              tagId,
+            })),
+          ),
         );
       }
 
-      const balanceRow: TxRowForBalance = {
-        id: row.id,
-        accountId: row.accountId,
-        kind: row.kind,
-        amountMinor: row.amountMinor,
-        occurredAt: row.occurredAt,
-        createdAt: row.createdAt,
-        transferPairId: row.transferPairId,
+      const fromBalanceRow: TxRowForBalance = {
+        id: fromRow.id,
+        accountId: fromRow.accountId,
+        kind: fromRow.kind,
+        amountMinor: fromRow.amountMinor,
+        occurredAt: fromRow.occurredAt,
+        createdAt: fromRow.createdAt,
+        transferPairId: fromRow.transferPairId,
       };
-      await applyTransactionBalanceEffect(tx, ctx.workspaceId, balanceRow, 1);
+      const toBalanceRow: TxRowForBalance = {
+        id: toRow.id,
+        accountId: toRow.accountId,
+        kind: toRow.kind,
+        amountMinor: toRow.amountMinor,
+        occurredAt: toRow.occurredAt,
+        createdAt: toRow.createdAt,
+        transferPairId: toRow.transferPairId,
+      };
+      await applyTransactionBalanceEffect(tx, ctx.workspaceId, fromBalanceRow, 1);
+      await applyTransactionBalanceEffect(tx, ctx.workspaceId, toBalanceRow, 1);
 
-      return { row, uniqueTags };
+      return { row: fromRow, uniqueTags };
     });
 
     return NextResponse.json({

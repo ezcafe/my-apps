@@ -1,18 +1,20 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ColumnChart } from "@/components/charts/column-chart";
-import { LineChart } from "@/components/charts/line-chart";
-import { PieSpendChart } from "@/components/charts/pie-chart";
-import { SankeyChart } from "@/components/charts/sankey-chart";
+import { useWorkspaceCurrency } from "@/components/workspace-gate";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
+import {
+  AnalyticsBudgetsSection,
+  type AnalyticsBudgetRow,
+} from "@/components/analytics-budgets-section";
 import { AnalyticsStats } from "@/components/analytics-stats";
 import { AnalyticsTransactionsTable } from "@/components/analytics-transactions-table";
+import { colorByIndex } from "@/components/charts/chart-colors";
 import { Alert } from "@/components/ui/alert";
 import {
-  AnalyticsFilters,
   defaultAnalyticsFilters,
   type AnalyticsFiltersValue,
   type AnalyticsLookupAccount,
@@ -20,10 +22,51 @@ import {
   type AnalyticsLookupTag,
   type AnalyticsWorkspaceRow,
 } from "@/components/analytics-filters";
-import { buildQuery } from "@/lib/analytics-build-query";
+
+const AnalyticsFilters = dynamic(
+  () =>
+    import("@/components/analytics-filters").then((m) => ({
+      default: m.AnalyticsFilters,
+    })),
+  { ssr: false },
+);
+
+const ColumnChart = dynamic(
+  () =>
+    import("@/components/charts/column-chart").then((m) => ({
+      default: m.ColumnChart,
+    })),
+  { ssr: false },
+);
+
+const LineChart = dynamic(
+  () =>
+    import("@/components/charts/line-chart").then((m) => ({
+      default: m.LineChart,
+    })),
+  { ssr: false },
+);
+
+const PieSpendChart = dynamic(
+  () =>
+    import("@/components/charts/pie-chart").then((m) => ({
+      default: m.PieSpendChart,
+    })),
+  { ssr: false },
+);
+
+const SankeyChart = dynamic(
+  () =>
+    import("@/components/charts/sankey-chart").then((m) => ({
+      default: m.SankeyChart,
+    })),
+  { ssr: false },
+);
+import { buildQuery, dateRangeParams } from "@/lib/analytics-build-query";
 import { formatMinor } from "@/lib/format-money";
 import { moneyApiJson } from "@/lib/money-fetch";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
+import type { MoneyWorkspaceBootstrapData } from "@/lib/money-workspace-bootstrap-data";
 import { useInViewOnce } from "@/lib/use-in-view-once";
 
 function ChartViewportFallback({
@@ -63,12 +106,21 @@ type AnalyticsPayload = {
 export function AnalyticsDashboard() {
   const { data: session } = useSession();
   const userSub = session?.user?.id;
+  const { defaultCurrency, refreshWorkspaceCurrency } = useWorkspaceCurrency();
 
-  const spendByCategoryVis = useInViewOnce();
-  const monthlyColumnsVis = useInViewOnce();
-  const netFlowVis = useInViewOnce();
+  const {
+    ref: spendByCategoryRef,
+    isInView: spendByCategoryInView,
+  } = useInViewOnce();
+  const {
+    ref: monthlyColumnsRef,
+    isInView: monthlyColumnsInView,
+  } = useInViewOnce();
+  const { ref: netFlowRef, isInView: netFlowInView } = useInViewOnce();
 
   const [data, setData] = useState<AnalyticsPayload | null>(null);
+  const [budgets, setBudgets] = useState<AnalyticsBudgetRow[]>([]);
+  const [budgetsError, setBudgetsError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
 
@@ -91,10 +143,9 @@ export function AnalyticsDashboard() {
 
   const fetchSeq = useRef(0);
 
-  const dirty = useMemo(
-    () => JSON.stringify(draft) !== JSON.stringify(applied),
-    [draft, applied],
-  );
+  const draftKey = useMemo(() => JSON.stringify(draft), [draft]);
+  const appliedKey = useMemo(() => JSON.stringify(applied), [applied]);
+  const dirty = draftKey !== appliedKey;
 
   const analyticsFilterQuery = useMemo(() => buildQuery(applied), [applied]);
 
@@ -120,35 +171,36 @@ export function AnalyticsDashboard() {
     let cancelled = false;
     void (async () => {
       try {
-        const initRes = await moneyApiJson<{ workspaceId: string }>(
-          "/api/money/workspace/init",
-        );
+        const { data: boot } =
+          await moneyApiJson<MoneyWorkspaceBootstrapData>(
+            "/api/money/workspace/bootstrap",
+          );
         if (cancelled) return;
-        const wsRes = await moneyApiJson<AnalyticsWorkspaceRow[]>(
-          "/api/workspace/list?app=money",
-        );
-        if (cancelled) return;
-        setWorkspaces(wsRes.data);
-        let resolvedId = initRes.data.workspaceId;
-        if (!wsRes.data.some((w) => w.id === resolvedId)) {
+        setWorkspaces(boot.workspaces);
+        let resolvedId = boot.workspaceId;
+        if (!boot.workspaces.some((w) => w.id === resolvedId)) {
           resolvedId =
-            wsRes.data.find((w) => w.isDefault)?.id ??
-            wsRes.data[0]?.id ??
+            boot.workspaces.find((w) => w.isDefault)?.id ??
+            boot.workspaces[0]?.id ??
             resolvedId;
         }
         setActiveWorkspaceId(resolvedId);
         if (
           resolvedId &&
-          resolvedId !== initRes.data.workspaceId &&
-          wsRes.data.some((w) => w.id === resolvedId)
+          resolvedId !== boot.workspaceId &&
+          boot.workspaces.some((w) => w.id === resolvedId)
         ) {
           await moneyApiJson("/api/workspace/active", {
             method: "POST",
             body: JSON.stringify({ workspaceId: resolvedId, app: "money" }),
           });
+          await refreshWorkspaceCurrency();
         }
         if (cancelled) return;
-        await loadLookups();
+        setAccounts(boot.accounts);
+        setCategories(boot.categories);
+        setMerchants(boot.merchants);
+        setTags(boot.tags);
       } catch (e: unknown) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Error");
@@ -158,7 +210,7 @@ export function AnalyticsDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [loadLookups]);
+  }, [refreshWorkspaceCurrency]);
 
   useEffect(() => {
     if (!filtersOpen) return;
@@ -202,6 +254,37 @@ export function AnalyticsDashboard() {
     });
   }, [applied, activeWorkspaceId]);
 
+  useEffect(() => {
+    if (!activeWorkspaceId) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      void (async () => {
+        try {
+          const defaultDates = defaultAnalyticsFilters();
+          const fromDate = applied.fromDate || defaultDates.fromDate;
+          const toDate = applied.toDate || defaultDates.toDate;
+          const { from, to } = dateRangeParams(fromDate, toDate);
+          const qs = new URLSearchParams();
+          qs.set("includeSpent", "1");
+          qs.set("from", from);
+          qs.set("to", to);
+          const { data: payload } = await moneyApiJson<AnalyticsBudgetRow[]>(
+            `/api/money/budgets?${qs.toString()}`,
+          );
+          if (cancelled) return;
+          setBudgets(payload);
+          setBudgetsError(null);
+        } catch (e: unknown) {
+          if (cancelled) return;
+          setBudgetsError(e instanceof Error ? e.message : "Error");
+        }
+      })();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWorkspaceId, applied.fromDate, applied.toDate]);
+
   const handleWorkspaceChange = useCallback(
     async (next: string) => {
       if (!next || next === activeWorkspaceId) return;
@@ -213,6 +296,7 @@ export function AnalyticsDashboard() {
           body: JSON.stringify({ workspaceId: next, app: "money" }),
         });
         setActiveWorkspaceId(next);
+        await refreshWorkspaceCurrency();
         const fresh = defaultAnalyticsFilters();
         setDraft(fresh);
         setApplied(fresh);
@@ -223,7 +307,7 @@ export function AnalyticsDashboard() {
         setSwitchingWorkspace(false);
       }
     },
-    [activeWorkspaceId, loadLookups],
+    [activeWorkspaceId, loadLookups, refreshWorkspaceCurrency],
   );
 
   const handleApply = useCallback(() => {
@@ -316,6 +400,7 @@ export function AnalyticsDashboard() {
               stats={data.stats}
               column={data.column}
               range={data.range}
+              currency={defaultCurrency}
             />
 
             <section className="col-span-2 w-full min-w-0 rounded-md border border-border bg-surface p-4 md:col-span-6 lg:col-span-12">
@@ -342,21 +427,28 @@ export function AnalyticsDashboard() {
 
             <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:grid-cols-2 md:gap-3 lg:col-span-12 lg:gap-3">
               <div
-                ref={spendByCategoryVis.ref}
+                ref={spendByCategoryRef}
                 className="min-w-0 rounded-md border border-border bg-surface p-4"
               >
                 <h2 className="mb-2 text-lg font-medium">Spend by category</h2>
-                {spendByCategoryVis.isInView ? (
+                {spendByCategoryInView ? (
                   pieHasData ? (
                     <>
                       <div className="relative h-[240px] w-full min-h-0 min-w-0">
                         <PieSpendChart data={data.pie} />
                       </div>
                       <ul className="mt-3 space-y-1 text-xs text-muted">
-                        {data.pie.slice(0, 8).map((p) => (
+                        {data.pie.slice(0, 8).map((p, i) => (
                           <li key={p.label} className="flex justify-between gap-2">
-                            <span className="truncate">{p.label}</span>
-                            <span>{formatMinor(p.valueMinor)}</span>
+                            <span className="flex min-w-0 items-center gap-2 truncate">
+                              <span
+                                className="inline-block size-2 rounded-full"
+                                style={{ backgroundColor: colorByIndex(i) }}
+                                aria-hidden
+                              />
+                              <span className="truncate">{p.label}</span>
+                            </span>
+                            <span>{formatMinor(p.valueMinor, defaultCurrency)}</span>
                           </li>
                         ))}
                       </ul>
@@ -378,13 +470,13 @@ export function AnalyticsDashboard() {
               </div>
 
               <div
-                ref={monthlyColumnsVis.ref}
+                ref={monthlyColumnsRef}
                 className="min-w-0 rounded-md border border-border bg-surface p-4"
               >
                 <h2 className="mb-2 text-lg font-medium">
                   Monthly expense columns
                 </h2>
-                {monthlyColumnsVis.isInView ? (
+                {monthlyColumnsInView ? (
                   columnHasExpense ? (
                     <div className="relative h-[240px] w-full min-h-0 min-w-0">
                       <ColumnChart data={data.column} />
@@ -407,12 +499,12 @@ export function AnalyticsDashboard() {
             </div>
 
             <div
-              ref={netFlowVis.ref}
+              ref={netFlowRef}
               className="col-span-2 w-full min-w-0 rounded-md border border-border bg-surface p-4 md:col-span-6 lg:col-span-12"
             >
               <h2 className="mb-2 text-lg font-medium">Net cumulative flow</h2>
               <div className="relative h-[240px] w-full min-h-0 min-w-0">
-                {netFlowVis.isInView ? (
+                {netFlowInView ? (
                   lineHasData ? (
                     <LineChart data={data.line} />
                   ) : (
@@ -436,12 +528,32 @@ export function AnalyticsDashboard() {
         )}
 
         {activeWorkspaceId ? (
+          budgetsError ? (
+            <div className="col-span-2 md:col-span-6 lg:col-span-12">
+              <Alert
+                variant="error"
+                title="Couldn’t load budgets"
+                description={budgetsError}
+              />
+            </div>
+          ) : (
+            <AnalyticsBudgetsSection
+              budgets={budgets}
+              categories={categories}
+              accounts={accounts}
+              tags={tags}
+              currency={defaultCurrency}
+            />
+          )
+        ) : null}
+
+        {activeWorkspaceId ? (
           <AnalyticsTransactionsTable
             filterQuery={analyticsFilterQuery}
             activeWorkspaceId={activeWorkspaceId}
             accounts={accounts}
             categories={categories}
-            merchants={merchants}
+            currency={defaultCurrency}
           />
         ) : null}
       </div>

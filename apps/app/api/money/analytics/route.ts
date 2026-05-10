@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import {
@@ -12,12 +12,6 @@ import {
   moneyTransactionConditionsForAnalytics,
   resolveAnalyticsDateBounds,
 } from "@/lib/money-transaction-analytics-conditions";
-
-function signedAmount(kind: string, amountMinor: number): number {
-  if (kind === "income") return amountMinor;
-  if (kind === "expense") return -amountMinor;
-  return 0;
-}
 
 export async function GET(req: Request) {
   const ctx = await requireMoneyContext();
@@ -39,113 +33,139 @@ export async function GET(req: Request) {
     ctx.workspaceId,
     filters,
   );
+  const whereClause = and(...conditions);
 
-  const txs = await db
-    .select()
-    .from(moneyTransaction)
-    .where(and(...conditions));
+  const monthExpr = sql`to_char((${moneyTransaction.occurredAt} at time zone 'utc'), 'YYYY-MM')`;
 
-  const categories = await db
-    .select()
-    .from(moneyCategory)
-    .where(eq(moneyCategory.workspaceId, ctx.workspaceId));
-
-  const accounts = await db
-    .select()
-    .from(moneyAccount)
-    .where(eq(moneyAccount.workspaceId, ctx.workspaceId));
+  const [categories, statRows, pieRows, columnRows, sankeyRows, lineExec] =
+    await Promise.all([
+    db
+      .select()
+      .from(moneyCategory)
+      .where(eq(moneyCategory.workspaceId, ctx.workspaceId)),
+    db
+      .select({
+        transactionCount: sql<number>`count(*)::int`,
+        expenseMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'expense' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
+        incomeMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'income' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
+      })
+      .from(moneyTransaction)
+      .where(whereClause),
+    db
+      .select({
+        categoryId: moneyTransaction.categoryId,
+        valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+      })
+      .from(moneyTransaction)
+      .where(and(whereClause, eq(moneyTransaction.kind, "expense")))
+      .groupBy(moneyTransaction.categoryId),
+    db
+      .select({
+        month: monthExpr,
+        expenseMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'expense' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
+        incomeMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'income' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
+      })
+      .from(moneyTransaction)
+      .where(whereClause)
+      .groupBy(monthExpr)
+      .orderBy(monthExpr),
+    db
+      .select({
+        source: sql<string>`coalesce(${moneyAccount.name}, 'Account')`,
+        target: sql<string>`coalesce(${moneyCategory.name}, 'Uncategorized')`,
+        valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+      })
+      .from(moneyTransaction)
+      .innerJoin(moneyAccount, eq(moneyTransaction.accountId, moneyAccount.id))
+      .leftJoin(
+        moneyCategory,
+        eq(moneyTransaction.categoryId, moneyCategory.id),
+      )
+      .where(and(whereClause, eq(moneyTransaction.kind, "expense")))
+      .groupBy(
+        moneyTransaction.accountId,
+        moneyAccount.name,
+        moneyTransaction.categoryId,
+        moneyCategory.name,
+      ),
+    db.execute(sql`
+      SELECT DISTINCT ON (d)
+        to_char(d, 'YYYY-MM-DD') AS date,
+        c AS cumulative
+      FROM (
+        SELECT
+          (occurred_at AT TIME ZONE 'utc')::date AS d,
+          occurred_at,
+          id,
+          SUM(
+            CASE kind
+              WHEN 'income' THEN amount_minor
+              WHEN 'expense' THEN -amount_minor
+              ELSE 0
+            END
+          ) OVER (ORDER BY occurred_at ASC, id ASC) AS c
+        FROM ${moneyTransaction}
+        WHERE ${whereClause}
+      ) x
+      ORDER BY d, occurred_at DESC, id DESC
+    `),
+  ]);
 
   const catName = new Map(categories.map((c) => [c.id, c.name]));
-  const accName = new Map(accounts.map((a) => [a.id, a.name]));
 
-  const pieMap = new Map<string, number>();
-  const monthMap = new Map<string, { expense: number; income: number }>();
-  const sankeyAgg = new Map<string, number>();
-
-  const linePoints: { date: string; cumulative: number }[] = [];
-  let cumulative = 0;
-
-  let expenseMinorTotal = 0;
-  let incomeMinorTotal = 0;
-  for (const tx of txs) {
-    if (tx.kind === "expense") expenseMinorTotal += tx.amountMinor;
-    if (tx.kind === "income") incomeMinorTotal += tx.amountMinor;
-  }
+  const stat = statRows[0];
+  const expenseMinorTotal = Number(stat?.expenseMinor ?? 0);
+  const incomeMinorTotal = Number(stat?.incomeMinor ?? 0);
   const netMinorTotal = incomeMinorTotal - expenseMinorTotal;
+  const transactionCount = Number(stat?.transactionCount ?? 0);
 
-  const sorted = [...txs].sort(
-    (a, b) => a.occurredAt.getTime() - b.occurredAt.getTime(),
-  );
-
-  for (const tx of sorted) {
-    const day = tx.occurredAt.toISOString().slice(0, 10);
-    const sa = signedAmount(tx.kind, tx.amountMinor);
-    cumulative += sa;
-    linePoints.push({ date: day, cumulative });
-
-    if (tx.kind === "expense") {
-      const ckey = tx.categoryId ?? "uncategorized";
-      pieMap.set(ckey, (pieMap.get(ckey) ?? 0) + tx.amountMinor);
-
-      const mkey = `${tx.occurredAt.getUTCFullYear()}-${String(tx.occurredAt.getUTCMonth() + 1).padStart(2, "0")}`;
-      const cur = monthMap.get(mkey) ?? { expense: 0, income: 0 };
-      cur.expense += tx.amountMinor;
-      monthMap.set(mkey, cur);
-
-      const source = accName.get(tx.accountId) ?? "Account";
-      const target =
-        (tx.categoryId ? catName.get(tx.categoryId) : null) ??
-        "Uncategorized";
-      const sk = `${source}|${target}`;
-      sankeyAgg.set(sk, (sankeyAgg.get(sk) ?? 0) + tx.amountMinor);
+  const pie = pieRows.map((row) => {
+    const categoryId = row.categoryId;
+    const valueMinor = Number(row.valueMinor);
+    if (categoryId == null) {
+      return {
+        categoryId: null as string | null,
+        label: "Uncategorized",
+        valueMinor,
+      };
     }
+    return {
+      categoryId,
+      label: catName.get(categoryId) ?? categoryId,
+      valueMinor,
+    };
+  });
 
-    if (tx.kind === "income") {
-      const mkey = `${tx.occurredAt.getUTCFullYear()}-${String(tx.occurredAt.getUTCMonth() + 1).padStart(2, "0")}`;
-      const cur = monthMap.get(mkey) ?? { expense: 0, income: 0 };
-      cur.income += tx.amountMinor;
-      monthMap.set(mkey, cur);
-    }
-  }
-
-  const pie = [...pieMap.entries()].map(([categoryId, valueMinor]) => ({
-    categoryId: categoryId === "uncategorized" ? null : categoryId,
-    label:
-      categoryId === "uncategorized"
-        ? "Uncategorized"
-        : (catName.get(categoryId) ?? categoryId),
-    valueMinor,
+  const column = columnRows.map((row) => ({
+    month: String(row.month),
+    expenseMinor: Number(row.expenseMinor),
+    incomeMinor: Number(row.incomeMinor),
   }));
-
-  const column = [...monthMap.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, v]) => ({
-      month,
-      expenseMinor: v.expense,
-      incomeMinor: v.income,
-    }));
 
   const sankeyNodesSet = new Set<string>();
   const sankeyLinks: { source: string; target: string; value: number }[] = [];
-  for (const [key, value] of sankeyAgg.entries()) {
-    const [source, target] = key.split("|");
+  for (const row of sankeyRows) {
+    const source = String(row.source);
+    const target = String(row.target);
+    const value = Number(row.valueMinor);
+    if (value <= 0) continue;
     sankeyNodesSet.add(source);
     sankeyNodesSet.add(target);
     sankeyLinks.push({ source, target, value });
   }
-
   const sankey = {
     nodes: [...sankeyNodesSet].map((name) => ({ name })),
     links: sankeyLinks,
   };
 
-  const lineByDay = new Map<string, number>();
-  for (const p of linePoints) {
-    lineByDay.set(p.date, p.cumulative);
-  }
-  const line = [...lineByDay.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, cumulative]) => ({ date, cumulative }));
+  const lineRaw = lineExec as unknown as Iterable<{
+    date: string;
+    cumulative: string | bigint | null;
+  }>;
+  const line = Array.from(lineRaw).map((row) => ({
+    date: String(row.date),
+    cumulative: Number(row.cumulative ?? 0),
+  }));
 
   return NextResponse.json({
     data: {
@@ -157,7 +177,7 @@ export async function GET(req: Request) {
         expenseMinor: expenseMinorTotal,
         incomeMinor: incomeMinorTotal,
         netMinor: netMinorTotal,
-        transactionCount: txs.length,
+        transactionCount,
       },
       range: { from, to },
     },

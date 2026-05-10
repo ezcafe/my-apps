@@ -225,18 +225,27 @@ export async function cloneMoneyWorkspaceStructure(
       .where(eq(moneyBudget.workspaceId, sourceWorkspaceId));
 
     for (const b of sourceBudgets) {
-      let nextCategoryId: string | null | undefined = b.categoryId;
-      if (b.categoryId) {
-        const m = categoryMap.get(b.categoryId);
+      let nextScopeId: string | null = null;
+      if (b.scopeType === "workspace") {
+        nextScopeId = null;
+      } else if (b.scopeType === "category" && b.scopeId) {
+        const m = categoryMap.get(b.scopeId);
         if (!m) continue;
-        nextCategoryId = m;
+        nextScopeId = m;
+      } else if (b.scopeType === "account" && b.scopeId) {
+        const m = accountMap.get(b.scopeId);
+        if (!m) continue;
+        nextScopeId = m;
+      } else if (b.scopeType === "tag" && b.scopeId) {
+        const m = tagMap.get(b.scopeId);
+        if (!m) continue;
+        nextScopeId = m;
       }
 
       await tx.insert(moneyBudget).values({
         workspaceId: targetWorkspaceId,
-        categoryId: nextCategoryId ?? null,
-        periodStart: b.periodStart,
-        periodEnd: b.periodEnd,
+        scopeType: b.scopeType,
+        scopeId: nextScopeId,
         limitAmountMinor: b.limitAmountMinor,
         currency: b.currency,
       });

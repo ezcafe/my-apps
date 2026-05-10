@@ -1,6 +1,8 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -36,6 +38,13 @@ export const moneyCadenceEnum = pgEnum("money_cadence", [
   "monthly",
   "quarterly",
   "yearly",
+]);
+
+export const moneyBudgetScopeEnum = pgEnum("money_budget_scope", [
+  "workspace",
+  "category",
+  "account",
+  "tag",
 ]);
 
 export const moneyAccount = pgTable(
@@ -176,6 +185,21 @@ export const moneyTransaction = pgTable(
   },
   (t) => [
     index("money_tx_workspace_occurred_idx").on(t.workspaceId, t.occurredAt),
+    index("money_tx_workspace_kind_occurred_idx").on(
+      t.workspaceId,
+      t.kind,
+      t.occurredAt,
+    ),
+    index("money_tx_workspace_category_occurred_idx").on(
+      t.workspaceId,
+      t.categoryId,
+      t.occurredAt,
+    ),
+    index("money_tx_workspace_merchant_occurred_idx").on(
+      t.workspaceId,
+      t.merchantId,
+      t.occurredAt,
+    ),
     index("money_tx_account_idx").on(t.accountId),
   ],
 );
@@ -190,7 +214,10 @@ export const moneyTransactionTag = pgTable(
       .notNull()
       .references(() => moneyTag.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.transactionId, t.tagId] })],
+  (t) => [
+    primaryKey({ columns: [t.transactionId, t.tagId] }),
+    index("money_transaction_tag_tag_tx_idx").on(t.tagId, t.transactionId),
+  ],
 );
 
 export const moneyRule = pgTable(
@@ -222,13 +249,9 @@ export const moneyBudget = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspace.id, { onDelete: "cascade" }),
-    categoryId: uuid("category_id").references(() => moneyCategory.id, {
-      onDelete: "cascade",
-    }),
-    periodStart: timestamp("period_start", {
-      withTimezone: true,
-    }).notNull(),
-    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    scopeType: moneyBudgetScopeEnum("scope_type").notNull(),
+    /** Null only when scopeType is workspace; otherwise category, account, or tag id. */
+    scopeId: uuid("scope_id"),
     limitAmountMinor: bigint("limit_amount_minor", {
       mode: "number",
     }).notNull(),
@@ -237,5 +260,18 @@ export const moneyBudget = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (t) => [index("money_budget_workspace_idx").on(t.workspaceId)],
+  (t) => [
+    index("money_budget_workspace_idx").on(t.workspaceId),
+    index("money_budget_workspace_scope_idx").on(t.workspaceId, t.scopeType),
+    check(
+      "money_budget_scope_id_ck",
+      sql`(${t.scopeType} = 'workspace' AND ${t.scopeId} IS NULL) OR (${t.scopeType} <> 'workspace' AND ${t.scopeId} IS NOT NULL)`,
+    ),
+    uniqueIndex("money_budget_workspace_one_uq")
+      .on(t.workspaceId)
+      .where(sql`${t.scopeType} = 'workspace'`),
+    uniqueIndex("money_budget_scope_entity_uq")
+      .on(t.workspaceId, t.scopeType, t.scopeId)
+      .where(sql`${t.scopeType} <> 'workspace'`),
+  ],
 );

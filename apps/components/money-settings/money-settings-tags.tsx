@@ -19,6 +19,9 @@ export function MoneySettingsTagsSection() {
   const [newTag, setNewTag] = useState("");
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
   const loadTags = useCallback(async () => {
     const { data } = await moneyApiJson<TagRow[]>("/api/money/tags");
     setTags(data);
@@ -42,6 +45,51 @@ export function MoneySettingsTagsSection() {
     };
   }, [loadTags]);
 
+  function startEdit(t: TagRow) {
+    setEditingId(t.id);
+    setEditName(t.name);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingId || !editName.trim()) return;
+    try {
+      await moneyApiJson(`/api/money/tags/${editingId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: editName.trim() }),
+      });
+      cancelEdit();
+      await loadTags();
+      notify.success("Settings updated", "Tag saved.");
+    } catch (err: unknown) {
+      notify.error(
+        "Couldn’t save settings",
+        err instanceof Error ? err.message : "Something went wrong",
+      );
+    }
+  }
+
+  async function deleteTag(id: string, name: string) {
+    if (!window.confirm(`Delete tag “${name}”? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      await moneyApiJson(`/api/money/tags/${id}`, { method: "DELETE" });
+      if (editingId === id) cancelEdit();
+      await loadTags();
+      notify.success("Settings updated", "Tag deleted.");
+    } catch (err: unknown) {
+      notify.error(
+        "Couldn’t delete tag",
+        err instanceof Error ? err.message : "Something went wrong",
+      );
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!newTag.trim()) return;
@@ -63,7 +111,7 @@ export function MoneySettingsTagsSection() {
 
   return (
     <>
-      <MoneySettingsBackLink />
+      <MoneySettingsBackLink current="Tags" />
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -95,7 +143,44 @@ export function MoneySettingsTagsSection() {
                 key={t.id}
                 className="rounded-lg border border-border bg-background px-3 py-2"
               >
-                {t.name}
+                {editingId === t.id ? (
+                  <form className="flex flex-col gap-3" onSubmit={saveEdit}>
+                    <input
+                      className={inputCls}
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      aria-label="Tag name"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button type="submit" className={secondaryBtnCls}>
+                        Save
+                      </button>
+                      <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-foreground">{t.name}</span>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        onClick={() => startEdit(t)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        onClick={() => void deleteTag(t.id, t.name)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

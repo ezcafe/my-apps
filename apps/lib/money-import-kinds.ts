@@ -122,17 +122,21 @@ export function moneyImportFieldDefs(kind: MoneyImportKind): MoneyImportFieldDef
     case "budgets":
       return [
         {
-          key: "categoryId",
-          label: "Category (leaf)",
+          key: "scopeType",
+          label: "Scope (workspace / category / account / tag)",
+          required: true,
+          valueKind: "enum",
+          enumValues: ["workspace", "category", "account", "tag"],
+        },
+        {
+          key: "scopeId",
+          label: "Scope id or name (omit for workspace)",
           required: false,
           valueKind: "text",
-          fk: "category_leaf",
         },
-        { key: "periodStart", label: "Period start", required: true, valueKind: "datetime" },
-        { key: "periodEnd", label: "Period end", required: true, valueKind: "datetime" },
         {
           key: "limitAmountMinor",
-          label: "Limit (minor units)",
+          label: "Monthly limit (minor units)",
           required: true,
           valueKind: "money_minor",
           allowMajorUnit: true,

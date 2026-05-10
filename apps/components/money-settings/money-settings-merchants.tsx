@@ -19,6 +19,9 @@ export function MoneySettingsMerchantsSection() {
   const [newMerchant, setNewMerchant] = useState("");
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
   const loadMerchants = useCallback(async () => {
     const { data } = await moneyApiJson<Merchant[]>("/api/money/merchants");
     setMerchants(data);
@@ -42,6 +45,53 @@ export function MoneySettingsMerchantsSection() {
     };
   }, [loadMerchants]);
 
+  function startEdit(m: Merchant) {
+    setEditingId(m.id);
+    setEditName(m.name);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingId || !editName.trim()) return;
+    try {
+      await moneyApiJson(`/api/money/merchants/${editingId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: editName.trim() }),
+      });
+      cancelEdit();
+      await loadMerchants();
+      notify.success("Settings updated", "Merchant saved.");
+    } catch (err: unknown) {
+      notify.error(
+        "Couldn’t save settings",
+        err instanceof Error ? err.message : "Something went wrong",
+      );
+    }
+  }
+
+  async function deleteMerchant(id: string, name: string) {
+    if (
+      !window.confirm(`Delete merchant “${name}”? This cannot be undone.`)
+    ) {
+      return;
+    }
+    try {
+      await moneyApiJson(`/api/money/merchants/${id}`, { method: "DELETE" });
+      if (editingId === id) cancelEdit();
+      await loadMerchants();
+      notify.success("Settings updated", "Merchant deleted.");
+    } catch (err: unknown) {
+      notify.error(
+        "Couldn’t delete merchant",
+        err instanceof Error ? err.message : "Something went wrong",
+      );
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!newMerchant.trim()) return;
@@ -63,7 +113,7 @@ export function MoneySettingsMerchantsSection() {
 
   return (
     <>
-      <MoneySettingsBackLink />
+      <MoneySettingsBackLink current="Merchants" />
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -95,7 +145,44 @@ export function MoneySettingsMerchantsSection() {
                 key={m.id}
                 className="rounded-lg border border-border bg-background px-3 py-2"
               >
-                {m.name}
+                {editingId === m.id ? (
+                  <form className="flex flex-col gap-3" onSubmit={saveEdit}>
+                    <input
+                      className={inputCls}
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      aria-label="Merchant name"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button type="submit" className={secondaryBtnCls}>
+                        Save
+                      </button>
+                      <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-foreground">{m.name}</span>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        onClick={() => startEdit(m)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        onClick={() => void deleteMerchant(m.id, m.name)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

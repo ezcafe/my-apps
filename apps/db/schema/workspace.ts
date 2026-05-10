@@ -33,6 +33,8 @@ export const workspace = pgTable(
     kind: workspaceKindEnum("kind").notNull(),
     /** Set when kind is personal; null for shared workspaces. At most one row per user (partial unique). */
     ownedByUserSub: text("owned_by_user_sub"),
+    /** App-wide default currency for amount display/input; required before using Money features. */
+    defaultCurrency: text("default_currency"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

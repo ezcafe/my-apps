@@ -7,6 +7,7 @@ import {
   sankeyJustify,
   sankeyLinkHorizontal,
 } from "d3-sankey";
+import { colorByIndex } from "@/components/charts/chart-colors";
 
 type Link = { source: string; target: string; value: number };
 
@@ -103,8 +104,8 @@ function SankeyInner({
               key={i}
               d={path}
               fill="none"
-              stroke="currentColor"
-              strokeOpacity={0.35}
+              stroke={colorByIndex(i)}
+              strokeOpacity={0.45}
               strokeWidth={Math.max(1, link.width ?? 1)}
             />
           );
@@ -114,8 +115,8 @@ function SankeyInner({
             <rect
               height={(node.y1 ?? 0) - (node.y0 ?? 0)}
               width={(node.x1 ?? 0) - (node.x0 ?? 0)}
-              fill="currentColor"
-              opacity={0.25}
+              fill={colorByIndex(i)}
+              opacity={0.85}
               rx={2}
             />
             <text

@@ -3,6 +3,7 @@
 import { Group } from "@visx/group";
 import Pie from "@visx/shape/lib/shapes/Pie";
 import { ParentSize } from "@visx/responsive";
+import { colorByIndex } from "@/components/charts/chart-colors";
 
 type Datum = { label: string; valueMinor: number };
 
@@ -17,16 +18,6 @@ export function PieSpendChart({ data }: { data: Datum[] }) {
     </ParentSize>
   );
 }
-
-const colors = [
-  "#6366f1",
-  "#22c55e",
-  "#f97316",
-  "#eab308",
-  "#ec4899",
-  "#06b6d4",
-  "#a855f7",
-];
 
 function PieInner({
   width,
@@ -61,7 +52,7 @@ function PieInner({
               <path
                 key={`arc-${arc.data.label}-${i}`}
                 d={provided.path(arc) ?? ""}
-                fill={colors[i % colors.length]}
+                fill={colorByIndex(i)}
                 opacity={0.9}
               />
             ))

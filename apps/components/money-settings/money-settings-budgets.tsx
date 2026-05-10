@@ -2,53 +2,142 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
+import { useWorkspaceCurrency } from "@/components/workspace-gate";
 import { Alert } from "@/components/ui/alert";
-import { formatMinor, parseMajorToMinor } from "@/lib/format-money";
+import {
+  formatMinor,
+  minorToMajorInput,
+  parseMajorToMinor,
+} from "@/lib/format-money";
 import { moneyApiJson } from "@/lib/money-fetch";
 import {
   moneyCategoryById,
   moneyCategoryLabel,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
+import { moneyBudgetScopeTypeSchema } from "@/lib/validators/money";
+import type { z } from "zod";
 import {
   inputCls,
   MoneySettingsBackLink,
   primaryBtnCls,
+  secondaryBtnCls,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
-type Category = MoneyCategoryRow;
+type BudgetScope = z.infer<typeof moneyBudgetScopeTypeSchema>;
+
+type Category = MoneyCategoryRow & { archived?: boolean };
+type AccountRow = { id: string; name: string; archived?: boolean };
+type TagRow = { id: string; name: string };
+
 type BudgetRow = {
   id: string;
   limitAmountMinor: number;
-  periodStart: string;
-  periodEnd: string;
-  categoryId: string | null;
+  currency: string;
+  scopeType: BudgetScope;
+  scopeId: string | null;
+  createdAt: string;
+  spentAmountMinor?: number;
+  effectiveLimitAmountMinor?: number;
+  progressPct?: number;
+  overBudget?: boolean;
 };
+
+const SCOPE_OPTIONS: { value: BudgetScope; label: string }[] = [
+  { value: "workspace", label: "Whole workspace" },
+  { value: "category", label: "Category" },
+  { value: "account", label: "Account" },
+  { value: "tag", label: "Tag" },
+];
+
+function budgetRowLabel(
+  b: BudgetRow,
+  categoryById: ReturnType<typeof moneyCategoryById>,
+  accountById: Map<string, AccountRow>,
+  tagById: Map<string, TagRow>,
+): string {
+  if (b.scopeType === "workspace") return "Whole workspace";
+  if (b.scopeType === "category" && b.scopeId) {
+    const c = categoryById.get(b.scopeId) ?? null;
+    return c ? moneyCategoryLabel(c, categoryById) : "Category";
+  }
+  if (b.scopeType === "account" && b.scopeId) {
+    return accountById.get(b.scopeId)?.name ?? "Account";
+  }
+  if (b.scopeType === "tag" && b.scopeId) {
+    return tagById.get(b.scopeId)?.name ?? "Tag";
+  }
+  return b.scopeType;
+}
+
+function currentUtcMonthRangeIso(): { from: string; to: string } {
+  const now = new Date();
+  const from = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+  );
+  const to = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999),
+  );
+  return { from: from.toISOString(), to: to.toISOString() };
+}
 
 export function MoneySettingsBudgetsSection() {
   const notify = useNotify();
+  const { defaultCurrency } = useWorkspaceCurrency();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<AccountRow[]>([]);
+  const [tags, setTags] = useState<TagRow[]>([]);
   const [budgets, setBudgets] = useState<BudgetRow[]>([]);
 
+  const [budScopeType, setBudScopeType] = useState<BudgetScope>("workspace");
+  const [budScopeId, setBudScopeId] = useState("");
   const [budLimit, setBudLimit] = useState("");
-  const [budStart, setBudStart] = useState(() =>
-    new Date().toISOString().slice(0, 16),
-  );
-  const [budEnd, setBudEnd] = useState(() =>
-    new Date(Date.now() + 86400000 * 30).toISOString().slice(0, 16),
-  );
-  const [budCategoryId, setBudCategoryId] = useState("");
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
 
-  const categoryById = useMemo(() => moneyCategoryById(categories), [categories]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editScopeType, setEditScopeType] = useState<BudgetScope>("workspace");
+  const [editScopeId, setEditScopeId] = useState("");
+  const [editLimit, setEditLimit] = useState("");
+
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => !c.archived),
+    [categories],
+  );
+  const visibleAccounts = useMemo(
+    () => accounts.filter((a) => !a.archived),
+    [accounts],
+  );
+
+  const categoryById = useMemo(
+    () => moneyCategoryById(visibleCategories),
+    [visibleCategories],
+  );
+  const accountById = useMemo(
+    () => new Map(visibleAccounts.map((a) => [a.id, a])),
+    [visibleAccounts],
+  );
+  const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
 
   const loadCategories = useCallback(async () => {
     const { data } = await moneyApiJson<Category[]>("/api/money/categories");
     setCategories(data);
   }, []);
+  const loadAccounts = useCallback(async () => {
+    const { data } = await moneyApiJson<AccountRow[]>("/api/money/accounts");
+    setAccounts(data);
+  }, []);
+  const loadTags = useCallback(async () => {
+    const { data } = await moneyApiJson<TagRow[]>("/api/money/tags");
+    setTags(data);
+  }, []);
   const loadBudgets = useCallback(async () => {
-    const { data } = await moneyApiJson<BudgetRow[]>("/api/money/budgets");
+    const { from, to } = currentUtcMonthRangeIso();
+    const params = new URLSearchParams();
+    params.set("includeSpent", "1");
+    params.set("from", from);
+    params.set("to", to);
+    const { data } = await moneyApiJson<BudgetRow[]>(`/api/money/budgets?${params.toString()}`);
     setBudgets(data);
   }, []);
 
@@ -57,7 +146,7 @@ export function MoneySettingsBudgetsSection() {
     queueMicrotask(() => {
       void (async () => {
         try {
-          await Promise.all([loadCategories(), loadBudgets()]);
+          await Promise.all([loadCategories(), loadAccounts(), loadTags(), loadBudgets()]);
         } catch (e: unknown) {
           if (!cancelled) {
             setBootstrapErr(e instanceof Error ? e.message : "Error");
@@ -68,28 +157,37 @@ export function MoneySettingsBudgetsSection() {
     return () => {
       cancelled = true;
     };
-  }, [loadCategories, loadBudgets]);
+  }, [loadCategories, loadAccounts, loadTags, loadBudgets]);
 
-  async function saveBudget(e: React.FormEvent) {
+  function startEdit(b: BudgetRow) {
+    setEditingId(b.id);
+    setEditScopeType(b.scopeType);
+    setEditScopeId(b.scopeId ?? "");
+    setEditLimit(minorToMajorInput(b.limitAmountMinor, defaultCurrency));
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(e: React.FormEvent) {
     e.preventDefault();
+    if (!editingId) return;
     try {
-      const minor = parseMajorToMinor(budLimit);
+      const minor = parseMajorToMinor(editLimit, defaultCurrency);
       if (minor == null || minor <= 0) throw new Error("Invalid budget limit");
-      const start = new Date(budStart);
-      const end = new Date(budEnd);
-      if (end <= start) throw new Error("End after start");
-
-      await moneyApiJson("/api/money/budgets", {
-        method: "POST",
+      if (editScopeType !== "workspace" && !editScopeId) {
+        throw new Error("Choose a category, account, or tag");
+      }
+      await moneyApiJson(`/api/money/budgets/${editingId}`, {
+        method: "PATCH",
         body: JSON.stringify({
-          categoryId: budCategoryId || null,
-          periodStart: start.toISOString(),
-          periodEnd: end.toISOString(),
+          scopeType: editScopeType,
+          scopeId: editScopeType === "workspace" ? null : editScopeId,
           limitAmountMinor: minor,
-          currency: "USD",
         }),
       });
-      setBudLimit("");
+      cancelEdit();
       await loadBudgets();
       notify.success("Settings updated", "Budget saved.");
     } catch (e: unknown) {
@@ -100,9 +198,130 @@ export function MoneySettingsBudgetsSection() {
     }
   }
 
+  async function saveBudget(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      const minor = parseMajorToMinor(budLimit, defaultCurrency);
+      if (minor == null || minor <= 0) throw new Error("Invalid budget limit");
+      if (budScopeType !== "workspace" && !budScopeId) {
+        throw new Error("Choose a category, account, or tag");
+      }
+
+      await moneyApiJson("/api/money/budgets", {
+        method: "POST",
+        body: JSON.stringify({
+          scopeType: budScopeType,
+          scopeId: budScopeType === "workspace" ? null : budScopeId,
+          limitAmountMinor: minor,
+        }),
+      });
+      setBudLimit("");
+      setBudScopeType("workspace");
+      setBudScopeId("");
+      await loadBudgets();
+      notify.success("Settings updated", "Budget saved.");
+    } catch (e: unknown) {
+      notify.error(
+        "Couldn’t save budget",
+        e instanceof Error ? e.message : "Something went wrong",
+      );
+    }
+  }
+
+  async function deleteBudget(id: string) {
+    if (!window.confirm("Delete this budget? This cannot be undone.")) return;
+    try {
+      await moneyApiJson(`/api/money/budgets/${id}`, { method: "DELETE" });
+      if (editingId === id) cancelEdit();
+      await loadBudgets();
+      notify.success("Budget removed", "The budget was deleted.");
+    } catch (e: unknown) {
+      notify.error(
+        "Couldn’t delete budget",
+        e instanceof Error ? e.message : "Something went wrong",
+      );
+    }
+  }
+
+  function scopeSelect(
+    scopeType: BudgetScope,
+    scopeId: string,
+    onScopeType: (v: BudgetScope) => void,
+    onScopeId: (v: string) => void,
+    idPrefix: string,
+  ) {
+    return (
+      <>
+        <select
+          id={`${idPrefix}-scope-type`}
+          className={inputCls}
+          value={scopeType}
+          onChange={(e) => {
+            onScopeType(e.target.value as BudgetScope);
+            onScopeId("");
+          }}
+        >
+          {SCOPE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        {scopeType === "category" ? (
+          <select
+            id={`${idPrefix}-scope-cat`}
+            className={inputCls}
+            value={scopeId}
+            onChange={(e) => onScopeId(e.target.value)}
+            required
+          >
+            <option value="">Select category</option>
+            {visibleCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {moneyCategoryLabel(c, categoryById)}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        {scopeType === "account" ? (
+          <select
+            id={`${idPrefix}-scope-acct`}
+            className={inputCls}
+            value={scopeId}
+            onChange={(e) => onScopeId(e.target.value)}
+            required
+          >
+            <option value="">Select account</option>
+            {visibleAccounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        {scopeType === "tag" ? (
+          <select
+            id={`${idPrefix}-scope-tag`}
+            className={inputCls}
+            value={scopeId}
+            onChange={(e) => onScopeId(e.target.value)}
+            required
+          >
+            <option value="">Select tag</option>
+            {tags.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <>
-      <MoneySettingsBackLink />
+      <MoneySettingsBackLink current="Budgets" />
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -114,36 +333,13 @@ export function MoneySettingsBudgetsSection() {
       <SettingsSection
         id="money-settings-budgets-page"
         title="Budgets"
-        description="Set spending caps for a period. Scope to one category or the whole workspace."
+        description="Set a monthly spending cap. One budget per workspace, category, account, or tag. Caps repeat every calendar month."
       >
         <form className="auto-fit-2 max-w-4xl" onSubmit={saveBudget}>
-          <select
-            className={inputCls}
-            value={budCategoryId}
-            onChange={(e) => setBudCategoryId(e.target.value)}
-          >
-            <option value="">Whole workspace</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {moneyCategoryLabel(c, categoryById)}
-              </option>
-            ))}
-          </select>
-          <input
-            type="datetime-local"
-            className={inputCls}
-            value={budStart}
-            onChange={(e) => setBudStart(e.target.value)}
-          />
-          <input
-            type="datetime-local"
-            className={inputCls}
-            value={budEnd}
-            onChange={(e) => setBudEnd(e.target.value)}
-          />
+          {scopeSelect(budScopeType, budScopeId, setBudScopeType, setBudScopeId, "new")}
           <input
             className={inputCls}
-            placeholder="Limit amount"
+            placeholder="Monthly limit amount"
             value={budLimit}
             onChange={(e) => setBudLimit(e.target.value)}
           />
@@ -154,15 +350,75 @@ export function MoneySettingsBudgetsSection() {
         <div className="mt-8 border-t border-border pt-8">
           <h3 className="text-sm font-medium text-foreground">Active budgets</h3>
           <ul className="mt-3 space-y-2 text-sm text-muted">
-            {budgets.map((b) => (
+            {budgets.map((b) => {
+              const overBudget = b.overBudget === true;
+              const spentMinor = b.spentAmountMinor ?? 0;
+              return (
               <li
                 key={b.id}
-                className="rounded-lg border border-border bg-background px-3 py-2"
+                className={`rounded-lg px-3 py-2 ${
+                  overBudget
+                    ? "border border-[color:var(--danger)]/40 bg-[color-mix(in_oklab,var(--danger)_8%,var(--background))]"
+                    : "border border-border bg-background"
+                }`}
               >
-                {b.periodStart.slice(0, 10)} → {b.periodEnd.slice(0, 10)} ·{" "}
-                {formatMinor(b.limitAmountMinor)}
+                {editingId === b.id ? (
+                  <form className="auto-fit-2 max-w-4xl" onSubmit={saveEdit}>
+                    {scopeSelect(
+                      editScopeType,
+                      editScopeId,
+                      setEditScopeType,
+                      setEditScopeId,
+                      `edit-${b.id}`,
+                    )}
+                    <input
+                      className={inputCls}
+                      placeholder="Monthly limit amount"
+                      value={editLimit}
+                      onChange={(e) => setEditLimit(e.target.value)}
+                    />
+                    <div className="col-span-full flex flex-wrap gap-2">
+                      <button type="submit" className={primaryBtnCls}>
+                        Save changes
+                      </button>
+                      <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className={overBudget ? "text-[color:var(--danger)]" : ""}>
+                      {budgetRowLabel(b, categoryById, accountById, tagById)} ·{" "}
+                      {formatMinor(b.limitAmountMinor, defaultCurrency)} / month
+                      {` · ${formatMinor(spentMinor, defaultCurrency)} spent`}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {overBudget ? (
+                        <span className="rounded-full border border-[color:var(--danger)]/50 bg-[color-mix(in_oklab,var(--danger)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-[color:var(--danger)]">
+                          Overspent
+                        </span>
+                      ) : null}
+                      <button
+                        type="button"
+                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        onClick={() => startEdit(b)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        onClick={() => void deleteBudget(b.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       </SettingsSection>

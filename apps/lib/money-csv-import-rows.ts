@@ -18,6 +18,8 @@ import {
   parseIntCell,
   parseMoneyMinor,
   parseUuidList,
+  resolveLeafCategoryId,
+  resolveUniqueByName,
   splitList,
 } from "@/lib/money-import-resolve";
 import {
@@ -31,10 +33,14 @@ import {
   transactionCreateSchema,
 } from "@/lib/validators/money";
 
+const BUDGET_SCOPE_ID_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export type MoneyCsvImportFkContext = {
   accounts: { id: string; name: string }[];
   merchants: { id: string; name: string }[];
   categories: MoneyCategoryRow[];
+  tags: { id: string; name: string }[];
 };
 
 function cell(
@@ -222,22 +228,39 @@ function buildOneRow(
         color: g("color") || null,
       };
     case "budgets": {
-      const fCat = defs.find((d) => d.key === "categoryId")!;
-      const catRaw = g("categoryId");
-      let categoryId: string | null | undefined = null;
-      if (catRaw) {
-        categoryId = resolveFkValue(
-          fCat,
-          catRaw,
-          valuePicksByField.categoryId,
-          fkMaps.categoryId ?? new Map(),
-          fkCtx,
-        ) as string | null | undefined;
+      const fScopeType = defs.find((d) => d.key === "scopeType")!;
+      const scopeRaw = g("scopeType");
+      const scopeTypeEnumMap = enumMapFromPicks(
+        fScopeType,
+        valuePicksByField.scopeType,
+      );
+      const scopeType = resolveEnumForImport(
+        scopeRaw,
+        fScopeType.label,
+        ["workspace", "category", "account", "tag"],
+        scopeTypeEnumMap,
+      );
+      if (!scopeType) return null;
+
+      const tags = fkCtx.tags ?? [];
+      let scopeId: string | null = null;
+      if (scopeType !== "workspace") {
+        const idRaw = g("scopeId").trim();
+        if (!idRaw) return null;
+        if (BUDGET_SCOPE_ID_UUID_RE.test(idRaw)) {
+          scopeId = idRaw;
+        } else if (scopeType === "category") {
+          scopeId = resolveLeafCategoryId(fkCtx.categories, idRaw);
+        } else if (scopeType === "account") {
+          scopeId = resolveUniqueByName(fkCtx.accounts, idRaw, "account");
+        } else {
+          scopeId = resolveUniqueByName(tags, idRaw, "tag");
+        }
       }
+
       return {
-        categoryId: categoryId ?? null,
-        periodStart: normalizeIsoDateTime(g("periodStart")),
-        periodEnd: normalizeIsoDateTime(g("periodEnd")),
+        scopeType,
+        scopeId,
         limitAmountMinor: parseMoneyMinor(
           g("limitAmountMinor"),
           true,

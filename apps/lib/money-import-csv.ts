@@ -257,14 +257,10 @@ function mapCategoryRow(row: Record<string, unknown>): unknown {
 
 function mapBudgetRow(row: Record<string, unknown>): unknown {
   const out: Record<string, unknown> = {};
-  const categoryId = coerceOptionalString(row.categoryId);
-  if (categoryId !== undefined) {
-    out.categoryId = categoryId;
-  }
-  const periodStart = coerceOptionalString(row.periodStart);
-  if (periodStart !== undefined) out.periodStart = periodStart;
-  const periodEnd = coerceOptionalString(row.periodEnd);
-  if (periodEnd !== undefined) out.periodEnd = periodEnd;
+  const scopeType = coerceOptionalString(row.scopeType);
+  if (scopeType !== undefined) out.scopeType = scopeType;
+  const scopeId = coerceOptionalString(row.scopeId);
+  if (scopeId !== undefined) out.scopeId = scopeId;
   const limit = coerceInt(row.limitAmountMinor);
   if (limit !== undefined) out.limitAmountMinor = limit;
   const currency = coerceOptionalString(row.currency);

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
 import { moneyApiJson } from "@/lib/money-fetch";
+import type { MoneyWorkspaceBootstrapData } from "@/lib/money-workspace-bootstrap-data";
 import { MoneySettingsResetSection } from "@/components/money-settings/money-settings-reset";
 import {
   inputCls,
@@ -17,6 +18,7 @@ type WorkspaceRow = {
   name: string;
   kind: "personal" | "shared";
   ownedByUserSub: string | null;
+  defaultCurrency: string | null;
   role: "owner" | "member";
   isDefault: boolean;
 };
@@ -55,23 +57,19 @@ export function MoneyWorkspaceSettings() {
   const [moneyWorkspaceId, setMoneyWorkspaceId] = useState("");
   const [defaultWsPick, setDefaultWsPick] = useState("");
   const [newSharedName, setNewSharedName] = useState("");
+  const [newSharedCurrency, setNewSharedCurrency] = useState("USD");
   const [seedMoneyOnShared, setSeedMoneyOnShared] = useState(true);
   const [cloneTargetId, setCloneTargetId] = useState("");
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
 
   const refreshMoneyWorkspaceContext = useCallback(async () => {
-    const { data: init } = await moneyApiJson<{ workspaceId: string }>(
-      "/api/money/workspace/init",
-    );
-    setMoneyWorkspaceId(init.workspaceId);
-    const { data: list } = await moneyApiJson<WorkspaceRow[]>(
-      "/api/workspace/list?app=money",
-    );
-    setWorkspaceList(list);
-    const { data: def } = await moneyApiJson<{
-      defaultWorkspaceId: string | null;
-    }>("/api/workspace/default?app=money");
-    setDefaultWsPick(def.defaultWorkspaceId ?? init.workspaceId);
+    const { data: boot } =
+      await moneyApiJson<MoneyWorkspaceBootstrapData>(
+        "/api/money/workspace/bootstrap",
+      );
+    setMoneyWorkspaceId(boot.workspaceId);
+    setWorkspaceList(boot.workspaces);
+    setDefaultWsPick(boot.defaultWorkspaceId ?? boot.workspaceId);
   }, []);
 
   useEffect(() => {
@@ -105,6 +103,31 @@ export function MoneyWorkspaceSettings() {
 
       <div className="space-y-6">
         <SettingsSection
+          id="money-settings-ledger"
+          title="Accounts & categories"
+          description="Detailed editors open on each page below. Everything applies to your currently selected Money workspace."
+        >
+          {/* Tailwind Plus “Actions with shared borders” grid list pattern */}
+          <ul
+            role="list"
+            className="grid grid-cols-1 gap-px overflow-hidden rounded-md bg-border shadow-sm ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)] sm:grid-cols-2 lg:grid-cols-3"
+            aria-label="Ledger and automation"
+          >
+            {LEDGER_MANAGEMENT_LINKS.map(({ href, label }) => (
+              <li key={href} className="min-w-0">
+                <Link
+                  href={href}
+                  className="relative flex items-center gap-x-3 bg-surface px-4 py-5 text-sm font-semibold text-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground"
+                >
+                  <span className="min-w-0 flex-1">{label}</span>
+                  <LedgerLinkChevron />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </SettingsSection>
+
+        <SettingsSection
           id="money-settings-workspaces"
           title="Workspaces"
           description="Default applies when you open Money without an active workspace cookie. Creating a shared workspace lets multiple members share one ledger."
@@ -118,72 +141,6 @@ export function MoneyWorkspaceSettings() {
               <div className="flex flex-col gap-4">
                 <div className="min-w-0">
                   <p className="text-sm font-medium leading-6 text-foreground">
-                    Default workspace
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-muted">
-                    Choose which workspace loads when you open Money without an
-                    active cookie.
-                  </p>
-                </div>
-                <form
-                  className="flex flex-wrap items-end gap-3"
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    try {
-                      await moneyApiJson("/api/workspace/default", {
-                        method: "PATCH",
-                        body: JSON.stringify({
-                          workspaceId: defaultWsPick,
-                          app: "money",
-                        }),
-                      });
-                      await refreshMoneyWorkspaceContext();
-                      notify.success(
-                        "Settings updated",
-                        "Default workspace saved.",
-                      );
-                    } catch (err: unknown) {
-                      notify.error(
-                        "Couldn’t save default workspace",
-                        err instanceof Error
-                          ? err.message
-                          : "Something went wrong",
-                      );
-                    }
-                  }}
-                >
-                  <label className="grid min-w-[min(100%,12rem)] flex-1 gap-1.5 text-sm">
-                    <span className="font-medium text-foreground">
-                      Workspace
-                    </span>
-                    <select
-                      className={inputCls}
-                      value={defaultWsPick}
-                      onChange={(e) => setDefaultWsPick(e.target.value)}
-                    >
-                      {workspaceList.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name}
-                          {w.kind === "shared" ? " (shared)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    type="submit"
-                    className={secondaryBtnCls}
-                    disabled={!defaultWsPick}
-                  >
-                    Save
-                  </button>
-                </form>
-              </div>
-            </li>
-
-            <li className="py-6">
-              <div className="flex flex-col gap-4">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-6 text-foreground">
                     New shared workspace
                   </p>
                   <p className="mt-1 text-sm leading-6 text-muted">
@@ -192,7 +149,7 @@ export function MoneyWorkspaceSettings() {
                   </p>
                 </div>
                 <form
-                  className="flex flex-wrap items-end gap-3"
+                  className="grid w-full gap-3"
                   onSubmit={async (e) => {
                     e.preventDefault();
                     try {
@@ -202,12 +159,14 @@ export function MoneyWorkspaceSettings() {
                         method: "POST",
                         body: JSON.stringify({
                           name: newSharedName.trim(),
+                          defaultCurrency: newSharedCurrency,
                           ...(seedMoneyOnShared
                             ? { seedApp: "money" as const }
                             : {}),
                         }),
                       });
                       setNewSharedName("");
+                      setNewSharedCurrency("USD");
                       await refreshMoneyWorkspaceContext();
                       notify.success(
                         "Settings updated",
@@ -223,7 +182,7 @@ export function MoneyWorkspaceSettings() {
                     }
                   }}
                 >
-                  <label className="grid min-w-[min(100%,12rem)] flex-1 gap-1.5 text-sm">
+                  <label className="grid w-full gap-1.5 text-sm">
                     <span className="font-medium text-foreground">Name</span>
                     <input
                       className={inputCls}
@@ -232,7 +191,23 @@ export function MoneyWorkspaceSettings() {
                       onChange={(e) => setNewSharedName(e.target.value)}
                     />
                   </label>
-                  <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm text-muted">
+                  <label className="grid w-full gap-1.5 text-sm">
+                    <span className="font-medium text-foreground">
+                      Default currency
+                    </span>
+                    <select
+                      className={inputCls}
+                      value={newSharedCurrency}
+                      onChange={(e) => setNewSharedCurrency(e.target.value)}
+                    >
+                      {["USD", "VND", "EUR", "GBP", "JPY"].map((currency) => (
+                        <option key={currency} value={currency}>
+                          {currency}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
                     <input
                       type="checkbox"
                       className="rounded border-border text-foreground"
@@ -241,15 +216,84 @@ export function MoneyWorkspaceSettings() {
                     />
                     Seed Money accounts &amp; categories
                   </label>
-                  <button type="submit" className={secondaryBtnCls}>
+                  <button type="submit" className={`${secondaryBtnCls} w-fit`}>
                     Create workspace
                   </button>
                 </form>
               </div>
             </li>
 
-            {workspaceList.find((w) => w.id === moneyWorkspaceId)?.role ===
-            "owner" ? (
+            {workspaceList.length > 1 ? (
+              <li className="py-6">
+                <div className="flex flex-col gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-6 text-foreground">
+                      Default workspace
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-muted">
+                      Choose which workspace loads when you open Money without
+                      an active cookie.
+                    </p>
+                  </div>
+                  <form
+                    className="grid w-full gap-3"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        await moneyApiJson("/api/workspace/default", {
+                          method: "PATCH",
+                          body: JSON.stringify({
+                            workspaceId: defaultWsPick,
+                            app: "money",
+                          }),
+                        });
+                        await refreshMoneyWorkspaceContext();
+                        notify.success(
+                          "Settings updated",
+                          "Default workspace saved.",
+                        );
+                      } catch (err: unknown) {
+                        notify.error(
+                          "Couldn’t save default workspace",
+                          err instanceof Error
+                            ? err.message
+                            : "Something went wrong",
+                        );
+                      }
+                    }}
+                  >
+                    <label className="grid w-full gap-1.5 text-sm">
+                      <span className="font-medium text-foreground">
+                        Workspace
+                      </span>
+                      <select
+                        className={inputCls}
+                        value={defaultWsPick}
+                        onChange={(e) => setDefaultWsPick(e.target.value)}
+                      >
+                        {workspaceList.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.name}
+                            {w.kind === "shared" ? " (shared)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="submit"
+                      className={`${secondaryBtnCls} w-fit`}
+                      disabled={!defaultWsPick}
+                    >
+                      Save
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ) : null}
+
+            {workspaceList.length > 1 &&
+            workspaceList.find((w) => w.id === moneyWorkspaceId)?.role ===
+              "owner" ? (
               <li className="py-6">
                 <div className="flex flex-col gap-4">
                   <div className="min-w-0">
@@ -262,7 +306,7 @@ export function MoneyWorkspaceSettings() {
                     </p>
                   </div>
                   <form
-                    className="flex flex-wrap items-end gap-3"
+                    className="grid w-full gap-3"
                     onSubmit={async (e) => {
                       e.preventDefault();
                       try {
@@ -290,7 +334,7 @@ export function MoneyWorkspaceSettings() {
                       }
                     }}
                   >
-                    <label className="grid min-w-[min(100%,12rem)] flex-1 gap-1.5 text-sm">
+                    <label className="grid w-full gap-1.5 text-sm">
                       <span className="font-medium text-foreground">
                         Target workspace
                       </span>
@@ -314,7 +358,7 @@ export function MoneyWorkspaceSettings() {
                     </label>
                     <button
                       type="submit"
-                      className={secondaryBtnCls}
+                      className={`${secondaryBtnCls} w-fit`}
                       disabled={
                         !cloneTargetId ||
                         workspaceList.filter(
@@ -329,31 +373,6 @@ export function MoneyWorkspaceSettings() {
                 </div>
               </li>
             ) : null}
-          </ul>
-        </SettingsSection>
-
-        <SettingsSection
-          id="money-settings-ledger"
-          title="Accounts & categories"
-          description="Detailed editors open on each page below. Everything applies to your currently selected Money workspace."
-        >
-          {/* Tailwind Plus “Actions with shared borders” grid list pattern */}
-          <ul
-            role="list"
-            className="grid grid-cols-1 gap-px overflow-hidden rounded-md bg-border shadow-sm ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)] sm:grid-cols-2 lg:grid-cols-3"
-            aria-label="Ledger and automation"
-          >
-            {LEDGER_MANAGEMENT_LINKS.map(({ href, label }) => (
-              <li key={href} className="min-w-0">
-                <Link
-                  href={href}
-                  className="relative flex items-center gap-x-3 bg-surface px-4 py-5 text-sm font-semibold text-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground"
-                >
-                  <span className="min-w-0 flex-1">{label}</span>
-                  <LedgerLinkChevron />
-                </Link>
-              </li>
-            ))}
           </ul>
         </SettingsSection>
 

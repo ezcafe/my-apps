@@ -7,7 +7,6 @@ import { moneyApiJson } from "@/lib/money-fetch";
 import {
   moneyCategoryById,
   moneyCategoryLabel,
-  moneyRootCategories,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import {
@@ -17,7 +16,7 @@ import {
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
-type Category = MoneyCategoryRow;
+type Category = MoneyCategoryRow & { archived?: boolean };
 
 export function MoneySettingsCategoriesSection() {
   const notify = useNotify();
@@ -26,11 +25,31 @@ export function MoneySettingsCategoriesSection() {
   const [newCategoryParentId, setNewCategoryParentId] = useState("");
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
 
-  const categoryById = useMemo(() => moneyCategoryById(categories), [categories]);
-  const rootCategories = useMemo(
-    () => moneyRootCategories(categories),
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editParentId, setEditParentId] = useState("");
+
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => !c.archived),
     [categories],
   );
+  const categoryById = useMemo(
+    () => moneyCategoryById(visibleCategories),
+    [visibleCategories],
+  );
+  const rootCategories = useMemo(
+    () => visibleCategories.filter((c) => c.parentId == null),
+    [visibleCategories],
+  );
+  const sortedVisible = useMemo(() => {
+    const copy = [...visibleCategories];
+    copy.sort((a, b) =>
+      moneyCategoryLabel(a, categoryById).localeCompare(
+        moneyCategoryLabel(b, categoryById),
+      ),
+    );
+    return copy;
+  }, [visibleCategories, categoryById]);
 
   const loadCategories = useCallback(async () => {
     const { data } = await moneyApiJson<Category[]>("/api/money/categories");
@@ -54,6 +73,59 @@ export function MoneySettingsCategoriesSection() {
       cancelled = true;
     };
   }, [loadCategories]);
+
+  function startEdit(c: Category) {
+    setEditingId(c.id);
+    setEditName(c.name);
+    setEditParentId(c.parentId ?? "");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingId || !editName.trim()) return;
+    try {
+      await moneyApiJson(`/api/money/categories/${editingId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: editName.trim(),
+          parentId: editParentId ? editParentId : null,
+        }),
+      });
+      setEditingId(null);
+      await loadCategories();
+      notify.success("Settings updated", "Category saved.");
+    } catch (err: unknown) {
+      notify.error(
+        "Couldn’t save settings",
+        err instanceof Error ? err.message : "Something went wrong",
+      );
+    }
+  }
+
+  async function removeCategory(id: string, label: string) {
+    if (
+      !window.confirm(
+        `Remove category “${label}”? It will be archived and hidden from this list.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await moneyApiJson(`/api/money/categories/${id}`, { method: "DELETE" });
+      if (editingId === id) setEditingId(null);
+      await loadCategories();
+      notify.success("Settings updated", "Category removed.");
+    } catch (err: unknown) {
+      notify.error(
+        "Couldn’t remove category",
+        err instanceof Error ? err.message : "Something went wrong",
+      );
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -80,7 +152,7 @@ export function MoneySettingsCategoriesSection() {
 
   return (
     <>
-      <MoneySettingsBackLink />
+      <MoneySettingsBackLink current="Categories" />
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -126,14 +198,68 @@ export function MoneySettingsCategoriesSection() {
         <div className="mt-8 border-t border-border pt-8">
           <h3 className="text-sm font-medium text-foreground">All categories</h3>
           <ul className="mt-3 space-y-2 text-sm text-muted">
-            {categories.map((c) => (
-              <li
-                key={c.id}
-                className="rounded-lg border border-border bg-background px-3 py-2"
-              >
-                {moneyCategoryLabel(c, categoryById)}
-              </li>
-            ))}
+            {sortedVisible.map((c) => {
+              const label = moneyCategoryLabel(c, categoryById);
+              const parentChoices = rootCategories.filter((r) => r.id !== c.id);
+              return (
+                <li
+                  key={c.id}
+                  className="rounded-lg border border-border bg-background px-3 py-2"
+                >
+                  {editingId === c.id ? (
+                    <form className="flex flex-col gap-3" onSubmit={saveEdit}>
+                      <input
+                        className={inputCls}
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        aria-label="Category name"
+                      />
+                      <select
+                        className={inputCls}
+                        value={editParentId}
+                        onChange={(e) => setEditParentId(e.target.value)}
+                        aria-label="Parent category"
+                      >
+                        <option value="">Top-level category</option>
+                        {parentChoices.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="submit" className={secondaryBtnCls}>
+                          Save
+                        </button>
+                        <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-foreground">{label}</span>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                          onClick={() => startEdit(c)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                          onClick={() => void removeCategory(c.id, label)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       </SettingsSection>

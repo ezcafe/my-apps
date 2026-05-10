@@ -164,20 +164,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   return (
     <NotificationContext.Provider value={value}>
       {children}
-      <div
-        aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-end gap-3 p-4 sm:p-6"
-      >
-        {toasts.map((t) => (
-          <ToastRow
-            key={t.id}
-            title={t.title}
-            description={t.description}
-            variant={t.variant}
-            onDismiss={() => dismiss(t.id)}
-          />
-        ))}
-      </div>
+      {toasts.length > 0 ? (
+        <div
+          aria-live="polite"
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-end gap-3 p-4 sm:p-6"
+        >
+          {toasts.map((t) => (
+            <ToastRow
+              key={t.id}
+              title={t.title}
+              description={t.description}
+              variant={t.variant}
+              onDismiss={() => dismiss(t.id)}
+            />
+          ))}
+        </div>
+      ) : null}
     </NotificationContext.Provider>
   );
 }

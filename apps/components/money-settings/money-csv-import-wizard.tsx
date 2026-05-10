@@ -40,6 +40,7 @@ type WizardStep = "type" | "upload" | "map" | "review";
 
 type AccountRow = { id: string; name: string };
 type MerchantRow = { id: string; name: string };
+type TagRow = { id: string; name: string };
 
 const KINDS_ORDER = [
   "accounts",
@@ -63,6 +64,34 @@ const STEP_META: Record<
   map: { title: "Map", hint: "Match columns and resolve values" },
   review: { title: "Review", hint: "Confirm before importing" },
 };
+
+function toCsvCell(value: string): string {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replaceAll('"', '""')}"`;
+  }
+  return value;
+}
+
+function toCsvErrorSummary(rawMessage: string): string {
+  const esc = (value: string) => value.replaceAll("\\", "\\\\").replaceAll("'", "\\'");
+  const issueToSingleQuoteText = (issue: { code: string; message: string }) =>
+    `{'code':'${esc(issue.code)}','message':'${esc(issue.message)}'}`;
+  try {
+    const parsed: unknown = JSON.parse(rawMessage);
+    if (!Array.isArray(parsed)) return rawMessage;
+    const slim = parsed
+      .filter((item): item is { code?: unknown; message?: unknown } => Boolean(item))
+      .map((item) => ({
+        code: typeof item.code === "string" ? item.code : "unknown",
+        message: typeof item.message === "string" ? item.message : rawMessage,
+      }));
+    if (slim.length === 0) return rawMessage;
+    if (slim.length === 1) return issueToSingleQuoteText(slim[0]!);
+    return slim.map(issueToSingleQuoteText).join(" | ");
+  } catch {
+    return rawMessage;
+  }
+}
 
 function ImportTypeChevron() {
   return (
@@ -316,6 +345,7 @@ export function MoneyCsvImportWizard({
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [merchants, setMerchants] = useState<MerchantRow[]>([]);
   const [categories, setCategories] = useState<MoneyCategoryRow[]>([]);
+  const [tags, setTags] = useState<TagRow[]>([]);
   const [preview, setPreview] = useState<{
     rows: unknown[];
     errors: { rowNumber: number; message: string }[];
@@ -325,17 +355,20 @@ export function MoneyCsvImportWizard({
     let cancelled = false;
     (async () => {
       try {
-        const [a, m, c] = await Promise.all([
+        const [a, m, c, t] = await Promise.all([
           moneyApiJson<AccountRow[]>("/api/money/accounts"),
           moneyApiJson<MerchantRow[]>("/api/money/merchants"),
           moneyApiJson<MoneyCategoryRow[]>("/api/money/categories"),
+          moneyApiJson<TagRow[]>("/api/money/tags"),
         ]);
         if (cancelled) return;
         setAccounts(a.data);
         setMerchants(m.data);
         setCategories(c.data);
+        setTags(t.data);
       } catch {
-        if (!cancelled) notify.error("Could not load accounts, merchants, or categories.");
+        if (!cancelled)
+          notify.error("Could not load accounts, merchants, categories, or tags.");
       }
     })();
     return () => {
@@ -343,10 +376,14 @@ export function MoneyCsvImportWizard({
     };
   }, [notify]);
 
-  useEffect(() => {
+  const [prevInitialKind, setPrevInitialKind] = useState(initialKind);
+  if (initialKind !== prevInitialKind) {
+    // React docs pattern for resetting state when a prop changes:
+    // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+    setPrevInitialKind(initialKind);
     setKind(initialKind ?? null);
     setStep(initialKind ? "upload" : "type");
-  }, [initialKind]);
+  }
 
   const columnByField = useMemo(() => {
     if (!kind) return {};
@@ -421,7 +458,9 @@ export function MoneyCsvImportWizard({
   ]);
 
   useEffect(() => {
-    syncValuePicks();
+    queueMicrotask(() => {
+      syncValuePicks();
+    });
   }, [syncValuePicks]);
 
   const rootCategories = useMemo(
@@ -472,18 +511,21 @@ export function MoneyCsvImportWizard({
   ]);
 
   const refreshEntityLists = useCallback(async () => {
-    const [a, m, c] = await Promise.all([
+    const [a, m, c, t] = await Promise.all([
       moneyApiJson<AccountRow[]>("/api/money/accounts"),
       moneyApiJson<MerchantRow[]>("/api/money/merchants"),
       moneyApiJson<MoneyCategoryRow[]>("/api/money/categories"),
+      moneyApiJson<TagRow[]>("/api/money/tags"),
     ]);
     setAccounts(a.data);
     setMerchants(m.data);
     setCategories(c.data);
+    setTags(t.data);
     return {
       accounts: a.data,
       merchants: m.data,
       categories: c.data,
+      tags: t.data,
     };
   }, []);
 
@@ -495,7 +537,7 @@ export function MoneyCsvImportWizard({
       columnByField,
       headers,
       valuePicksByField,
-      { accounts, merchants, categories },
+      { accounts, merchants, categories, tags },
       {},
     );
     setPreview({ rows, errors });
@@ -601,6 +643,18 @@ export function MoneyCsvImportWizard({
     parsedRows[0]?.[csvColumn] != null ? String(parsedRows[0]![csvColumn]) : "";
 
   const reviewSampleRows = preview?.rows.slice(0, 10) ?? [];
+  const reviewErrorCsv = useMemo(() => {
+    if (!preview?.errors.length || headers.length === 0) return "";
+    const csvHeaders = [...headers, "error"];
+    const lines = [csvHeaders.map((h) => toCsvCell(h)).join(",")];
+    for (const err of preview.errors) {
+      const row = parsedRows[err.rowNumber - 2] ?? {};
+      const rowValues = headers.map((h) => toCsvCell(String(row[h] ?? "")));
+      rowValues.push(toCsvCell(toCsvErrorSummary(err.message)));
+      lines.push(rowValues.join(","));
+    }
+    return lines.join("\n");
+  }, [headers, parsedRows, preview]);
 
   return (
     <div className="min-w-0 max-w-4xl">
@@ -691,17 +745,6 @@ export function MoneyCsvImportWizard({
                 <tbody>
                   {headers.map((h) => {
                     const sample = firstRowSample(h);
-                    const unmappedRequired = moneyImportFieldDefs(kind).filter(
-                      (f) =>
-                        f.required &&
-                        !Object.entries(dbFieldByCsvCol).some(
-                          ([col, fk]) => col !== h && fk === f.key,
-                        ) &&
-                        dbFieldByCsvCol[h] !== f.key &&
-                        !headers.some(
-                          (col) => col !== h && dbFieldByCsvCol[col] === f.key,
-                        ),
-                    );
                     return (
                       <tr key={h} className="border-b border-border/60">
                         <td className="align-top px-3 py-3">
@@ -1070,13 +1113,11 @@ export function MoneyCsvImportWizard({
             Valid rows: {preview.rows.length}. Row issues: {preview.errors.length}.
           </p>
           {preview.errors.length > 0 ? (
-            <div className="max-h-40 overflow-auto rounded-md border border-border bg-background p-2 text-xs font-mono">
-              {preview.errors.slice(0, 40).map((e, i) => (
-                <div key={i}>
-                  Row {e.rowNumber}: {e.message}
-                </div>
-              ))}
-              {preview.errors.length > 40 ? <div>…</div> : null}
+            <div className="space-y-2">
+              <p className="text-xs text-muted">Rows with errors (CSV)</p>
+              <pre className="max-h-44 overflow-auto rounded-md border border-border bg-background p-2 text-xs font-mono text-foreground">
+                {reviewErrorCsv}
+              </pre>
             </div>
           ) : null}
           <div className="overflow-x-auto rounded-md border border-border">

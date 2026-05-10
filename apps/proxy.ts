@@ -18,6 +18,5 @@ export const config = {
     "/analytics/:path*",
     "/money",
     "/money/:path*",
-    "/login",
   ],
 };

@@ -6,6 +6,17 @@ const packageDir = path.dirname(fileURLToPath(import.meta.url));
 const monorepoRoot = path.resolve(packageDir, "..");
 
 const nextConfig: NextConfig = {
+  experimental: {
+    optimizePackageImports: [
+      "@visx/curve",
+      "@visx/group",
+      "@visx/responsive",
+      "@visx/scale",
+      "@visx/shape",
+      "d3-sankey",
+      "d3-shape",
+    ],
+  },
   turbopack: {
     // `next` is hoisted to the workspace root node_modules; widen Turbopack root to the
     // monorepo so resolution matches npm workspaces and the multi-lockfile warning is explicit.

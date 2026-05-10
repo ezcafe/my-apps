@@ -31,6 +31,7 @@ export async function GET(req: Request) {
       name: workspace.name,
       kind: workspace.kind,
       ownedByUserSub: workspace.ownedByUserSub,
+      defaultCurrency: workspace.defaultCurrency,
       role: workspaceMember.role,
     })
     .from(workspaceMember)

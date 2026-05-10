@@ -29,6 +29,7 @@ import type {
   recurrentCreateSchema,
   ruleCreateSchema,
 } from "@/lib/validators/money";
+import { getWorkspaceDefaultCurrency } from "@/lib/workspace";
 
 type MoneyCtx = { userSub: string; workspaceId: string };
 
@@ -147,12 +148,14 @@ async function assertTagsInWorkspaceTx(
 }
 
 async function importAccounts(tx: MoneyTx, ctx: MoneyCtx, rows: AccountRow[]) {
+  const workspaceCurrency =
+    (await getWorkspaceDefaultCurrency(ctx.workspaceId)) ?? "USD";
   for (const r of rows) {
     await tx.insert(moneyAccount).values({
       workspaceId: ctx.workspaceId,
       name: r.name,
       type: r.type ?? "checking",
-      currency: r.currency ?? "USD",
+      currency: workspaceCurrency,
       institution: r.institution ?? null,
       balanceMinor: r.balanceMinor ?? 0,
       sortOrder: r.sortOrder ?? 0,
@@ -238,17 +241,25 @@ async function importCategories(
 }
 
 async function importBudgets(tx: MoneyTx, ctx: MoneyCtx, rows: BudgetRow[]) {
+  const workspaceCurrency =
+    (await getWorkspaceDefaultCurrency(ctx.workspaceId)) ?? "USD";
   for (const r of rows) {
-    if (r.categoryId) {
-      await assertCategoriesInWorkspaceTx(tx, ctx.workspaceId, [r.categoryId]);
+    const scopeId = r.scopeType === "workspace" ? null : (r.scopeId ?? null);
+    if (r.scopeType === "category" && scopeId) {
+      await assertCategoriesInWorkspaceTx(tx, ctx.workspaceId, [scopeId]);
+    }
+    if (r.scopeType === "account" && scopeId) {
+      await assertAccountsInWorkspaceTx(tx, ctx.workspaceId, [scopeId]);
+    }
+    if (r.scopeType === "tag" && scopeId) {
+      await assertTagsInWorkspaceTx(tx, ctx.workspaceId, [scopeId]);
     }
     await tx.insert(moneyBudget).values({
       workspaceId: ctx.workspaceId,
-      categoryId: r.categoryId ?? null,
-      periodStart: new Date(r.periodStart),
-      periodEnd: new Date(r.periodEnd),
+      scopeType: r.scopeType,
+      scopeId,
       limitAmountMinor: r.limitAmountMinor,
-      currency: r.currency ?? "USD",
+      currency: workspaceCurrency,
     });
   }
 }

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { moneyAccount } from "@/db/schema/money";
 import { badRequest, notFound, requireMoneyContext } from "@/lib/api-money";
+import { getWorkspaceDefaultCurrency } from "@/lib/workspace";
 import { accountCreateSchema } from "@/lib/validators/money";
 
 type Params = { params: Promise<{ id: string }> };
@@ -30,6 +31,7 @@ export async function PATCH(req: Request, { params }: Params) {
   const updates = Object.fromEntries(
     Object.entries(parsed.data).filter(([, v]) => v !== undefined),
   );
+  delete (updates as { currency?: string }).currency;
 
   const [updated] = await db
     .update(moneyAccount)
@@ -43,10 +45,13 @@ export async function PATCH(req: Request, { params }: Params) {
     .returning();
 
   if (!updated) return notFound();
+  const workspaceCurrency =
+    (await getWorkspaceDefaultCurrency(ctx.workspaceId)) ?? "USD";
 
   return NextResponse.json({
     data: {
       ...updated,
+      currency: workspaceCurrency,
       createdAt: updated.createdAt.toISOString(),
     },
   });

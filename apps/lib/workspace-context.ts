@@ -3,12 +3,10 @@
  * Register new domains in `WORKSPACE_APP_KEYS` (`db/schema/workspace.ts`) and pass the same key here.
  */
 import { cookies } from "next/headers";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import {
-  userWorkspaceDefault,
-  workspace,
   workspaceMember,
   WORKSPACE_APP_KEYS,
   type WorkspaceAppKey,
@@ -68,53 +66,74 @@ export async function assertWorkspaceOwner(
   return role === "owner";
 }
 
+const COOKIE_WORKSPACE_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseCookieWorkspaceId(raw: string | undefined): string | null {
+  if (!raw || !COOKIE_WORKSPACE_UUID_RE.test(raw)) return null;
+  return raw;
+}
+
 /**
- * Resolve active workspace: cookie → saved default → personal workspace → first membership.
+ * Resolve active workspace in one round trip: cookie → saved default → personal → first membership.
  */
 export async function getActiveWorkspaceId(
   userSub: string,
   appKey: WorkspaceAppKey,
 ): Promise<string | null> {
   const cookieStore = await cookies();
-  const fromCookie = cookieStore.get(workspaceCookieName(appKey))?.value;
-  if (fromCookie && (await assertWorkspaceMember(userSub, fromCookie))) {
-    return fromCookie;
-  }
+  const cookieId = parseCookieWorkspaceId(
+    cookieStore.get(workspaceCookieName(appKey))?.value,
+  );
 
-  const prefRow = await db
-    .select({ defaultWorkspaceId: userWorkspaceDefault.defaultWorkspaceId })
-    .from(userWorkspaceDefault)
-    .where(
-      and(
-        eq(userWorkspaceDefault.userSub, userSub),
-        eq(userWorkspaceDefault.appKey, appKey),
-      ),
+  const result = await db.execute(sql`
+    WITH prefs AS (
+      SELECT
+        ${cookieId}::uuid AS cookie_id,
+        (
+          SELECT default_workspace_id
+          FROM user_workspace_default
+          WHERE user_sub = ${userSub}
+            AND app_key = ${appKey}
+          LIMIT 1
+        ) AS default_id
+    ),
+    personal AS (
+      SELECT w.id
+      FROM workspace w
+      INNER JOIN workspace_member wm
+        ON wm.workspace_id = w.id AND wm.user_sub = ${userSub}
+      WHERE w.owned_by_user_sub = ${userSub}
+      LIMIT 1
+    ),
+    first_mem AS (
+      SELECT workspace_id AS id
+      FROM workspace_member
+      WHERE user_sub = ${userSub}
+      ORDER BY workspace_id
+      LIMIT 1
+    ),
+    candidates AS (
+      SELECT 1 AS ord, cookie_id AS wid FROM prefs WHERE cookie_id IS NOT NULL
+      UNION ALL
+      SELECT 2, default_id FROM prefs WHERE default_id IS NOT NULL
+      UNION ALL
+      SELECT 3, id FROM personal
+      UNION ALL
+      SELECT 4, id FROM first_mem
     )
-    .limit(1);
-  const defaultId = prefRow[0]?.defaultWorkspaceId;
-  if (defaultId && (await assertWorkspaceMember(userSub, defaultId))) {
-    return defaultId;
-  }
+    SELECT c.wid::text AS workspace_id
+    FROM candidates c
+    INNER JOIN workspace_member wm
+      ON wm.workspace_id = c.wid AND wm.user_sub = ${userSub}
+    ORDER BY c.ord
+    LIMIT 1
+  `);
 
-  const personal = await db
-    .select({ id: workspace.id })
-    .from(workspace)
-    .innerJoin(workspaceMember, eq(workspaceMember.workspaceId, workspace.id))
-    .where(
-      and(
-        eq(workspaceMember.userSub, userSub),
-        eq(workspace.ownedByUserSub, userSub),
-      ),
-    )
-    .limit(1);
-  if (personal.length) return personal[0].id;
-
-  const first = await db
-    .select({ workspaceId: workspaceMember.workspaceId })
-    .from(workspaceMember)
-    .where(eq(workspaceMember.userSub, userSub))
-    .limit(1);
-  return first[0]?.workspaceId ?? null;
+  const rows = Array.from(
+    result as unknown as Iterable<{ workspace_id: string | null }>,
+  );
+  return rows[0]?.workspace_id ?? null;
 }
 
 export function setActiveWorkspaceCookie(

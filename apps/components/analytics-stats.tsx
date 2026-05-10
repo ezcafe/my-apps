@@ -47,10 +47,12 @@ export function AnalyticsStats({
   stats,
   column,
   range,
+  currency,
 }: {
   stats: AnalyticsStatsPayload;
   column: ColumnRow[];
   range: { from: string; to: string };
+  currency: string;
 }) {
   const period = formatPeriod(range.from, range.to);
   const mom = expenseMomTrend(column);
@@ -67,7 +69,7 @@ export function AnalyticsStats({
         <article className="rounded-md border border-border bg-surface px-4 py-5">
           <p className="text-sm font-medium text-muted">Total income</p>
           <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground tabular-nums">
-            {formatMinor(stats.incomeMinor)}
+            {formatMinor(stats.incomeMinor, currency)}
           </p>
           <p className="mt-1 text-xs text-muted">Recorded in workspace</p>
         </article>
@@ -75,7 +77,7 @@ export function AnalyticsStats({
         <article className="rounded-md border border-border bg-surface px-4 py-5">
           <p className="text-sm font-medium text-muted">Total expenses</p>
           <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground tabular-nums">
-            {formatMinor(stats.expenseMinor)}
+            {formatMinor(stats.expenseMinor, currency)}
           </p>
           {mom ? (
             <p
@@ -116,7 +118,7 @@ export function AnalyticsStats({
                 : "text-rose-700 dark:text-rose-400"
             }`}
           >
-            {formatMinor(stats.netMinor)}
+            {formatMinor(stats.netMinor, currency)}
           </p>
           <p className="mt-1 text-xs text-muted">Income minus expenses</p>
         </article>

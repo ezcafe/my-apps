@@ -4,6 +4,7 @@ import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";
 import { scaleBand, scaleLinear } from "@visx/scale";
 import { Bar } from "@visx/shape";
+import { colorByIndex } from "@/components/charts/chart-colors";
 
 type Row = { month: string; expenseMinor: number };
 
@@ -52,7 +53,7 @@ function ColumnInner({
       className="block max-w-full"
     >
       <Group left={margin.left} top={margin.top}>
-        {data.map((d) => {
+        {data.map((d, i) => {
           const x = xScale(d.month);
           if (x == null) return null;
           const barW = xScale.bandwidth();
@@ -65,8 +66,8 @@ function ColumnInner({
               y={y}
               width={barW}
               height={barH}
-              fill="currentColor"
-              opacity={0.65}
+              fill={colorByIndex(i)}
+              opacity={0.9}
               rx={4}
             />
           );

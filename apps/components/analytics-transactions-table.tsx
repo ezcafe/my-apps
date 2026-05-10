@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AnalyticsLookupAccount,
-  AnalyticsLookupMerchant,
 } from "@/components/analytics-filters";
 import { formatMinor } from "@/lib/format-money";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
@@ -54,14 +53,14 @@ export function AnalyticsTransactionsTable({
   activeWorkspaceId,
   accounts,
   categories,
-  merchants,
+  currency,
   deferFetchUntilVisible = true,
 }: {
   filterQuery: string;
   activeWorkspaceId: string;
   accounts: AnalyticsLookupAccount[];
   categories: MoneyCategoryRow[];
-  merchants: AnalyticsLookupMerchant[];
+  currency: string;
   /** When true, the transactions API runs only after this section intersects the viewport. */
   deferFetchUntilVisible?: boolean;
 }) {
@@ -89,50 +88,60 @@ export function AnalyticsTransactionsTable({
     [accounts],
   );
   const categoryById = useMemo(() => moneyCategoryById(categories), [categories]);
-  const merchantById = useMemo(
-    () => new Map(merchants.map((m) => [m.id, m])),
-    [merchants],
-  );
 
-  const fetchList = useCallback(async () => {
+  useEffect(() => {
     if (!activeWorkspaceId) return;
     if (deferFetchUntilVisible && !isInView) return;
+    let cancelled = false;
     const qs = new URLSearchParams(filterQuery);
     qs.set("page", String(page));
     qs.set("pageSize", String(PAGE_SIZE));
     qs.set("sort", sort);
     qs.set("dir", dir);
     const q = qs.toString();
-    const url = q.length > 0 ? `/api/money/transactions?${q}` : `/api/money/transactions?page=${page}&pageSize=${PAGE_SIZE}&sort=${sort}&dir=${dir}`;
-    setLoading(true);
-    setLocalError(null);
-    try {
-      const res = await fetch(url, {
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      });
-      const body = (await res.json()) as {
-        data?: TxRow[];
-        total?: number;
-        page?: number;
-        pageSize?: number;
-        error?: string;
-      };
-      if (!res.ok) {
-        throw new Error(body.error ?? res.statusText);
-      }
-      setPayload({
-        data: body.data ?? [],
-        total: body.total ?? 0,
-        page: body.page ?? page,
-        pageSize: body.pageSize ?? PAGE_SIZE,
-      });
-    } catch (e: unknown) {
-      setLocalError(e instanceof Error ? e.message : "Error");
-      setPayload(null);
-    } finally {
-      setLoading(false);
-    }
+    const url =
+      q.length > 0
+        ? `/api/money/transactions?${q}`
+        : `/api/money/transactions?page=${page}&pageSize=${PAGE_SIZE}&sort=${sort}&dir=${dir}`;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void (async () => {
+        setLoading(true);
+        setLocalError(null);
+        try {
+          const res = await fetch(url, {
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+          });
+          const body = (await res.json()) as {
+            data?: TxRow[];
+            total?: number;
+            page?: number;
+            pageSize?: number;
+            error?: string;
+          };
+          if (cancelled) return;
+          if (!res.ok) {
+            throw new Error(body.error ?? res.statusText);
+          }
+          setPayload({
+            data: body.data ?? [],
+            total: body.total ?? 0,
+            page: body.page ?? page,
+            pageSize: body.pageSize ?? PAGE_SIZE,
+          });
+        } catch (e: unknown) {
+          if (cancelled) return;
+          setLocalError(e instanceof Error ? e.message : "Error");
+          setPayload(null);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      })();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [
     activeWorkspaceId,
     deferFetchUntilVisible,
@@ -143,18 +152,17 @@ export function AnalyticsTransactionsTable({
     dir,
   ]);
 
-  useEffect(() => {
-    void fetchList();
-  }, [fetchList]);
-
   const totalPages = useMemo(() => {
     if (!payload) return 1;
     return Math.max(1, Math.ceil(payload.total / payload.pageSize));
   }, [payload]);
 
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+  // Clamp the page during render rather than reacting in an effect: keeps
+  // navigation bounded if the visible total shrinks (e.g., filter narrows).
+  const effectivePage = Math.min(Math.max(page, 1), totalPages);
+  if (effectivePage !== page) {
+    setPage(effectivePage);
+  }
 
   const onSortHeader = (col: TransactionListSortKey) => {
     setSortState((s) =>
@@ -214,34 +222,43 @@ export function AnalyticsTransactionsTable({
           </caption>
           <thead className="bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]">
             <tr>
-              <th scope="col" className="px-3 py-2 font-medium">
+              <th
+                scope="col"
+                className="px-3 py-2 font-medium"
+                aria-sort={sortAria("occurredAt")}
+              >
                 <button
                   type="button"
                   className="inline-flex items-center gap-1 rounded-sm px-1 py-0.5 font-medium hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                   onClick={() => onSortHeader("occurredAt")}
-                  aria-sort={sortAria("occurredAt")}
                 >
                   Date
                   {sort === "occurredAt" ? (dir === "asc" ? " ↑" : " ↓") : ""}
                 </button>
               </th>
-              <th scope="col" className="px-3 py-2 font-medium">
+              <th
+                scope="col"
+                className="px-3 py-2 font-medium"
+                aria-sort={sortAria("kind")}
+              >
                 <button
                   type="button"
                   className="inline-flex items-center gap-1 rounded-sm px-1 py-0.5 font-medium hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                   onClick={() => onSortHeader("kind")}
-                  aria-sort={sortAria("kind")}
                 >
                   Kind
                   {sort === "kind" ? (dir === "asc" ? " ↑" : " ↓") : ""}
                 </button>
               </th>
-              <th scope="col" className="px-3 py-2 font-medium text-right">
+              <th
+                scope="col"
+                className="px-3 py-2 font-medium text-right"
+                aria-sort={sortAria("amountMinor")}
+              >
                 <button
                   type="button"
                   className="inline-flex w-full items-center justify-end gap-1 rounded-sm px-1 py-0.5 font-medium hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                   onClick={() => onSortHeader("amountMinor")}
-                  aria-sort={sortAria("amountMinor")}
                 >
                   Amount
                   {sort === "amountMinor" ? (dir === "asc" ? " ↑" : " ↓") : ""}
@@ -252,9 +269,6 @@ export function AnalyticsTransactionsTable({
               </th>
               <th scope="col" className="hidden px-3 py-2 font-medium md:table-cell">
                 Category
-              </th>
-              <th scope="col" className="hidden px-3 py-2 font-medium xl:table-cell">
-                Merchant
               </th>
               <th scope="col" className="hidden px-3 py-2 font-medium lg:table-cell">
                 Notes
@@ -267,28 +281,23 @@ export function AnalyticsTransactionsTable({
           <tbody className="divide-y divide-border">
             {awaitingViewport ? (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-sm text-muted">
+                <td colSpan={7} className="px-3 py-8 text-center text-sm text-muted">
                   Scroll to load transactions for this filter range.
                 </td>
               </tr>
             ) : null}
             {!awaitingViewport && loading && !payload ? (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-muted">
+                <td colSpan={7} className="px-3 py-6 text-center text-muted">
                   Loading transactions…
                 </td>
               </tr>
             ) : null}
             {payload?.data.map((tx) => {
               const acc = accountById.get(tx.accountId);
-              const currency = acc?.currency ?? "USD";
               const cat = tx.categoryId ? categoryById.get(tx.categoryId) : null;
               const categoryLabel =
                 cat != null ? moneyCategoryLabel(cat, categoryById) : "—";
-              const merchantLabel =
-                tx.merchantId != null
-                  ? (merchantById.get(tx.merchantId)?.name ?? "—")
-                  : "—";
 
               return (
                 <tr key={tx.id} className="hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]">
@@ -307,9 +316,6 @@ export function AnalyticsTransactionsTable({
                   </td>
                   <td className="hidden max-w-[10rem] truncate px-3 py-2 md:table-cell">
                     {categoryLabel}
-                  </td>
-                  <td className="hidden max-w-[10rem] truncate px-3 py-2 xl:table-cell">
-                    {merchantLabel}
                   </td>
                   <td className="hidden max-w-[14rem] truncate px-3 py-2 text-muted lg:table-cell">
                     {truncateNote(tx.notes)}

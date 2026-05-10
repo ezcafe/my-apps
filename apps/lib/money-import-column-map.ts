@@ -31,9 +31,8 @@ const CATEGORY_KEYS = new Set([
 ]);
 
 const BUDGET_KEYS = new Set([
-  "categoryId",
-  "periodStart",
-  "periodEnd",
+  "scopeType",
+  "scopeId",
   "limitAmountMinor",
   "currency",
 ]);
@@ -111,6 +110,8 @@ const FIELD_LABELS: Record<string, string> = {
   parentSourceId: "Parent source ID (batch)",
   sourceId: "Source ID (batch)",
   categoryId: "Category ID",
+  scopeType: "Budget scope type",
+  scopeId: "Budget scope id or name",
   periodStart: "Period start",
   periodEnd: "Period end",
   limitAmountMinor: "Limit (minor units)",
@@ -180,8 +181,8 @@ function synonymTarget(
   }
   if (type === "budgets") {
     if (camel === "limit" || camel === "amountMinor") return "limitAmountMinor";
-    if (camel === "start" || camel === "from") return "periodStart";
-    if (camel === "end" || camel === "to") return "periodEnd";
+    if (camel === "scope" || camel === "budgetScope") return "scopeType";
+    if (camel === "entity" || camel === "targetId") return "scopeId";
   }
   if (type === "transactions") {
     if (camel === "amount" || camel === "value") return "amountMinor";

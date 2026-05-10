@@ -1,5 +1,5 @@
-import { TransactionEditForm } from "@/components/transaction-edit-form";
 import { PageHeading } from "@/components/page-heading";
+import { TransactionEditFormLazy } from "@/components/transaction-edit-form-lazy";
 
 export default async function MoneyTransactionEditPage({
   params,
@@ -16,7 +16,7 @@ export default async function MoneyTransactionEditPage({
         description="Update fields for this workspace transaction."
       />
       <div className="col-span-2 md:col-span-6 lg:col-span-12">
-        <TransactionEditForm transactionId={id} />
+        <TransactionEditFormLazy transactionId={id} />
       </div>
     </>
   );

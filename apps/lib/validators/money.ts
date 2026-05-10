@@ -2,8 +2,9 @@ import { z } from "zod";
 
 export const transactionKindSchema = z.enum(["expense", "income", "transfer"]);
 
-export const transactionCreateSchema = z.object({
+const transactionBaseSchema = z.object({
   accountId: z.string().uuid(),
+  toAccountId: z.string().uuid().optional(),
   kind: transactionKindSchema.optional().default("expense"),
   amountMinor: z.number().int().positive(),
   occurredAt: z.string().datetime({ offset: true }).optional(),
@@ -15,9 +16,46 @@ export const transactionCreateSchema = z.object({
   tagNames: z.array(z.string().max(120)).max(50).optional(),
 });
 
-export const transactionUpdateSchema = transactionCreateSchema
+export const transactionCreateSchema = transactionBaseSchema.superRefine((data, ctx) => {
+  if (data.kind !== "transfer") return;
+  if (!data.toAccountId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["toAccountId"],
+      message: "toAccountId is required for transfer",
+    });
+    return;
+  }
+  if (data.toAccountId === data.accountId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["toAccountId"],
+      message: "toAccountId must be different from accountId",
+    });
+  }
+});
+
+export const transactionUpdateSchema = transactionBaseSchema
   .partial()
-  .omit({ tagNames: true });
+  .omit({ tagNames: true })
+  .superRefine((data, ctx) => {
+    if (data.kind !== "transfer") return;
+    if (!data.toAccountId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["toAccountId"],
+        message: "toAccountId is required for transfer",
+      });
+      return;
+    }
+    if (data.accountId && data.toAccountId === data.accountId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["toAccountId"],
+        message: "toAccountId must be different from accountId",
+      });
+    }
+  });
 
 export const accountCreateSchema = z.object({
   name: z.string().min(1).max(200),
@@ -32,7 +70,6 @@ export const accountCreateSchema = z.object({
       "other",
     ])
     .optional(),
-  currency: z.string().min(3).max(3).optional(),
   institution: z.string().max(200).optional().nullable(),
   balanceMinor: z.number().int().optional().default(0),
   sortOrder: z.number().int().optional(),
@@ -99,13 +136,36 @@ export const recurrentCreateSchema = z.object({
   active: z.boolean().optional(),
 });
 
-export const budgetCreateSchema = z.object({
-  categoryId: z.string().uuid().optional().nullable(),
-  periodStart: z.string().datetime({ offset: true }),
-  periodEnd: z.string().datetime({ offset: true }),
-  limitAmountMinor: z.number().int().positive(),
-  currency: z.string().min(3).max(3).optional(),
-});
+export const moneyBudgetScopeTypeSchema = z.enum([
+  "workspace",
+  "category",
+  "account",
+  "tag",
+]);
+
+export const budgetCreateSchema = z
+  .object({
+    scopeType: moneyBudgetScopeTypeSchema,
+    scopeId: z.string().uuid().optional().nullable(),
+    limitAmountMinor: z.number().int().positive(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.scopeType === "workspace") {
+      if (data.scopeId != null && data.scopeId !== "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["scopeId"],
+          message: "scopeId must be omitted for workspace budgets",
+        });
+      }
+    } else if (!data.scopeId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["scopeId"],
+        message: "scopeId is required for category, account, and tag budgets",
+      });
+    }
+  });
 
 export const analyticsFiltersSchema = z.object({
   from: z.string().datetime({ offset: true }).optional(),

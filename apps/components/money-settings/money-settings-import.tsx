@@ -33,7 +33,7 @@ const COLUMN_HELP: Record<MoneyImportType, string> = {
   categories:
     "name (required), parentId (existing workspace root category UUID), parentSourceId (matches another row’s sourceId), sourceId (optional stable id for parentSourceId refs), archived",
   budgets:
-    "categoryId (optional UUID), periodStart, periodEnd (ISO datetimes), limitAmountMinor (integer cents), currency",
+    "scopeType (workspace|category|account|tag), scopeId (UUID or entity name; omit for workspace), limitAmountMinor (integer cents per month), currency",
   transactions:
     "accountId, amountMinor, kind (expense|income|transfer), occurredAt (ISO), categoryId, merchantId, notes, tagIds (comma UUIDs), tagNames (comma-separated), transferGroupId (same value pairs transfer rows)",
   rules:

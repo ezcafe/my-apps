@@ -1,24 +1,36 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gte, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { moneyCategory } from "@/db/schema/money";
+import { moneyCategory, moneyTransaction } from "@/db/schema/money";
 import { badRequest, requireMoneyContext } from "@/lib/api-money";
 import { assertValidCategoryParent } from "@/lib/money-category-parent";
 import { categoryCreateSchema } from "@/lib/validators/money";
+
+const USAGE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 
 export async function GET() {
   const ctx = await requireMoneyContext();
   if ("error" in ctx) return ctx.error;
 
+  const since = new Date(Date.now() - USAGE_WINDOW_MS);
+
   const rows = await db
-    .select()
+    .select({
+      ...getTableColumns(moneyCategory),
+      usageCount: sql<number>`count(${moneyTransaction.id})::int`.as("usage_count"),
+    })
     .from(moneyCategory)
+    .leftJoin(
+      moneyTransaction,
+      and(
+        eq(moneyTransaction.categoryId, moneyCategory.id),
+        eq(moneyTransaction.workspaceId, ctx.workspaceId),
+        gte(moneyTransaction.occurredAt, since),
+      ),
+    )
     .where(eq(moneyCategory.workspaceId, ctx.workspaceId))
-    .orderBy(
-      sql`case when ${moneyCategory.parentId} is null then 0 else 1 end`,
-      asc(moneyCategory.parentId),
-      asc(moneyCategory.name),
-    );
+    .groupBy(moneyCategory.id)
+    .orderBy(desc(sql`usage_count`), asc(moneyCategory.name));
 
   return NextResponse.json({
     data: rows.map((r) => ({

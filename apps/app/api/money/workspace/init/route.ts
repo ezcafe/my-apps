@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
+import { db } from "@/db";
+import { workspace } from "@/db/schema/workspace";
 import { moneyDbUnavailable, unauthorized, withWorkspaceCookie } from "@/lib/api-money";
 import { isDbUnreachable } from "@/lib/db-errors";
 import { ensureUserBootstrap } from "@/lib/bootstrap";
@@ -25,6 +28,19 @@ export async function GET() {
     );
   }
 
-  const res = NextResponse.json({ data: { workspaceId } });
+  const [ws] = await db
+    .select({ defaultCurrency: workspace.defaultCurrency })
+    .from(workspace)
+    .where(eq(workspace.id, workspaceId))
+    .limit(1);
+
+  const defaultCurrency = ws?.defaultCurrency ?? null;
+  const res = NextResponse.json({
+    data: {
+      workspaceId,
+      defaultCurrency,
+      needsCurrencySetup: !defaultCurrency,
+    },
+  });
   return withWorkspaceCookie(res, workspaceId);
 }

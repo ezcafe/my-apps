@@ -54,15 +54,36 @@ export function SettingsSection({
   );
 }
 
-export function MoneySettingsBackLink() {
+export function MoneySettingsBackLink({ current }: { current: string }) {
   return (
-    <p className="mb-6">
-      <Link
-        href="/money/settings"
-        className="text-sm font-semibold text-foreground underline-offset-2 hover:underline"
-      >
-        ← Settings
-      </Link>
-    </p>
+    <nav className="mb-6" aria-label="Breadcrumb">
+      <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+        <li>
+          <Link
+            href="/money/settings"
+            className="rounded px-1 py-0.5 text-foreground hover:bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)]"
+          >
+            Settings
+          </Link>
+        </li>
+        <li className="flex items-center gap-1.5">
+          <svg
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+            className="size-4 text-muted"
+          >
+            <path
+              fillRule="evenodd"
+              d="M7.28 14.78a.75.75 0 0 1 0-1.06L11 10 7.28 6.28a.75.75 0 1 1 1.06-1.06l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0Z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <span className="font-medium text-foreground" aria-current="page">
+            {current}
+          </span>
+        </li>
+      </ol>
+    </nav>
   );
 }

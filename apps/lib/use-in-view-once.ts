@@ -82,44 +82,12 @@ export function useInViewOnce(rootMargin = "120px 0px") {
   }, []);
 
   useEffect(() => {
-    const el = target;
+    const el: HTMLDivElement | null = target;
     if (!el || isInView) return;
 
     let finished = false;
 
-    const cleanupListeners = () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", onWinScroll, true);
-      const vp = window.visualViewport;
-      if (vp != null) {
-        vp.removeEventListener("resize", onVpResize);
-        vp.removeEventListener("scroll", onVpScroll);
-      }
-    };
-
-    let observer: IntersectionObserver;
-
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      observer.disconnect();
-      cleanupListeners();
-      setIsInView(true);
-    };
-
-    const checkGeometry = () => {
-      if (finished) return;
-      if (elementIntersectsInflatedViewport(el, rootMargin)) {
-        finish();
-      }
-    };
-
-    const onResize = () => checkGeometry();
-    const onWinScroll = () => checkGeometry();
-    const onVpResize = () => checkGeometry();
-    const onVpScroll = () => checkGeometry();
-
-    observer = new IntersectionObserver(
+    const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
           finish();
@@ -127,6 +95,44 @@ export function useInViewOnce(rootMargin = "120px 0px") {
       },
       { root: null, rootMargin, threshold: 0 },
     );
+
+    function cleanupListeners() {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onWinScroll, true);
+      const vp = window.visualViewport;
+      if (vp != null) {
+        vp.removeEventListener("resize", onVpResize);
+        vp.removeEventListener("scroll", onVpScroll);
+      }
+    }
+
+    function finish() {
+      if (finished) return;
+      finished = true;
+      observer.disconnect();
+      cleanupListeners();
+      setIsInView(true);
+    }
+
+    function checkGeometry() {
+      if (finished || !el) return;
+      if (elementIntersectsInflatedViewport(el, rootMargin)) {
+        finish();
+      }
+    }
+
+    function onResize() {
+      checkGeometry();
+    }
+    function onWinScroll() {
+      checkGeometry();
+    }
+    function onVpResize() {
+      checkGeometry();
+    }
+    function onVpScroll() {
+      checkGeometry();
+    }
 
     observer.observe(el);
 

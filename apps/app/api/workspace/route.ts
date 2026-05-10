@@ -32,6 +32,7 @@ export async function POST(req: Request) {
         name: parsed.data.name.trim(),
         kind: "shared",
         ownedByUserSub: null,
+        defaultCurrency: parsed.data.defaultCurrency?.trim().toUpperCase() ?? null,
       })
       .returning();
 
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
       name: created.name,
       kind: created.kind,
       ownedByUserSub: created.ownedByUserSub,
+      defaultCurrency: created.defaultCurrency,
       role: "owner" as const,
     },
   });

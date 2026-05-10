@@ -314,6 +314,7 @@ type FkResolveCtx = {
   accounts: { id: string; name: string }[];
   merchants: { id: string; name: string }[];
   categories: MoneyCategoryRow[];
+  tags?: { id: string; name: string }[];
 };
 
 export function resolveFkValue(
