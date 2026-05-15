@@ -306,7 +306,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="grid min-h-dvh grid-cols-1 grid-rows-[auto_minmax(0,1fr)] bg-background text-foreground lg:grid-cols-[4.5rem_minmax(0,1fr)] lg:grid-rows-1">
+    <div className="grid min-h-dvh grid-cols-1 grid-rows-[auto_minmax(0,1fr)] bg-background text-foreground lg:h-dvh lg:max-h-dvh lg:overflow-hidden lg:grid-cols-[4.5rem_minmax(0,1fr)] lg:grid-rows-1">
       <header className="sticky top-0 z-20 border-b border-border bg-surface/90 backdrop-blur-md lg:hidden">
         <div className="shell-main flex flex-col gap-3 py-3">
           <div className="flex min-w-0 items-center justify-between gap-3">
@@ -326,7 +326,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <aside className="hidden border-border bg-surface/80 backdrop-blur-sm lg:sticky lg:top-0 lg:flex lg:h-dvh lg:min-h-0 lg:w-full lg:max-w-full lg:flex-col lg:items-center lg:border-e lg:px-0 lg:py-4">
+      <aside className="hidden border-border bg-surface/80 backdrop-blur-sm lg:flex lg:h-full lg:min-h-0 lg:w-full lg:max-w-full lg:flex-col lg:items-center lg:border-e lg:px-0 lg:py-4">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] font-display text-sm font-bold tracking-tight text-foreground ring-1 ring-border">
           W
         </span>
@@ -345,7 +345,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main
         key={pathname}
-        className="fx-fade-in min-h-0 min-w-0 motion-reduce:animate-none lg:overflow-y-auto"
+        className="fx-fade-in min-h-0 min-w-0 motion-reduce:animate-none lg:h-full lg:overflow-y-auto"
       >
         {children}
       </main>
