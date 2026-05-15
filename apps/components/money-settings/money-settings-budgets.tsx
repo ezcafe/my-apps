@@ -2,17 +2,27 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
-import { useWorkspaceCurrency } from "@/components/workspace-gate";
+import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import {
   formatMinor,
   minorToMajorInput,
   parseMajorToMinor,
 } from "@/lib/format-money";
-import { moneyApiJson } from "@/lib/money-fetch";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
+import {
+  MONEY_BUDGET_CREATE_MUTATION,
+  MONEY_BUDGET_DELETE_MUTATION,
+  MONEY_BUDGET_UPDATE_MUTATION,
+  MONEY_BUDGETS_FOR_RANGE_QUERY,
+  MONEY_LIST_ACCOUNTS_QUERY,
+  MONEY_LIST_CATEGORIES_QUERY,
+  MONEY_LIST_TAGS_QUERY,
+} from "@/lib/money-gql-documents";
 import {
   moneyCategoryById,
   moneyCategoryLabel,
+  moneyCategorySelectGroups,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import { moneyBudgetScopeTypeSchema } from "@/lib/validators/money";
@@ -28,6 +38,18 @@ import {
 type BudgetScope = z.infer<typeof moneyBudgetScopeTypeSchema>;
 
 type Category = MoneyCategoryRow & { archived?: boolean };
+
+const KIND_TAG: Record<MoneyCategoryRow["kind"], string> = {
+  expense: "Spending",
+  income: "Income",
+};
+
+function categoryOptionLabel(
+  c: MoneyCategoryRow,
+  byId: ReturnType<typeof moneyCategoryById>,
+): string {
+  return `${moneyCategoryLabel(c, byId)} (${KIND_TAG[c.kind]})`;
+}
 type AccountRow = { id: string; name: string; archived?: boolean };
 type TagRow = { id: string; name: string };
 
@@ -60,7 +82,7 @@ function budgetRowLabel(
   if (b.scopeType === "workspace") return "Whole workspace";
   if (b.scopeType === "category" && b.scopeId) {
     const c = categoryById.get(b.scopeId) ?? null;
-    return c ? moneyCategoryLabel(c, categoryById) : "Category";
+    return c ? categoryOptionLabel(c, categoryById) : "Category";
   }
   if (b.scopeType === "account" && b.scopeId) {
     return accountById.get(b.scopeId)?.name ?? "Account";
@@ -119,26 +141,40 @@ export function MoneySettingsBudgetsSection() {
   );
   const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
 
+  const budgetCategorySelectGroups = useMemo(() => {
+    const groups = moneyCategorySelectGroups(visibleCategories);
+    const singleRoots = groups.filter((g) => g.type === "single");
+    const parentGroups = groups.filter((g) => g.type === "group");
+    return { singleRoots, parentGroups };
+  }, [visibleCategories]);
+
   const loadCategories = useCallback(async () => {
-    const { data } = await moneyApiJson<Category[]>("/api/money/categories");
-    setCategories(data);
+    const res = await moneyGraphQLRequest<{ moneyCategories: Category[] }>(
+      MONEY_LIST_CATEGORIES_QUERY,
+    );
+    setCategories(res.moneyCategories);
   }, []);
   const loadAccounts = useCallback(async () => {
-    const { data } = await moneyApiJson<AccountRow[]>("/api/money/accounts");
-    setAccounts(data);
+    const res = await moneyGraphQLRequest<{ moneyAccounts: AccountRow[] }>(
+      MONEY_LIST_ACCOUNTS_QUERY,
+    );
+    setAccounts(res.moneyAccounts);
   }, []);
   const loadTags = useCallback(async () => {
-    const { data } = await moneyApiJson<TagRow[]>("/api/money/tags");
-    setTags(data);
+    const res = await moneyGraphQLRequest<{ moneyTags: TagRow[] }>(MONEY_LIST_TAGS_QUERY);
+    setTags(res.moneyTags);
   }, []);
   const loadBudgets = useCallback(async () => {
     const { from, to } = currentUtcMonthRangeIso();
-    const params = new URLSearchParams();
-    params.set("includeSpent", "1");
-    params.set("from", from);
-    params.set("to", to);
-    const { data } = await moneyApiJson<BudgetRow[]>(`/api/money/budgets?${params.toString()}`);
-    setBudgets(data);
+    const res = await moneyGraphQLRequest<{ moneyBudgets: BudgetRow[] }>(
+      MONEY_BUDGETS_FOR_RANGE_QUERY,
+      {
+        includeSpent: true,
+        from,
+        to,
+      },
+    );
+    setBudgets(res.moneyBudgets);
   }, []);
 
   useEffect(() => {
@@ -179,13 +215,13 @@ export function MoneySettingsBudgetsSection() {
       if (editScopeType !== "workspace" && !editScopeId) {
         throw new Error("Choose a category, account, or tag");
       }
-      await moneyApiJson(`/api/money/budgets/${editingId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
+      await moneyGraphQLRequest(MONEY_BUDGET_UPDATE_MUTATION, {
+        id: editingId,
+        input: {
           scopeType: editScopeType,
           scopeId: editScopeType === "workspace" ? null : editScopeId,
           limitAmountMinor: minor,
-        }),
+        },
       });
       cancelEdit();
       await loadBudgets();
@@ -207,13 +243,12 @@ export function MoneySettingsBudgetsSection() {
         throw new Error("Choose a category, account, or tag");
       }
 
-      await moneyApiJson("/api/money/budgets", {
-        method: "POST",
-        body: JSON.stringify({
+      await moneyGraphQLRequest(MONEY_BUDGET_CREATE_MUTATION, {
+        input: {
           scopeType: budScopeType,
           scopeId: budScopeType === "workspace" ? null : budScopeId,
           limitAmountMinor: minor,
-        }),
+        },
       });
       setBudLimit("");
       setBudScopeType("workspace");
@@ -231,7 +266,7 @@ export function MoneySettingsBudgetsSection() {
   async function deleteBudget(id: string) {
     if (!window.confirm("Delete this budget? This cannot be undone.")) return;
     try {
-      await moneyApiJson(`/api/money/budgets/${id}`, { method: "DELETE" });
+      await moneyGraphQLRequest(MONEY_BUDGET_DELETE_MUTATION, { id });
       if (editingId === id) cancelEdit();
       await loadBudgets();
       notify.success("Budget removed", "The budget was deleted.");
@@ -276,10 +311,26 @@ export function MoneySettingsBudgetsSection() {
             required
           >
             <option value="">Select category</option>
-            {visibleCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {moneyCategoryLabel(c, categoryById)}
-              </option>
+            {budgetCategorySelectGroups.singleRoots.length > 0 ? (
+              <optgroup label="No parent">
+                {budgetCategorySelectGroups.singleRoots.map((g) => (
+                  <option key={g.category.id} value={g.category.id}>
+                    {categoryOptionLabel(g.category, categoryById)}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+            {budgetCategorySelectGroups.parentGroups.map((g) => (
+              <optgroup key={`parent-${g.parent.id}`} label={g.parent.name}>
+                <option value={g.parent.id}>
+                  {`${moneyCategoryLabel(g.parent, categoryById)} (all) (${KIND_TAG[g.parent.kind]})`}
+                </option>
+                {g.children.map((child) => (
+                  <option key={child.id} value={child.id}>
+                    {categoryOptionLabel(child, categoryById)}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         ) : null}
@@ -356,10 +407,10 @@ export function MoneySettingsBudgetsSection() {
               return (
               <li
                 key={b.id}
-                className={`rounded-lg px-3 py-2 ${
+                className={`rounded-[var(--radius-md)] px-3 py-2 transition-colors duration-150 ${
                   overBudget
                     ? "border border-[color:var(--danger)]/40 bg-[color-mix(in_oklab,var(--danger)_8%,var(--background))]"
-                    : "border border-border bg-background"
+                    : "border border-border bg-background hover:border-foreground/30"
                 }`}
               >
                 {editingId === b.id ? (

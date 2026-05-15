@@ -6,15 +6,51 @@ import type {
   AnalyticsLookupAccount,
 } from "@/components/analytics-filters";
 import { formatMinor } from "@/lib/format-money";
+import { useFormatDate } from "@/lib/format-date";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   moneyCategoryById,
   moneyCategoryLabel,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
+import { MONEY_TRANSACTIONS_QUERY } from "@/lib/money-gql-documents";
 import { useInViewOnce } from "@/lib/use-in-view-once";
 import type { TransactionListSortKey } from "@/lib/validators/money";
+
+function transactionListQueryObject(
+  filterQuery: string,
+  page: number,
+  pageSize: number,
+  sort: TransactionListSortKey,
+  dir: "asc" | "desc",
+): Record<string, unknown> {
+  const u = new URLSearchParams(filterQuery);
+  const out: Record<string, unknown> = {
+    page,
+    pageSize,
+    sort,
+    dir,
+  };
+  const from = u.get("from");
+  const to = u.get("to");
+  if (from) out.from = from;
+  if (to) out.to = to;
+  for (const key of [
+    "accountIds",
+    "categoryIds",
+    "merchantIds",
+    "tagIds",
+    "kinds",
+  ] as const) {
+    const all = u.getAll(key);
+    if (all.length) out[key] = all;
+  }
+  return out;
+}
 
 const PAGE_SIZE = 20;
 
@@ -65,6 +101,7 @@ export function AnalyticsTransactionsTable({
   deferFetchUntilVisible?: boolean;
 }) {
   const { ref: viewportRef, isInView } = useInViewOnce();
+  const { formatDateTime } = useFormatDate();
   const [page, setPage] = useState(1);
   const [{ sort, dir }, setSortState] = useState<{
     sort: TransactionListSortKey;
@@ -93,42 +130,29 @@ export function AnalyticsTransactionsTable({
     if (!activeWorkspaceId) return;
     if (deferFetchUntilVisible && !isInView) return;
     let cancelled = false;
-    const qs = new URLSearchParams(filterQuery);
-    qs.set("page", String(page));
-    qs.set("pageSize", String(PAGE_SIZE));
-    qs.set("sort", sort);
-    qs.set("dir", dir);
-    const q = qs.toString();
-    const url =
-      q.length > 0
-        ? `/api/money/transactions?${q}`
-        : `/api/money/transactions?page=${page}&pageSize=${PAGE_SIZE}&sort=${sort}&dir=${dir}`;
+    const queryObj = transactionListQueryObject(
+      filterQuery,
+      page,
+      PAGE_SIZE,
+      sort,
+      dir,
+    );
     queueMicrotask(() => {
       if (cancelled) return;
       void (async () => {
         setLoading(true);
         setLocalError(null);
         try {
-          const res = await fetch(url, {
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-          });
-          const body = (await res.json()) as {
-            data?: TxRow[];
-            total?: number;
-            page?: number;
-            pageSize?: number;
-            error?: string;
-          };
+          const body = await moneyGraphQLRequest<{
+            moneyTransactions: ListResponse;
+          }>(MONEY_TRANSACTIONS_QUERY, { query: queryObj });
           if (cancelled) return;
-          if (!res.ok) {
-            throw new Error(body.error ?? res.statusText);
-          }
+          const chunk = body.moneyTransactions;
           setPayload({
-            data: body.data ?? [],
-            total: body.total ?? 0,
-            page: body.page ?? page,
-            pageSize: body.pageSize ?? PAGE_SIZE,
+            data: (chunk.data ?? []) as TxRow[],
+            total: chunk.total ?? 0,
+            page: chunk.page ?? page,
+            pageSize: chunk.pageSize ?? PAGE_SIZE,
           });
         } catch (e: unknown) {
           if (cancelled) return;
@@ -189,13 +213,16 @@ export function AnalyticsTransactionsTable({
     payload != null &&
     payload.total === 0;
 
+  const sortIndicator = (col: TransactionListSortKey) =>
+    sort === col ? (dir === "asc" ? " ↑" : " ↓") : "";
+
   return (
-    <section
+    <Card
       ref={viewportRef}
-      className="col-span-2 w-full min-w-0 rounded-md border border-border bg-surface p-4 md:col-span-6 lg:col-span-12"
-      aria-labelledby="analytics-transactions-heading"
+      className="col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12"
     >
-      <h2 id="analytics-transactions-heading" className="mb-3 text-lg font-medium">
+      <section aria-labelledby="analytics-transactions-heading">
+      <h2 id="analytics-transactions-heading" className="mb-3 font-display text-lg font-medium">
         Transactions
       </h2>
       <p className="mb-3 text-xs text-muted">
@@ -215,12 +242,12 @@ export function AnalyticsTransactionsTable({
           action={{ href: "/money", label: "Go to transactions" }}
         />
       ) : (
-      <div className="overflow-x-auto rounded-md border border-border">
+      <div className="overflow-x-auto rounded-[var(--radius-md)] border border-border">
         <table className="min-w-full divide-y divide-border text-left text-sm">
           <caption className="sr-only">
             Filtered transactions with sorting and pagination
           </caption>
-          <thead className="bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]">
+          <thead className="bg-muted-surface">
             <tr>
               <th
                 scope="col"
@@ -229,11 +256,11 @@ export function AnalyticsTransactionsTable({
               >
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 rounded-sm px-1 py-0.5 font-medium hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                  className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-1 py-0.5 font-medium transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] fx-press"
                   onClick={() => onSortHeader("occurredAt")}
                 >
                   Date
-                  {sort === "occurredAt" ? (dir === "asc" ? " ↑" : " ↓") : ""}
+                  {sortIndicator("occurredAt")}
                 </button>
               </th>
               <th
@@ -243,11 +270,11 @@ export function AnalyticsTransactionsTable({
               >
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 rounded-sm px-1 py-0.5 font-medium hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                  className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-1 py-0.5 font-medium transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] fx-press"
                   onClick={() => onSortHeader("kind")}
                 >
                   Kind
-                  {sort === "kind" ? (dir === "asc" ? " ↑" : " ↓") : ""}
+                  {sortIndicator("kind")}
                 </button>
               </th>
               <th
@@ -257,11 +284,11 @@ export function AnalyticsTransactionsTable({
               >
                 <button
                   type="button"
-                  className="inline-flex w-full items-center justify-end gap-1 rounded-sm px-1 py-0.5 font-medium hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                  className="inline-flex w-full items-center justify-end gap-1 rounded-[var(--radius-sm)] px-1 py-0.5 font-medium transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] fx-press"
                   onClick={() => onSortHeader("amountMinor")}
                 >
                   Amount
-                  {sort === "amountMinor" ? (dir === "asc" ? " ↑" : " ↓") : ""}
+                  {sortIndicator("amountMinor")}
                 </button>
               </th>
               <th scope="col" className="hidden px-3 py-2 font-medium lg:table-cell">
@@ -300,12 +327,12 @@ export function AnalyticsTransactionsTable({
                 cat != null ? moneyCategoryLabel(cat, categoryById) : "—";
 
               return (
-                <tr key={tx.id} className="hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]">
+                <tr
+                  key={tx.id}
+                  className="transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]"
+                >
                   <td className="whitespace-nowrap px-3 py-2 text-muted">
-                    {new Date(tx.occurredAt).toLocaleString(undefined, {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
+                    {formatDateTime(tx.occurredAt)}
                   </td>
                   <td className="px-3 py-2 capitalize">{tx.kind}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
@@ -323,7 +350,7 @@ export function AnalyticsTransactionsTable({
                   <td className="whitespace-nowrap px-3 py-2">
                     <Link
                       href={`/money/transactions/${tx.id}`}
-                      className="font-medium text-foreground underline-offset-2 hover:underline"
+                      className="font-medium text-foreground underline-offset-2 transition-colors duration-150 hover:underline"
                     >
                       Edit
                     </Link>
@@ -342,25 +369,28 @@ export function AnalyticsTransactionsTable({
             Page {payload.page} of {totalPages} ({payload.total.toLocaleString()} total)
           </p>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
-              className="rounded-md border border-border px-3 py-1.5 font-medium hover:bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)] disabled:opacity-40"
+              variant="secondary"
+              size="sm"
               disabled={page <= 1 || loading}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               Previous
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="rounded-md border border-border px-3 py-1.5 font-medium hover:bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)] disabled:opacity-40"
+              variant="secondary"
+              size="sm"
               disabled={page >= totalPages || loading}
               onClick={() => setPage((p) => p + 1)}
             >
               Next
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
-    </section>
+      </section>
+    </Card>
   );
 }

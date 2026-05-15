@@ -118,6 +118,29 @@ export function accountsTypeImportTypeSideDistinct(
   return listDistinctAccountsTypeColumnValues(rows, typeCol, aux, limit);
 }
 
+/** Parent column skipped: every row is treated as having no parent in CSV — one mapping for all. */
+export function categoriesImportParentIdNeedsSyntheticDistinct(
+  kind: MoneyImportKind,
+  f: MoneyImportFieldDef,
+  columnHeader: string,
+): boolean {
+  return (
+    kind === "categories" &&
+    f.key === "parentId" &&
+    Boolean(f.fk) &&
+    columnHeader.trim() === ""
+  );
+}
+
+export function includeMoneyImportValueMappingColumn(
+  kind: MoneyImportKind,
+  f: MoneyImportFieldDef,
+  columnHeader: string,
+): boolean {
+  if (columnHeader.trim()) return true;
+  return categoriesImportParentIdNeedsSyntheticDistinct(kind, f, columnHeader);
+}
+
 export function listDistinctForMoneyImportField(
   kind: MoneyImportKind,
   f: MoneyImportFieldDef,

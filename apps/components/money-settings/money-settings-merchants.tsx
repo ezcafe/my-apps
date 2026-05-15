@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
-import { moneyApiJson } from "@/lib/money-fetch";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
+import {
+  MONEY_LIST_MERCHANTS_QUERY,
+  MONEY_MERCHANT_CREATE_MUTATION,
+  MONEY_MERCHANT_DELETE_MUTATION,
+  MONEY_MERCHANT_UPDATE_MUTATION,
+} from "@/lib/money-gql-documents";
 import {
   inputCls,
   MoneySettingsBackLink,
@@ -23,8 +29,10 @@ export function MoneySettingsMerchantsSection() {
   const [editName, setEditName] = useState("");
 
   const loadMerchants = useCallback(async () => {
-    const { data } = await moneyApiJson<Merchant[]>("/api/money/merchants");
-    setMerchants(data);
+    const res = await moneyGraphQLRequest<{ moneyMerchants: Merchant[] }>(
+      MONEY_LIST_MERCHANTS_QUERY,
+    );
+    setMerchants(res.moneyMerchants);
   }, []);
 
   useEffect(() => {
@@ -58,9 +66,9 @@ export function MoneySettingsMerchantsSection() {
     e.preventDefault();
     if (!editingId || !editName.trim()) return;
     try {
-      await moneyApiJson(`/api/money/merchants/${editingId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ name: editName.trim() }),
+      await moneyGraphQLRequest(MONEY_MERCHANT_UPDATE_MUTATION, {
+        id: editingId,
+        input: { name: editName.trim() },
       });
       cancelEdit();
       await loadMerchants();
@@ -80,7 +88,7 @@ export function MoneySettingsMerchantsSection() {
       return;
     }
     try {
-      await moneyApiJson(`/api/money/merchants/${id}`, { method: "DELETE" });
+      await moneyGraphQLRequest(MONEY_MERCHANT_DELETE_MUTATION, { id });
       if (editingId === id) cancelEdit();
       await loadMerchants();
       notify.success("Settings updated", "Merchant deleted.");
@@ -96,9 +104,8 @@ export function MoneySettingsMerchantsSection() {
     e.preventDefault();
     if (!newMerchant.trim()) return;
     try {
-      await moneyApiJson("/api/money/merchants", {
-        method: "POST",
-        body: JSON.stringify({ name: newMerchant.trim() }),
+      await moneyGraphQLRequest(MONEY_MERCHANT_CREATE_MUTATION, {
+        input: { name: newMerchant.trim() },
       });
       setNewMerchant("");
       await loadMerchants();
@@ -143,7 +150,7 @@ export function MoneySettingsMerchantsSection() {
             {merchants.map((m) => (
               <li
                 key={m.id}
-                className="rounded-lg border border-border bg-background px-3 py-2"
+                className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30"
               >
                 {editingId === m.id ? (
                   <form className="flex flex-col gap-3" onSubmit={saveEdit}>

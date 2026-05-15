@@ -1,6 +1,9 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
 import { formatMinor } from "@/lib/format-money";
+import { cn } from "@/lib/cn";
+import { useFormatDate } from "@/lib/format-date";
 
 export type AnalyticsStatsPayload = {
   expenseMinor: number;
@@ -10,21 +13,6 @@ export type AnalyticsStatsPayload = {
 };
 
 type ColumnRow = { month: string; expenseMinor: number; incomeMinor: number };
-
-function formatPeriod(fromIso: string, toIso: string) {
-  try {
-    const from = new Date(fromIso);
-    const to = new Date(toIso);
-    const opts: Intl.DateTimeFormatOptions = {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    };
-    return `${from.toLocaleDateString(undefined, opts)} – ${to.toLocaleDateString(undefined, opts)}`;
-  } catch {
-    return "";
-  }
-}
 
 function expenseMomTrend(column: ColumnRow[]) {
   const withExpense = column.filter((m) => m.expenseMinor > 0);
@@ -42,7 +30,14 @@ function expenseMomTrend(column: ColumnRow[]) {
   };
 }
 
-/** Summary metrics row — “simple in cards” stats layout (Tailwind Plus-style). */
+/** Positive deltas (e.g. positive net flow, lower spending) → accent; negative → destructive. */
+function trendColor(direction: "up" | "down" | "flat", positiveIsUp: boolean) {
+  if (direction === "flat") return "text-muted";
+  const isPositive = positiveIsUp ? direction === "up" : direction === "down";
+  return isPositive ? "text-accent" : "text-destructive";
+}
+
+/** Summary metrics row using Card primitives + tokenized status colors. */
 export function AnalyticsStats({
   stats,
   column,
@@ -54,11 +49,12 @@ export function AnalyticsStats({
   range: { from: string; to: string };
   currency: string;
 }) {
+  const { formatPeriod } = useFormatDate();
   const period = formatPeriod(range.from, range.to);
   const mom = expenseMomTrend(column);
 
   return (
-    <div className="col-span-2 grid gap-2 md:col-span-6 lg:col-span-12">
+    <div className="col-span-2 grid gap-2 md:col-span-6 lg:col-span-12 fx-fade-in">
       <p className="text-xs text-muted">
         {period ? <>Totals for {period}</> : <>Totals for selected range</>}
       </p>
@@ -66,28 +62,25 @@ export function AnalyticsStats({
         className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-2"
         aria-label="Workspace analytics summary"
       >
-        <article className="rounded-md border border-border bg-surface px-4 py-5">
+        <Card className="px-4 py-5">
           <p className="text-sm font-medium text-muted">Total income</p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground tabular-nums">
+          <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums">
             {formatMinor(stats.incomeMinor, currency)}
           </p>
           <p className="mt-1 text-xs text-muted">Recorded in workspace</p>
-        </article>
+        </Card>
 
-        <article className="rounded-md border border-border bg-surface px-4 py-5">
+        <Card className="px-4 py-5">
           <p className="text-sm font-medium text-muted">Total expenses</p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground tabular-nums">
+          <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums">
             {formatMinor(stats.expenseMinor, currency)}
           </p>
           {mom ? (
             <p
-              className={`mt-1 flex items-center gap-1 text-xs font-medium ${
-                mom.direction === "up"
-                  ? "text-rose-600 dark:text-rose-400"
-                  : mom.direction === "down"
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-muted"
-              }`}
+              className={cn(
+                "mt-1 flex items-center gap-1 text-xs font-medium",
+                trendColor(mom.direction, false),
+              )}
             >
               <span aria-hidden>
                 {mom.direction === "up"
@@ -107,29 +100,28 @@ export function AnalyticsStats({
               Trend compares last two months with expense
             </p>
           )}
-        </article>
+        </Card>
 
-        <article className="rounded-md border border-border bg-surface px-4 py-5">
+        <Card className="px-4 py-5">
           <p className="text-sm font-medium text-muted">Net flow</p>
           <p
-            className={`mt-2 text-3xl font-semibold tracking-tight tabular-nums ${
-              stats.netMinor >= 0
-                ? "text-emerald-700 dark:text-emerald-400"
-                : "text-rose-700 dark:text-rose-400"
-            }`}
+            className={cn(
+              "mt-2 font-display text-3xl font-semibold tracking-tight tabular-nums",
+              stats.netMinor >= 0 ? "text-accent" : "text-destructive",
+            )}
           >
             {formatMinor(stats.netMinor, currency)}
           </p>
           <p className="mt-1 text-xs text-muted">Income minus expenses</p>
-        </article>
+        </Card>
 
-        <article className="rounded-md border border-border bg-surface px-4 py-5">
+        <Card className="px-4 py-5">
           <p className="text-sm font-medium text-muted">Transactions</p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground tabular-nums">
+          <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums">
             {stats.transactionCount.toLocaleString()}
           </p>
           <p className="mt-1 text-xs text-muted">In this period</p>
-        </article>
+        </Card>
       </div>
     </div>
   );

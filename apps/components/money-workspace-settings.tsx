@@ -4,14 +4,19 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
-import { moneyApiJson } from "@/lib/money-fetch";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
+import {
+  MONEY_BOOTSTRAP_QUERY,
+  MONEY_WORKSPACE_CLONE_MUTATION,
+} from "@/lib/money-gql-documents";
+import { cn } from "@/lib/cn";
 import type { MoneyWorkspaceBootstrapData } from "@/lib/money-workspace-bootstrap-data";
 import { MoneySettingsResetSection } from "@/components/money-settings/money-settings-reset";
-import {
-  inputCls,
-  secondaryBtnCls,
-  SettingsSection,
-} from "@/components/money-settings/money-settings-shared";
+import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 
 type WorkspaceRow = {
   id: string;
@@ -63,10 +68,10 @@ export function MoneyWorkspaceSettings() {
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
 
   const refreshMoneyWorkspaceContext = useCallback(async () => {
-    const { data: boot } =
-      await moneyApiJson<MoneyWorkspaceBootstrapData>(
-        "/api/money/workspace/bootstrap",
-      );
+    const res = await moneyGraphQLRequest<{ moneyBootstrap: MoneyWorkspaceBootstrapData }>(
+      MONEY_BOOTSTRAP_QUERY,
+    );
+    const boot = res.moneyBootstrap;
     setMoneyWorkspaceId(boot.workspaceId);
     setWorkspaceList(boot.workspaces);
     setDefaultWsPick(boot.defaultWorkspaceId ?? boot.workspaceId);
@@ -107,17 +112,17 @@ export function MoneyWorkspaceSettings() {
           title="Accounts & categories"
           description="Detailed editors open on each page below. Everything applies to your currently selected Money workspace."
         >
-          {/* Tailwind Plus “Actions with shared borders” grid list pattern */}
+          {/* Shared-border ledger grid: tokenized radii, container-sized layout */}
           <ul
             role="list"
-            className="grid grid-cols-1 gap-px overflow-hidden rounded-md bg-border shadow-sm ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)] sm:grid-cols-2 lg:grid-cols-3"
+            className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-px overflow-hidden rounded-[var(--radius-md)] bg-border shadow-[var(--shadow-sm)] ring-1 ring-border"
             aria-label="Ledger and automation"
           >
             {LEDGER_MANAGEMENT_LINKS.map(({ href, label }) => (
               <li key={href} className="min-w-0">
                 <Link
                   href={href}
-                  className="relative flex items-center gap-x-3 bg-surface px-4 py-5 text-sm font-semibold text-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground"
+                  className="relative flex items-center gap-x-3 bg-surface px-4 py-5 text-sm font-semibold text-foreground transition-colors duration-200 hover:bg-muted-surface focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground fx-press"
                 >
                   <span className="min-w-0 flex-1">{label}</span>
                   <LedgerLinkChevron />
@@ -155,8 +160,10 @@ export function MoneyWorkspaceSettings() {
                     try {
                       if (!newSharedName.trim())
                         throw new Error("Name required");
-                      await moneyApiJson("/api/workspace", {
+                      await fetch("/api/workspace", {
                         method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
                         body: JSON.stringify({
                           name: newSharedName.trim(),
                           defaultCurrency: newSharedCurrency,
@@ -164,6 +171,13 @@ export function MoneyWorkspaceSettings() {
                             ? { seedApp: "money" as const }
                             : {}),
                         }),
+                      }).then(async (r) => {
+                        const body = (await r.json().catch(() => null)) as {
+                          error?: string;
+                        } | null;
+                        if (!r.ok) {
+                          throw new Error(body?.error ?? r.statusText ?? "Request failed");
+                        }
                       });
                       setNewSharedName("");
                       setNewSharedCurrency("USD");
@@ -182,21 +196,15 @@ export function MoneyWorkspaceSettings() {
                     }
                   }}
                 >
-                  <label className="grid w-full gap-1.5 text-sm">
-                    <span className="font-medium text-foreground">Name</span>
-                    <input
-                      className={inputCls}
+                  <Field label="Name" required>
+                    <Input
                       placeholder="Family"
                       value={newSharedName}
                       onChange={(e) => setNewSharedName(e.target.value)}
                     />
-                  </label>
-                  <label className="grid w-full gap-1.5 text-sm">
-                    <span className="font-medium text-foreground">
-                      Default currency
-                    </span>
-                    <select
-                      className={inputCls}
+                  </Field>
+                  <Field label="Default currency">
+                    <Select
                       value={newSharedCurrency}
                       onChange={(e) => setNewSharedCurrency(e.target.value)}
                     >
@@ -205,20 +213,37 @@ export function MoneyWorkspaceSettings() {
                           {currency}
                         </option>
                       ))}
-                    </select>
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
+                    </Select>
+                  </Field>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-muted fx-press">
                     <input
                       type="checkbox"
-                      className="rounded border-border text-foreground"
+                      className="peer sr-only"
                       checked={seedMoneyOnShared}
                       onChange={(e) => setSeedMoneyOnShared(e.target.checked)}
                     />
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "flex size-4 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-border bg-background transition-colors duration-150",
+                        seedMoneyOnShared && "border-foreground bg-foreground text-background",
+                      )}
+                    >
+                      {seedMoneyOnShared ? (
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="size-3">
+                          <path
+                            fillRule="evenodd"
+                            d="M16.704 5.296a1 1 0 0 1 0 1.408l-7.5 7.5a1 1 0 0 1-1.414 0l-3.5-3.5a1 1 0 1 1 1.414-1.414L8.5 12.086l6.793-6.79a1 1 0 0 1 1.411 0Z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      ) : null}
+                    </span>
                     Seed Money accounts &amp; categories
                   </label>
-                  <button type="submit" className={`${secondaryBtnCls} w-fit`}>
+                  <Button type="submit" variant="secondary" size="md" className="w-fit">
                     Create workspace
-                  </button>
+                  </Button>
                 </form>
               </div>
             </li>
@@ -240,13 +265,21 @@ export function MoneyWorkspaceSettings() {
                     onSubmit={async (e) => {
                       e.preventDefault();
                       try {
-                        await moneyApiJson("/api/workspace/default", {
+                        const dr = await fetch("/api/workspace/default", {
                           method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          credentials: "include",
                           body: JSON.stringify({
                             workspaceId: defaultWsPick,
                             app: "money",
                           }),
                         });
+                        const dbody = (await dr.json().catch(() => null)) as {
+                          error?: string;
+                        } | null;
+                        if (!dr.ok) {
+                          throw new Error(dbody?.error ?? dr.statusText ?? "Request failed");
+                        }
                         await refreshMoneyWorkspaceContext();
                         notify.success(
                           "Settings updated",
@@ -262,12 +295,8 @@ export function MoneyWorkspaceSettings() {
                       }
                     }}
                   >
-                    <label className="grid w-full gap-1.5 text-sm">
-                      <span className="font-medium text-foreground">
-                        Workspace
-                      </span>
-                      <select
-                        className={inputCls}
+                    <Field label="Workspace">
+                      <Select
                         value={defaultWsPick}
                         onChange={(e) => setDefaultWsPick(e.target.value)}
                       >
@@ -277,15 +306,17 @@ export function MoneyWorkspaceSettings() {
                             {w.kind === "shared" ? " (shared)" : ""}
                           </option>
                         ))}
-                      </select>
-                    </label>
-                    <button
+                      </Select>
+                    </Field>
+                    <Button
                       type="submit"
-                      className={`${secondaryBtnCls} w-fit`}
+                      variant="secondary"
+                      size="md"
+                      className="w-fit"
                       disabled={!defaultWsPick}
                     >
                       Save
-                    </button>
+                    </Button>
                   </form>
                 </div>
               </li>
@@ -312,11 +343,8 @@ export function MoneyWorkspaceSettings() {
                       try {
                         if (!cloneTargetId)
                           throw new Error("Pick a target workspace");
-                        await moneyApiJson("/api/money/workspace/clone", {
-                          method: "POST",
-                          body: JSON.stringify({
-                            targetWorkspaceId: cloneTargetId,
-                          }),
+                        await moneyGraphQLRequest(MONEY_WORKSPACE_CLONE_MUTATION, {
+                          targetWorkspaceId: cloneTargetId,
                         });
                         setCloneTargetId("");
                         await refreshMoneyWorkspaceContext();
@@ -334,12 +362,8 @@ export function MoneyWorkspaceSettings() {
                       }
                     }}
                   >
-                    <label className="grid w-full gap-1.5 text-sm">
-                      <span className="font-medium text-foreground">
-                        Target workspace
-                      </span>
-                      <select
-                        className={inputCls}
+                    <Field label="Target workspace">
+                      <Select
                         value={cloneTargetId}
                         onChange={(e) => setCloneTargetId(e.target.value)}
                       >
@@ -354,11 +378,13 @@ export function MoneyWorkspaceSettings() {
                               {w.name}
                             </option>
                           ))}
-                      </select>
-                    </label>
-                    <button
+                      </Select>
+                    </Field>
+                    <Button
                       type="submit"
-                      className={`${secondaryBtnCls} w-fit`}
+                      variant="secondary"
+                      size="md"
+                      className="w-fit"
                       disabled={
                         !cloneTargetId ||
                         workspaceList.filter(
@@ -368,7 +394,7 @@ export function MoneyWorkspaceSettings() {
                       }
                     >
                       Clone now
-                    </button>
+                    </Button>
                   </form>
                 </div>
               </li>

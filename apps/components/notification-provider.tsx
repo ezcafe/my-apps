@@ -40,30 +40,63 @@ function ToastRow({
   variant,
   onDismiss,
 }: Omit<Toast, "id"> & { onDismiss: () => void }) {
+  const durationMs =
+    variant === "error" ? 8000 : variant === "warning" ? 7000 : 5000;
+
   useEffect(() => {
-    const ms =
-      variant === "error" ? 8000 : variant === "warning" ? 7000 : 5000;
-    const t = window.setTimeout(onDismiss, ms);
+    const t = window.setTimeout(onDismiss, durationMs);
     return () => window.clearTimeout(t);
-  }, [variant, onDismiss]);
+  }, [durationMs, onDismiss]);
 
   const a11yRole = variant === "error" ? "alert" : "status";
 
+  const shell =
+    variant === "success"
+      ? "border-[var(--toast-success-border)] bg-[var(--toast-success-bg)] border-l-[var(--toast-success-accent)]"
+      : variant === "warning"
+        ? "border-[var(--toast-warning-border)] bg-[var(--toast-warning-bg)] border-l-[var(--toast-warning-accent)]"
+        : "border-[var(--toast-error-border)] bg-[var(--toast-error-bg)] border-l-[var(--toast-error-accent)]";
+
+  const iconWrap =
+    variant === "success"
+      ? "bg-[var(--toast-success-icon-bg)] text-[var(--toast-success-accent)]"
+      : variant === "warning"
+        ? `bg-[var(--toast-warning-icon-bg)] text-[var(--toast-warning-accent)]`
+        : `bg-[var(--toast-error-icon-bg)] text-[var(--toast-error-accent)]`;
+
+  const titleCls =
+    variant === "success"
+      ? "text-[var(--toast-success-title)]"
+      : variant === "warning"
+        ? "text-[var(--toast-warning-title)]"
+        : "text-[var(--toast-error-title)]";
+
+  const bodyCls =
+    variant === "success"
+      ? "text-[var(--toast-success-body)]"
+      : variant === "warning"
+        ? "text-[var(--toast-warning-body)]"
+        : "text-[var(--toast-error-body)]";
+
+  const progressColor =
+    variant === "success"
+      ? "var(--toast-success-accent)"
+      : variant === "warning"
+        ? "var(--toast-warning-accent)"
+        : "var(--toast-error-accent)";
+
   return (
     <div
-      className={`pointer-events-auto w-full max-w-sm rounded-md border border-l-4 p-4 shadow-lg ring-1 ring-black/5 dark:ring-white/10 ${
-        variant === "success"
-          ? "border-border border-l-emerald-600 bg-surface dark:border-l-emerald-500"
-          : variant === "warning"
-            ? "border-amber-200/80 bg-amber-50/95 dark:border-amber-500/35 dark:bg-amber-950/40 border-l-amber-600 dark:border-l-amber-400"
-            : "border-red-200/80 bg-red-50/95 dark:border-red-500/35 dark:bg-red-950/40 border-l-red-600 dark:border-l-red-400"
-      }`}
+      className={`pointer-events-auto relative w-full max-w-sm overflow-hidden rounded-[var(--radius-md)] border border-l-4 p-4 pb-3 shadow-[var(--shadow-md)] ring-1 ring-[color-mix(in_oklab,var(--foreground)_6%,transparent)] fx-fade-in ${shell}`}
+      style={{ ["--toast-ms" as string]: `${durationMs}ms` }}
       role={a11yRole}
     >
       <div className="flex gap-3">
         <div className="flex-shrink-0">
           {variant === "success" ? (
-            <span className="flex size-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+            <span
+              className={`flex size-10 items-center justify-center rounded-full ${iconWrap}`}
+            >
               <svg className="size-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
                 <path
                   fillRule="evenodd"
@@ -73,7 +106,9 @@ function ToastRow({
               </svg>
             </span>
           ) : variant === "warning" ? (
-            <span className="flex size-10 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+            <span
+              className={`flex size-10 items-center justify-center rounded-full ${iconWrap}`}
+            >
               <svg className="size-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
                 <path
                   fillRule="evenodd"
@@ -83,7 +118,9 @@ function ToastRow({
               </svg>
             </span>
           ) : (
-            <span className="flex size-10 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-400">
+            <span
+              className={`flex size-10 items-center justify-center rounded-full ${iconWrap}`}
+            >
               <svg className="size-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
                 <path
                   fillRule="evenodd"
@@ -95,36 +132,16 @@ function ToastRow({
           )}
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
-          <p
-            className={`text-sm font-semibold break-words ${
-              variant === "success"
-                ? "text-foreground"
-                : variant === "warning"
-                  ? "text-amber-950 dark:text-amber-50"
-                  : "text-red-950 dark:text-red-50"
-            }`}
-          >
-            {title}
-          </p>
+          <p className={`text-sm font-semibold break-words ${titleCls}`}>{title}</p>
           {description ? (
-            <p
-              className={`text-sm break-words ${
-                variant === "success"
-                  ? "text-muted"
-                  : variant === "warning"
-                    ? "text-amber-900/95 dark:text-amber-100/90"
-                    : "text-red-900/95 dark:text-red-100/90"
-              }`}
-            >
-              {description}
-            </p>
+            <p className={`text-sm break-words ${bodyCls}`}>{description}</p>
           ) : null}
         </div>
         <div className="flex flex-shrink-0">
           <button
             type="button"
             onClick={onDismiss}
-            className="-m-1 inline-flex rounded-lg p-1 text-muted hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+            className="-m-1 inline-flex rounded-[var(--radius-sm)] p-1 text-muted transition-colors duration-200 hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] hover:text-foreground focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press fx-hit-40"
           >
             <span className="sr-only">Dismiss</span>
             <svg className="size-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
@@ -133,6 +150,11 @@ function ToastRow({
           </button>
         </div>
       </div>
+      <div
+        className="toast-progress-bar absolute bottom-0 left-0 right-0"
+        style={{ background: progressColor }}
+        aria-hidden
+      />
     </div>
   );
 }

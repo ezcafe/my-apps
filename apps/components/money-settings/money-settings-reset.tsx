@@ -6,12 +6,13 @@ import {
   inputCls,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
-import { moneyApiJson } from "@/lib/money-fetch";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
+import { MONEY_WORKSPACE_RESET_MUTATION } from "@/lib/money-gql-documents";
 
 const CONFIRM_PHRASE = "RESET";
 
 const destructiveBtnCls =
-  "rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-800 shadow-sm transition-colors hover:bg-red-500/20 disabled:pointer-events-none disabled:opacity-40 dark:text-red-200";
+  "inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[color-mix(in_oklab,var(--destructive)_38%,var(--border))] bg-[var(--destructive-muted-bg)] px-4 py-2 text-sm font-medium text-[var(--destructive-muted-text)] shadow-[var(--shadow-sm)] transition-[opacity,transform,box-shadow,background-color] duration-200 hover:bg-[color-mix(in_oklab,var(--destructive)_20%,var(--surface))] disabled:pointer-events-none disabled:opacity-45 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press";
 
 type Props = {
   onResetComplete: () => Promise<void>;
@@ -30,7 +31,7 @@ export function MoneySettingsResetSection({ onResetComplete }: Props) {
       title="Reset Money data"
       description="Permanently remove every account, transaction, category, tag, merchant, budget, rule, and recurrence template in this workspace. Your workspace and members are kept; this cannot be undone."
     >
-      <div className="rounded-xl border border-red-500/35 bg-red-500/5 p-4">
+      <div className="rounded-[var(--radius-md)] border border-[color-mix(in_oklab,var(--destructive)_32%,var(--border))] bg-[var(--destructive-muted-bg)] p-4 shadow-[var(--shadow-sm)]">
         <p className="text-sm leading-6 text-foreground">
           Type{" "}
           <span className="rounded bg-surface px-1.5 py-0.5 font-mono text-xs font-semibold ring-1 ring-border">
@@ -45,10 +46,7 @@ export function MoneySettingsResetSection({ onResetComplete }: Props) {
             if (!canSubmit) return;
             setBusy(true);
             try {
-              await moneyApiJson("/api/money/workspace/reset", {
-                method: "POST",
-                body: JSON.stringify({}),
-              });
+              await moneyGraphQLRequest(MONEY_WORKSPACE_RESET_MUTATION);
               setConfirmText("");
               await onResetComplete();
               notify.success(

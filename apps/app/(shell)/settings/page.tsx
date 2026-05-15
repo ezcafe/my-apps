@@ -1,5 +1,7 @@
 import { auth } from "@/auth";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
+import { DateFormatSettings } from "@/components/date-format-settings";
+import { StyleSettings } from "@/components/style-settings";
 import { ThemeSettings } from "@/components/theme-settings";
 
 export default async function SettingsPage() {
@@ -60,11 +62,27 @@ export default async function SettingsPage() {
           </SettingsSection>
 
           <SettingsSection
+            id="settings-style"
+            title="Visual style"
+            description="Minimal presets for typography, radius, and surfaces."
+          >
+            <StyleSettings embedded />
+          </SettingsSection>
+
+          <SettingsSection
             id="settings-appearance"
             title="Appearance"
-            description="Choose light, dark, or follow your system preference."
+            description="Light, dark, or match your OS."
           >
             <ThemeSettings embedded />
+          </SettingsSection>
+
+          <SettingsSection
+            id="settings-date-format"
+            title="Date format"
+            description="How dates appear across the app."
+          >
+            <DateFormatSettings embedded />
           </SettingsSection>
         </div>
       </div>

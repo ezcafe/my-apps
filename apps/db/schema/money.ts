@@ -32,6 +32,11 @@ export const moneyTransactionKindEnum = pgEnum("money_transaction_kind", [
   "transfer",
 ]);
 
+export const moneyCategoryKindEnum = pgEnum("money_category_kind", [
+  "expense",
+  "income",
+]);
+
 export const moneyCadenceEnum = pgEnum("money_cadence", [
   "weekly",
   "biweekly",
@@ -83,6 +88,8 @@ export const moneyCategory = pgTable(
       .notNull()
       .references(() => workspace.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    /** Immutable after creation. Parent must share the same kind. */
+    kind: moneyCategoryKindEnum("kind").notNull(),
     parentId: uuid("parent_id"),
     archived: boolean("archived").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -91,6 +98,7 @@ export const moneyCategory = pgTable(
   },
   (t) => [
     index("money_category_workspace_idx").on(t.workspaceId),
+    index("money_category_workspace_kind_idx").on(t.workspaceId, t.kind),
     index("money_category_parent_idx").on(t.parentId),
   ],
 );
@@ -228,6 +236,8 @@ export const moneyRule = pgTable(
       .notNull()
       .references(() => workspace.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    /** Immutable after creation. setCategoryId in `action` must share this kind. */
+    kind: moneyCategoryKindEnum("kind").notNull(),
     priority: integer("priority").notNull().default(0),
     match: jsonb("match").notNull(),
     action: jsonb("action").notNull(),
@@ -238,6 +248,7 @@ export const moneyRule = pgTable(
   },
   (t) => [
     index("money_rule_workspace_idx").on(t.workspaceId),
+    index("money_rule_workspace_kind_idx").on(t.workspaceId, t.kind),
     index("money_rule_priority_idx").on(t.workspaceId, t.priority),
   ],
 );

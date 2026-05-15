@@ -2,6 +2,9 @@ import { z } from "zod";
 
 export const transactionKindSchema = z.enum(["expense", "income", "transfer"]);
 
+export const categoryKindSchema = z.enum(["expense", "income"]);
+export type CategoryKind = z.infer<typeof categoryKindSchema>;
+
 const transactionBaseSchema = z.object({
   accountId: z.string().uuid(),
   toAccountId: z.string().uuid().optional(),
@@ -78,6 +81,13 @@ export const accountCreateSchema = z.object({
 
 export const categoryCreateSchema = z.object({
   name: z.string().min(1).max(200),
+  kind: categoryKindSchema,
+  parentId: z.string().uuid().optional().nullable(),
+  archived: z.boolean().optional(),
+});
+
+export const categoryUpdateSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
   parentId: z.string().uuid().optional().nullable(),
   archived: z.boolean().optional(),
 });
@@ -112,9 +122,18 @@ export const ruleActionSchema = z.object({
 
 export const ruleCreateSchema = z.object({
   name: z.string().min(1).max(200),
+  kind: categoryKindSchema,
   priority: z.number().int().optional(),
   match: ruleMatchSchema,
   action: ruleActionSchema,
+  active: z.boolean().optional(),
+});
+
+export const ruleUpdateSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  priority: z.number().int().optional(),
+  match: ruleMatchSchema.optional(),
+  action: ruleActionSchema.optional(),
   active: z.boolean().optional(),
 });
 

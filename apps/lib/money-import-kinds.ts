@@ -57,6 +57,8 @@ export const MONEY_IMPORT_ACCOUNT_TYPES = [
 
 const TX_KINDS = ["expense", "income", "transfer"] as const;
 
+const CATEGORY_KINDS = ["expense", "income"] as const;
+
 const CADENCE = ["weekly", "biweekly", "monthly", "quarterly", "yearly"] as const;
 
 export function isMoneyImportKind(value: string): value is MoneyImportKind {
@@ -90,6 +92,13 @@ export function moneyImportFieldDefs(kind: MoneyImportKind): MoneyImportFieldDef
     case "categories":
       return [
         { key: "name", label: "Name", required: true, valueKind: "text" },
+        {
+          key: "kind",
+          label: "Kind (expense / income)",
+          required: false,
+          valueKind: "enum",
+          enumValues: CATEGORY_KINDS,
+        },
         {
           key: "parentId",
           label: "Parent category",
@@ -146,6 +155,13 @@ export function moneyImportFieldDefs(kind: MoneyImportKind): MoneyImportFieldDef
     case "rules":
       return [
         { key: "name", label: "Name", required: true, valueKind: "text" },
+        {
+          key: "kind",
+          label: "Kind (expense / income)",
+          required: true,
+          valueKind: "enum",
+          enumValues: CATEGORY_KINDS,
+        },
         { key: "priority", label: "Priority", required: false, valueKind: "int" },
         { key: "active", label: "Active", required: false, valueKind: "bool" },
         {

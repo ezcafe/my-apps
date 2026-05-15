@@ -43,6 +43,13 @@
       "when": 1778002000000,
       "tag": "0005_money_tx_perf_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778003000000,
+      "tag": "0006_money_category_kind",
+      "breakpoints": true
     }
   ]
 }

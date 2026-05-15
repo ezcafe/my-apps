@@ -265,7 +265,7 @@ export function MoneySettingsImportSection() {
         </form>
 
         {preview && preview.csvHeaders.length > 0 ? (
-          <div className="space-y-3 rounded-xl border border-border bg-surface/30 p-4">
+          <div className="space-y-3 rounded-[var(--radius-md)] border border-border bg-surface/30 p-4 fx-fade-in">
             <div>
               <p className="text-sm font-medium text-foreground">
                 Column mapping
@@ -288,7 +288,7 @@ export function MoneySettingsImportSection() {
                 for the next preview (sends the table below to the server).
               </span>
             </label>
-            <div className="overflow-x-auto rounded-lg border border-border">
+            <div className="overflow-x-auto rounded-[var(--radius-md)] border border-border">
               <table className="w-full min-w-[28rem] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border bg-surface/80 text-left">
@@ -351,7 +351,7 @@ export function MoneySettingsImportSection() {
         ) : null}
 
         {preview ? (
-          <div className="space-y-4 rounded-xl border border-border bg-surface/50 p-4">
+          <div className="space-y-4 rounded-[var(--radius-md)] border border-border bg-surface/50 p-4 fx-fade-in">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-foreground">
                 <span className="font-semibold">Summary:</span>{" "}
@@ -412,7 +412,7 @@ export function MoneySettingsImportSection() {
               </div>
             </div>
             {preview.errors.length > 0 && preview.rows.length > 0 ? (
-              <label className="flex max-w-2xl cursor-pointer items-start gap-2 rounded-lg border border-amber-500/35 bg-amber-500/10 p-3 text-sm text-foreground dark:bg-amber-500/15">
+              <label className="flex max-w-2xl cursor-pointer items-start gap-2 rounded-[var(--radius-md)] border border-[var(--alert-warning-border)] bg-[var(--alert-warning-bg)] p-3 text-sm text-foreground transition-colors duration-200 fx-press">
                 <input
                   type="checkbox"
                   className="mt-1"
@@ -455,7 +455,7 @@ export function MoneySettingsImportSection() {
                 <p className="mb-2 text-sm font-medium text-foreground">
                   Preview (first rows)
                 </p>
-                <pre className="max-h-64 overflow-auto rounded-lg border border-border bg-background p-3 text-xs text-foreground">
+                <pre className="max-h-64 overflow-auto rounded-[var(--radius-md)] border border-border bg-background p-3 text-xs text-foreground">
                   {JSON.stringify(preview.rows.slice(0, 30), null, 2)}
                   {preview.rows.length > 30
                     ? `\n… ${preview.rows.length - 30} more`

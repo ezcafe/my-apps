@@ -2,14 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
-import { useWorkspaceCurrency } from "@/components/workspace-gate";
+import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import {
   formatMinor,
   minorToMajorInput,
   parseMajorToMinor,
 } from "@/lib/format-money";
-import { moneyApiJson } from "@/lib/money-fetch";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
+import {
+  MONEY_ACCOUNT_ARCHIVE_MUTATION,
+  MONEY_ACCOUNT_CREATE_MUTATION,
+  MONEY_ACCOUNT_UPDATE_MUTATION,
+  MONEY_LIST_ACCOUNTS_QUERY,
+} from "@/lib/money-gql-documents";
 import {
   inputCls,
   MoneySettingsBackLink,
@@ -52,8 +58,10 @@ export function MoneySettingsAccountsSection() {
   const [editBalanceMajor, setEditBalanceMajor] = useState("");
 
   const loadAccounts = useCallback(async () => {
-    const { data } = await moneyApiJson<Account[]>("/api/money/accounts");
-    setAccounts(data as Account[]);
+    const res = await moneyGraphQLRequest<{ moneyAccounts: Account[] }>(
+      MONEY_LIST_ACCOUNTS_QUERY,
+    );
+    setAccounts(res.moneyAccounts as Account[]);
   }, []);
 
   const visibleAccounts = useMemo(
@@ -96,13 +104,13 @@ export function MoneySettingsAccountsSection() {
     try {
       const parsedBal = parseMajorToMinor(editBalanceMajor.trim(), defaultCurrency);
       const balanceMinor = parsedBal ?? 0;
-      await moneyApiJson(`/api/money/accounts/${editingId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
+      await moneyGraphQLRequest(MONEY_ACCOUNT_UPDATE_MUTATION, {
+        id: editingId,
+        input: {
           name: editName.trim(),
           type: editType,
           balanceMinor,
-        }),
+        },
       });
       setEditingId(null);
       await loadAccounts();
@@ -124,7 +132,7 @@ export function MoneySettingsAccountsSection() {
       return;
     }
     try {
-      await moneyApiJson(`/api/money/accounts/${id}`, { method: "DELETE" });
+      await moneyGraphQLRequest(MONEY_ACCOUNT_ARCHIVE_MUTATION, { id });
       if (editingId === id) setEditingId(null);
       await loadAccounts();
       notify.success("Settings updated", "Account removed.");
@@ -145,13 +153,12 @@ export function MoneySettingsAccountsSection() {
         defaultCurrency,
       );
       const balanceMinor = parsedBal ?? 0;
-      await moneyApiJson("/api/money/accounts", {
-        method: "POST",
-        body: JSON.stringify({
+      await moneyGraphQLRequest(MONEY_ACCOUNT_CREATE_MUTATION, {
+        input: {
           name: newAccount.trim(),
           type: newAccountType,
           balanceMinor,
-        }),
+        },
       });
       setNewAccount("");
       setNewAccountType("checking");
@@ -227,7 +234,7 @@ export function MoneySettingsAccountsSection() {
             {visibleAccounts.map((a) => (
               <li
                 key={a.id}
-                className="rounded-lg border border-border bg-background px-3 py-2"
+                className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30"
               >
                 {editingId === a.id ? (
                   <form className="flex flex-col gap-3" onSubmit={saveEdit}>

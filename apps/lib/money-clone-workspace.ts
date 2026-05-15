@@ -45,6 +45,7 @@ export async function cloneMoneyWorkspaceStructure(
           .values({
             workspaceId: targetWorkspaceId,
             name: c.name,
+            kind: c.kind,
             parentId: c.parentId ? categoryMap.get(c.parentId) ?? null : null,
             archived: c.archived,
           })
@@ -163,6 +164,7 @@ export async function cloneMoneyWorkspaceStructure(
       await tx.insert(moneyRule).values({
         workspaceId: targetWorkspaceId,
         name: r.name,
+        kind: r.kind,
         priority: r.priority,
         match: nextMatch,
         action: nextAction,

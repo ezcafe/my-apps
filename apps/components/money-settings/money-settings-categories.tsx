@@ -3,10 +3,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
-import { moneyApiJson } from "@/lib/money-fetch";
+import { Tabs } from "@/components/ui/tabs";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
+  MONEY_CATEGORY_ARCHIVE_MUTATION,
+  MONEY_CATEGORY_CREATE_MUTATION,
+  MONEY_CATEGORY_UPDATE_MUTATION,
+  MONEY_LIST_CATEGORIES_QUERY,
+} from "@/lib/money-gql-documents";
+import {
+  categoriesOfKind,
   moneyCategoryById,
   moneyCategoryLabel,
+  moneyCategorySelectGroups,
+  type MoneyCategoryKind,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import {
@@ -18,42 +28,33 @@ import {
 
 type Category = MoneyCategoryRow & { archived?: boolean };
 
+const KIND_META: Record<
+  MoneyCategoryKind,
+  { description: string; placeholder: string; allCategoriesHeading: string }
+> = {
+  expense: {
+    description: "Categorize where your money goes.",
+    placeholder: "Groceries",
+    allCategoriesHeading: "All expense categories",
+  },
+  income: {
+    description: "Categorize where your money comes from.",
+    placeholder: "Salary",
+    allCategoriesHeading: "All income categories",
+  },
+};
+
 export function MoneySettingsCategoriesSection() {
   const notify = useNotify();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [newCategory, setNewCategory] = useState("");
-  const [newCategoryParentId, setNewCategoryParentId] = useState("");
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editParentId, setEditParentId] = useState("");
-
-  const visibleCategories = useMemo(
-    () => categories.filter((c) => !c.archived),
-    [categories],
-  );
-  const categoryById = useMemo(
-    () => moneyCategoryById(visibleCategories),
-    [visibleCategories],
-  );
-  const rootCategories = useMemo(
-    () => visibleCategories.filter((c) => c.parentId == null),
-    [visibleCategories],
-  );
-  const sortedVisible = useMemo(() => {
-    const copy = [...visibleCategories];
-    copy.sort((a, b) =>
-      moneyCategoryLabel(a, categoryById).localeCompare(
-        moneyCategoryLabel(b, categoryById),
-      ),
-    );
-    return copy;
-  }, [visibleCategories, categoryById]);
+  const [kindTab, setKindTab] = useState<MoneyCategoryKind>("expense");
 
   const loadCategories = useCallback(async () => {
-    const { data } = await moneyApiJson<Category[]>("/api/money/categories");
-    setCategories(data);
+    const res = await moneyGraphQLRequest<{ moneyCategories: Category[] }>(
+      MONEY_LIST_CATEGORIES_QUERY,
+    );
+    setCategories(res.moneyCategories);
   }, []);
 
   useEffect(() => {
@@ -74,6 +75,82 @@ export function MoneySettingsCategoriesSection() {
     };
   }, [loadCategories]);
 
+  return (
+    <>
+      <MoneySettingsBackLink current="Categories" />
+      {bootstrapErr ? (
+        <Alert
+          variant="error"
+          title="Unable to load"
+          description={bootstrapErr}
+          className="mb-8"
+        />
+      ) : null}
+      <SettingsSection
+        id="money-settings-categories"
+        title="Categories"
+        description="Create and organize expense and income categories. Subcategories are grouped under their parent."
+      >
+        <Tabs
+          name="money-settings-category-kind"
+          items={[
+            { id: "expense", label: "Expense" },
+            { id: "income", label: "Income" },
+          ]}
+          value={kindTab}
+          onChange={(id) => setKindTab(id as MoneyCategoryKind)}
+          className="mt-1"
+        />
+        <div
+          role="tabpanel"
+          className="mt-6"
+          aria-label={kindTab === "expense" ? "Expense categories" : "Income categories"}
+        >
+          <CategoryKindPanel
+            key={kindTab}
+            kind={kindTab}
+            categories={categories}
+            notify={notify}
+            reload={loadCategories}
+          />
+        </div>
+      </SettingsSection>
+    </>
+  );
+}
+
+type NotifyApi = ReturnType<typeof useNotify>;
+
+function CategoryKindPanel({
+  kind,
+  categories,
+  notify,
+  reload,
+}: {
+  kind: MoneyCategoryKind;
+  categories: Category[];
+  notify: NotifyApi;
+  reload: () => Promise<void>;
+}) {
+  const meta = KIND_META[kind];
+  const [newName, setNewName] = useState("");
+  const [newParentId, setNewParentId] = useState("");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editParentId, setEditParentId] = useState("");
+
+  const visible = useMemo(
+    () => categoriesOfKind(categories, kind).filter((c) => !c.archived),
+    [categories, kind],
+  );
+  const categoryById = useMemo(() => moneyCategoryById(visible), [visible]);
+  const rootCategories = useMemo(
+    () => visible.filter((c) => c.parentId == null),
+    [visible],
+  );
+  const groups = useMemo(() => moneyCategorySelectGroups(visible), [visible]);
+
   function startEdit(c: Category) {
     setEditingId(c.id);
     setEditName(c.name);
@@ -88,15 +165,15 @@ export function MoneySettingsCategoriesSection() {
     e.preventDefault();
     if (!editingId || !editName.trim()) return;
     try {
-      await moneyApiJson(`/api/money/categories/${editingId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
+      await moneyGraphQLRequest(MONEY_CATEGORY_UPDATE_MUTATION, {
+        id: editingId,
+        input: {
           name: editName.trim(),
           parentId: editParentId ? editParentId : null,
-        }),
+        },
       });
       setEditingId(null);
-      await loadCategories();
+      await reload();
       notify.success("Settings updated", "Category saved.");
     } catch (err: unknown) {
       notify.error(
@@ -115,9 +192,9 @@ export function MoneySettingsCategoriesSection() {
       return;
     }
     try {
-      await moneyApiJson(`/api/money/categories/${id}`, { method: "DELETE" });
+      await moneyGraphQLRequest(MONEY_CATEGORY_ARCHIVE_MUTATION, { id });
       if (editingId === id) setEditingId(null);
-      await loadCategories();
+      await reload();
       notify.success("Settings updated", "Category removed.");
     } catch (err: unknown) {
       notify.error(
@@ -129,18 +206,18 @@ export function MoneySettingsCategoriesSection() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!newCategory.trim()) return;
+    if (!newName.trim()) return;
     try {
-      await moneyApiJson("/api/money/categories", {
-        method: "POST",
-        body: JSON.stringify({
-          name: newCategory.trim(),
-          parentId: newCategoryParentId || null,
-        }),
+      await moneyGraphQLRequest(MONEY_CATEGORY_CREATE_MUTATION, {
+        input: {
+          name: newName.trim(),
+          kind,
+          parentId: newParentId || null,
+        },
       });
-      setNewCategory("");
-      setNewCategoryParentId("");
-      await loadCategories();
+      setNewName("");
+      setNewParentId("");
+      await reload();
       notify.success("Settings updated", "Category added.");
     } catch (err: unknown) {
       notify.error(
@@ -150,119 +227,127 @@ export function MoneySettingsCategoriesSection() {
     }
   }
 
-  return (
-    <>
-      <MoneySettingsBackLink current="Categories" />
-      {bootstrapErr ? (
-        <Alert
-          variant="error"
-          title="Unable to load"
-          description={bootstrapErr}
-          className="mb-8"
-        />
-      ) : null}
-      <SettingsSection
-        id="money-settings-categories-page"
-        title="Categories"
-        description="Top-level categories can have subcategories."
+  function categoryRowLi(
+    c: Category,
+    displayMode: "default" | "underParent",
+    nested: boolean,
+  ) {
+    const label = moneyCategoryLabel(c, categoryById);
+    const shown = displayMode === "underParent" ? c.name : label;
+    const parentChoices = rootCategories.filter((r) => r.id !== c.id);
+    return (
+      <li
+        key={c.id}
+        className={`rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30${nested ? " ml-3 border-l border-border pl-3" : ""}`}
       >
-        <form className="flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
-          <label className="grid gap-1.5 text-sm">
-            <span className="font-medium text-foreground">Name</span>
+        {editingId === c.id ? (
+          <form className="flex flex-col gap-3" onSubmit={saveEdit}>
             <input
               className={inputCls}
-              placeholder="Groceries"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              aria-label="Category name"
             />
-          </label>
-          <label className="grid gap-1.5 text-sm">
-            <span className="font-medium text-foreground">Parent (optional)</span>
             <select
               className={inputCls}
-              value={newCategoryParentId}
-              onChange={(e) => setNewCategoryParentId(e.target.value)}
+              value={editParentId}
+              onChange={(e) => setEditParentId(e.target.value)}
+              aria-label="Parent category"
             >
               <option value="">Top-level category</option>
-              {rootCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+              {parentChoices.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
                 </option>
               ))}
             </select>
-          </label>
-          <button type="submit" className={`${secondaryBtnCls} self-start`}>
-            Add category
-          </button>
-        </form>
-        <div className="mt-8 border-t border-border pt-8">
-          <h3 className="text-sm font-medium text-foreground">All categories</h3>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
-            {sortedVisible.map((c) => {
-              const label = moneyCategoryLabel(c, categoryById);
-              const parentChoices = rootCategories.filter((r) => r.id !== c.id);
-              return (
-                <li
-                  key={c.id}
-                  className="rounded-lg border border-border bg-background px-3 py-2"
-                >
-                  {editingId === c.id ? (
-                    <form className="flex flex-col gap-3" onSubmit={saveEdit}>
-                      <input
-                        className={inputCls}
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        aria-label="Category name"
-                      />
-                      <select
-                        className={inputCls}
-                        value={editParentId}
-                        onChange={(e) => setEditParentId(e.target.value)}
-                        aria-label="Parent category"
-                      >
-                        <option value="">Top-level category</option>
-                        {parentChoices.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="flex flex-wrap gap-2">
-                        <button type="submit" className={secondaryBtnCls}>
-                          Save
-                        </button>
-                        <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-foreground">{label}</span>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
-                          onClick={() => startEdit(c)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
-                          onClick={() => void removeCategory(c.id, label)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  )}
+            <div className="flex flex-wrap gap-2">
+              <button type="submit" className={secondaryBtnCls}>
+                Save
+              </button>
+              <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-foreground">{shown}</span>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                onClick={() => startEdit(c)}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                onClick={() => void removeCategory(c.id, label)}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        )}
+      </li>
+    );
+  }
+
+  return (
+    <>
+      <p className="text-sm text-muted">{meta.description}</p>
+      <form className="mt-4 flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
+        <label className="grid gap-1.5 text-sm">
+          <span className="font-medium text-foreground">Name</span>
+          <input
+            className={inputCls}
+            placeholder={meta.placeholder}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+        </label>
+        <label className="grid gap-1.5 text-sm">
+          <span className="font-medium text-foreground">Parent (optional)</span>
+          <select
+            className={inputCls}
+            value={newParentId}
+            onChange={(e) => setNewParentId(e.target.value)}
+          >
+            <option value="">Top-level category</option>
+            {rootCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="submit" className={`${secondaryBtnCls} self-start`}>
+          Add category
+        </button>
+      </form>
+      <div className="mt-8 border-t border-border pt-8">
+        <h3 className="text-sm font-medium text-foreground">{meta.allCategoriesHeading}</h3>
+        {groups.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">None yet.</p>
+        ) : (
+          <ul className="mt-3 space-y-4 text-sm text-muted">
+            {groups.map((g) =>
+              g.type === "single" ? (
+                categoryRowLi(g.category, "default", false)
+              ) : (
+                <li key={g.parent.id} className="list-none space-y-2">
+                  <ul className="space-y-2">
+                    {categoryRowLi(g.parent, "default", false)}
+                    {g.children.map((ch) => categoryRowLi(ch, "underParent", true))}
+                  </ul>
                 </li>
-              );
-            })}
+              ),
+            )}
           </ul>
-        </div>
-      </SettingsSection>
+        )}
+      </div>
     </>
   );
 }

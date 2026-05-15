@@ -21,7 +21,7 @@ export function AnalyticsEmptyState({
 }) {
   return (
     <div
-      className={`flex w-full items-center justify-center rounded-lg border border-dashed border-border bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)] px-6 py-10 ${minHeightClass} ${className}`}
+      className={`flex w-full items-center justify-center rounded-[var(--radius-md)] border border-dashed border-border bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)] px-6 py-10 fx-fade-in ${minHeightClass} ${className}`}
       role="status"
     >
       <div className="max-w-sm text-center">
@@ -31,7 +31,7 @@ export function AnalyticsEmptyState({
         >
           {icon === "table" ? <IconTable /> : icon === "flow" ? <IconFlow /> : <IconChart />}
         </div>
-        <h3 className="mt-3 text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="mt-3 font-display text-sm font-semibold text-foreground">{title}</h3>
         <p
           className={`mt-1 text-sm leading-relaxed text-muted ${descriptionClassName}`.trim()}
         >
@@ -41,7 +41,7 @@ export function AnalyticsEmptyState({
           <p className="mt-5">
             <Link
               href={action.href}
-              className="text-sm font-semibold text-foreground underline-offset-2 hover:underline"
+              className="text-sm font-semibold text-foreground underline-offset-2 transition-colors duration-150 hover:underline"
             >
               {action.label}
             </Link>

@@ -21,32 +21,63 @@ export async function seedMoneyWorkspaceDefaults(
 
   const [necessities] = await tx
     .insert(moneyCategory)
-    .values({ workspaceId, name: "Necessities" })
+    .values({ workspaceId, name: "Necessities", kind: "expense" })
     .returning({ id: moneyCategory.id });
   const [give] = await tx
     .insert(moneyCategory)
-    .values({ workspaceId, name: "Give" })
+    .values({ workspaceId, name: "Give", kind: "expense" })
+    .returning({ id: moneyCategory.id });
+  const [income] = await tx
+    .insert(moneyCategory)
+    .values({ workspaceId, name: "Income", kind: "income" })
     .returning({ id: moneyCategory.id });
 
   await tx.insert(moneyCategory).values([
-    { workspaceId, name: "Financial Freedom" },
-    { workspaceId, name: "Long-term Savings" },
-    { workspaceId, name: "Education" },
-    { workspaceId, name: "Play" },
+    { workspaceId, name: "Financial Freedom", kind: "expense" },
+    { workspaceId, name: "Long-term Savings", kind: "expense" },
+    { workspaceId, name: "Education", kind: "expense" },
+    { workspaceId, name: "Play", kind: "expense" },
     {
       workspaceId,
       name: "Food & Drink",
+      kind: "expense",
       parentId: necessities.id,
     },
     {
       workspaceId,
       name: "Transportation",
+      kind: "expense",
       parentId: necessities.id,
     },
     {
       workspaceId,
       name: "Gifts & Donations",
+      kind: "expense",
       parentId: give.id,
+    },
+    {
+      workspaceId,
+      name: "Salary",
+      kind: "income",
+      parentId: income.id,
+    },
+    {
+      workspaceId,
+      name: "Bonus",
+      kind: "income",
+      parentId: income.id,
+    },
+    {
+      workspaceId,
+      name: "Investment",
+      kind: "income",
+      parentId: income.id,
+    },
+    {
+      workspaceId,
+      name: "Other",
+      kind: "income",
+      parentId: income.id,
     },
   ]);
 }

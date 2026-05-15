@@ -1,18 +1,36 @@
+const VND_SYMBOL = "\u20AB"; // ₫
+
 export function getCurrencyFractionDigits(currency: string): number {
   return currency.toUpperCase() === "VND" ? 0 : 2;
 }
 
 export function formatMinor(minor: number, currency = "USD") {
+  const code = currency.toUpperCase();
   const fractionDigits = getCurrencyFractionDigits(currency);
+  const major = minor / 100;
+
+  if (code === "VND") {
+    try {
+      const num = new Intl.NumberFormat("vi-VN", {
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
+      }).format(major);
+      return `${num}${VND_SYMBOL}`;
+    } catch {
+      return `${major.toFixed(fractionDigits)}${VND_SYMBOL}`;
+    }
+  }
+
   try {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency,
+      currency: code,
       minimumFractionDigits: fractionDigits,
       maximumFractionDigits: fractionDigits,
-    }).format(minor / 100);
+    }).format(major);
   } catch {
-    return (minor / 100).toFixed(fractionDigits);
+    const num = major.toFixed(fractionDigits);
+    return `${code} ${num}`;
   }
 }
 

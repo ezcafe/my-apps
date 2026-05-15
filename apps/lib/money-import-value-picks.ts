@@ -1,6 +1,6 @@
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import type { FkEntityRow } from "@/lib/money-import-fk-synonym";
-import { fkEntityRowsForField } from "@/lib/money-import-fk-synonym";
+import { fkAllRowsForField } from "@/lib/money-import-fk-synonym";
 import {
   MONEY_IMPORT_ACCOUNT_TYPES,
   moneyImportFieldDefs,
@@ -9,6 +9,7 @@ import {
 } from "@/lib/money-import-kinds";
 import {
   defaultEnumCanonical,
+  includeMoneyImportValueMappingColumn,
   listDistinctForMoneyImportField,
   VALUE_MAP_DISTINCT_LIMIT,
   VALUE_MAP_IGNORE,
@@ -41,6 +42,68 @@ export type MoneyImportValuePick =
 
 export const VALUE_PICK_SELECT_ADD_NEW = "__money_add_new__";
 export const VALUE_PICK_SELECT_IGNORE = "__money_ignore__";
+
+/** Categories import — parentId field: top-level root (`parentId` null). */
+export const VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP =
+  "__money_cat_import_parent_top__";
+
+const CATEGORY_IMPORT_PARENT_PICK_PREFIX = "__import_row_";
+
+export function categoryImportParentPickKey(rowIndex: number): string {
+  return `${CATEGORY_IMPORT_PARENT_PICK_PREFIX}${rowIndex}`;
+}
+
+/** One FK pick per CSV row for category import parent (key = {@link categoryImportParentPickKey}). */
+export function buildCategoryImportParentPicksPerRow(
+  rows: Record<string, string>[],
+  columnByField: Record<string, string>,
+  prev: Record<string, MoneyImportValuePick> | undefined,
+  entities: FkEntityRow[],
+): Record<string, MoneyImportValuePick> {
+  const parentCol = columnByField.parentId ?? "";
+  const out: Record<string, MoneyImportValuePick> = {};
+  for (let i = 0; i < rows.length; i++) {
+    const key = categoryImportParentPickKey(i);
+    const existing = prev?.[key];
+    if (existing?.kind === "entity") {
+      out[key] = existing;
+      continue;
+    }
+    if (existing?.kind === "ignore") {
+      out[key] = { kind: "ignore" };
+      continue;
+    }
+    const parentRaw = parentCol ? String(rows[i]![parentCol] ?? "").trim() : "";
+    if (parentRaw) {
+      const nameHit = entities.find((e) => e.name.trim() === parentRaw.trim());
+      if (nameHit) out[key] = { kind: "entity", entityId: nameHit.id };
+    }
+  }
+  return out;
+}
+
+export function categoryImportParentPickSatisfies(
+  pick: MoneyImportValuePick | undefined,
+): boolean {
+  if (pick?.kind === "ignore" || pick?.kind === "entity") return true;
+  return false;
+}
+
+export function resolveCategoryImportParentFromPick(
+  pick: MoneyImportValuePick | undefined,
+  pickKey: string,
+  idByCsv: Map<string, string>,
+): string | null | undefined {
+  if (!pick) return undefined;
+  if (pick.kind === "ignore") return null;
+  if (pick.kind === "entity") return pick.entityId;
+  if (pick.kind === "new") {
+    const id = idByCsv.get(pickKey);
+    if (!id) return undefined;
+    return id;
+  }
+  return undefined;
+}
 
 export function mergeMatchValueRowKeys(
   distinct: string[],
@@ -92,8 +155,15 @@ export function effectiveFkSelectForRow(
   csvKey: string,
   pick: MoneyImportValuePick | undefined,
   entities: FkEntityRow[],
+  opts?: { categoriesImportParentField?: boolean },
 ): { selectValue: string; isAutoFallback: boolean } {
   if (pick?.kind === "ignore") {
+    if (opts?.categoriesImportParentField) {
+      return {
+        selectValue: VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP,
+        isAutoFallback: false,
+      };
+    }
     return { selectValue: VALUE_PICK_SELECT_IGNORE, isAutoFallback: false };
   }
   if (pick?.kind === "entity") {
@@ -114,6 +184,11 @@ export function fkPickSatisfiesImport(
   entities: FkEntityRow[],
 ): boolean {
   if (!f.fk) return true;
+  if (f.fk === "category_root" && csvKey === "") {
+    if (p?.kind === "ignore" || p?.kind === "entity") return true;
+    if (p?.kind === "new") return Boolean(p.name.trim());
+    return false;
+  }
   if (p?.kind === "ignore") return true;
   if (p?.kind === "entity") return true;
   if (p?.kind === "new") {
@@ -291,7 +366,17 @@ export function buildInitialValuePickByField(
   const out: Record<string, Record<string, MoneyImportValuePick>> = {};
   for (const f of defs) {
     const col = columnByField[f.key] ?? "";
-    if (!col) continue;
+    if (!includeMoneyImportValueMappingColumn(kind, f, col)) continue;
+    if (kind === "categories" && f.key === "parentId" && f.fk) {
+      const entities = fkAllRowsForField(f.fk, accounts, merchants, categories);
+      out[f.key] = buildCategoryImportParentPicksPerRow(
+        rows,
+        columnByField,
+        undefined,
+        entities,
+      );
+      continue;
+    }
     const distinct = listDistinctForMoneyImportField(
       kind,
       f,
@@ -303,7 +388,7 @@ export function buildInitialValuePickByField(
     if (f.valueKind === "enum" || f.valueKind === "bool") {
       out[f.key] = pruneAndAutoFillEnumBoolPicks(f, distinct, {});
     } else if (f.fk) {
-      const entities = fkEntityRowsForField(f.fk, accounts, merchants, categories);
+      const entities = fkAllRowsForField(f.fk, accounts, merchants, categories);
       out[f.key] = pruneAndAutoFillFkPicks(f, distinct, entities, {});
     }
   }
@@ -325,7 +410,21 @@ export function resolveFkValue(
   ctx: FkResolveCtx,
 ): string | null | undefined {
   const v = raw.trim();
-  if (!v) return field.required ? undefined : null;
+  if (!v) {
+    if (field.fk === "category_root") {
+      const pickEmpty = picksByCsv?.[""];
+      if (pickEmpty?.kind === "ignore") return null;
+      if (pickEmpty?.kind === "new") {
+        const id = idByCsv.get("");
+        if (!id) return undefined;
+        return id;
+      }
+      if (pickEmpty?.kind === "entity") return pickEmpty.entityId;
+      if (idByCsv.has("")) return idByCsv.get("")!;
+      return undefined;
+    }
+    return field.required ? undefined : null;
+  }
   if (!field.fk) return v;
 
   const pick = picksByCsv?.[v];

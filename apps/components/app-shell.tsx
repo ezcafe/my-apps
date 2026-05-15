@@ -1,9 +1,21 @@
 "use client";
 
-import type { ComponentPropsWithoutRef, ReactNode, SVGProps } from "react";
+import type { ReactNode, SVGProps } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import type { StylePreset } from "@/components/theme-provider";
+import { useTheme } from "@/components/theme-provider";
+import { Button } from "@/components/ui/button";
+import { Popover } from "@/components/ui/popover";
+import {
+  isShellNavActive,
+  type ShellNavIconId,
+  type ShellNavItem,
+  shellNavItems,
+} from "@/lib/features/registry";
+import { cn } from "@/lib/cn";
+import { withViewTransition } from "@/lib/microinteractions";
 
 function IconHome(props: SVGProps<SVGSVGElement>) {
   return (
@@ -82,173 +94,261 @@ function IconSignOut(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-const nav = [
-  { href: "/", label: "Home", Icon: IconHome },
-  { href: "/money", label: "Money", Icon: IconMoney },
-  { href: "/settings", label: "Settings", Icon: IconSettings },
-] as const;
-
-function navClasses(active: boolean, place: "rail" | "bar") {
-  const rail =
-    "flex size-10 shrink-0 items-center justify-center rounded-lg transition-colors";
-  const bar =
-    "rounded-lg px-2.5 py-2 text-sm font-medium transition-colors sm:px-3 whitespace-nowrap";
-  const base = place === "rail" ? rail : bar;
-  const tone = active
-    ? "bg-[color-mix(in_oklab,var(--foreground)_12%,transparent)] text-foreground"
-    : "text-muted hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]";
-  return `${base} ${tone}`;
+function IconMenu(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M4 7h16M4 12h16M4 17h16"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
-function NavLink({
-  href,
-  label,
-  place,
-  Icon,
-}: {
-  href: string;
-  label: string;
-  place: "rail" | "bar";
-  Icon: (props: SVGProps<SVGSVGElement>) => ReactNode;
-}) {
-  const pathname = usePathname();
-  const active =
-    href === "/"
-      ? pathname === "/"
-      : pathname === href || pathname.startsWith(`${href}/`);
-  if (place === "rail") {
+const shellNavIcons: Record<
+  ShellNavIconId,
+  (props: SVGProps<SVGSVGElement>) => ReactNode
+> = {
+  home: IconHome,
+  money: IconMoney,
+  settings: IconSettings,
+};
+
+const STYLE_IDS: StylePreset[] = ["linear", "apple", "swiss", "notion"];
+
+function ShellMobileOverflow() {
+  const { style, setStyle } = useTheme();
+
+  const pickStyle = (next: StylePreset) => {
+    if (next === style) return;
+    withViewTransition(() => setStyle(next));
+  };
+
+  return (
+    <Popover
+      align="end"
+      aria-label="Open menu"
+      trigger={<IconMenu className="size-5" />}
+      className="pointer-events-auto min-w-[min(100vw-2rem,20rem)] p-4"
+    >
+      <div className="pointer-events-auto flex flex-col gap-4">
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+            Visual style
+          </p>
+          <div
+            className="grid gap-2"
+            style={{
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            }}
+          >
+            {STYLE_IDS.map((id) => (
+              <Button
+                key={id}
+                type="button"
+                variant={style === id ? "primary" : "ghost"}
+                size="sm"
+                className="capitalize"
+                onClick={() => pickStyle(id)}
+              >
+                {id}
+              </Button>
+            ))}
+          </div>
+          <Link
+            href="/settings"
+            className="mt-3 inline-block text-sm font-medium text-accent underline-offset-4 hover:underline"
+          >
+            All settings
+          </Link>
+        </div>
+        <ShellPopoverAuth />
+      </div>
+    </Popover>
+  );
+}
+
+function ShellPopoverAuth() {
+  const { data: session, status } = useSession();
+  if (status === "authenticated") {
     return (
-      <Link
-        href={href}
-        className={navClasses(active, "rail")}
-        title={label}
-        aria-label={label}
-      >
-        <Icon className="size-5" />
-      </Link>
+      <div className="flex flex-col gap-2 border-t border-border pt-3">
+        {session?.user?.email ? (
+          <p className="truncate text-xs text-muted">{session.user.email}</p>
+        ) : null}
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="w-full justify-center"
+          leading={<IconSignOut className="size-4" />}
+          onClick={() => signOut({ callbackUrl: "/" })}
+        >
+          Sign out
+        </Button>
+      </div>
     );
   }
   return (
-    <Link href={href} className={navClasses(active, "bar")}>
+    <Link
+      href="/login"
+      className={cn(
+        "inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-accent px-3 py-2 text-sm font-medium text-accent-foreground shadow-[var(--shadow-sm)] transition-[opacity,transform] duration-200 hover:opacity-95 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
+      )}
+    >
+      <IconSignIn className="size-4" />
+      Sign in
+    </Link>
+  );
+}
+
+function NavLinkRail({
+  item,
+}: {
+  item: ShellNavItem;
+}) {
+  const pathname = usePathname();
+  const active = isShellNavActive(item, pathname);
+  const Icon = shellNavIcons[item.icon];
+  const href = item.href;
+  const label = item.label;
+
+  return (
+    <Link
+      href={href}
+      title={label}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        active
+          ? "fx-vt-shell-nav-active bg-muted-surface text-foreground ring-1 ring-border"
+          : "text-muted hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] hover:text-foreground",
+      )}
+    >
+      <Icon className="size-5" />
+    </Link>
+  );
+}
+
+function NavLinkBar({
+  item,
+}: {
+  item: ShellNavItem;
+}) {
+  const pathname = usePathname();
+  const active = isShellNavActive(item, pathname);
+  const href = item.href;
+  const label = item.label;
+
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "whitespace-nowrap rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-3.5",
+        active
+          ? "bg-muted-surface text-foreground ring-1 ring-border"
+          : "text-muted hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] hover:text-foreground",
+      )}
+    >
       {label}
     </Link>
   );
 }
 
-function AuthActions({
-  className,
-  compact,
-  place = "bar",
-  ...props
-}: ComponentPropsWithoutRef<"div"> & {
-  compact?: boolean;
-  place?: "bar" | "rail";
-}) {
+function AuthActionsRail() {
   const { data: session, status } = useSession();
-  const btnPad = compact ? "px-2 py-2 text-xs" : "px-3 py-2 text-sm";
 
-  if (place === "rail") {
+  if (status === "authenticated") {
     return (
-      <div className={className} {...props}>
-        {status === "authenticated" ? (
-          <>
-            <button
-              type="button"
-              className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border text-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)]"
-              aria-label="Sign out"
-              title={
-                session?.user?.email
-                  ? `Sign out (${session.user.email})`
-                  : "Sign out"
-              }
-              onClick={() => signOut({ callbackUrl: "/" })}
-            >
-              <IconSignOut className="size-5" />
-            </button>
-            {session?.user?.email ? (
-              <span className="sr-only">{`Signed in as ${session.user.email}`}</span>
-            ) : null}
-          </>
-        ) : (
-          <Link
-            href="/login"
-            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-foreground text-background transition-colors hover:opacity-90"
-            aria-label="Sign in"
-            title="Sign in"
-          >
-            <IconSignIn className="size-5" />
-          </Link>
-        )}
-      </div>
+      <>
+        <Button
+          type="button"
+          variant="secondary"
+          size="md"
+          iconOnly
+          className="size-10 shrink-0"
+          aria-label={
+            session?.user?.email ? `Sign out (${session.user.email})` : "Sign out"
+          }
+          title={
+            session?.user?.email ? `Sign out (${session.user.email})` : "Sign out"
+          }
+          onClick={() => signOut({ callbackUrl: "/" })}
+        >
+          <IconSignOut className="size-5" />
+        </Button>
+        {session?.user?.email ? (
+          <span className="sr-only">{`Signed in as ${session.user.email}`}</span>
+        ) : null}
+      </>
     );
   }
 
   return (
-    <div className={className} {...props}>
-      {status === "authenticated" ? (
-        <button
-          type="button"
-          className={`rounded-lg border border-border hover:bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)] ${btnPad}`}
-          onClick={() => signOut({ callbackUrl: "/" })}
-        >
-          Sign out
-        </button>
-      ) : (
-        <Link
-          href="/login"
-          className={`rounded-lg bg-foreground text-center font-medium text-background hover:opacity-90 ${btnPad}`}
-        >
-          Sign in
-        </Link>
+    <Link
+      href="/login"
+      aria-label="Sign in"
+      title="Sign in"
+      className={cn(
+        "flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-accent text-accent-foreground shadow-[var(--shadow-sm)] transition-[opacity,transform] duration-200 hover:opacity-90 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
       )}
-      {session?.user?.email ? (
-        <span
-          className={`max-w-full truncate text-muted ${compact ? "max-w-[10rem] text-[10px] leading-tight sm:max-w-[14rem] sm:text-xs" : "text-xs"}`}
-        >
-          {session.user.email}
-        </span>
-      ) : null}
-    </div>
+    >
+      <IconSignIn className="size-5" />
+    </Link>
   );
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+
   return (
     <div className="grid min-h-dvh grid-cols-1 grid-rows-[auto_minmax(0,1fr)] bg-background text-foreground lg:grid-cols-[4.5rem_minmax(0,1fr)] lg:grid-rows-1">
-      {/* Small / tablet: full-width header + horizontal nav */}
       <header className="sticky top-0 z-20 border-b border-border bg-surface/90 backdrop-blur-md lg:hidden">
-        <div className="shell-main flex flex-col gap-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-2">
-          <div className="flex min-w-0 items-center justify-between gap-3 sm:justify-start">
-            <span className="truncate text-base font-semibold tracking-tight sm:text-lg">
-              Money
+        <div className="shell-main flex flex-col gap-3 py-3">
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <span className="truncate font-display text-base font-semibold tracking-tight sm:text-lg">
+              Workspace
             </span>
+            <ShellMobileOverflow />
           </div>
-          <nav className="flex min-w-0 gap-1 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-1 sm:flex-wrap sm:overflow-x-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
-            {nav.map((item) => (
-              <NavLink key={item.href} place="bar" {...item} />
+          <nav
+            className="flex min-w-0 gap-1 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-x-visible sm:pb-0 [&::-webkit-scrollbar]:hidden"
+            aria-label="Primary"
+          >
+            {shellNavItems.map((item) => (
+              <NavLinkBar key={item.id} item={item} />
             ))}
           </nav>
-          <AuthActions className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border pt-3 sm:ms-auto sm:border-t-0 sm:pt-0" compact />
         </div>
       </header>
 
-      {/* Large screens: full-width main + sticky narrow icon rail (Tailwind Plus multi-column) */}
       <aside className="hidden border-border bg-surface/80 backdrop-blur-sm lg:sticky lg:top-0 lg:flex lg:h-dvh lg:min-h-0 lg:w-full lg:max-w-full lg:flex-col lg:items-center lg:border-e lg:px-0 lg:py-4">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold tracking-tight text-foreground ring-1 ring-border">
-          M
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] font-display text-sm font-bold tracking-tight text-foreground ring-1 ring-border">
+          W
         </span>
-        <nav className="mt-4 flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto">
-          {nav.map((item) => (
-            <NavLink key={item.href} place="rail" {...item} />
+        <nav
+          className="mt-4 flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto"
+          aria-label="Primary"
+        >
+          {shellNavItems.map((item) => (
+            <NavLinkRail key={item.id} item={item} />
           ))}
         </nav>
-        <AuthActions
-          className="mt-auto flex shrink-0 flex-col items-center gap-2 border-t border-border pt-3"
-          place="rail"
-        />
+        <div className="mt-auto flex shrink-0 flex-col items-center gap-2 border-t border-border pt-3">
+          <AuthActionsRail />
+        </div>
       </aside>
 
-      <main className="min-h-0 min-w-0 lg:overflow-y-auto">{children}</main>
+      <main
+        key={pathname}
+        className="fx-fade-in min-h-0 min-w-0 motion-reduce:animate-none lg:overflow-y-auto"
+      >
+        {children}
+      </main>
     </div>
   );
 }

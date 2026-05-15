@@ -1,3 +1,5 @@
+import type { CategoryKind } from "@/lib/validators/money";
+
 export type RuleMatch = {
   merchantId?: string;
   accountId?: string;
@@ -9,23 +11,26 @@ export type RuleAction = {
 };
 
 export function transactionMatchesRule(
-  match: RuleMatch,
+  rule: { kind: CategoryKind; match: RuleMatch },
   tx: {
+    kind: string;
     merchantId?: string | null;
     accountId: string;
   },
 ): boolean {
-  const wantsAccount = Boolean(match.accountId);
-  const wantsMerchant = Boolean(match.merchantId);
+  if (rule.kind !== tx.kind) return false;
+  const wantsAccount = Boolean(rule.match.accountId);
+  const wantsMerchant = Boolean(rule.match.merchantId);
   if (!wantsAccount && !wantsMerchant) return false;
 
-  if (match.accountId && match.accountId !== tx.accountId) return false;
-  if (match.merchantId && match.merchantId !== tx.merchantId) return false;
+  if (rule.match.accountId && rule.match.accountId !== tx.accountId) return false;
+  if (rule.match.merchantId && rule.match.merchantId !== tx.merchantId) return false;
   return true;
 }
 
 export function applyRulesToTransaction<
   T extends {
+    kind: string;
     merchantId?: string | null;
     accountId: string;
     categoryId?: string | null;
@@ -33,13 +38,18 @@ export function applyRulesToTransaction<
   },
 >(
   tx: T,
-  rules: { priority: number; match: RuleMatch; action: RuleAction }[],
+  rules: {
+    kind: CategoryKind;
+    priority: number;
+    match: RuleMatch;
+    action: RuleAction;
+  }[],
 ): T {
   const sorted = [...rules].sort((a, b) => b.priority - a.priority);
   let next: T = { ...tx, tagIds: tx.tagIds ? [...tx.tagIds] : [] };
 
   for (const rule of sorted) {
-    if (!transactionMatchesRule(rule.match, next)) continue;
+    if (!transactionMatchesRule(rule, next)) continue;
     const a = rule.action;
     if (a.setCategoryId) {
       next = { ...next, categoryId: a.setCategoryId };

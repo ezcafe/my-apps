@@ -150,3 +150,20 @@ export function setActiveWorkspaceCookie(
   });
   return res;
 }
+
+/** Append `Set-Cookie` for GraphQL/fetch `Response` merging (same attrs as `setActiveWorkspaceCookie`). */
+export function appendActiveWorkspaceCookieHeader(
+  headers: Headers,
+  appKey: WorkspaceAppKey,
+  workspaceId: string,
+): void {
+  const attrs = [
+    `${workspaceCookieName(appKey)}=${workspaceId}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${60 * 60 * 24 * 400}`,
+  ];
+  if (process.env.NODE_ENV === "production") attrs.push("Secure");
+  headers.append("Set-Cookie", attrs.join("; "));
+}

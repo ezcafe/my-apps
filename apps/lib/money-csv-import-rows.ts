@@ -9,6 +9,8 @@ import type { MoneyImportFieldDef, MoneyImportKind } from "@/lib/money-import-ki
 import { moneyImportFieldDefs } from "@/lib/money-import-kinds";
 import {
   buildFkIdByCsvMap,
+  categoryImportParentPickKey,
+  resolveCategoryImportParentFromPick,
   resolveFkValue,
   valuePicksToEnumBoolMap,
   type MoneyImportValuePick,
@@ -98,6 +100,7 @@ export function buildMoneyCsvImportRows(
         valuePicksByField,
         fkCtx,
         fkMaps,
+        i,
       );
       if (built === null) {
         pushErr(i, "Row skipped (missing required fields)");
@@ -127,6 +130,7 @@ function buildOneRow(
   valuePicksByField: Record<string, Record<string, MoneyImportValuePick>>,
   fkCtx: MoneyCsvImportFkContext,
   fkMaps: Record<string, Map<string, string>>,
+  rowIndex: number,
 ): unknown | null {
   const g = (k: string) => cell(row, columnByField, k);
 
@@ -192,20 +196,28 @@ function buildOneRow(
     case "categories": {
       const name = g("name");
       if (!name) return null;
-      const fParent = defs.find((d) => d.key === "parentId")!;
-      const parentRaw = g("parentId");
-      let parentId: string | null | undefined;
-      if (parentRaw) {
-        parentId = resolveFkValue(
-          fParent,
-          parentRaw,
-          valuePicksByField.parentId,
-          fkMaps.parentId ?? new Map(),
-          fkCtx,
-        ) as string | null | undefined;
-      } else {
-        parentId = null;
-      }
+      const fKind = defs.find((d) => d.key === "kind")!;
+      const kindCol = columnByField.kind ?? "";
+      const kindRaw = g("kind");
+      const kindValue: "expense" | "income" =
+        !kindCol.trim() || !kindRaw.trim()
+          ? "expense"
+          : (() => {
+              const v = resolveEnumForImport(
+                kindRaw,
+                fKind.label,
+                ["expense", "income"],
+                enumMapFromPicks(fKind, valuePicksByField.kind),
+              );
+              return (v === "" ? "expense" : v) as "expense" | "income";
+            })();
+      const pickKey = categoryImportParentPickKey(rowIndex);
+      const pick = valuePicksByField.parentId?.[pickKey];
+      const parentId = resolveCategoryImportParentFromPick(
+        pick,
+        pickKey,
+        fkMaps.parentId ?? new Map(),
+      ) as string | null | undefined;
       const archRaw = g("archived");
       const archived =
         archRaw === ""
@@ -215,7 +227,7 @@ function buildOneRow(
               "Archived",
               enumMapFromPicks(defs.find((d) => d.key === "archived")!, valuePicksByField.archived),
             );
-      return { name, parentId: parentId ?? null, archived };
+      return { name, kind: kindValue, parentId: parentId ?? null, archived };
     }
     case "merchants":
       return {
@@ -320,9 +332,16 @@ function buildOneRow(
       }
       const tagIdsRaw = g("tagIds");
       const tagNamesRaw = g("tagNames");
+      let finalKind = (txKind ?? "expense") as "expense" | "income" | "transfer";
+      if (!kindRaw?.trim() && categoryId) {
+        const cat = fkCtx.categories.find((c) => c.id === categoryId);
+        if (cat?.kind === "expense" || cat?.kind === "income") {
+          finalKind = cat.kind;
+        }
+      }
       return {
         accountId,
-        kind: (txKind ?? "expense") as "expense" | "income" | "transfer",
+        kind: finalKind,
         amountMinor,
         occurredAt: occRaw ? normalizeIsoDateTime(occRaw) : undefined,
         categoryId: categoryId ?? null,
@@ -335,6 +354,13 @@ function buildOneRow(
     case "rules": {
       const name = g("name");
       if (!name) return null;
+      const fKind = defs.find((d) => d.key === "kind")!;
+      const ruleKind = resolveEnumForImport(
+        g("kind"),
+        fKind.label,
+        ["expense", "income"],
+        enumMapFromPicks(fKind, valuePicksByField.kind),
+      ) as "expense" | "income";
       const fMa = defs.find((d) => d.key === "matchAccountId")!;
       const fMm = defs.find((d) => d.key === "matchMerchantId")!;
       const maRaw = g("matchAccountId");
@@ -379,6 +405,7 @@ function buildOneRow(
       const actRaw = g("active");
       return {
         name,
+        kind: ruleKind,
         priority: priRaw === "" ? undefined : parseIntCell(priRaw),
         active:
           actRaw === ""

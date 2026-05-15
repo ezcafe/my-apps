@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Workspace app
 
-## Getting Started
+Multi-feature Next.js workspace built around a small **shell** and a **Money** feature module. Pocket ID OIDC handles auth; Drizzle + PostgreSQL 18 hold the data. The UI is a token-driven minimalist design system with 4 visual presets (Linear / Apple / Swiss / Notion) × light/dark, all CSS-only motion.
 
-First, run the development server:
+> **All UI work must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md).** No hard-coded colors, fonts, radii, shadows, or motion libraries.
+
+## Stack
+
+- Next.js 16 (App Router) + React 19
+- Tailwind CSS v4 with `@theme inline` token bridge
+- Drizzle ORM + PostgreSQL 18
+- next-auth v5 (Pocket ID OIDC provider)
+- visx for charts (Lightweight Charts allowed only for price charts)
+
+## Getting started
 
 ```bash
+cp .env.example .env
+# fill in AUTH_SECRET, AUTH_POCKET_ID_*, AUTH_URL
+
+# bring up Postgres 18 (or point DATABASE_URL elsewhere)
+docker compose up -d db
+
+# install + apply schema
+npm install
+npm run db:push
+
+# dev (webpack)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# or Turbopack
+npm run dev:turbo
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Script | Purpose |
+|--------|---------|
+| `npm run dev` / `dev:turbo` | Start the dev server (kills any prior `next dev` first). |
+| `npm run build` | Production build. |
+| `npm run start` | Run the production build. |
+| `npm run lint` | ESLint (must be clean). |
+| `npm run db:generate` | Generate a Drizzle migration. |
+| `npm run db:push` | Push schema to the dev DB without a migration. |
+| `npm run db:migrate` | Apply pending migrations. |
+| `npm run db:studio` | Open Drizzle Studio. |
+| `npm run db:reset` | Reset the local DB schema (destructive). |
+| `npm run db:recompute-balances` | Recompute Money account balances. |
 
-## Learn More
+## Project layout
 
-To learn more about Next.js, take a look at the following resources:
+```
+app/
+  (shell)/             Authenticated chrome (rail + header). Routes here inherit ShellLayout.
+    money/             Money feature pages — own layout + provider tree.
+    settings/          Global settings: visual style + appearance.
+  api/                 Thin Next.js route entrypoints; logic lives in features/<x>/server or lib/.
+  globals.css          The 4 × 2 token sets + microinteraction utilities.
+  layout.tsx           Root layout, fonts, FOUC pre-paint script.
+  page.tsx             Public landing.
+components/
+  ui/                  Token-driven primitives (Button, Card, Field/Input/Select/Textarea,
+                       Modal, Popover, Tabs, MultiSelect, Tag, Badge, Skeleton, Alert).
+  app-shell.tsx        Desktop rail + mobile header (registry-driven nav).
+  notification-provider.tsx  Toasts.
+  theme-provider.tsx   {style, mode} provider; persists to localStorage.
+  style-settings.tsx   Style picker on /settings (4 live preview cards).
+  theme-settings.tsx   Light/dark/system segmented control.
+  money-*              Money-specific surfaces (dashboard, edit form, settings panels…).
+features/
+  money/               Domain server code, barrel re-exports, feature README.
+lib/
+  features/registry.ts Single source of truth for shell nav.
+  theme-chart-palette.ts  Per-preset chart palettes; chart components read via colorByIndex.
+  microinteractions.ts withViewTransition + prefersReducedMotion helpers.
+db/                    Drizzle schema and migrations.
+docs/                  Architecture, design guide, feature checklist.
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Design system (mandatory)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Two orthogonal axes drive every visual decision:
+  - `style` → `<html data-style="linear|apple|swiss|notion">` (default `linear`).
+  - `mode` → `<html class="dark">` toggled for dark; otherwise light.
+- 4 styles × 2 modes = **8 token sets** declared in [`app/globals.css`](app/globals.css). Every preset defines the same semantic names so components never branch on `style`.
+- Compose UI from [`components/ui/`](components/ui/) primitives. They already consume tokens (`rounded-[var(--radius-md)]`, `shadow-[var(--shadow-sm)]`, `bg-surface`, etc.).
+- Microinteractions are CSS-only (`fx-press`, `fx-fade-in`, `fx-shimmer`, `fx-field` + `fx-field-underline`). For state-driven transitions, use [`withViewTransition`](lib/microinteractions.ts).
+- Charts: visx + `colorByIndex(resolved, i, style)` from [`lib/theme-chart-palette.ts`](lib/theme-chart-palette.ts). Never hand-pick chart colors.
+- Layout: `shell-main` wrapper + `repeat(auto-fit, minmax(min(100%, …), 1fr))` and container queries. No hard-coded breakpoints for content.
+- Status colors: `--accent` for positive, `--destructive` for negative, `--muted` for flat. No `text-emerald-*` / `text-rose-*`.
+- Verify every change in all 4 presets × light/dark via `/settings` before merging.
 
-## Deploy on Vercel
+Forbidden: `rounded-md`/`rounded-lg`/`rounded-xl`/`rounded-2xl`, `shadow-sm`/`shadow-md`/`shadow-lg`, hand-picked hex colors or font families, JS animation libraries (Framer Motion / Motion One / GSAP), manual portals for dialogs (use `Modal`).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Full rules + primitive table + microinteraction utilities: [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Architecture & adding features
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — shell vs feature layers, workspace cookies, where Money bootstrap runs.
+- [`docs/ADDING_A_FEATURE.md`](docs/ADDING_A_FEATURE.md) — checklist for shipping a new product area (Tasks, Notes, …).
+- [`features/money/README.md`](features/money/README.md) — Money-specific server / client conventions and the thin-route pattern.
+
+Shell navigation is registry-driven: edit [`lib/features/registry.ts`](lib/features/registry.ts), not `app-shell.tsx`.
+
+## Auth
+
+next-auth v5 with the Pocket ID OIDC provider. Configure `AUTH_POCKET_ID_*` and redirect URIs per the [Pocket ID OIDC docs](https://pocket-id.org/docs/guides/oidc-client-authentication). The login page is at `/login`.
+
+## Verification before merging
+
+- `npm run lint`
+- `npm run build`
+- Walk the changed surface in `/settings` across **all four presets × light/dark**. Swiss is the canary — any leftover hardcoded `shadow-*` or `rounded-*` will visibly break there because Swiss sets `--radius: 0` and disables shadows.

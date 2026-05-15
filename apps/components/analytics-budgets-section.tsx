@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import { Card } from "@/components/ui/card";
 import { formatMinor } from "@/lib/format-money";
+import { cn } from "@/lib/cn";
 import {
   moneyCategoryById,
   moneyCategoryLabel,
@@ -65,8 +67,8 @@ export function AnalyticsBudgetsSection({
   const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
 
   return (
-    <section className="col-span-2 w-full min-w-0 rounded-md border border-border bg-surface p-4 md:col-span-6 lg:col-span-12">
-      <h2 className="text-lg font-medium">Budgets</h2>
+    <Card className="col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12">
+      <h2 className="font-display text-lg font-medium">Budgets</h2>
       <p className="mt-1 text-xs text-muted">
         Monthly budget usage for the selected date range (limits scale when the range spans multiple
         UTC months).
@@ -85,34 +87,46 @@ export function AnalyticsBudgetsSection({
             return (
               <li
                 key={budget.id}
-                className={`rounded-md p-3 ${
+                className={cn(
+                  "rounded-[var(--radius-md)] border p-3 transition-colors duration-200 fx-fade-in",
                   budget.overBudget
-                    ? "border border-[color:var(--danger)]/40 bg-[color-mix(in_oklab,var(--danger)_8%,var(--background))]"
-                    : "border border-border bg-background"
-                }`}
+                    ? "border-[color:var(--destructive)]/40 bg-[color-mix(in_oklab,var(--destructive)_8%,var(--background))]"
+                    : "border-border bg-background hover:border-foreground/30",
+                )}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-medium text-foreground">{label}</span>
                   <div className="flex items-center gap-2">
                     {budget.overBudget ? (
-                      <span className="rounded-full border border-[color:var(--danger)]/50 bg-[color-mix(in_oklab,var(--danger)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-[color:var(--danger)]">
+                      <span className="rounded-full border border-[color:var(--destructive)]/50 bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-[color:var(--destructive)]">
                         Overspent
                       </span>
                     ) : null}
                     <span
-                      className={`text-xs ${budget.overBudget ? "text-[color:var(--danger)]" : "text-muted"}`}
+                      className={cn(
+                        "text-xs",
+                        budget.overBudget ? "text-destructive" : "text-muted",
+                      )}
                     >
                       {budget.progressPct.toFixed(2)}%
                     </span>
                   </div>
                 </div>
-                <p className={`mt-1 text-sm ${budget.overBudget ? "text-[color:var(--danger)]" : "text-muted"}`}>
+                <p
+                  className={cn(
+                    "mt-1 text-sm",
+                    budget.overBudget ? "text-destructive" : "text-muted",
+                  )}
+                >
                   {formatMinor(budget.spentAmountMinor, currency)} /{" "}
                   {formatMinor(limitMinor, currency)}
                 </p>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--foreground)_12%,transparent)]">
                   <div
-                    className={`h-full rounded-full ${budget.overBudget ? "bg-[color:var(--danger)]" : "bg-foreground"}`}
+                    className={cn(
+                      "h-full rounded-full transition-[width] duration-500",
+                      budget.overBudget ? "bg-destructive" : "bg-accent",
+                    )}
                     style={{ width: `${safePct}%` }}
                     aria-hidden
                   />
@@ -122,6 +136,6 @@ export function AnalyticsBudgetsSection({
           })}
         </ul>
       )}
-    </section>
+    </Card>
   );
 }

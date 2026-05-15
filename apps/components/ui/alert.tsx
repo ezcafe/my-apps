@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** Inline alerts in the spirit of [Tailwind Plus Alerts](https://tailwindcss.com/plus/ui-blocks/application-ui/feedback/alerts): accent border, icon, title, optional description and list. */
+/** Inline alerts using semantic theme tokens (GitHub light / Catppuccin Mocha dark). */
 export function Alert({
   variant,
   title,
@@ -20,43 +20,38 @@ export function Alert({
 
   const shell =
     variant === "error"
-      ? "border-red-200/80 bg-red-50/90 dark:border-red-500/30 dark:bg-red-950/35"
-      : "border-amber-200/80 bg-amber-50/90 dark:border-amber-500/30 dark:bg-amber-950/30";
-
-  const accent =
-    variant === "error"
-      ? "border-l-red-600 dark:border-l-red-400"
-      : "border-l-amber-600 dark:border-l-amber-400";
+      ? "border-[var(--alert-error-border)] bg-[var(--alert-error-bg)] border-l-[var(--alert-error-accent)]"
+      : "border-[var(--alert-warning-border)] bg-[var(--alert-warning-bg)] border-l-[var(--alert-warning-accent)]";
 
   const iconColor =
     variant === "error"
-      ? "text-red-600 dark:text-red-400"
-      : "text-amber-600 dark:text-amber-400";
+      ? "text-[var(--alert-error-accent)]"
+      : "text-[var(--alert-warning-accent)]";
 
   const iconBg =
     variant === "error"
-      ? "bg-red-500/15 dark:bg-red-500/20"
-      : "bg-amber-500/15 dark:bg-amber-500/20";
+      ? "bg-[var(--destructive-icon-bg)]"
+      : "bg-[color-mix(in_oklab,var(--alert-warning-accent)_18%,transparent)]";
 
   const titleCls =
     variant === "error"
-      ? "text-red-900 dark:text-red-100"
-      : "text-amber-950 dark:text-amber-100";
+      ? "text-[var(--alert-error-title)]"
+      : "text-[var(--alert-warning-title)]";
 
   const bodyCls =
     variant === "error"
-      ? "text-red-800/95 dark:text-red-200/90"
-      : "text-amber-900/95 dark:text-amber-100/90";
+      ? "text-[var(--alert-error-body)]"
+      : "text-[var(--alert-warning-body)]";
 
   const listMarker =
     variant === "error"
-      ? "marker:text-red-600 dark:marker:text-red-400"
-      : "marker:text-amber-700 dark:marker:text-amber-400";
+      ? "marker:text-[var(--alert-error-accent)]"
+      : "marker:text-[var(--alert-warning-accent)]";
 
   return (
     <div
       role={variant === "error" ? "alert" : "status"}
-      className={`rounded-md border border-l-4 p-4 ${shell} ${accent} ${className}`.trim()}
+      className={`rounded-[var(--radius-md)] border border-l-4 p-4 fx-fade-in ${shell} ${className}`.trim()}
     >
       <div className="flex gap-3">
         <div className="flex-shrink-0">

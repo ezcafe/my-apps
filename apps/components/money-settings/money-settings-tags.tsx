@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
-import { moneyApiJson } from "@/lib/money-fetch";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
+import {
+  MONEY_LIST_TAGS_QUERY,
+  MONEY_TAG_CREATE_MUTATION,
+  MONEY_TAG_DELETE_MUTATION,
+  MONEY_TAG_UPDATE_MUTATION,
+} from "@/lib/money-gql-documents";
 import {
   inputCls,
   MoneySettingsBackLink,
@@ -23,8 +29,8 @@ export function MoneySettingsTagsSection() {
   const [editName, setEditName] = useState("");
 
   const loadTags = useCallback(async () => {
-    const { data } = await moneyApiJson<TagRow[]>("/api/money/tags");
-    setTags(data);
+    const res = await moneyGraphQLRequest<{ moneyTags: TagRow[] }>(MONEY_LIST_TAGS_QUERY);
+    setTags(res.moneyTags);
   }, []);
 
   useEffect(() => {
@@ -58,9 +64,9 @@ export function MoneySettingsTagsSection() {
     e.preventDefault();
     if (!editingId || !editName.trim()) return;
     try {
-      await moneyApiJson(`/api/money/tags/${editingId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ name: editName.trim() }),
+      await moneyGraphQLRequest(MONEY_TAG_UPDATE_MUTATION, {
+        id: editingId,
+        input: { name: editName.trim() },
       });
       cancelEdit();
       await loadTags();
@@ -78,7 +84,7 @@ export function MoneySettingsTagsSection() {
       return;
     }
     try {
-      await moneyApiJson(`/api/money/tags/${id}`, { method: "DELETE" });
+      await moneyGraphQLRequest(MONEY_TAG_DELETE_MUTATION, { id });
       if (editingId === id) cancelEdit();
       await loadTags();
       notify.success("Settings updated", "Tag deleted.");
@@ -94,9 +100,8 @@ export function MoneySettingsTagsSection() {
     e.preventDefault();
     if (!newTag.trim()) return;
     try {
-      await moneyApiJson("/api/money/tags", {
-        method: "POST",
-        body: JSON.stringify({ name: newTag.trim() }),
+      await moneyGraphQLRequest(MONEY_TAG_CREATE_MUTATION, {
+        input: { name: newTag.trim() },
       });
       setNewTag("");
       await loadTags();
@@ -141,7 +146,7 @@ export function MoneySettingsTagsSection() {
             {tags.map((t) => (
               <li
                 key={t.id}
-                className="rounded-lg border border-border bg-background px-3 py-2"
+                className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30"
               >
                 {editingId === t.id ? (
                   <form className="flex flex-col gap-3" onSubmit={saveEdit}>

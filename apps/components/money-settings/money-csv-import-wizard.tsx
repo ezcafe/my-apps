@@ -8,8 +8,22 @@ import {
   secondaryBtnCls,
 } from "@/components/money-settings/money-settings-shared";
 import { Alert } from "@/components/ui/alert";
-import { moneyApiJson } from "@/lib/money-fetch";
-import { fkEntityRowsForField } from "@/lib/money-import-fk-synonym";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
+import {
+  MONEY_ACCOUNT_CREATE_MUTATION,
+  MONEY_CATEGORY_CREATE_MUTATION,
+  MONEY_LIST_ACCOUNTS_QUERY,
+  MONEY_LIST_CATEGORIES_QUERY,
+  MONEY_LIST_MERCHANTS_QUERY,
+  MONEY_LIST_TAGS_QUERY,
+  MONEY_MERCHANT_CREATE_MUTATION,
+  MONEY_PARSE_CSV_QUERY,
+} from "@/lib/money-gql-documents";
+import {
+  fkAllRowsForField,
+  fkCategoryGroupsForField,
+  type FkEntityRow,
+} from "@/lib/money-import-fk-synonym";
 import {
   MONEY_IMPORT_ACCOUNT_TYPES,
   moneyImportApiPath,
@@ -18,7 +32,10 @@ import {
   type MoneyImportKind,
 } from "@/lib/money-import-kinds";
 import {
+  buildCategoryImportParentPicksPerRow,
   buildInitialValuePickByField,
+  categoryImportParentPickKey,
+  categoryImportParentPickSatisfies,
   effectiveEnumBoolSelectForRow,
   effectiveFkSelectForRow,
   enumBoolPickSatisfiesImport,
@@ -28,11 +45,15 @@ import {
   pruneAndAutoFillFkPicks,
   VALUE_PICK_CATEGORY_PARENT_TOP,
   VALUE_PICK_SELECT_ADD_NEW,
+  VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP,
   VALUE_PICK_SELECT_IGNORE,
   type MoneyImportAccountType,
   type MoneyImportValuePick,
 } from "@/lib/money-import-value-picks";
-import { listDistinctForMoneyImportField } from "@/lib/money-import-value-map";
+import {
+  includeMoneyImportValueMappingColumn,
+  listDistinctForMoneyImportField,
+} from "@/lib/money-import-value-map";
 import { buildMoneyCsvImportRows } from "@/lib/money-csv-import-rows";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 
@@ -110,6 +131,46 @@ function ImportTypeChevron() {
   );
 }
 
+const FK_CATEGORY_OPTGROUP_LABEL: Record<"expense" | "income", string> = {
+  expense: "Expense categories",
+  income: "Income categories",
+};
+
+function FkSelectOptions({
+  entities,
+  categoryGroups,
+}: {
+  entities: FkEntityRow[];
+  categoryGroups: { kind: "expense" | "income"; rows: FkEntityRow[] }[] | null;
+}) {
+  if (categoryGroups) {
+    return (
+      <>
+        {categoryGroups.map((g) =>
+          g.rows.length === 0 ? null : (
+            <optgroup key={g.kind} label={FK_CATEGORY_OPTGROUP_LABEL[g.kind]}>
+              {g.rows.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </optgroup>
+          ),
+        )}
+      </>
+    );
+  }
+  return (
+    <>
+      {entities.map((e) => (
+        <option key={e.id} value={e.id}>
+          {e.name}
+        </option>
+      ))}
+    </>
+  );
+}
+
 function MapArrowIcon() {
   return (
     <svg
@@ -148,7 +209,7 @@ function ImportProgress({
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-border">
         <div
-          className="h-full rounded-full bg-foreground transition-[width] duration-300"
+          className="h-full rounded-full bg-accent transition-[width] duration-300"
           style={{ width: `${progressPct}%` }}
         />
       </div>
@@ -166,9 +227,9 @@ function ImportProgress({
                   if (!future && i !== currentIdx) onStepClick(id);
                 }}
                 aria-current={active ? "step" : undefined}
-                className={`rounded-full border px-2.5 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                className={`rounded-full border px-2.5 py-1 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
                   active
-                    ? "border-foreground bg-foreground text-background"
+                    ? "border-accent bg-accent text-accent-foreground"
                     : done
                       ? "border-border bg-surface text-foreground hover:bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)]"
                       : "border-border bg-surface text-muted"
@@ -270,9 +331,40 @@ function allRequiredColumnsMapped(
   return true;
 }
 
+function categoryKindForCategoriesImportRow(
+  csvKey: string,
+  parsedRows: Record<string, string>[],
+  columnByField: Record<string, string>,
+): "expense" | "income" {
+  const m = csvKey.match(/^__import_row_(\d+)$/);
+  if (!m) return "expense";
+  const rowIdx = Number(m[1]);
+  const col = columnByField.kind ?? "";
+  if (!col) return "expense";
+  const v = String(parsedRows[rowIdx]?.[col] ?? "")
+    .trim()
+    .toLowerCase();
+  return v === "income" ? "income" : "expense";
+}
+
+function categoryKindForLeafPick(
+  parentCategoryId: string | null | undefined,
+  categories: MoneyCategoryRow[],
+): "expense" | "income" {
+  if (!parentCategoryId) return "expense";
+  const parent = categories.find((c) => c.id === parentCategoryId);
+  return parent?.kind ?? "expense";
+}
+
 async function createPendingNewEntities(
   defs: ReturnType<typeof moneyImportFieldDefs>,
   valuePicksByField: Record<string, Record<string, MoneyImportValuePick>>,
+  context: {
+    importKind: MoneyImportKind;
+    parsedRows: Record<string, string>[];
+    columnByField: Record<string, string>;
+    categories: MoneyCategoryRow[];
+  },
 ): Promise<Record<string, Map<string, string>>> {
   const out: Record<string, Map<string, string>> = {};
   for (const f of defs) {
@@ -286,38 +378,52 @@ async function createPendingNewEntities(
       if (!name) throw new Error(`${f.label}: name required for new ${f.fk}`);
 
       if (f.fk === "account") {
-        const { data } = await moneyApiJson<{ id: string }>("/api/money/accounts", {
-          method: "POST",
-          body: JSON.stringify({
-            name,
-            type: p.accountType ?? "other",
-          }),
-        });
-        map.set(csvKey, data.id);
+        const row = await moneyGraphQLRequest<{ moneyAccountCreate: { id: string } }>(
+          MONEY_ACCOUNT_CREATE_MUTATION,
+          {
+            input: {
+              name,
+              type: p.accountType ?? "other",
+            },
+          },
+        );
+        map.set(csvKey, row.moneyAccountCreate.id);
       } else if (f.fk === "merchant") {
-        const { data } = await moneyApiJson<{ id: string }>("/api/money/merchants", {
-          method: "POST",
-          body: JSON.stringify({ name }),
-        });
-        map.set(csvKey, data.id);
+        const row = await moneyGraphQLRequest<{ moneyMerchantCreate: { id: string } }>(
+          MONEY_MERCHANT_CREATE_MUTATION,
+          { input: { name } },
+        );
+        map.set(csvKey, row.moneyMerchantCreate.id);
       } else if (f.fk === "category_root") {
-        const { data } = await moneyApiJson<{ id: string }>("/api/money/categories", {
-          method: "POST",
-          body: JSON.stringify({ name, parentId: null }),
-        });
-        map.set(csvKey, data.id);
+        const k =
+          context.importKind === "categories"
+            ? categoryKindForCategoriesImportRow(
+                csvKey,
+                context.parsedRows,
+                context.columnByField,
+              )
+            : "expense";
+        const row = await moneyGraphQLRequest<{ moneyCategoryCreate: { id: string } }>(
+          MONEY_CATEGORY_CREATE_MUTATION,
+          { input: { name, kind: k, parentId: null } },
+        );
+        map.set(csvKey, row.moneyCategoryCreate.id);
       } else if (f.fk === "category_leaf") {
         if (p.parentCategoryId === undefined) {
           throw new Error(`${f.label}: choose parent or top category for "${csvKey}"`);
         }
-        const { data } = await moneyApiJson<{ id: string }>("/api/money/categories", {
-          method: "POST",
-          body: JSON.stringify({
-            name,
-            parentId: p.parentCategoryId,
-          }),
-        });
-        map.set(csvKey, data.id);
+        const k = categoryKindForLeafPick(p.parentCategoryId, context.categories);
+        const row = await moneyGraphQLRequest<{ moneyCategoryCreate: { id: string } }>(
+          MONEY_CATEGORY_CREATE_MUTATION,
+          {
+            input: {
+              name,
+              kind: k,
+              parentId: p.parentCategoryId,
+            },
+          },
+        );
+        map.set(csvKey, row.moneyCategoryCreate.id);
       }
     }
     if (map.size > 0) out[f.key] = map;
@@ -356,16 +462,18 @@ export function MoneyCsvImportWizard({
     (async () => {
       try {
         const [a, m, c, t] = await Promise.all([
-          moneyApiJson<AccountRow[]>("/api/money/accounts"),
-          moneyApiJson<MerchantRow[]>("/api/money/merchants"),
-          moneyApiJson<MoneyCategoryRow[]>("/api/money/categories"),
-          moneyApiJson<TagRow[]>("/api/money/tags"),
+          moneyGraphQLRequest<{ moneyAccounts: AccountRow[] }>(MONEY_LIST_ACCOUNTS_QUERY),
+          moneyGraphQLRequest<{ moneyMerchants: MerchantRow[] }>(MONEY_LIST_MERCHANTS_QUERY),
+          moneyGraphQLRequest<{ moneyCategories: MoneyCategoryRow[] }>(
+            MONEY_LIST_CATEGORIES_QUERY,
+          ),
+          moneyGraphQLRequest<{ moneyTags: TagRow[] }>(MONEY_LIST_TAGS_QUERY),
         ]);
         if (cancelled) return;
-        setAccounts(a.data);
-        setMerchants(m.data);
-        setCategories(c.data);
-        setTags(t.data);
+        setAccounts(a.moneyAccounts);
+        setMerchants(m.moneyMerchants);
+        setCategories(c.moneyCategories);
+        setTags(t.moneyTags);
       } catch {
         if (!cancelled)
           notify.error("Could not load accounts, merchants, categories, or tags.");
@@ -403,7 +511,7 @@ export function MoneyCsvImportWizard({
     if (!kind) return [];
     return defs.filter((f) => {
       const col = columnByField[f.key] ?? "";
-      if (!col) return false;
+      if (!includeMoneyImportValueMappingColumn(kind, f, col)) return false;
       return f.valueKind === "enum" || f.valueKind === "bool" || Boolean(f.fk);
     });
   }, [defs, columnByField, kind]);
@@ -423,7 +531,17 @@ export function MoneyCsvImportWizard({
       const next: Record<string, Record<string, MoneyImportValuePick>> = { ...initial };
       for (const f of defs) {
         const col = columnByField[f.key] ?? "";
-        if (!col) continue;
+        if (!includeMoneyImportValueMappingColumn(kind, f, col)) continue;
+        if (kind === "categories" && f.key === "parentId" && f.fk) {
+          const entities = fkAllRowsForField(f.fk, accounts, merchants, categories);
+          next[f.key] = buildCategoryImportParentPicksPerRow(
+            parsedRows,
+            columnByField,
+            prev[f.key],
+            entities,
+          );
+          continue;
+        }
         const distinct = listDistinctForMoneyImportField(
           kind,
           f,
@@ -439,7 +557,7 @@ export function MoneyCsvImportWizard({
           const entities =
             kind === "transactions" && f.key === "categoryId" && f.fk === "category_leaf"
               ? txAllCategoryEntities
-              : fkEntityRowsForField(f.fk, accounts, merchants, categories);
+              : fkAllRowsForField(f.fk, accounts, merchants, categories);
           next[f.key] = pruneAndAutoFillFkPicks(f, mergedKeys, entities, prev[f.key]);
         }
       }
@@ -472,7 +590,19 @@ export function MoneyCsvImportWizard({
     if (!kind) return false;
     for (const f of valueFields) {
       const col = columnByField[f.key] ?? "";
-      if (!col) continue;
+      if (!includeMoneyImportValueMappingColumn(kind, f, col)) continue;
+      if (kind === "categories" && f.key === "parentId") {
+        const nameCol = columnByField.name ?? "";
+        for (let i = 0; i < parsedRows.length; i++) {
+          const row = parsedRows[i]!;
+          const catName = nameCol ? String(row[nameCol] ?? "").trim() : "";
+          if (!catName) continue;
+          const key = categoryImportParentPickKey(i);
+          const pick = valuePicksByField.parentId?.[key];
+          if (!categoryImportParentPickSatisfies(pick)) return false;
+        }
+        continue;
+      }
       const distinct = listDistinctForMoneyImportField(
         kind,
         f,
@@ -485,7 +615,7 @@ export function MoneyCsvImportWizard({
       const entities = f.fk
         ? kind === "transactions" && f.key === "categoryId" && f.fk === "category_leaf"
           ? txAllCategoryEntities
-          : fkEntityRowsForField(f.fk, accounts, merchants, categories)
+          : fkAllRowsForField(f.fk, accounts, merchants, categories)
         : [];
       for (const k of keys) {
         const pick = valuePicksByField[f.key]?.[k];
@@ -512,20 +642,22 @@ export function MoneyCsvImportWizard({
 
   const refreshEntityLists = useCallback(async () => {
     const [a, m, c, t] = await Promise.all([
-      moneyApiJson<AccountRow[]>("/api/money/accounts"),
-      moneyApiJson<MerchantRow[]>("/api/money/merchants"),
-      moneyApiJson<MoneyCategoryRow[]>("/api/money/categories"),
-      moneyApiJson<TagRow[]>("/api/money/tags"),
+      moneyGraphQLRequest<{ moneyAccounts: AccountRow[] }>(MONEY_LIST_ACCOUNTS_QUERY),
+      moneyGraphQLRequest<{ moneyMerchants: MerchantRow[] }>(MONEY_LIST_MERCHANTS_QUERY),
+      moneyGraphQLRequest<{ moneyCategories: MoneyCategoryRow[] }>(
+        MONEY_LIST_CATEGORIES_QUERY,
+      ),
+      moneyGraphQLRequest<{ moneyTags: TagRow[] }>(MONEY_LIST_TAGS_QUERY),
     ]);
-    setAccounts(a.data);
-    setMerchants(m.data);
-    setCategories(c.data);
-    setTags(t.data);
+    setAccounts(a.moneyAccounts);
+    setMerchants(m.moneyMerchants);
+    setCategories(c.moneyCategories);
+    setTags(t.moneyTags);
     return {
-      accounts: a.data,
-      merchants: m.data,
-      categories: c.data,
-      tags: t.data,
+      accounts: a.moneyAccounts,
+      merchants: m.moneyMerchants,
+      categories: c.moneyCategories,
+      tags: t.moneyTags,
     };
   }, []);
 
@@ -562,7 +694,12 @@ export function MoneyCsvImportWizard({
     }
     setBusy("import");
     try {
-      const createdMaps = await createPendingNewEntities(defs, valuePicksByField);
+      const createdMaps = await createPendingNewEntities(defs, valuePicksByField, {
+        importKind: kind,
+        parsedRows,
+        columnByField,
+        categories,
+      });
       const fkCtx = await refreshEntityLists();
       const { rows } = buildMoneyCsvImportRows(
         kind,
@@ -577,11 +714,26 @@ export function MoneyCsvImportWizard({
         notify.error("Nothing valid to import after resolving new rows.");
         return;
       }
-      const { data } = await moneyApiJson<{ created: number }>(moneyImportApiPath(kind), {
+      const ir = await fetch(moneyImportApiPath(kind), {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ rows }),
       });
-      notify.success(`Imported ${data.created} row(s).`);
+      const ibody = (await ir.json().catch(() => null)) as
+        | { data?: { created: number } }
+        | { error?: string }
+        | null;
+      if (!ir.ok) {
+        throw new Error(
+          ibody && "error" in ibody && ibody.error
+            ? ibody.error
+            : ir.statusText ?? "Import failed",
+        );
+      }
+      const created =
+        ibody && "data" in ibody && ibody.data?.created != null ? ibody.data.created : 0;
+      notify.success(`Imported ${created} row(s).`);
       resetWizard();
     } catch (e: unknown) {
       notify.error(e instanceof Error ? e.message : "Import failed");
@@ -607,10 +759,10 @@ export function MoneyCsvImportWizard({
     setBusy("parse");
     try {
       const csvText = await file.text();
-      const { data } = await moneyApiJson<{ headers: string[]; rows: Record<string, string>[] }>(
-        "/api/money/csv/parse",
-        { method: "POST", body: JSON.stringify({ csv: csvText }) },
-      );
+      const parsedCsv = await moneyGraphQLRequest<{
+        moneyParseCsv: { headers: string[]; rows: Record<string, string>[] };
+      }>(MONEY_PARSE_CSV_QUERY, { csv: csvText });
+      const data = parsedCsv.moneyParseCsv;
       const hdrs = data.headers ?? [];
       const rows = data.rows ?? [];
       if (!hdrs.length || !rows.length) {
@@ -673,7 +825,7 @@ export function MoneyCsvImportWizard({
           </p>
           <ul
             role="list"
-            className="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-md bg-border shadow-sm ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)] sm:grid-cols-2 lg:grid-cols-3"
+            className="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-[var(--radius-md)] bg-border shadow-[var(--shadow-sm)] sm:grid-cols-2 lg:grid-cols-3"
             aria-label="Import types"
           >
             {KINDS_ORDER.map((k) => (
@@ -681,7 +833,7 @@ export function MoneyCsvImportWizard({
                 <button
                   type="button"
                   onClick={() => handlePickKind(k)}
-                  className="relative flex w-full items-center gap-x-3 bg-surface px-4 py-5 text-left text-sm font-semibold text-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground"
+                  className="relative flex w-full items-center gap-x-3 bg-surface px-4 py-5 text-left text-sm font-semibold text-foreground transition-colors duration-200 hover:bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground"
                 >
                   <span className="min-w-0 flex-1">{moneyImportSectionTitle[k]}</span>
                   <ImportTypeChevron />
@@ -733,7 +885,7 @@ export function MoneyCsvImportWizard({
             <p className="mt-1 text-sm text-muted">
               First row shows a sample value from your file for each column.
             </p>
-            <div className="mt-3 overflow-x-auto rounded-md border border-border">
+            <div className="mt-3 overflow-x-auto rounded-[var(--radius-md)] border border-border">
               <table className="w-full min-w-[32rem] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-background text-left">
@@ -792,6 +944,142 @@ export function MoneyCsvImportWizard({
             <div className="space-y-6">
               <h3 className="text-sm font-medium text-foreground">Value mapping</h3>
               {valueFields.map((f) => {
+                const entities =
+                  f.fk != null
+                    ? fkAllRowsForField(f.fk, accounts, merchants, categories)
+                    : [];
+                const txCategoryEntities =
+                  kind === "transactions" && f.key === "categoryId" && f.fk === "category_leaf"
+                    ? txAllCategoryEntities
+                    : null;
+                const entitiesForSelect = txCategoryEntities ?? entities;
+                const categoryGroupsForSelect =
+                  f.fk === "category_root" || f.fk === "category_leaf"
+                    ? fkCategoryGroupsForField(categories, f.fk)
+                    : null;
+                const categoriesImportParentField =
+                  kind === "categories" && f.key === "parentId";
+                if (categoriesImportParentField && f.fk) {
+                  const nameCol = columnByField.name ?? "";
+                  const parentCol = columnByField.parentId ?? "";
+                  return (
+                    <div
+                      key={f.key}
+                      className="rounded-[var(--radius-md)] border border-border p-4"
+                    >
+                      <h4 className="text-sm font-semibold text-foreground">
+                        {f.label}
+                        <span className="ml-2 font-normal text-muted">({f.key})</span>
+                      </h4>
+                      <p className="mt-1 text-xs text-muted">
+                        One parent per imported row. CSV parent values are hints only; the
+                        selection here is what gets imported. In the Parent dropdown, workspace
+                        roots are grouped under{" "}
+                        <span className="font-medium text-foreground">
+                          Expense categories
+                        </span>{" "}
+                        and{" "}
+                        <span className="font-medium text-foreground">
+                          Income categories
+                        </span>
+                        .
+                      </p>
+                      <div className="mt-3 max-h-[min(36rem,70vh)] overflow-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-muted">
+                              <th className="py-1 pr-2">#</th>
+                              <th className="py-1 pr-2">Category</th>
+                              {parentCol ? (
+                                <th className="py-1 pr-2">Parent in CSV</th>
+                              ) : null}
+                              <th className="py-1">
+                                Parent
+                                <span className="mt-0.5 block font-normal text-muted">
+                                  (expense / income roots)
+                                </span>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {parsedRows.map((csvRow, rowIdx) => {
+                              const pickKey = categoryImportParentPickKey(rowIdx);
+                              const pick = valuePicksByField[f.key]?.[pickKey];
+                              const catName = nameCol
+                                ? String(csvRow[nameCol] ?? "").trim()
+                                : "";
+                              const parentHint = parentCol
+                                ? String(csvRow[parentCol] ?? "").trim()
+                                : "";
+                              const { selectValue, isAutoFallback } = effectiveFkSelectForRow(
+                                pickKey,
+                                pick,
+                                entitiesForSelect,
+                                { categoriesImportParentField: true },
+                              );
+                              return (
+                                <tr key={pickKey} className="border-t border-border/40">
+                                  <td className="py-2 pr-2 align-top text-muted">
+                                    {rowIdx + 1}
+                                  </td>
+                                  <td className="py-2 pr-2 align-top font-medium text-foreground">
+                                    {catName ? (
+                                      <span className="font-mono">{catName}</span>
+                                    ) : (
+                                      <span className="text-muted">(empty name)</span>
+                                    )}
+                                  </td>
+                                  {parentCol ? (
+                                    <td className="py-2 pr-2 align-top font-mono text-muted">
+                                      {parentHint || "—"}
+                                    </td>
+                                  ) : null}
+                                  <td className="py-2 align-top">
+                                    <div className="flex flex-col gap-2">
+                                      <select
+                                        className={inputCls}
+                                        value={selectValue || ""}
+                                        onChange={(e) => {
+                                          const v = e.target.value;
+                                          setValuePicksByField((prev) => {
+                                            const cur = { ...(prev[f.key] ?? {}) };
+                                            if (
+                                              v === VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP
+                                            ) {
+                                              cur[pickKey] = { kind: "ignore" };
+                                            } else if (v) {
+                                              cur[pickKey] = { kind: "entity", entityId: v };
+                                            }
+                                            return { ...prev, [f.key]: cur };
+                                          });
+                                        }}
+                                      >
+                                        <option value="">
+                                          {isAutoFallback
+                                            ? "(auto match)"
+                                            : "— choose —"}
+                                        </option>
+                                        <FkSelectOptions
+                                          entities={entitiesForSelect}
+                                          categoryGroups={categoryGroupsForSelect}
+                                        />
+                                        <option
+                                          value={VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP}
+                                        >
+                                          Top-level (root)
+                                        </option>
+                                      </select>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                }
                 const distinct = listDistinctForMoneyImportField(
                   kind,
                   f,
@@ -801,17 +1089,8 @@ export function MoneyCsvImportWizard({
                   5000,
                 );
                 const keys = mergeMatchValueRowKeys(distinct, valuePicksByField[f.key]);
-                const entities =
-                  f.fk != null
-                    ? fkEntityRowsForField(f.fk, accounts, merchants, categories)
-                    : [];
-                const txCategoryEntities =
-                  kind === "transactions" && f.key === "categoryId" && f.fk === "category_leaf"
-                    ? txAllCategoryEntities
-                    : null;
-                const entitiesForSelect = txCategoryEntities ?? entities;
                 return (
-                  <div key={f.key} className="rounded-md border border-border p-4">
+                  <div key={f.key} className="rounded-[var(--radius-md)] border border-border p-4">
                     <h4 className="text-sm font-semibold text-foreground">
                       {f.label}
                       <span className="ml-2 font-normal text-muted">({f.key})</span>
@@ -826,6 +1105,7 @@ export function MoneyCsvImportWizard({
                         </thead>
                         <tbody>
                           {keys.map((csvKey) => {
+                            const rowKey = csvKey === "" ? "__csv_empty__" : csvKey;
                             const pick = valuePicksByField[f.key]?.[csvKey];
                             if (f.valueKind === "enum" || f.valueKind === "bool") {
                               const { selectValue, isAutoFallback } = effectiveEnumBoolSelectForRow(
@@ -838,7 +1118,7 @@ export function MoneyCsvImportWizard({
                                   ? f.enumValues
                                   : (["true", "false"] as const);
                               return (
-                                <tr key={csvKey} className="border-t border-border/40">
+                                <tr key={rowKey} className="border-t border-border/40">
                                   <td className="py-2 pr-2 align-top font-mono">{csvKey}</td>
                                   <td className="py-2 align-top">
                                     <select
@@ -879,27 +1159,35 @@ export function MoneyCsvImportWizard({
                               csvKey,
                               pick,
                               entitiesForSelect,
+                              { categoriesImportParentField },
                             );
                             const showNewDetails = pick?.kind === "new";
+                            const csvLabel =
+                              categoriesImportParentField && csvKey === ""
+                                ? columnByField.parentId
+                                  ? "(empty)"
+                                  : "(no parent column — all rows)"
+                                : csvKey;
                             return (
-                              <tr key={csvKey} className="border-t border-border/40">
-                                <td className="py-2 pr-2 align-top font-mono">{csvKey}</td>
+                              <tr key={rowKey} className="border-t border-border/40">
+                                <td className="py-2 pr-2 align-top font-mono">{csvLabel}</td>
                                 <td className="py-2 align-top">
                                   <div className="flex flex-col gap-2">
                                     <select
                                       className={inputCls}
-                                      value={
-                                        pick?.kind === "ignore"
-                                          ? VALUE_PICK_SELECT_IGNORE
-                                          : selectValue || ""
-                                      }
+                                      value={selectValue || ""}
                                       onChange={(e) => {
                                         const v = e.target.value;
                                         setValuePicksByField((prev) => {
                                           const cur = { ...(prev[f.key] ?? {}) };
-                                          if (v === VALUE_PICK_SELECT_IGNORE) {
+                                          if (v === VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP) {
                                             cur[csvKey] = { kind: "ignore" };
-                                          } else if (v === VALUE_PICK_SELECT_ADD_NEW) {
+                                          } else if (v === VALUE_PICK_SELECT_IGNORE) {
+                                            cur[csvKey] = { kind: "ignore" };
+                                          } else if (
+                                            !categoriesImportParentField &&
+                                            v === VALUE_PICK_SELECT_ADD_NEW
+                                          ) {
                                             cur[csvKey] = {
                                               kind: "new",
                                               name: csvKey,
@@ -917,13 +1205,24 @@ export function MoneyCsvImportWizard({
                                       <option value="">
                                         {isAutoFallback ? "(auto match)" : "— choose —"}
                                       </option>
-                                      {entitiesForSelect.map((e) => (
-                                        <option key={e.id} value={e.id}>
-                                          {e.name}
+                                      <FkSelectOptions
+                                        entities={entitiesForSelect}
+                                        categoryGroups={categoryGroupsForSelect}
+                                      />
+                                      {categoriesImportParentField ? (
+                                        <option
+                                          value={VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP}
+                                        >
+                                          Top-level (root)
                                         </option>
-                                      ))}
-                                      <option value={VALUE_PICK_SELECT_ADD_NEW}>Add new…</option>
-                                      <option value={VALUE_PICK_SELECT_IGNORE}>Ignore</option>
+                                      ) : (
+                                        <>
+                                          <option value={VALUE_PICK_SELECT_ADD_NEW}>
+                                            Add new…
+                                          </option>
+                                          <option value={VALUE_PICK_SELECT_IGNORE}>Ignore</option>
+                                        </>
+                                      )}
                                     </select>
                                     {showNewDetails && f.fk === "account" ? (
                                       <div className="flex flex-wrap gap-2">
@@ -1065,11 +1364,16 @@ export function MoneyCsvImportWizard({
                                             <option value={VALUE_PICK_CATEGORY_PARENT_TOP}>
                                               Top category (root)
                                             </option>
-                                            {rootCategories.map((c) => (
-                                              <option key={c.id} value={c.id}>
-                                                {c.name}
-                                              </option>
-                                            ))}
+                                            <FkSelectOptions
+                                              entities={rootCategories.map((c) => ({
+                                                id: c.id,
+                                                name: c.name,
+                                              }))}
+                                              categoryGroups={fkCategoryGroupsForField(
+                                                rootCategories,
+                                                "category_root",
+                                              )}
+                                            />
                                           </select>
                                         </label>
                                       </div>
@@ -1115,12 +1419,12 @@ export function MoneyCsvImportWizard({
           {preview.errors.length > 0 ? (
             <div className="space-y-2">
               <p className="text-xs text-muted">Rows with errors (CSV)</p>
-              <pre className="max-h-44 overflow-auto rounded-md border border-border bg-background p-2 text-xs font-mono text-foreground">
+              <pre className="max-h-44 overflow-auto rounded-[var(--radius-md)] border border-border bg-background p-2 text-xs font-mono text-foreground">
                 {reviewErrorCsv}
               </pre>
             </div>
           ) : null}
-          <div className="overflow-x-auto rounded-md border border-border">
+          <div className="overflow-x-auto rounded-[var(--radius-md)] border border-border">
             <table className="w-full min-w-[28rem] text-left text-xs">
               <thead>
                 <tr className="border-b border-border bg-background">

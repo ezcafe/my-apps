@@ -1,10 +1,15 @@
 "use client";
 
 import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { MultiSelect, type MultiSelectItem } from "@/components/ui/multi-select";
+import { Select } from "@/components/ui/select";
 import {
   moneyCategoryById,
   moneyCategoryLabel,
-  moneyCategorySelectGroups,
+  moneyCategoryGroupsByKind,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 
@@ -61,14 +66,18 @@ export type AnalyticsWorkspaceRow = {
   isDefault: boolean;
 };
 
-const KIND_OPTIONS: { value: AnalyticsKind; label: string }[] = [
-  { value: "expense", label: "Expense" },
+type DirectionKey = "all" | "expense" | "income" | "transfer";
+
+const DIRECTION_OPTIONS: { value: DirectionKey; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "expense", label: "Spending" },
   { value: "income", label: "Income" },
-  { value: "transfer", label: "Transfer" },
+  { value: "transfer", label: "Transfers" },
 ];
 
-function readMultiSelect(e: React.ChangeEvent<HTMLSelectElement>): string[] {
-  return Array.from(e.target.selectedOptions, (o) => o.value);
+function deriveDirection(kinds: AnalyticsKind[]): DirectionKey {
+  if (kinds.length !== 1) return "all";
+  return kinds[0]!;
 }
 
 export function AnalyticsFilters({
@@ -107,33 +116,84 @@ export function AnalyticsFilters({
   onClose?: () => void;
 }) {
   const categoryById = useMemo(() => moneyCategoryById(categories), [categories]);
-  const categoryGroups = useMemo(
-    () => moneyCategorySelectGroups(categories),
+  const categoryGroupsByKind = useMemo(
+    () => moneyCategoryGroupsByKind(categories),
     [categories],
   );
+  const direction = deriveDirection(value.kinds);
 
-  const inputCls =
-    "rounded-md border border-border bg-background px-3 py-2 text-sm font-sans font-normal leading-normal tracking-normal text-foreground antialiased w-full min-w-0";
-  const dateInputCls = `${inputCls} [&::-webkit-datetime-edit]:font-sans [&::-webkit-datetime-edit-fields-wrapper]:font-sans`;
-  const multiSelectCls = `${inputCls} min-h-[8.5rem]`;
+  const accountItems = useMemo<MultiSelectItem[]>(
+    () => accounts.map((a) => ({ id: a.id, label: a.name })),
+    [accounts],
+  );
 
-  const kindToggle = (k: AnalyticsKind) => {
-    const has = value.kinds.includes(k);
-    const next = has
-      ? value.kinds.filter((x) => x !== k)
-      : [...value.kinds, k];
-    onChange({ ...value, kinds: next });
+  const merchantItems = useMemo<MultiSelectItem[]>(
+    () => merchants.map((m) => ({ id: m.id, label: m.name })),
+    [merchants],
+  );
+
+  const tagItems = useMemo<MultiSelectItem[]>(
+    () => tags.map((t) => ({ id: t.id, label: t.name })),
+    [tags],
+  );
+
+  const categoryItems = useMemo<MultiSelectItem[]>(() => {
+    const result: MultiSelectItem[] = [];
+    for (const kindGroup of categoryGroupsByKind) {
+      if (direction === "expense" && kindGroup.kind !== "expense") continue;
+      if (direction === "income" && kindGroup.kind !== "income") continue;
+      const grouped: MultiSelectItem[] = [];
+      const ungrouped: MultiSelectItem[] = [];
+      for (const g of kindGroup.groups) {
+        if (g.type === "single") {
+          ungrouped.push({
+            id: g.category.id,
+            label: moneyCategoryLabel(g.category, categoryById),
+          });
+        } else {
+          grouped.push({ id: g.parent.id, label: g.parent.name });
+          for (const c of g.children) {
+            grouped.push({ id: c.id, label: c.name });
+          }
+        }
+      }
+      result.push(...grouped, ...ungrouped);
+    }
+    return result;
+  }, [categoryGroupsByKind, categoryById, direction]);
+
+  const setDirection = (next: DirectionKey) => {
+    if (next === "all") {
+      onChange({ ...value, kinds: [] });
+    } else {
+      const filteredCategories =
+        next === "transfer"
+          ? []
+          : value.categoryIds.filter((id) => {
+              const cat = categoryById.get(id);
+              if (!cat) return false;
+              return cat.kind === next;
+            });
+      onChange({
+        ...value,
+        kinds: [next],
+        categoryIds: filteredCategories,
+      });
+    }
   };
 
   return (
     <section
-      className="rounded-md border border-border bg-surface p-4"
+      className="fx-fade-in"
       aria-label="Analytics filters"
       aria-labelledby="analytics-filters-heading"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <h2 id="analytics-filters-heading" className="text-lg font-medium">
+          <h2
+            id="analytics-filters-heading"
+            className="font-display text-lg font-medium tracking-tight"
+          >
             Filters
           </h2>
           <p className="mt-1 text-xs text-muted">
@@ -141,22 +201,21 @@ export function AnalyticsFilters({
           </p>
         </div>
         {onClose ? (
-          <button
+          <Button
             type="button"
-            className="shrink-0 rounded-md border border-border px-2.5 py-1 text-sm text-muted hover:bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)] hover:text-foreground"
-            aria-label="Close filters"
+            variant="ghost"
+            size="sm"
             onClick={onClose}
+            aria-label="Close filters"
           >
-            ×
-          </button>
+            ✕
+          </Button>
         ) : null}
       </div>
 
-      <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted">Workspace</span>
-          <select
-            className={inputCls}
+      <div className="mt-4 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
+        <Field label="Workspace">
+          <Select
             value={activeWorkspaceId}
             disabled={workspaces.length === 0 || switchingWorkspace}
             onChange={(e) => {
@@ -183,164 +242,121 @@ export function AnalyticsFilters({
                 </option>
               );
             })}
-          </select>
-        </label>
+          </Select>
+        </Field>
 
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted">From</span>
-          <input
+        <Field label="From">
+          <Input
             type="date"
-            className={dateInputCls}
             value={value.fromDate}
-            onChange={(e) =>
-              onChange({ ...value, fromDate: e.target.value })
-            }
+            onChange={(e) => onChange({ ...value, fromDate: e.target.value })}
           />
-        </label>
+        </Field>
 
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted">To</span>
-          <input
+        <Field label="To">
+          <Input
             type="date"
-            className={dateInputCls}
             value={value.toDate}
             onChange={(e) => onChange({ ...value, toDate: e.target.value })}
           />
-        </label>
+        </Field>
 
-        <fieldset className="grid gap-1 text-sm">
-          <legend className="text-muted">Kind</legend>
-          <div className="flex flex-wrap gap-3 rounded-md border border-border bg-background px-3 py-2">
-            {KIND_OPTIONS.map((opt) => (
-              <label key={opt.value} className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  checked={value.kinds.includes(opt.value)}
-                  onChange={() => kindToggle(opt.value)}
-                />
-                <span>{opt.label}</span>
-              </label>
-            ))}
+        <fieldset className="grid gap-1.5 text-sm">
+          <legend className="text-muted">Direction</legend>
+          <div
+            role="radiogroup"
+            aria-label="Direction"
+            className="flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+          >
+            {DIRECTION_OPTIONS.map((opt) => {
+              const selected = direction === opt.value;
+              return (
+                <label
+                  key={opt.value}
+                  className={`cursor-pointer rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-colors duration-200 fx-press ${
+                    selected
+                      ? "bg-muted-surface text-foreground"
+                      : "text-muted hover:bg-muted-surface hover:text-foreground"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="analytics-direction"
+                    className="peer sr-only"
+                    checked={selected}
+                    onChange={() => setDirection(opt.value)}
+                  />
+                  {opt.label}
+                </label>
+              );
+            })}
           </div>
         </fieldset>
 
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted">
-            Accounts{" "}
-            <span className="text-xs text-muted">
-              (Ctrl/Cmd-click to multi-select)
-            </span>
-          </span>
-          <select
-            multiple
-            size={5}
-            className={multiSelectCls}
+        <Field label="Accounts">
+          <MultiSelect
+            items={accountItems}
             value={value.accountIds}
-            onChange={(e) =>
-              onChange({ ...value, accountIds: readMultiSelect(e) })
-            }
-          >
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            onChange={(next) => onChange({ ...value, accountIds: next })}
+            placeholder="All accounts"
+            aria-label="Filter by accounts"
+          />
+        </Field>
 
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted">Categories</span>
-          <select
-            multiple
-            size={5}
-            className={multiSelectCls}
-            value={value.categoryIds}
-            onChange={(e) =>
-              onChange({ ...value, categoryIds: readMultiSelect(e) })
-            }
-          >
-            {categoryGroups.map((g) =>
-              g.type === "single" ? (
-                <option key={g.category.id} value={g.category.id}>
-                  {moneyCategoryLabel(g.category, categoryById)}
-                </option>
-              ) : (
-                <optgroup key={g.parent.id} label={g.parent.name}>
-                  <option value={g.parent.id}>{g.parent.name}</option>
-                  {g.children.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ),
-            )}
-          </select>
-        </label>
+        {direction === "transfer" ? null : (
+          <Field label="Categories">
+            <MultiSelect
+              items={categoryItems}
+              value={value.categoryIds}
+              onChange={(next) => onChange({ ...value, categoryIds: next })}
+              placeholder="All categories"
+              aria-label="Filter by categories"
+            />
+          </Field>
+        )}
 
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted">Merchants</span>
-          <select
-            multiple
-            size={5}
-            className={multiSelectCls}
+        <Field label="Merchants">
+          <MultiSelect
+            items={merchantItems}
             value={value.merchantIds}
-            onChange={(e) =>
-              onChange({ ...value, merchantIds: readMultiSelect(e) })
-            }
-          >
-            {merchants.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            onChange={(next) => onChange({ ...value, merchantIds: next })}
+            placeholder="All merchants"
+            aria-label="Filter by merchants"
+          />
+        </Field>
 
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted">
-            Tags{" "}
-            <span className="text-xs text-muted">
-              (must have all selected)
-            </span>
-          </span>
-          <select
-            multiple
-            size={5}
-            className={multiSelectCls}
+        <Field label="Tags" hint="Must have all selected">
+          <MultiSelect
+            items={tagItems}
             value={value.tagIds}
-            onChange={(e) =>
-              onChange({ ...value, tagIds: readMultiSelect(e) })
-            }
-          >
-            {tags.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            onChange={(next) => onChange({ ...value, tagIds: next })}
+            placeholder="No tag filter"
+            aria-label="Filter by tags"
+          />
+        </Field>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <Button
           type="button"
+          variant="primary"
+          size="md"
           onClick={onApply}
           disabled={applying || !dirty}
-          className="rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {applying ? "Loading…" : "Apply filters"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="secondary"
+          size="md"
           onClick={onReset}
           disabled={applying}
-          className="rounded-md border border-border bg-background px-5 py-2.5 text-sm font-medium text-foreground hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
         >
           Reset
-        </button>
+        </Button>
         {dirty ? (
-          <span className="text-xs text-muted">
+          <span className="text-xs text-muted fx-fade-in">
             Unapplied changes — click Apply to refresh.
           </span>
         ) : null}

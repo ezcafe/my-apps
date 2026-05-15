@@ -1,10 +1,39 @@
+export type MoneyCategoryKind = "expense" | "income";
+
 export type MoneyCategoryRow = {
   id: string;
   name: string;
+  kind: MoneyCategoryKind;
   parentId: string | null;
   /** Optional 90-day transaction count from `/api/money/categories`. */
   usageCount?: number;
 };
+
+export function categoriesOfKind<T extends { kind: MoneyCategoryKind }>(
+  rows: T[],
+  kind: MoneyCategoryKind,
+): T[] {
+  return rows.filter((c) => c.kind === kind);
+}
+
+export type MoneyCategoryKindGroup = {
+  kind: MoneyCategoryKind;
+  groups: MoneyCategorySelectGroup[];
+};
+
+/**
+ * Pre-computes select groups for both kinds so screens that show both sides
+ * (e.g. analytics filters, CSV import wizard) can render two top-level
+ * sections without re-walking the parent/child tree per render.
+ */
+export function moneyCategoryGroupsByKind(
+  rows: MoneyCategoryRow[],
+): MoneyCategoryKindGroup[] {
+  return [
+    { kind: "expense", groups: moneyCategorySelectGroups(categoriesOfKind(rows, "expense")) },
+    { kind: "income", groups: moneyCategorySelectGroups(categoriesOfKind(rows, "income")) },
+  ];
+}
 
 function usageOrZero(c: MoneyCategoryRow): number {
   return c.usageCount ?? 0;

@@ -3,11 +3,25 @@
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
-import { useWorkspaceCurrency } from "@/components/workspace-gate";
+import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/cn";
 import { formatMinor, parseMajorToMinor } from "@/lib/format-money";
-import { moneyApiJson } from "@/lib/money-fetch";
+import { useFormatDate } from "@/lib/format-date";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
+  MONEY_BOOTSTRAP_QUERY,
+  MONEY_SET_ACTIVE_WORKSPACE_MUTATION,
+  MONEY_TRANSACTION_CREATE_MUTATION,
+} from "@/lib/money-gql-documents";
+import {
+  categoriesOfKind,
   moneyCategoryById,
   moneyCategoryLabel,
   moneyCategorySelectGroups,
@@ -35,10 +49,44 @@ type WorkspaceRow = {
   isDefault: boolean;
 };
 
+const KIND_OPTIONS = [
+  { value: "expense", label: "Expense" },
+  { value: "income", label: "Income" },
+  { value: "transfer", label: "Transfer" },
+] as const;
+
+type KindValue = (typeof KIND_OPTIONS)[number]["value"];
+
+type WhenMode = "today" | "yesterday" | "custom";
+
+const WHEN_OPTIONS: ReadonlyArray<{ id: WhenMode; label: string }> = [
+  { id: "today", label: "Today" },
+  { id: "yesterday", label: "Yesterday" },
+  { id: "custom", label: "Custom" },
+];
+
+function localDateString(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function yesterdayDateString(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return localDateString(d);
+}
+
+function dateToOccurredAt(date: string): string {
+  return `${date}T00:00`;
+}
+
 export function MoneyDashboard() {
   const { data: session } = useSession();
   const userSub = session?.user?.id;
   const notify = useNotify();
+  const { formatDate } = useFormatDate();
   const { defaultCurrency, refreshWorkspaceCurrency } = useWorkspaceCurrency();
 
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
@@ -50,29 +98,35 @@ export function MoneyDashboard() {
 
   const [accountId, setAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
-  const [kind, setKind] = useState<"expense" | "income" | "transfer">(
-    "expense",
-  );
+  const [kind, setKind] = useState<KindValue>("expense");
   const [amountMajor, setAmountMajor] = useState("");
-  const [occurredAt, setOccurredAt] = useState(
-    () => new Date().toISOString().slice(0, 16),
+  const [occurredAt, setOccurredAt] = useState(() =>
+    dateToOccurredAt(localDateString()),
   );
+  const [whenMode, setWhenMode] = useState<WhenMode>("today");
+  const [customDate, setCustomDate] = useState<string>("");
+  const customDateInputRef = useRef<HTMLInputElement>(null);
   const [categoryId, setCategoryId] = useState("");
   const [categoryQuery, setCategoryQuery] = useState("No category");
   const [categoryFilterQuery, setCategoryFilterQuery] = useState("");
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [merchantId, setMerchantId] = useState("");
   const [notes, setNotes] = useState("");
-  /** Space-separated tag names; created and linked when the transaction is saved. */
   const [tagsInput, setTagsInput] = useState("");
 
+  const [submitting, setSubmitting] = useState(false);
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
 
-  const amountInputRef = useRef<HTMLInputElement>(null);
-
-  const categoryById = useMemo(() => moneyCategoryById(categories), [categories]);
+  const visibleCategories = useMemo(
+    () => (kind === "transfer" ? [] : categoriesOfKind(categories, kind)),
+    [categories, kind],
+  );
+  const categoryById = useMemo(
+    () => moneyCategoryById(visibleCategories),
+    [visibleCategories],
+  );
   const categoryGroups = useMemo(() => {
-    const groups = moneyCategorySelectGroups(categories);
+    const groups = moneyCategorySelectGroups(visibleCategories);
     const rootOptions = groups
       .filter((group) => group.type === "single")
       .map((group) => ({
@@ -115,7 +169,7 @@ export function MoneyDashboard() {
         : []),
       ...parentGroups,
     ];
-  }, [categories, categoryById]);
+  }, [visibleCategories, categoryById]);
   const categoryOptions = useMemo(
     () => categoryGroups.flatMap((group) => group.options),
     [categoryGroups],
@@ -124,17 +178,13 @@ export function MoneyDashboard() {
     () => categoryOptions.find((option) => option.id === categoryId)?.label ?? "",
     [categoryOptions, categoryId],
   );
-  const filteredCategoryGroups = useMemo(() => {
+  const filteredCategoryOptions = useMemo(() => {
     const query = categoryFilterQuery.trim().toLowerCase();
-    if (!query) return categoryGroups;
-    return categoryGroups
-      .map((group) => ({
-        ...group,
-        options: group.options.filter((option) =>
-          option.label.toLowerCase().includes(query),
-        ),
-      }))
-      .filter((group) => group.options.length > 0);
+    const flat = categoryGroups.flatMap((group) => group.options);
+    if (!query) return flat;
+    return flat.filter((option) =>
+      option.label.toLowerCase().includes(query),
+    );
   }, [categoryGroups, categoryFilterQuery]);
   const toAccountOptions = useMemo(
     () => accounts.filter((a) => a.id !== accountId),
@@ -152,71 +202,59 @@ export function MoneyDashboard() {
     return toAccountOptions[0]?.id ?? "";
   }, [kind, toAccountId, accountId, toAccountOptions]);
 
-  const loadAccounts = useCallback(async () => {
-    const { data } = await moneyApiJson<Account[]>("/api/money/accounts");
-    setAccounts(data);
+  const fetchBootstrapAndSync = useCallback(async () => {
+    const res = await moneyGraphQLRequest<{ moneyBootstrap: MoneyWorkspaceBootstrapData }>(
+      MONEY_BOOTSTRAP_QUERY,
+    );
+    const boot = res.moneyBootstrap;
+    setWorkspaces(boot.workspaces);
+
+    let resolvedId = boot.workspaceId;
+    if (!boot.workspaces.some((w) => w.id === resolvedId)) {
+      resolvedId =
+        boot.workspaces.find((w) => w.isDefault)?.id ??
+        boot.workspaces[0]?.id ??
+        resolvedId;
+    }
+
+    setActiveWorkspaceId(resolvedId);
+
+    let ledgerBoot = boot;
+    if (
+      resolvedId &&
+      resolvedId !== boot.workspaceId &&
+      boot.workspaces.some((w) => w.id === resolvedId)
+    ) {
+      await moneyGraphQLRequest(MONEY_SET_ACTIVE_WORKSPACE_MUTATION, {
+        workspaceId: resolvedId,
+      });
+      await refreshWorkspaceCurrency();
+      const res2 = await moneyGraphQLRequest<{ moneyBootstrap: MoneyWorkspaceBootstrapData }>(
+        MONEY_BOOTSTRAP_QUERY,
+      );
+      ledgerBoot = res2.moneyBootstrap;
+    }
+
+    setAccounts(ledgerBoot.accounts);
     setAccountId((prev) => {
+      const data = ledgerBoot.accounts;
       if (data.length === 0) return "";
       const ok = data.some((a) => a.id === prev);
       if (ok) return prev;
       const firstCredit = data.find((a) => a.type === "credit");
       return firstCredit?.id ?? data[0].id;
     });
-  }, []);
-  const loadCategories = useCallback(async () => {
-    const { data } = await moneyApiJson<Category[]>("/api/money/categories");
-    setCategories(data);
-  }, []);
-  const loadMerchants = useCallback(async () => {
-    const { data } = await moneyApiJson<Merchant[]>("/api/money/merchants");
-    setMerchants(data);
-  }, []);
+    setCategories(ledgerBoot.categories);
+    setMerchants(ledgerBoot.merchants);
+  }, [refreshWorkspaceCurrency]);
 
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       void (async () => {
         try {
-          const { data: boot } =
-            await moneyApiJson<MoneyWorkspaceBootstrapData>(
-              "/api/money/workspace/bootstrap",
-            );
           if (cancelled) return;
-          setWorkspaces(boot.workspaces);
-          let resolvedId = boot.workspaceId;
-          if (!boot.workspaces.some((w) => w.id === resolvedId)) {
-            resolvedId =
-              boot.workspaces.find((w) => w.isDefault)?.id ??
-              boot.workspaces[0]?.id ??
-              resolvedId;
-          }
-          setActiveWorkspaceId(resolvedId);
-          if (
-            resolvedId &&
-            resolvedId !== boot.workspaceId &&
-            boot.workspaces.some((w) => w.id === resolvedId)
-          ) {
-            await moneyApiJson("/api/workspace/active", {
-              method: "POST",
-              body: JSON.stringify({
-                workspaceId: resolvedId,
-                app: "money",
-              }),
-            });
-            await refreshWorkspaceCurrency();
-          }
-          if (cancelled) return;
-          setAccounts(boot.accounts);
-          setAccountId((prev) => {
-            const data = boot.accounts;
-            if (data.length === 0) return "";
-            const ok = data.some((a) => a.id === prev);
-            if (ok) return prev;
-            const firstCredit = data.find((a) => a.type === "credit");
-            return firstCredit?.id ?? data[0].id;
-          });
-          setCategories(boot.categories);
-          setMerchants(boot.merchants);
+          await fetchBootstrapAndSync();
         } catch (e: unknown) {
           if (!cancelled) {
             setBootstrapErr(e instanceof Error ? e.message : "Error");
@@ -227,11 +265,7 @@ export function MoneyDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [refreshWorkspaceCurrency]);
-
-  useEffect(() => {
-    amountInputRef.current?.focus();
-  }, []);
+  }, [fetchBootstrapAndSync]);
 
   const [prevSelectedCategoryLabel, setPrevSelectedCategoryLabel] = useState(
     selectedCategoryLabel,
@@ -244,8 +278,19 @@ export function MoneyDashboard() {
     setCategoryFilterQuery("");
   }
 
+  const [prevKind, setPrevKind] = useState(kind);
+  if (kind !== prevKind) {
+    setPrevKind(kind);
+    if (categoryId && !visibleCategories.some((c) => c.id === categoryId)) {
+      setCategoryId("");
+      setCategoryQuery("No category");
+      setCategoryFilterQuery("");
+    }
+  }
+
   async function saveTransaction(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitting(true);
     try {
       const minor = parseMajorToMinor(amountMajor, defaultCurrency);
       if (!accountId) throw new Error("Pick an account");
@@ -276,9 +321,8 @@ export function MoneyDashboard() {
       const uniqueTagNames = [...new Set(tagNames)];
       if (uniqueTagNames.length > 0) body.tagNames = uniqueTagNames;
 
-      await moneyApiJson("/api/money/transactions", {
-        method: "POST",
-        body: JSON.stringify(body),
+      await moneyGraphQLRequest(MONEY_TRANSACTION_CREATE_MUTATION, {
+        input: body,
       });
       notify.success("Transaction added", "Your entry was saved.");
       setAmountMajor("");
@@ -293,15 +337,51 @@ export function MoneyDashboard() {
         "Couldn’t save transaction",
         e instanceof Error ? e.message : "Something went wrong",
       );
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  const inputCls =
-    "rounded-md border border-border bg-background px-3 py-2 text-sm font-sans font-normal leading-normal tracking-normal text-foreground antialiased w-full min-w-0";
-  const dateTimeLocalCls = `${inputCls} [&::-webkit-datetime-edit]:font-sans [&::-webkit-datetime-edit-fields-wrapper]:font-sans`;
+  const pickWhenMode = (mode: WhenMode) => {
+    if (mode === "today") {
+      setWhenMode("today");
+      setOccurredAt(dateToOccurredAt(localDateString()));
+      return;
+    }
+    if (mode === "yesterday") {
+      setWhenMode("yesterday");
+      setOccurredAt(dateToOccurredAt(yesterdayDateString()));
+      return;
+    }
+    const input = customDateInputRef.current;
+    if (!input) return;
+    try {
+      if (typeof input.showPicker === "function") {
+        input.showPicker();
+        return;
+      }
+    } catch {
+      // showPicker can throw NotAllowedError without user activation; fall through to click()
+    }
+    input.focus();
+    input.click();
+  };
+
+  const handleCustomDateChange = (value: string) => {
+    if (!value) return;
+    setCustomDate(value);
+    setWhenMode("custom");
+    setOccurredAt(dateToOccurredAt(value));
+  };
+
+  const submitDisabled =
+    submitting ||
+    accounts.length === 0 ||
+    !accountId ||
+    (kind === "transfer" && !effectiveToAccountId);
 
   return (
-    <div className="min-w-0 max-w-4xl space-y-6">
+    <div className="min-w-0 max-w-4xl space-y-6 fx-fade-in">
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -310,68 +390,75 @@ export function MoneyDashboard() {
         />
       ) : null}
 
-      <section className="rounded-md border border-border bg-surface p-4">
-        <h2 className="text-lg font-medium">Transaction</h2>
+      <Card className="p-5">
+        <header className="mb-4 flex items-baseline justify-between gap-3">
+          <h2 className="font-display text-lg font-medium tracking-tight">
+            New transaction
+          </h2>
+          <span className="text-xs text-muted">
+            {defaultCurrency}
+          </span>
+        </header>
         <form
-          className="mt-4 grid grid-cols-1 gap-3"
+          className="grid min-w-0 gap-4"
+          style={{
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))",
+          }}
           onSubmit={saveTransaction}
         >
-          <fieldset className="grid gap-1 text-sm">
+          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
             <legend className="text-muted">Kind</legend>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {(
-                [
-                  ["expense", "Expense", "Money out"],
-                  ["income", "Income", "Money in"],
-                  ["transfer", "Transfer", "Between accounts"],
-                ] as const
-              ).map(([value, label, description]) => (
-                <label key={value} className="min-w-32 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="transaction-kind"
-                    value={value}
-                    checked={kind === value}
-                    onChange={() => {
+            <div
+              role="radiogroup"
+              aria-label="Transaction kind"
+              className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+            >
+              {KIND_OPTIONS.map(({ value, label }) => {
+                const active = kind === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => {
                       setKind(value);
                       if (value !== "transfer") setToAccountId("");
                     }}
-                    className="peer sr-only"
-                  />
-                  <span className="flex min-h-14 flex-col rounded-md border border-border bg-background px-3 py-2 text-left transition peer-checked:border-foreground peer-checked:ring-1 peer-checked:ring-foreground">
-                    <span className="text-sm font-medium text-foreground">{label}</span>
-                    <span className="text-xs text-muted">{description}</span>
-                  </span>
-                </label>
-              ))}
+                    className={cn(
+                      "min-w-20 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
+                      active
+                        ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
+                        : "text-muted hover:bg-muted-surface hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </fieldset>
+
           {workspaces.length > 1 ? (
-            <label className="grid gap-1 text-sm">
-              <span className="text-muted">Workspace</span>
-              <select
-                className={inputCls}
+            <Field label="Workspace" className="[grid-column:1/-1]">
+              <Select
                 value={activeWorkspaceId}
                 disabled={workspaces.length === 0}
                 onChange={async (e) => {
                   const next = e.target.value;
                   if (!next || next === activeWorkspaceId) return;
                   try {
-                    await moneyApiJson("/api/workspace/active", {
-                      method: "POST",
-                      body: JSON.stringify({
-                        workspaceId: next,
-                        app: "money",
-                      }),
+                    await moneyGraphQLRequest(MONEY_SET_ACTIVE_WORKSPACE_MUTATION, {
+                      workspaceId: next,
                     });
                     setActiveWorkspaceId(next);
                     await refreshWorkspaceCurrency();
-                    await Promise.all([
-                      loadAccounts(),
-                      loadCategories(),
-                      loadMerchants(),
-                    ]);
-                    notify.success("Workspace switched", "Ledger data was refreshed.");
+                    await fetchBootstrapAndSync();
+                    notify.success(
+                      "Workspace switched",
+                      "Ledger data was refreshed.",
+                    );
                   } catch (err: unknown) {
                     notify.error(
                       "Couldn’t switch workspace",
@@ -387,33 +474,77 @@ export function MoneyDashboard() {
                     w.ownedByUserSub === userSub;
                   const label =
                     w.name +
-                    (mine ? " · Personal" : w.kind === "shared" ? " · Shared" : "");
+                    (mine
+                      ? " · Personal"
+                      : w.kind === "shared"
+                        ? " · Shared"
+                        : "");
                   return (
                     <option key={w.id} value={w.id}>
                       {label}
                     </option>
                   );
                 })}
-              </select>
-            </label>
+              </Select>
+            </Field>
           ) : null}
-          <label className="grid gap-1 text-sm">
-            <span className="text-muted">
-              <span className="text-foreground" aria-hidden>
-                *
-              </span>{" "}
-              Amount
-            </span>
-            <input
-              ref={amountInputRef}
-              className={inputCls}
+
+          <Field label="Amount" required>
+            <Input
               value={amountMajor}
               onChange={(e) => setAmountMajor(e.target.value)}
+              inputMode="decimal"
               placeholder={defaultCurrency === "VND" ? "25" : "24.99"}
+              autoFocus
               required
             />
-          </label>
-          <fieldset className="grid gap-1 text-sm">
+          </Field>
+
+          <fieldset className="grid min-w-0 gap-1.5 text-sm">
+            <legend className="text-muted">When</legend>
+            <div
+              role="radiogroup"
+              aria-label="Transaction date"
+              className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+            >
+              {WHEN_OPTIONS.map((opt) => {
+                const active = whenMode === opt.id;
+                const isCustom = opt.id === "custom";
+                const label =
+                  isCustom && customDate
+                    ? formatDate(customDate, { omitYearIfCurrent: true })
+                    : opt.label;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => pickWhenMode(opt.id)}
+                    className={cn(
+                      "min-w-20 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
+                      active
+                        ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
+                        : "text-muted hover:bg-muted-surface hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <input
+              ref={customDateInputRef}
+              type="date"
+              value={customDate}
+              onChange={(e) => handleCustomDateChange(e.target.value)}
+              className="sr-only"
+              aria-hidden="true"
+              tabIndex={-1}
+            />
+          </fieldset>
+
+          <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
             <legend className="text-muted">
               <span className="text-foreground" aria-hidden>
                 *
@@ -421,13 +552,19 @@ export function MoneyDashboard() {
               Account
             </legend>
             {accounts.length === 0 ? (
-              <p className="rounded-md border border-border bg-background px-3 py-2 text-sm text-muted">
+              <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
                 No accounts yet. Add one in Settings.
               </p>
             ) : (
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div
+                className="grid min-w-0 gap-2"
+                style={{
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(min(100%, 13rem), 1fr))",
+                }}
+              >
                 {accounts.map((a) => (
-                  <label key={a.id} className="min-w-48 cursor-pointer">
+                  <label key={a.id} className="cursor-pointer">
                     <input
                       type="radio"
                       name="account-id"
@@ -437,8 +574,10 @@ export function MoneyDashboard() {
                       className="peer sr-only"
                       required
                     />
-                    <span className="flex min-h-14 flex-col rounded-md border border-border bg-background px-3 py-2 text-left transition peer-checked:border-foreground peer-checked:ring-1 peer-checked:ring-foreground">
-                      <span className="text-sm font-medium text-foreground">{a.name}</span>
+                    <span className="flex min-h-14 flex-col rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-left transition-[border-color,box-shadow,transform] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
+                      <span className="text-sm font-medium text-foreground">
+                        {a.name}
+                      </span>
                       <span className="text-xs text-muted">
                         {formatMinor(a.balanceMinor, defaultCurrency)}
                       </span>
@@ -448,21 +587,15 @@ export function MoneyDashboard() {
               </div>
             )}
           </fieldset>
+
           {kind === "transfer" ? (
-            <label className="grid gap-1 text-sm">
-              <span className="text-muted">
-                <span className="text-foreground" aria-hidden>
-                  *
-                </span>{" "}
-                To Account
-              </span>
+            <Field label="To Account" required className="[grid-column:1/-1]">
               {toAccountOptions.length === 0 ? (
-                <p className="rounded-md border border-border bg-background px-3 py-2 text-sm text-muted">
+                <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
                   Add another account to create transfers.
                 </p>
               ) : (
-                <select
-                  className={inputCls}
+                <Select
                   value={effectiveToAccountId}
                   onChange={(e) => setToAccountId(e.target.value)}
                   required
@@ -472,15 +605,15 @@ export function MoneyDashboard() {
                       {a.name} · {formatMinor(a.balanceMinor, defaultCurrency)}
                     </option>
                   ))}
-                </select>
+                </Select>
               )}
-            </label>
+            </Field>
           ) : null}
+
           {kind !== "transfer" ? (
-            <fieldset className="relative grid gap-1 text-sm">
-              <legend className="text-muted">Category</legend>
+            <Field label="Category" className="relative [grid-column:1/-1]">
               <div className="relative">
-                <input
+                <Input
                   type="text"
                   value={categoryQuery}
                   onFocus={() => {
@@ -501,7 +634,6 @@ export function MoneyDashboard() {
                     });
                   }}
                   placeholder="Search category"
-                  className={inputCls}
                   role="combobox"
                   aria-expanded={categoryMenuOpen}
                   aria-controls="category-combobox-options"
@@ -511,66 +643,49 @@ export function MoneyDashboard() {
                   <ul
                     id="category-combobox-options"
                     role="listbox"
-                    className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-background p-1 shadow-lg"
+                    className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-[var(--radius-md)] border border-border bg-surface p-1 shadow-[var(--shadow-md)] fx-fade-in"
                   >
-                    {filteredCategoryGroups.length === 0 ? (
-                      <li className="px-3 py-2 text-sm text-muted">No matches</li>
+                    {filteredCategoryOptions.length === 0 ? (
+                      <li className="px-3 py-2 text-sm text-muted">
+                        No matches
+                      </li>
                     ) : (
-                      filteredCategoryGroups.map((group) => (
-                        <li key={group.key}>
-                          <p className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted">
-                            {group.label}
-                          </p>
-                          <ul>
-                            {group.options.map((option) => (
-                              <li
-                                key={option.id}
-                                role="option"
-                                aria-selected={categoryId === option.id}
-                              >
-                                <button
-                                  type="button"
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => {
-                                    setCategoryId(option.id);
-                                    setCategoryQuery(option.label);
-                                    setCategoryFilterQuery("");
-                                    setCategoryMenuOpen(false);
-                                  }}
-                                  className={`flex w-full items-center rounded-md py-2 pr-3 text-left text-sm ${
-                                    option.isChild ? "pl-8" : "pl-3"
-                                  } ${
-                                    categoryId === option.id
-                                      ? "bg-foreground text-background"
-                                      : "text-foreground hover:bg-surface"
-                                  }`}
-                                >
-                                  {option.label}
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
+                      filteredCategoryOptions.map((option) => (
+                        <li
+                          key={option.id === "" ? "none" : option.id}
+                          role="option"
+                          aria-selected={categoryId === option.id}
+                        >
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setCategoryId(option.id);
+                              setCategoryQuery(option.label);
+                              setCategoryFilterQuery("");
+                              setCategoryMenuOpen(false);
+                            }}
+                            className={cn(
+                              "flex w-full items-center rounded-[var(--radius-sm)] py-2 pr-3 text-left text-sm transition-colors duration-150",
+                              option.isChild ? "pl-8" : "pl-3",
+                              categoryId === option.id
+                                ? "bg-accent text-accent-foreground"
+                                : "text-foreground hover:bg-muted-surface",
+                            )}
+                          >
+                            {option.label}
+                          </button>
                         </li>
                       ))
                     )}
                   </ul>
                 ) : null}
               </div>
-            </fieldset>
+            </Field>
           ) : null}
-          <label className="grid gap-1 text-sm">
-            <span className="text-muted">When</span>
-            <input
-              type="datetime-local"
-              className={dateTimeLocalCls}
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-            />
-          </label>
-          <label className="grid gap-1 text-sm">
-            <span className="text-muted">Merchant</span>
-            <select
-              className={inputCls}
+
+          <Field label="Merchant">
+            <Select
               value={merchantId}
               onChange={(e) => setMerchantId(e.target.value)}
             >
@@ -580,45 +695,49 @@ export function MoneyDashboard() {
                   {m.name}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="grid min-w-0 gap-1 text-sm [grid-column:1/-1]">
-            <span className="text-muted">Tags</span>
-            <input
+            </Select>
+          </Field>
+
+          <Field
+            label="Tags"
+            hint="Separate tags with spaces. Tags are created and linked when you save."
+            className="[grid-column:1/-1]"
+          >
+            <Input
               type="text"
-              className={inputCls}
               placeholder="groceries travel"
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
             />
-            <span className="text-xs text-muted">
-              Separate tags with spaces. Tags are created and linked when you save the transaction.
-            </span>
-          </label>
-          <label className="grid min-w-0 gap-1 text-sm [grid-column:1/-1]">
-            <span className="text-muted">Notes</span>
-            <textarea
-              className={`${inputCls} min-h-[5.5rem] resize-y`}
+          </Field>
+
+          <Field label="Notes" className="[grid-column:1/-1]">
+            <Textarea
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
-          </label>
-          <div>
-            <button
+          </Field>
+
+          <div className="flex flex-wrap items-center gap-3 [grid-column:1/-1]">
+            <Button
               type="submit"
-              disabled={
-                accounts.length === 0 ||
-                !accountId ||
-                (kind === "transfer" && !effectiveToAccountId)
-              }
-              className="rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              size="lg"
+              disabled={submitDisabled}
+              aria-busy={submitting}
             >
-              Save transaction
-            </button>
+              {submitting ? "Saving…" : "Save transaction"}
+            </Button>
+            <span aria-live="polite" className="text-xs text-muted">
+              {kind === "transfer"
+                ? "Transfers do not affect totals — only balances."
+                : kind === "expense"
+                  ? "Reduces account balance."
+                  : "Increases account balance."}
+            </span>
           </div>
         </form>
-      </section>
+      </Card>
     </div>
   );
 }

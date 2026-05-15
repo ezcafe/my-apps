@@ -4,15 +4,24 @@ import { Group } from "@visx/group";
 import Pie from "@visx/shape/lib/shapes/Pie";
 import { ParentSize } from "@visx/responsive";
 import { colorByIndex } from "@/components/charts/chart-colors";
+import type { StylePreset } from "@/components/theme-provider";
+import { useTheme } from "@/components/theme-provider";
 
 type Datum = { label: string; valueMinor: number };
 
-export function PieSpendChart({ data }: { data: Datum[] }) {
+export function PieByCategoryChart({ data }: { data: Datum[] }) {
+  const { resolved, style } = useTheme();
   return (
     <ParentSize className="size-full min-h-0 min-w-0">
       {({ width, height }) =>
         width > 0 && height > 0 ? (
-          <PieInner width={width} height={height} data={data} />
+          <PieInner
+            width={width}
+            height={height}
+            data={data}
+            resolved={resolved}
+            stylePreset={style}
+          />
         ) : null
       }
     </ParentSize>
@@ -23,10 +32,14 @@ function PieInner({
   width,
   height,
   data,
+  resolved,
+  stylePreset,
 }: {
   width: number;
   height: number;
   data: Datum[];
+  resolved: "light" | "dark";
+  stylePreset: StylePreset;
 }) {
   const radius = Math.min(width, height) / 2 - 12;
   const centerY = height / 2;
@@ -52,7 +65,7 @@ function PieInner({
               <path
                 key={`arc-${arc.data.label}-${i}`}
                 d={provided.path(arc) ?? ""}
-                fill={colorByIndex(i)}
+                fill={colorByIndex(resolved, i, stylePreset)}
                 opacity={0.9}
               />
             ))

@@ -1,20 +1,23 @@
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+
 /** Placeholder while a money tab panel chunk loads (`next/dynamic`). */
 export function MoneyTabContentFallback() {
   return (
-    <div
-      className="rounded-md border border-border bg-surface p-6"
+    <Card
+      className="p-6"
       aria-busy="true"
       aria-live="polite"
       aria-label="Loading tab content"
     >
-      <div className="animate-pulse space-y-4">
-        <div className="h-5 w-40 rounded-md bg-[color-mix(in_oklab,var(--foreground)_12%,transparent)]" />
-        <div className="h-32 w-full rounded-md bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]" />
+      <div className="space-y-4">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-32 w-full" />
         <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-3">
-          <div className="h-24 rounded-md bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]" />
-          <div className="h-24 rounded-md bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)]" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

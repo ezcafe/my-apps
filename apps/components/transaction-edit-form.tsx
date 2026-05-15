@@ -2,17 +2,31 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useWorkspaceCurrency } from "@/components/workspace-gate";
+import { useEffect, useMemo, useState } from "react";
+import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/cn";
 import {
+  categoriesOfKind,
   moneyCategoryById,
   moneyCategoryLabel,
   moneyCategorySelectGroups,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import { minorToMajorInput, parseMajorToMinor } from "@/lib/format-money";
-import { Alert } from "@/components/ui/alert";
-import { moneyApiJson } from "@/lib/money-fetch";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
+import {
+  MONEY_TRANSACTION_DELETE_MUTATION,
+  MONEY_TRANSACTION_EDIT_QUERY,
+  MONEY_TRANSACTION_UPDATE_MUTATION,
+} from "@/lib/money-gql-documents";
 
 type Account = { id: string; name: string; currency: string };
 type Merchant = { id: string; name: string };
@@ -30,6 +44,12 @@ type TxPayload = {
   tagIds: string[];
 };
 
+const KIND_OPTIONS = [
+  { value: "expense", label: "Expense", description: "Money out" },
+  { value: "income", label: "Income", description: "Money in" },
+  { value: "transfer", label: "Transfer", description: "Between accounts" },
+] as const;
+
 function isoToDatetimeLocal(iso: string): string {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -37,14 +57,15 @@ function isoToDatetimeLocal(iso: string): string {
 }
 
 function TransactionEditBreadcrumbs() {
-  const itemClass = "text-sm font-medium text-muted hover:text-foreground";
-  const currentClass = "text-sm font-medium text-foreground";
+  const itemCls =
+    "text-sm font-medium text-muted transition-colors duration-150 hover:text-foreground";
+  const currentCls = "text-sm font-medium text-foreground";
 
   return (
     <nav aria-label="Breadcrumb">
       <ol className="flex flex-wrap items-center gap-2">
         <li>
-          <Link href="/money" className={itemClass}>
+          <Link href="/money" className={itemCls}>
             Money
           </Link>
         </li>
@@ -52,14 +73,14 @@ function TransactionEditBreadcrumbs() {
           /
         </li>
         <li>
-          <Link href="/money/analytics" className={itemClass}>
+          <Link href="/money/analytics" className={itemCls}>
             Analytics
           </Link>
         </li>
         <li aria-hidden className="text-muted">
           /
         </li>
-        <li className={currentClass} aria-current="page">
+        <li className={currentCls} aria-current="page">
           Edit transaction
         </li>
       </ol>
@@ -78,7 +99,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
   const [loaded, setLoaded] = useState<TxPayload | null>(null);
   const [accountId, setAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
-  const [kind, setKind] = useState<"expense" | "income" | "transfer">("expense");
+  const [kind, setKind] = useState<TxPayload["kind"]>("expense");
   const [amountMajor, setAmountMajor] = useState("");
   const [occurredAt, setOccurredAt] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -91,10 +112,17 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
   const [deleting, setDeleting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const categoryById = useMemo(() => moneyCategoryById(categories), [categories]);
+  const visibleCategories = useMemo(
+    () => (kind === "transfer" ? [] : categoriesOfKind(categories, kind)),
+    [categories, kind],
+  );
+  const categoryById = useMemo(
+    () => moneyCategoryById(visibleCategories),
+    [visibleCategories],
+  );
   const categorySelectGroups = useMemo(
-    () => moneyCategorySelectGroups(categories),
-    [categories],
+    () => moneyCategorySelectGroups(visibleCategories),
+    [visibleCategories],
   );
   const toAccountOptions = useMemo(
     () => accounts.filter((a) => a.id !== accountId),
@@ -112,18 +140,13 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
     return toAccountOptions[0]?.id ?? "";
   }, [kind, toAccountId, accountId, toAccountOptions]);
 
-  const loadLookups = useCallback(async () => {
-    const [accRes, catRes, merRes, tagRes] = await Promise.all([
-      moneyApiJson<Account[]>("/api/money/accounts"),
-      moneyApiJson<MoneyCategoryRow[]>("/api/money/categories"),
-      moneyApiJson<Merchant[]>("/api/money/merchants"),
-      moneyApiJson<Tag[]>("/api/money/tags"),
-    ]);
-    setAccounts(accRes.data);
-    setCategories(catRes.data);
-    setMerchants(merRes.data);
-    setTags(tagRes.data);
-  }, []);
+  const [prevKind, setPrevKind] = useState(kind);
+  if (kind !== prevKind) {
+    setPrevKind(kind);
+    if (categoryId && !visibleCategories.some((c) => c.id === categoryId)) {
+      setCategoryId("");
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -131,12 +154,24 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
       setLoading(true);
       setErr(null);
       try {
-        await loadLookups();
+        const res = await moneyGraphQLRequest<{
+          moneyAccounts: Account[];
+          moneyCategories: MoneyCategoryRow[];
+          moneyMerchants: Merchant[];
+          moneyTags: Tag[];
+          moneyTransaction: TxPayload | null;
+        }>(MONEY_TRANSACTION_EDIT_QUERY, { id: transactionId });
         if (cancelled) return;
-        const { data: tx } = await moneyApiJson<TxPayload>(
-          `/api/money/transactions/${transactionId}`,
-        );
-        if (cancelled) return;
+        setAccounts(res.moneyAccounts);
+        setCategories(res.moneyCategories);
+        setMerchants(res.moneyMerchants);
+        setTags(res.moneyTags);
+        const tx = res.moneyTransaction;
+        if (!tx) {
+          setErr("Transaction not found");
+          setLoaded(null);
+          return;
+        }
         setLoaded(tx);
         setAccountId(tx.accountId);
         setKind(tx.kind);
@@ -158,7 +193,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
     return () => {
       cancelled = true;
     };
-  }, [transactionId, loadLookups, defaultCurrency]);
+  }, [transactionId, defaultCurrency]);
 
   const toggleTag = (id: string) => {
     setSelectedTagIds((prev) =>
@@ -188,9 +223,9 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
     }
     setSaving(true);
     try {
-      await moneyApiJson(`/api/money/transactions/${transactionId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
+      await moneyGraphQLRequest(MONEY_TRANSACTION_UPDATE_MUTATION, {
+        id: transactionId,
+        input: {
           accountId,
           kind,
           amountMinor: minor,
@@ -200,7 +235,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
           merchantId: kind === "transfer" ? null : merchantId || null,
           notes: notes.trim() ? notes.trim() : null,
           tagIds: selectedTagIds,
-        }),
+        },
       });
       router.push("/money/analytics");
       router.refresh();
@@ -222,10 +257,9 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
     setErr(null);
     setDeleting(true);
     try {
-      await moneyApiJson<{ ok: boolean }>(
-        `/api/money/transactions/${transactionId}`,
-        { method: "DELETE" },
-      );
+      await moneyGraphQLRequest(MONEY_TRANSACTION_DELETE_MUTATION, {
+        id: transactionId,
+      });
       router.push("/money/analytics");
       router.refresh();
     } catch (e: unknown) {
@@ -235,19 +269,28 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
     }
   }
 
-  const inputCls =
-    "rounded-md border border-border bg-background px-3 py-2 text-sm font-sans font-normal leading-normal tracking-normal text-foreground antialiased w-full min-w-0";
-  const dateTimeLocalCls = `${inputCls} [&::-webkit-datetime-edit]:font-sans [&::-webkit-datetime-edit-fields-wrapper]:font-sans`;
+  const dateTimeLocalCls =
+    "[&::-webkit-datetime-edit]:font-sans [&::-webkit-datetime-edit-fields-wrapper]:font-sans";
 
   if (loading) {
     return (
-      <p className="text-sm text-muted">Loading transaction…</p>
+      <div className="min-w-0 max-w-4xl space-y-6">
+        <TransactionEditBreadcrumbs />
+        <Card className="p-5">
+          <div className="grid gap-3">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        </Card>
+      </div>
     );
   }
 
   if (!loaded && err) {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex min-w-0 max-w-4xl flex-col gap-3 fx-fade-in">
         <TransactionEditBreadcrumbs />
         <Alert variant="error" title="Couldn’t load transaction" description={err} />
       </div>
@@ -255,24 +298,35 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
   }
 
   return (
-    <div className="min-w-0 max-w-4xl space-y-6">
+    <div className="min-w-0 max-w-4xl space-y-6 fx-fade-in">
       <TransactionEditBreadcrumbs />
-      {err ? (
-        <Alert variant="error" title={err} />
-      ) : null}
-      <section className="rounded-md border border-border bg-surface p-4">
-        <form className="mt-4 grid grid-cols-1 gap-3" onSubmit={onSubmit}>
-          <fieldset className="grid min-w-0 gap-1 text-sm">
+      {err ? <Alert variant="error" title={err} /> : null}
+      <Card className="p-5">
+        <header className="mb-4 flex items-baseline justify-between gap-3">
+          <h1 className="font-display text-lg font-medium tracking-tight">
+            Edit transaction
+          </h1>
+          <span className="text-xs text-muted">{defaultCurrency}</span>
+        </header>
+        <form
+          className="grid min-w-0 gap-4"
+          style={{
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))",
+          }}
+          onSubmit={onSubmit}
+        >
+          <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
             <legend className="text-muted">Kind</legend>
-            <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto pb-1">
-              {(
-                [
-                  ["expense", "Expense", "Money out"],
-                  ["income", "Income", "Money in"],
-                  ["transfer", "Transfer", "Between accounts"],
-                ] as const
-              ).map(([value, label, description]) => (
-                <label key={value} className="min-w-32 cursor-pointer">
+            <div
+              className="grid min-w-0 gap-2"
+              style={{
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(min(100%, 9rem), 1fr))",
+              }}
+            >
+              {KIND_OPTIONS.map(({ value, label, description }) => (
+                <label key={value} className="cursor-pointer">
                   <input
                     type="radio"
                     name="transaction-kind"
@@ -284,30 +338,37 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
                     }}
                     className="peer sr-only"
                   />
-                  <span className="flex min-h-14 flex-col rounded-md border border-border bg-background px-3 py-2 text-left transition peer-checked:border-foreground peer-checked:ring-1 peer-checked:ring-foreground">
-                    <span className="text-sm font-medium text-foreground">{label}</span>
+                  <span className="flex min-h-14 flex-col rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-left transition-[border-color,box-shadow,transform] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
+                    <span className="text-sm font-medium text-foreground">
+                      {label}
+                    </span>
                     <span className="text-xs text-muted">{description}</span>
                   </span>
                 </label>
               ))}
             </div>
           </fieldset>
-          <label className="grid gap-1 text-sm">
-            <span className="text-muted">
-              <span className="text-foreground" aria-hidden>
-                *
-              </span>{" "}
-              Amount
-            </span>
-            <input
-              className={inputCls}
+
+          <Field label="Amount" required>
+            <Input
               value={amountMajor}
               onChange={(e) => setAmountMajor(e.target.value)}
+              inputMode="decimal"
               placeholder={defaultCurrency === "VND" ? "25" : "24.99"}
               required
             />
-          </label>
-          <fieldset className="grid min-w-0 gap-1 text-sm">
+          </Field>
+
+          <Field label="When">
+            <Input
+              type="datetime-local"
+              className={dateTimeLocalCls}
+              value={occurredAt}
+              onChange={(e) => setOccurredAt(e.target.value)}
+            />
+          </Field>
+
+          <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
             <legend className="text-muted">
               <span className="text-foreground" aria-hidden>
                 *
@@ -315,13 +376,19 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
               Account
             </legend>
             {accounts.length === 0 ? (
-              <p className="rounded-md border border-border bg-background px-3 py-2 text-sm text-muted">
+              <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
                 No accounts yet. Add one in Settings.
               </p>
             ) : (
-              <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto pb-1">
+              <div
+                className="grid min-w-0 gap-2"
+                style={{
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(min(100%, 13rem), 1fr))",
+                }}
+              >
                 {accounts.map((a) => (
-                  <label key={a.id} className="min-w-44 cursor-pointer">
+                  <label key={a.id} className="cursor-pointer">
                     <input
                       type="radio"
                       name="edit-account-id"
@@ -331,30 +398,28 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
                       className="peer sr-only"
                       required
                     />
-                    <span className="flex min-h-14 flex-col rounded-md border border-border bg-background px-3 py-2 text-left transition peer-checked:border-foreground peer-checked:ring-1 peer-checked:ring-foreground">
-                      <span className="text-sm font-medium text-foreground">{a.name}</span>
-                      <span className="text-xs text-muted">{defaultCurrency}</span>
+                    <span className="flex min-h-14 flex-col rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-left transition-[border-color,box-shadow,transform] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
+                      <span className="text-sm font-medium text-foreground">
+                        {a.name}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {defaultCurrency}
+                      </span>
                     </span>
                   </label>
                 ))}
               </div>
             )}
           </fieldset>
+
           {kind === "transfer" ? (
-            <label className="grid gap-1 text-sm">
-              <span className="text-muted">
-                <span className="text-foreground" aria-hidden>
-                  *
-                </span>{" "}
-                To Account
-              </span>
+            <Field label="To Account" required className="[grid-column:1/-1]">
               {toAccountOptions.length === 0 ? (
-                <p className="rounded-md border border-border bg-background px-3 py-2 text-sm text-muted">
+                <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
                   Add another account to create transfers.
                 </p>
               ) : (
-                <select
-                  className={inputCls}
+                <Select
                   value={effectiveToAccountId}
                   onChange={(e) => setToAccountId(e.target.value)}
                   required
@@ -364,14 +429,20 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
                       {a.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               )}
-            </label>
+            </Field>
           ) : (
-            <fieldset className="grid min-w-0 gap-1 text-sm">
+            <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
               <legend className="text-muted">Category</legend>
-              <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto pb-1">
-                <label className="min-w-32 cursor-pointer">
+              <div
+                className="grid min-w-0 gap-2"
+                style={{
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
+                }}
+              >
+                <label className="cursor-pointer">
                   <input
                     type="radio"
                     name="edit-category-id"
@@ -380,74 +451,64 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
                     onChange={() => setCategoryId("")}
                     className="peer sr-only"
                   />
-                  <span className="flex min-h-14 items-center rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition peer-checked:border-foreground peer-checked:ring-1 peer-checked:ring-foreground">
+                  <span className="flex min-h-14 items-center rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-foreground transition-[border-color,box-shadow] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
                     No category
                   </span>
                 </label>
-                {categorySelectGroups.map((g) =>
-                  g.type === "single" ? (
-                    <label key={g.category.id} className="min-w-44 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="edit-category-id"
-                        value={g.category.id}
-                        checked={categoryId === g.category.id}
-                        onChange={() => setCategoryId(g.category.id)}
-                        className="peer sr-only"
-                      />
-                      <span className="flex min-h-14 items-center rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition peer-checked:border-foreground peer-checked:ring-1 peer-checked:ring-foreground">
-                        {moneyCategoryLabel(g.category, categoryById)}
-                      </span>
-                    </label>
-                  ) : (
-                    [
-                      <label key={g.parent.id} className="min-w-44 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="edit-category-id"
-                          value={g.parent.id}
-                          checked={categoryId === g.parent.id}
-                          onChange={() => setCategoryId(g.parent.id)}
-                          className="peer sr-only"
-                        />
-                        <span className="flex min-h-14 items-center rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition peer-checked:border-foreground peer-checked:ring-1 peer-checked:ring-foreground">
-                          {g.parent.name}
-                        </span>
-                      </label>,
-                      ...g.children.map((c) => (
-                        <label key={c.id} className="min-w-44 cursor-pointer">
+                {categorySelectGroups.flatMap((g) =>
+                  g.type === "single"
+                    ? [
+                        <label key={g.category.id} className="cursor-pointer">
                           <input
                             type="radio"
                             name="edit-category-id"
-                            value={c.id}
-                            checked={categoryId === c.id}
-                            onChange={() => setCategoryId(c.id)}
+                            value={g.category.id}
+                            checked={categoryId === g.category.id}
+                            onChange={() => setCategoryId(g.category.id)}
                             className="peer sr-only"
                           />
-                          <span className="flex min-h-14 items-center rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition peer-checked:border-foreground peer-checked:ring-1 peer-checked:ring-foreground">
-                            {c.name}
+                          <span className="flex min-h-14 items-center rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-foreground transition-[border-color,box-shadow] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
+                            {moneyCategoryLabel(g.category, categoryById)}
                           </span>
-                        </label>
-                      )),
-                    ]
-                  ),
+                        </label>,
+                      ]
+                    : [
+                        <label key={g.parent.id} className="cursor-pointer">
+                          <input
+                            type="radio"
+                            name="edit-category-id"
+                            value={g.parent.id}
+                            checked={categoryId === g.parent.id}
+                            onChange={() => setCategoryId(g.parent.id)}
+                            className="peer sr-only"
+                          />
+                          <span className="flex min-h-14 items-center rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-foreground transition-[border-color,box-shadow] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
+                            {g.parent.name}
+                          </span>
+                        </label>,
+                        ...g.children.map((c) => (
+                          <label key={c.id} className="cursor-pointer">
+                            <input
+                              type="radio"
+                              name="edit-category-id"
+                              value={c.id}
+                              checked={categoryId === c.id}
+                              onChange={() => setCategoryId(c.id)}
+                              className="peer sr-only"
+                            />
+                            <span className="flex min-h-14 items-center rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-foreground transition-[border-color,box-shadow] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
+                              {c.name}
+                            </span>
+                          </label>
+                        )),
+                      ],
                 )}
               </div>
             </fieldset>
           )}
-          <label className="grid gap-1 text-sm">
-            <span className="text-muted">When</span>
-            <input
-              type="datetime-local"
-              className={dateTimeLocalCls}
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-            />
-          </label>
-          <label className="grid gap-1 text-sm">
-            <span className="text-muted">Merchant</span>
-            <select
-              className={inputCls}
+
+          <Field label="Merchant">
+            <Select
               value={merchantId}
               onChange={(e) => setMerchantId(e.target.value)}
             >
@@ -457,62 +518,76 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
                   {m.name}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </Field>
 
           <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
-            <legend className="text-sm text-muted">Tags</legend>
+            <legend className="text-muted">Tags</legend>
             {tags.length === 0 ? (
               <p className="text-xs text-muted">No tags in workspace.</p>
             ) : (
-              <ul className="flex max-h-40 flex-wrap gap-x-4 gap-y-2 overflow-y-auto rounded-md border border-border bg-background p-3 text-sm">
-                {tags.map((t) => (
-                  <li key={t.id}>
-                    <label className="flex cursor-pointer items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedTagIds.includes(t.id)}
-                        onChange={() => toggleTag(t.id)}
-                        className="rounded border-border"
-                      />
-                      <span>{t.name}</span>
-                    </label>
-                  </li>
-                ))}
+              <ul className="flex flex-wrap gap-2">
+                {tags.map((t) => {
+                  const checked = selectedTagIds.includes(t.id);
+                  return (
+                    <li key={t.id}>
+                      <label className="cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleTag(t.id)}
+                          className="peer sr-only"
+                        />
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-[var(--radius-md)] border px-3 py-1.5 text-xs font-medium transition-[background-color,border-color,box-shadow] duration-150 fx-press",
+                            checked
+                              ? "border-accent bg-[color-mix(in_oklab,var(--accent)_14%,transparent)] text-accent"
+                              : "border-border bg-background text-foreground hover:border-foreground/40",
+                          )}
+                        >
+                          {t.name}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </fieldset>
 
-          <label className="grid min-w-0 gap-1 text-sm [grid-column:1/-1]">
-            <span className="text-muted">Notes</span>
-            <textarea
-              className={`${inputCls} min-h-[5.5rem] resize-y`}
+          <Field label="Notes" className="[grid-column:1/-1]">
+            <Textarea
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <button
+          </Field>
+
+          <div className="flex flex-wrap gap-2 [grid-column:1/-1]">
+            <Button
               type="submit"
+              size="lg"
               disabled={
                 accounts.length === 0 || !accountId || saving || deleting
               }
-              className="rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-busy={saving}
             >
               {saving ? "Saving…" : "Save changes"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              onClick={() => void handleDelete()}
+              variant="danger"
+              size="lg"
               disabled={saving || deleting}
-              className="rounded-md border border-red-500/50 bg-transparent px-5 py-2.5 text-sm font-medium text-red-600 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400"
+              aria-busy={deleting}
+              onClick={() => void handleDelete()}
             >
               {deleting ? "Deleting…" : "Delete"}
-            </button>
+            </Button>
           </div>
         </form>
-      </section>
+      </Card>
     </div>
   );
 }

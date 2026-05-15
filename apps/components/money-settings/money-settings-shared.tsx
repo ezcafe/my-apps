@@ -1,14 +1,20 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+/**
+ * Shared class strings for money-settings panels. All values are token-driven
+ * so they switch radius/shadow/border with the active visual style preset.
+ * See `docs/DESIGN_GUIDE.md` for usage rules.
+ */
+
 export const inputCls =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm w-full min-w-0";
+  "w-full min-w-0 rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-foreground antialiased outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
 
 export const secondaryBtnCls =
-  "rounded-lg border border-border bg-surface px-3 py-2 text-sm font-semibold text-foreground shadow-sm ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)] transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)] disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border bg-surface px-3.5 py-2 text-sm font-medium text-foreground shadow-[var(--shadow-sm)] transition-[opacity,transform,box-shadow] duration-200 hover:bg-muted-surface focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 fx-press";
 
 export const primaryBtnCls =
-  "rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-sm transition-opacity hover:opacity-90";
+  "inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-[var(--shadow-sm)] transition-[opacity,transform,box-shadow] duration-200 hover:opacity-95 active:opacity-90 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 fx-press";
 
 /** Application-style section heading (Tailwind Plus “section headings” pattern). */
 export function SettingsSubsectionHeading({
@@ -20,13 +26,15 @@ export function SettingsSubsectionHeading({
 }) {
   return (
     <div className="border-b border-border pb-5">
-      <h3 className="text-base font-semibold leading-6 text-foreground">{title}</h3>
+      <h3 className="font-display text-base font-semibold leading-6 text-foreground">
+        {title}
+      </h3>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{description}</p>
     </div>
   );
 }
 
-/** Panel shell aligned with the main Money dashboard (`rounded-md border … bg-surface p-4`). */
+/** Panel shell — token-driven radius and shadow. */
 export function SettingsSection({
   id,
   title,
@@ -41,12 +49,16 @@ export function SettingsSection({
   return (
     <section
       id={id}
-      className="scroll-mt-24 rounded-md border border-border bg-surface"
+      className="scroll-mt-24 rounded-[var(--radius-md)] border border-border bg-surface shadow-[var(--shadow-sm)] fx-fade-in"
     >
-      <div className="p-4">
-        <h2 className="text-base font-semibold leading-6 text-foreground">{title}</h2>
+      <div className="p-5">
+        <h2 className="font-display text-base font-semibold leading-6 text-foreground">
+          {title}
+        </h2>
         {description ? (
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{description}</p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+            {description}
+          </p>
         ) : null}
         <div className="mt-4">{children}</div>
       </div>
@@ -61,7 +73,7 @@ export function MoneySettingsBackLink({ current }: { current: string }) {
         <li>
           <Link
             href="/money/settings"
-            className="rounded px-1 py-0.5 text-foreground hover:bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)]"
+            className="rounded-[var(--radius-sm)] px-1 py-0.5 text-foreground transition-colors duration-150 hover:bg-muted-surface"
           >
             Settings
           </Link>

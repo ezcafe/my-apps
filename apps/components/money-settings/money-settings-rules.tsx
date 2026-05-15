@@ -3,10 +3,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
-import { moneyApiJson } from "@/lib/money-fetch";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
+  MONEY_LIST_ACCOUNTS_QUERY,
+  MONEY_LIST_CATEGORIES_QUERY,
+  MONEY_LIST_MERCHANTS_QUERY,
+  MONEY_LIST_RULES_QUERY,
+  MONEY_RULE_CREATE_MUTATION,
+  MONEY_RULE_DELETE_MUTATION,
+  MONEY_RULE_UPDATE_MUTATION,
+} from "@/lib/money-gql-documents";
+import {
+  categoriesOfKind,
   moneyCategoryById,
   moneyCategoryLabel,
+  type MoneyCategoryKind,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import {
@@ -34,10 +45,29 @@ type RuleAction = {
 type RuleRow = {
   id: string;
   name: string;
+  kind: MoneyCategoryKind;
   priority: number;
   active: boolean;
   match: RuleMatch;
   action: RuleAction;
+};
+
+const KIND_META: Record<
+  MoneyCategoryKind,
+  { id: string; title: string; description: string }
+> = {
+  expense: {
+    id: "money-settings-rules-spending",
+    title: "Spending rules",
+    description:
+      "Match expense transactions by merchant and/or account, then assign a spending category.",
+  },
+  income: {
+    id: "money-settings-rules-income",
+    title: "Income rules",
+    description:
+      "Match income transactions by merchant and/or account, then assign an income category.",
+  },
 };
 
 export function MoneySettingsRulesSection() {
@@ -46,52 +76,31 @@ export function MoneySettingsRulesSection() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [rules, setRules] = useState<RuleRow[]>([]);
-
-  const [ruleName, setRuleName] = useState("");
-  const [rulePriority, setRulePriority] = useState(0);
-  const [ruleMerchantId, setRuleMerchantId] = useState("");
-  const [ruleAccountId, setRuleAccountId] = useState("");
-  const [ruleCategoryId, setRuleCategoryId] = useState("");
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editPriority, setEditPriority] = useState(0);
-  const [editMerchantId, setEditMerchantId] = useState("");
-  const [editAccountId, setEditAccountId] = useState("");
-  const [editCategoryId, setEditCategoryId] = useState("");
-  const [editActive, setEditActive] = useState(true);
-  const [editTagIds, setEditTagIds] = useState<string[]>([]);
-
-  const visibleCategories = useMemo(
-    () => categories.filter((c) => !c.archived),
-    [categories],
-  );
-  const visibleAccounts = useMemo(
-    () => accounts.filter((a) => !a.archived),
-    [accounts],
-  );
-
-  const categoryById = useMemo(
-    () => moneyCategoryById(visibleCategories),
-    [visibleCategories],
-  );
-
   const loadAccounts = useCallback(async () => {
-    const { data } = await moneyApiJson<Account[]>("/api/money/accounts");
-    setAccounts(data);
+    const res = await moneyGraphQLRequest<{ moneyAccounts: Account[] }>(
+      MONEY_LIST_ACCOUNTS_QUERY,
+    );
+    setAccounts(res.moneyAccounts);
   }, []);
   const loadCategories = useCallback(async () => {
-    const { data } = await moneyApiJson<Category[]>("/api/money/categories");
-    setCategories(data);
+    const res = await moneyGraphQLRequest<{ moneyCategories: Category[] }>(
+      MONEY_LIST_CATEGORIES_QUERY,
+    );
+    setCategories(res.moneyCategories);
   }, []);
   const loadMerchants = useCallback(async () => {
-    const { data } = await moneyApiJson<Merchant[]>("/api/money/merchants");
-    setMerchants(data);
+    const res = await moneyGraphQLRequest<{ moneyMerchants: Merchant[] }>(
+      MONEY_LIST_MERCHANTS_QUERY,
+    );
+    setMerchants(res.moneyMerchants);
   }, []);
   const loadRules = useCallback(async () => {
-    const { data } = await moneyApiJson<RuleRow[]>("/api/money/rules");
-    setRules(data);
+    const res = await moneyGraphQLRequest<{ moneyRules: RuleRow[] }>(
+      MONEY_LIST_RULES_QUERY,
+    );
+    setRules(res.moneyRules);
   }, []);
 
   useEffect(() => {
@@ -116,6 +125,93 @@ export function MoneySettingsRulesSection() {
       cancelled = true;
     };
   }, [loadAccounts, loadCategories, loadMerchants, loadRules]);
+
+  const visibleAccounts = useMemo(
+    () => accounts.filter((a) => !a.archived),
+    [accounts],
+  );
+
+  return (
+    <>
+      <MoneySettingsBackLink current="Rules" />
+      {bootstrapErr ? (
+        <Alert
+          variant="error"
+          title="Unable to load"
+          description={bootstrapErr}
+          className="mb-8"
+        />
+      ) : null}
+      <RulesKindSection
+        kind="expense"
+        rules={rules}
+        merchants={merchants}
+        accounts={visibleAccounts}
+        categories={categories}
+        notify={notify}
+        reloadRules={loadRules}
+      />
+      <RulesKindSection
+        kind="income"
+        rules={rules}
+        merchants={merchants}
+        accounts={visibleAccounts}
+        categories={categories}
+        notify={notify}
+        reloadRules={loadRules}
+      />
+    </>
+  );
+}
+
+type NotifyApi = ReturnType<typeof useNotify>;
+
+function RulesKindSection({
+  kind,
+  rules,
+  merchants,
+  accounts,
+  categories,
+  notify,
+  reloadRules,
+}: {
+  kind: MoneyCategoryKind;
+  rules: RuleRow[];
+  merchants: Merchant[];
+  accounts: Account[];
+  categories: Category[];
+  notify: NotifyApi;
+  reloadRules: () => Promise<void>;
+}) {
+  const meta = KIND_META[kind];
+
+  const visibleCategories = useMemo(
+    () => categoriesOfKind(categories, kind).filter((c) => !c.archived),
+    [categories, kind],
+  );
+  const categoryById = useMemo(
+    () => moneyCategoryById(visibleCategories),
+    [visibleCategories],
+  );
+  const visibleRules = useMemo(
+    () => rules.filter((r) => r.kind === kind),
+    [rules, kind],
+  );
+
+  const [ruleName, setRuleName] = useState("");
+  const [rulePriority, setRulePriority] = useState(0);
+  const [ruleMerchantId, setRuleMerchantId] = useState("");
+  const [ruleAccountId, setRuleAccountId] = useState("");
+  const [ruleCategoryId, setRuleCategoryId] = useState("");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPriority, setEditPriority] = useState(0);
+  const [editMerchantId, setEditMerchantId] = useState("");
+  const [editAccountId, setEditAccountId] = useState("");
+  const [editCategoryId, setEditCategoryId] = useState("");
+  const [editActive, setEditActive] = useState(true);
+  const [editTagIds, setEditTagIds] = useState<string[]>([]);
 
   function startEdit(r: RuleRow) {
     setEditingId(r.id);
@@ -147,18 +243,18 @@ export function MoneySettingsRulesSection() {
       const action: RuleAction = { setCategoryId: editCategoryId };
       if (editTagIds.length > 0) action.tagIds = editTagIds;
 
-      await moneyApiJson(`/api/money/rules/${editingId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
+      await moneyGraphQLRequest(MONEY_RULE_UPDATE_MUTATION, {
+        id: editingId,
+        input: {
           name: editName.trim(),
           priority: editPriority,
           match,
           action,
           active: editActive,
-        }),
+        },
       });
       cancelEdit();
-      await loadRules();
+      await reloadRules();
       notify.success("Settings updated", "Rule saved.");
     } catch (e: unknown) {
       notify.error(
@@ -169,15 +265,13 @@ export function MoneySettingsRulesSection() {
   }
 
   async function deleteRule(id: string, name: string) {
-    if (
-      !window.confirm(`Delete rule “${name}”? This cannot be undone.`)
-    ) {
+    if (!window.confirm(`Delete rule “${name}”? This cannot be undone.`)) {
       return;
     }
     try {
-      await moneyApiJson(`/api/money/rules/${id}`, { method: "DELETE" });
+      await moneyGraphQLRequest(MONEY_RULE_DELETE_MUTATION, { id });
       if (editingId === id) cancelEdit();
-      await loadRules();
+      await reloadRules();
       notify.success("Settings updated", "Rule deleted.");
     } catch (e: unknown) {
       notify.error(
@@ -200,21 +294,21 @@ export function MoneySettingsRulesSection() {
         throw new Error("Pick an account and/or merchant to match");
       }
 
-      await moneyApiJson("/api/money/rules", {
-        method: "POST",
-        body: JSON.stringify({
+      await moneyGraphQLRequest(MONEY_RULE_CREATE_MUTATION, {
+        input: {
           name: ruleName,
+          kind,
           priority: rulePriority,
           match,
           action,
           active: true,
-        }),
+        },
       });
       setRuleName("");
       setRuleMerchantId("");
       setRuleAccountId("");
       setRuleCategoryId("");
-      await loadRules();
+      await reloadRules();
       notify.success("Settings updated", "Rule saved.");
     } catch (e: unknown) {
       notify.error(
@@ -225,82 +319,71 @@ export function MoneySettingsRulesSection() {
   }
 
   return (
-    <>
-      <MoneySettingsBackLink current="Rules" />
-      {bootstrapErr ? (
-        <Alert
-          variant="error"
-          title="Unable to load"
-          description={bootstrapErr}
-          className="mb-8"
+    <SettingsSection id={meta.id} title={meta.title} description={meta.description}>
+      <form className="auto-fit-2 max-w-4xl" onSubmit={saveRule}>
+        <input
+          className={inputCls}
+          placeholder="Rule name"
+          value={ruleName}
+          onChange={(e) => setRuleName(e.target.value)}
         />
-      ) : null}
-      <SettingsSection
-        id="money-settings-rules-page"
-        title="Rules"
-        description="Transactions matching the selected merchant and/or account get the category you choose below."
-      >
-        <form className="auto-fit-2 max-w-4xl" onSubmit={saveRule}>
-          <input
-            className={inputCls}
-            placeholder="Rule name"
-            value={ruleName}
-            onChange={(e) => setRuleName(e.target.value)}
-          />
-          <input
-            type="number"
-            className={inputCls}
-            placeholder="Priority"
-            value={rulePriority}
-            onChange={(e) => setRulePriority(Number(e.target.value))}
-          />
-          <select
-            className={inputCls}
-            value={ruleMerchantId}
-            onChange={(e) => setRuleMerchantId(e.target.value)}
-          >
-            <option value="">Any merchant</option>
-            {merchants.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={inputCls}
-            value={ruleAccountId}
-            onChange={(e) => setRuleAccountId(e.target.value)}
-          >
-            <option value="">Any account</option>
-            {visibleAccounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={inputCls}
-            value={ruleCategoryId}
-            onChange={(e) => setRuleCategoryId(e.target.value)}
-          >
-            <option value="">Set category…</option>
-            {visibleCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {moneyCategoryLabel(c, categoryById)}
-              </option>
-            ))}
-          </select>
-          <button type="submit" className={`${primaryBtnCls} self-start`}>
-            Save rule
-          </button>
-        </form>
-        <div className="mt-8 border-t border-border pt-8">
-          <h3 className="text-sm font-medium text-foreground">Saved rules</h3>
+        <input
+          type="number"
+          className={inputCls}
+          placeholder="Priority"
+          value={rulePriority}
+          onChange={(e) => setRulePriority(Number(e.target.value))}
+        />
+        <select
+          className={inputCls}
+          value={ruleMerchantId}
+          onChange={(e) => setRuleMerchantId(e.target.value)}
+        >
+          <option value="">Any merchant</option>
+          {merchants.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+        <select
+          className={inputCls}
+          value={ruleAccountId}
+          onChange={(e) => setRuleAccountId(e.target.value)}
+        >
+          <option value="">Any account</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+        <select
+          className={inputCls}
+          value={ruleCategoryId}
+          onChange={(e) => setRuleCategoryId(e.target.value)}
+        >
+          <option value="">Set category…</option>
+          {visibleCategories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {moneyCategoryLabel(c, categoryById)}
+            </option>
+          ))}
+        </select>
+        <button type="submit" className={`${primaryBtnCls} self-start`}>
+          Save rule
+        </button>
+      </form>
+      <div className="mt-8 border-t border-border pt-8">
+        <h3 className="text-sm font-medium text-foreground">Saved {meta.title.toLowerCase()}</h3>
+        {visibleRules.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">None yet.</p>
+        ) : (
           <ul className="mt-3 space-y-2 text-sm text-muted">
-            {rules.map((r) => (
+            {visibleRules.map((r) => (
               <li
                 key={r.id}
-                className="rounded-lg border border-border bg-background px-3 py-2"
+                className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30"
               >
                 {editingId === r.id ? (
                   <form className="auto-fit-2 max-w-4xl" onSubmit={saveEdit}>
@@ -335,7 +418,7 @@ export function MoneySettingsRulesSection() {
                       onChange={(e) => setEditAccountId(e.target.value)}
                     >
                       <option value="">Any account</option>
-                      {visibleAccounts.map((a) => (
+                      {accounts.map((a) => (
                         <option key={a.id} value={a.id}>
                           {a.name}
                         </option>
@@ -396,8 +479,8 @@ export function MoneySettingsRulesSection() {
               </li>
             ))}
           </ul>
-        </div>
-      </SettingsSection>
-    </>
+        )}
+      </div>
+    </SettingsSection>
   );
 }

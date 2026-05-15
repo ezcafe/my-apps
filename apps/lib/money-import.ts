@@ -45,6 +45,7 @@ async function assertValidCategoryParentTx(
   tx: MoneyTx,
   workspaceId: string,
   parentId: string,
+  kind: "expense" | "income",
   selfId?: string,
 ): Promise<string | null> {
   if (selfId && parentId === selfId) {
@@ -54,6 +55,7 @@ async function assertValidCategoryParentTx(
     .select({
       id: moneyCategory.id,
       parentId: moneyCategory.parentId,
+      kind: moneyCategory.kind,
     })
     .from(moneyCategory)
     .where(
@@ -67,7 +69,38 @@ async function assertValidCategoryParentTx(
   if (rows[0].parentId != null) {
     return "Parent must be a top-level category";
   }
+  if (rows[0].kind !== kind) {
+    return "Parent must be the same kind";
+  }
   return null;
+}
+
+async function assertCategoriesKindMatchTx(
+  tx: MoneyTx,
+  workspaceId: string,
+  ids: string[],
+  expectedKind: "expense" | "income",
+): Promise<void> {
+  if (!ids.length) return;
+  const rows = await tx
+    .select({ id: moneyCategory.id, kind: moneyCategory.kind })
+    .from(moneyCategory)
+    .where(
+      and(
+        eq(moneyCategory.workspaceId, workspaceId),
+        inArray(moneyCategory.id, ids),
+      ),
+    );
+  if (rows.length !== ids.length) {
+    throw new Error("One or more categories are missing in this workspace");
+  }
+  for (const r of rows) {
+    if (r.kind !== expectedKind) {
+      throw new Error(
+        `Category kind '${r.kind}' does not match expected '${expectedKind}'`,
+      );
+    }
+  }
 }
 
 async function assertAccountsInWorkspaceTx(
@@ -212,6 +245,7 @@ async function importCategories(
           tx,
           ctx.workspaceId,
           parentDbId,
+          c.kind,
         );
         if (perr) throw new Error(perr);
       } else if (c.parentId) {
@@ -219,6 +253,7 @@ async function importCategories(
           tx,
           ctx.workspaceId,
           c.parentId,
+          c.kind,
         );
         if (perr) throw new Error(perr);
         parentDbId = c.parentId;
@@ -229,6 +264,7 @@ async function importCategories(
         .values({
           workspaceId: ctx.workspaceId,
           name: c.name,
+          kind: c.kind,
           parentId: parentDbId,
           archived: c.archived ?? false,
         })
@@ -275,9 +311,12 @@ async function importRules(tx: MoneyTx, ctx: MoneyCtx, rows: RuleRow[]) {
     }
     const action = r.action;
     if (action.setCategoryId) {
-      await assertCategoriesInWorkspaceTx(tx, ctx.workspaceId, [
-        action.setCategoryId,
-      ]);
+      await assertCategoriesKindMatchTx(
+        tx,
+        ctx.workspaceId,
+        [action.setCategoryId],
+        r.kind,
+      );
     }
     if (action.tagIds?.length) {
       await assertTagsInWorkspaceTx(tx, ctx.workspaceId, action.tagIds);
@@ -286,6 +325,7 @@ async function importRules(tx: MoneyTx, ctx: MoneyCtx, rows: RuleRow[]) {
     await tx.insert(moneyRule).values({
       workspaceId: ctx.workspaceId,
       name: r.name,
+      kind: r.kind,
       priority: r.priority ?? 0,
       match: r.match,
       action: r.action,
@@ -303,7 +343,15 @@ async function importRecurrence(
     const t = r.template;
     await assertAccountsInWorkspaceTx(tx, ctx.workspaceId, [t.accountId]);
     if (t.categoryId) {
-      await assertCategoriesInWorkspaceTx(tx, ctx.workspaceId, [t.categoryId]);
+      if (t.kind === "transfer") {
+        throw new Error("Transfer templates cannot reference a category");
+      }
+      await assertCategoriesKindMatchTx(
+        tx,
+        ctx.workspaceId,
+        [t.categoryId],
+        t.kind,
+      );
     }
     if (t.merchantId) {
       await assertMerchantsInWorkspaceTx(tx, ctx.workspaceId, [t.merchantId]);
@@ -339,8 +387,33 @@ async function importTransactions(
 
   for (const r of rows) {
     await assertAccountsInWorkspaceTx(tx, ctx.workspaceId, [r.accountId]);
+    let txKind = r.kind ?? "expense";
     if (r.categoryId) {
-      await assertCategoriesInWorkspaceTx(tx, ctx.workspaceId, [r.categoryId]);
+      if (txKind === "transfer") {
+        throw new Error("Transfer transactions cannot reference a category");
+      }
+      const [catRow] = await tx
+        .select({ kind: moneyCategory.kind })
+        .from(moneyCategory)
+        .where(
+          and(
+            eq(moneyCategory.workspaceId, ctx.workspaceId),
+            eq(moneyCategory.id, r.categoryId),
+          ),
+        )
+        .limit(1);
+      if (!catRow) {
+        throw new Error("One or more categories are missing in this workspace");
+      }
+      txKind = catRow.kind;
+    }
+    if (r.categoryId) {
+      await assertCategoriesKindMatchTx(
+        tx,
+        ctx.workspaceId,
+        [r.categoryId],
+        txKind,
+      );
     }
     if (r.merchantId) {
       await assertMerchantsInWorkspaceTx(tx, ctx.workspaceId, [r.merchantId]);
@@ -397,7 +470,7 @@ async function importTransactions(
       .values({
         workspaceId: ctx.workspaceId,
         accountId: r.accountId,
-        kind: r.kind ?? "expense",
+        kind: txKind,
         amountMinor: r.amountMinor,
         occurredAt,
         categoryId: r.categoryId ?? null,

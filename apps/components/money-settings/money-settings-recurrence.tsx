@@ -2,10 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
-import { useWorkspaceCurrency } from "@/components/workspace-gate";
+import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import { minorToMajorInput, parseMajorToMinor } from "@/lib/format-money";
-import { moneyApiJson } from "@/lib/money-fetch";
+import { useFormatDate } from "@/lib/format-date";
+import { moneyGraphQLRequest } from "@/lib/gql-client";
+import {
+  MONEY_LIST_ACCOUNTS_QUERY,
+  MONEY_LIST_RECURRENCE_QUERY,
+  MONEY_RECURRENCE_CREATE_MUTATION,
+  MONEY_RECURRENCE_DELETE_MUTATION,
+  MONEY_RECURRENCE_GENERATE_MUTATION,
+  MONEY_RECURRENCE_UPDATE_MUTATION,
+} from "@/lib/money-gql-documents";
 import {
   inputCls,
   MoneySettingsBackLink,
@@ -45,6 +54,7 @@ function isoToDatetimeLocal(iso: string): string {
 
 export function MoneySettingsRecurrenceSection() {
   const notify = useNotify();
+  const { formatDateTime } = useFormatDate();
   const { defaultCurrency } = useWorkspaceCurrency();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [recurrent, setRecurrent] = useState<RecurrenceRow[]>([]);
@@ -81,12 +91,16 @@ export function MoneySettingsRecurrenceSection() {
   );
 
   const loadAccounts = useCallback(async () => {
-    const { data } = await moneyApiJson<Account[]>("/api/money/accounts");
-    setAccounts(data);
+    const res = await moneyGraphQLRequest<{ moneyAccounts: Account[] }>(
+      MONEY_LIST_ACCOUNTS_QUERY,
+    );
+    setAccounts(res.moneyAccounts);
   }, []);
   const loadRecurrent = useCallback(async () => {
-    const { data } = await moneyApiJson<RecurrenceRow[]>("/api/money/recurrence");
-    setRecurrent(data);
+    const res = await moneyGraphQLRequest<{ moneyRecurrenceTemplates: RecurrenceRow[] }>(
+      MONEY_LIST_RECURRENCE_QUERY,
+    );
+    setRecurrent(res.moneyRecurrenceTemplates);
   }, []);
 
   useEffect(() => {
@@ -137,15 +151,15 @@ export function MoneySettingsRecurrenceSection() {
         kind: editKind,
         amountMinor: minor,
       };
-      await moneyApiJson(`/api/money/recurrence/${editingId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
+      await moneyGraphQLRequest(MONEY_RECURRENCE_UPDATE_MUTATION, {
+        id: editingId,
+        input: {
           name: editName.trim() || "Recurrence",
           cadence: editCadence,
           nextRunAt: new Date(editNext).toISOString(),
           template,
           active: editActive,
-        }),
+        },
       });
       cancelEdit();
       await loadRecurrent();
@@ -167,7 +181,7 @@ export function MoneySettingsRecurrenceSection() {
       return;
     }
     try {
-      await moneyApiJson(`/api/money/recurrence/${id}`, { method: "DELETE" });
+      await moneyGraphQLRequest(MONEY_RECURRENCE_DELETE_MUTATION, { id });
       if (editingId === id) cancelEdit();
       await loadRecurrent();
       notify.success("Settings updated", "Recurrence template deleted.");
@@ -185,9 +199,8 @@ export function MoneySettingsRecurrenceSection() {
       const minor = parseMajorToMinor(recAmount, defaultCurrency);
       if (!recAccountId) throw new Error("Template account required");
       if (minor == null || minor <= 0) throw new Error("Invalid template amount");
-      await moneyApiJson("/api/money/recurrence", {
-        method: "POST",
-        body: JSON.stringify({
+      await moneyGraphQLRequest(MONEY_RECURRENCE_CREATE_MUTATION, {
+        input: {
           name: recName || "Recurrence",
           cadence: recCadence,
           nextRunAt: new Date(recNext).toISOString(),
@@ -201,7 +214,7 @@ export function MoneySettingsRecurrenceSection() {
             tagIds: [],
           },
           active: true,
-        }),
+        },
       });
       setRecName("");
       setRecAmount("");
@@ -217,10 +230,7 @@ export function MoneySettingsRecurrenceSection() {
 
   async function generateRec(id: string) {
     try {
-      await moneyApiJson(`/api/money/recurrence/${id}/generate`, {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
+      await moneyGraphQLRequest(MONEY_RECURRENCE_GENERATE_MUTATION, { id });
       await loadRecurrent();
       notify.success("Settings updated", "Transaction generated from recurrence.");
     } catch (e: unknown) {
@@ -304,7 +314,7 @@ export function MoneySettingsRecurrenceSection() {
             {recurrent.map((r) => (
               <li
                 key={r.id}
-                className="rounded-lg border border-border bg-background px-3 py-2"
+                className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30"
               >
                 {editingId === r.id ? (
                   <form className="auto-fit-2 max-w-4xl" onSubmit={saveEdit}>
@@ -380,7 +390,7 @@ export function MoneySettingsRecurrenceSection() {
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-muted">
-                      {r.name} · {r.cadence} · next {r.nextRunAt.slice(0, 16)} ·{" "}
+                      {r.name} · {r.cadence} · next {formatDateTime(r.nextRunAt)} ·{" "}
                       {r.active ? "active" : "off"}
                     </span>
                     <div className="flex flex-wrap gap-2">
