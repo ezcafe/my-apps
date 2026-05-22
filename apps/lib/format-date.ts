@@ -9,7 +9,10 @@ import {
 export type { DateFormat };
 
 export type FormatDisplayDateOptions = {
+  /** Omit year when it matches the current calendar year. */
   omitYearIfCurrent?: boolean;
+  /** Always omit the year (short month + day). */
+  omitYear?: boolean;
 };
 
 function pad2(n: number): string {
@@ -79,9 +82,13 @@ export function formatDisplayDate(
 
   const now = new Date();
   const omitYear =
-    opts?.omitYearIfCurrent === true && d.getFullYear() === now.getFullYear();
+    opts?.omitYear === true ||
+    (opts?.omitYearIfCurrent === true && d.getFullYear() === now.getFullYear());
 
   if (format === "ymd") {
+    if (omitYear) {
+      return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    }
     return formatYmdNumeric(d);
   }
 

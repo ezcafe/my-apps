@@ -4,11 +4,8 @@ import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { formatMinor } from "@/lib/format-money";
 import { cn } from "@/lib/cn";
-import {
-  moneyCategoryById,
-  moneyCategoryLabel,
-  type MoneyCategoryRow,
-} from "@/lib/money-category-ui";
+import { moneyCategoryById, type MoneyCategoryRow } from "@/lib/money-category-ui";
+import { analyticsBudgetLabel } from "@/lib/analytics-budget-label";
 import type { AnalyticsLookupAccount, AnalyticsLookupTag } from "@/components/analytics-filters";
 
 export type AnalyticsBudgetRow = {
@@ -27,26 +24,6 @@ function clampPercent(v: number): number {
   if (!Number.isFinite(v) || v < 0) return 0;
   if (v > 100) return 100;
   return v;
-}
-
-function budgetLabel(
-  budget: AnalyticsBudgetRow,
-  categoryById: ReturnType<typeof moneyCategoryById>,
-  accountById: Map<string, AnalyticsLookupAccount>,
-  tagById: Map<string, AnalyticsLookupTag>,
-): string {
-  if (budget.scopeType === "workspace") return "Whole workspace";
-  if (budget.scopeType === "category" && budget.scopeId) {
-    const c = categoryById.get(budget.scopeId) ?? null;
-    return c ? moneyCategoryLabel(c, categoryById) : "Category";
-  }
-  if (budget.scopeType === "account" && budget.scopeId) {
-    return accountById.get(budget.scopeId)?.name ?? "Account";
-  }
-  if (budget.scopeType === "tag" && budget.scopeId) {
-    return tagById.get(budget.scopeId)?.name ?? "Tag";
-  }
-  return budget.scopeType;
 }
 
 export function AnalyticsBudgetsSection({
@@ -81,7 +58,12 @@ export function AnalyticsBudgetsSection({
       ) : (
         <ul className="mt-4 space-y-3">
           {budgets.map((budget) => {
-            const label = budgetLabel(budget, categoryById, accountById, tagById);
+            const label = analyticsBudgetLabel(
+              budget,
+              categoryById,
+              accountById,
+              tagById,
+            );
             const safePct = clampPercent(budget.progressPct);
             const limitMinor = budget.effectiveLimitAmountMinor ?? budget.limitAmountMinor;
             return (

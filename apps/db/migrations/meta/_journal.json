@@ -50,6 +50,13 @@
       "when": 1778003000000,
       "tag": "0006_money_category_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778004000000,
+      "tag": "0007_api_token",
+      "breakpoints": true
     }
   ]
 }

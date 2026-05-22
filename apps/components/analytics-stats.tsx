@@ -1,6 +1,12 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import {
+  chartExpenseColor,
+  chartIncomeColor,
+} from "@/components/charts/chart-income-expense-colors";
+import { useTheme } from "@/components/theme-provider";
 import { formatMinor } from "@/lib/format-money";
 import { cn } from "@/lib/cn";
 import { useFormatDate } from "@/lib/format-date";
@@ -9,7 +15,7 @@ export type AnalyticsStatsPayload = {
   expenseMinor: number;
   incomeMinor: number;
   netMinor: number;
-  transactionCount: number;
+  savingsRatePct: number | null;
 };
 
 type ColumnRow = { month: string; expenseMinor: number; incomeMinor: number };
@@ -30,14 +36,12 @@ function expenseMomTrend(column: ColumnRow[]) {
   };
 }
 
-/** Positive deltas (e.g. positive net flow, lower spending) → accent; negative → destructive. */
 function trendColor(direction: "up" | "down" | "flat", positiveIsUp: boolean) {
   if (direction === "flat") return "text-muted";
   const isPositive = positiveIsUp ? direction === "up" : direction === "down";
   return isPositive ? "text-accent" : "text-destructive";
 }
 
-/** Summary metrics row using Card primitives + tokenized status colors. */
 export function AnalyticsStats({
   stats,
   column,
@@ -49,9 +53,21 @@ export function AnalyticsStats({
   range: { from: string; to: string };
   currency: string;
 }) {
+  const { resolved, style } = useTheme();
   const { formatPeriod } = useFormatDate();
   const period = formatPeriod(range.from, range.to);
   const mom = expenseMomTrend(column);
+
+  const incomeColor = chartIncomeColor(resolved, style);
+  const expenseColor = chartExpenseColor(resolved, style);
+  const netColor = stats.netMinor >= 0 ? incomeColor : expenseColor;
+  const animationKey = `${range.from}-${range.to}-${stats.incomeMinor}-${stats.expenseMinor}-${stats.netMinor}-${stats.savingsRatePct ?? "n"}`;
+  const savingsLabel =
+    stats.savingsRatePct == null
+      ? "—"
+      : `${stats.savingsRatePct.toFixed(1)}%`;
+  const savingsPositive =
+    stats.savingsRatePct != null && stats.savingsRatePct >= 0;
 
   return (
     <div className="col-span-2 grid gap-2 md:col-span-6 lg:col-span-12 fx-fade-in">
@@ -64,16 +80,26 @@ export function AnalyticsStats({
       >
         <Card className="px-4 py-5">
           <p className="text-sm font-medium text-muted">Total income</p>
-          <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums">
-            {formatMinor(stats.incomeMinor, currency)}
+          <p className="mt-2 font-display text-3xl font-semibold tracking-tight tabular-nums">
+            <AnimatedNumber
+              value={stats.incomeMinor}
+              format={(n) => formatMinor(Math.round(n), currency)}
+              style={{ color: incomeColor }}
+              animationKey={animationKey}
+            />
           </p>
           <p className="mt-1 text-xs text-muted">Recorded in workspace</p>
         </Card>
 
         <Card className="px-4 py-5">
           <p className="text-sm font-medium text-muted">Total expenses</p>
-          <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums">
-            {formatMinor(stats.expenseMinor, currency)}
+          <p className="mt-2 font-display text-3xl font-semibold tracking-tight tabular-nums">
+            <AnimatedNumber
+              value={stats.expenseMinor}
+              format={(n) => formatMinor(Math.round(n), currency)}
+              style={{ color: expenseColor }}
+              animationKey={animationKey}
+            />
           </p>
           {mom ? (
             <p
@@ -104,23 +130,36 @@ export function AnalyticsStats({
 
         <Card className="px-4 py-5">
           <p className="text-sm font-medium text-muted">Net flow</p>
-          <p
-            className={cn(
-              "mt-2 font-display text-3xl font-semibold tracking-tight tabular-nums",
-              stats.netMinor >= 0 ? "text-accent" : "text-destructive",
-            )}
-          >
-            {formatMinor(stats.netMinor, currency)}
+          <p className="mt-2 font-display text-3xl font-semibold tracking-tight tabular-nums">
+            <AnimatedNumber
+              value={stats.netMinor}
+              format={(n) => formatMinor(Math.round(n), currency)}
+              style={{ color: netColor }}
+              animationKey={animationKey}
+            />
           </p>
           <p className="mt-1 text-xs text-muted">Income minus expenses</p>
         </Card>
 
         <Card className="px-4 py-5">
-          <p className="text-sm font-medium text-muted">Transactions</p>
-          <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums">
-            {stats.transactionCount.toLocaleString()}
+          <p className="text-sm font-medium text-muted">Savings rate</p>
+          <p
+            className={cn(
+              "mt-2 font-display text-3xl font-semibold tracking-tight tabular-nums",
+              stats.savingsRatePct == null
+                ? "text-muted"
+                : savingsPositive
+                  ? "text-accent"
+                  : "text-destructive",
+            )}
+          >
+            {savingsLabel}
           </p>
-          <p className="mt-1 text-xs text-muted">In this period</p>
+          <p className="mt-1 text-xs text-muted">
+            {stats.savingsRatePct == null
+              ? "No income in range"
+              : "Net as % of income"}
+          </p>
         </Card>
       </div>
     </div>

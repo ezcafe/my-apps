@@ -13,7 +13,7 @@ export function handleMoneyGraphQL(request: Request, responseHeaders: Headers) {
     schema,
     graphqlEndpoint: "/api/graphql",
     landingPage: false,
-    context: async () => createMoneyGraphQLContext(responseHeaders),
+    context: async () => createMoneyGraphQLContext(responseHeaders, request),
     maskedErrors: process.env.NODE_ENV === "production",
   });
 

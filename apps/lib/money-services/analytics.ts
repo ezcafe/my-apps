@@ -1,10 +1,19 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   moneyAccount,
   moneyCategory,
+  moneyMerchant,
+  moneyRecurrentTemplate,
+  moneyTag,
   moneyTransaction,
+  moneyTransactionTag,
 } from "@/db/schema/money";
+import { buildWorkspaceBalanceSeries } from "@/lib/analytics-balance-series";
+import {
+  rollupCategoryByMonth,
+  type StackedMonthSeries,
+} from "@/lib/analytics-category-rollup";
 import { dateRangeParams } from "@/lib/analytics-build-query";
 import type { AnalyticsFiltersData } from "@/lib/money-transaction-analytics-conditions";
 import {
@@ -22,6 +31,11 @@ import {
   type RawCumulativeLineRow,
 } from "@/lib/analytics-line-series";
 import {
+  moneyCategoryById,
+  moneyCategoryLabel,
+  type MoneyCategoryKind,
+} from "@/lib/money-category-ui";
+import {
   listMoneyBudgets,
   type BudgetListRowEnriched,
 } from "@/lib/money-services/budgets";
@@ -30,6 +44,14 @@ type PieRow = {
   categoryId: string | null;
   label: string;
   valueMinor: number;
+};
+
+export type LabelValueRow = { label: string; valueMinor: number };
+
+export type RecurringSpendRow = {
+  label: string;
+  valueMinor: number;
+  templateId: string | null;
 };
 
 export type MoneyAnalyticsPayload = {
@@ -47,11 +69,17 @@ export type MoneyAnalyticsPayload = {
     nodes: { id: string; name: string }[];
     links: { source: string; target: string; value: number }[];
   };
+  merchantsSpend: LabelValueRow[];
+  tagsSpend: LabelValueRow[];
+  categoryByMonthStacked: StackedMonthSeries[];
+  recurringSpend: RecurringSpendRow[];
+  balanceSeries: { date: string; totalMinor: number }[];
   stats: {
     expenseMinor: number;
     incomeMinor: number;
     netMinor: number;
     transactionCount: number;
+    savingsRatePct: number | null;
   };
   range: { from: string; to: string };
 };
@@ -63,6 +91,31 @@ type CategoryRow = {
   parentId: string | null;
   name: string;
 };
+
+function buildCategoryLabelMap(
+  categories: CategoryRow[],
+): Map<string, string> {
+  const rows = categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    kind: "expense" as MoneyCategoryKind,
+    parentId: c.parentId,
+  }));
+  const byId = moneyCategoryById(rows);
+  return new Map(rows.map((c) => [c.id, moneyCategoryLabel(c, byId)]));
+}
+
+/** `c:` graph ids use parent:child labels; other ids keep the SQL label. */
+function sankeyNodeLabel(
+  nodeId: string,
+  sqlLabel: string,
+  categoryLabels: Map<string, string>,
+): string {
+  if (!nodeId.startsWith("c:")) return sqlLabel;
+  const catId = nodeId.slice(2);
+  if (catId === "uncategorized") return "Uncategorized";
+  return categoryLabels.get(catId) ?? sqlLabel;
+}
 
 function budgetNodeLabel(
   b: BudgetListRowEnriched,
@@ -365,6 +418,8 @@ export async function computeMoneyAnalytics(
       GROUP BY ${moneyTransaction.accountId}, ${moneyAccount.name}, ${moneyTransaction.categoryId}, ${moneyCategory.name}
     `;
 
+  const expenseWhere = and(whereClause, eq(moneyTransaction.kind, "expense"));
+
   const [
     categories,
     accountRows,
@@ -373,8 +428,11 @@ export async function computeMoneyAnalytics(
     pieSpendRows,
     pieIncomeRows,
     columnRows,
+    categoryByMonthRows,
+    merchantSpendRows,
+    tagSpendRows,
+    recurringSpendRows,
     sankeyExec,
-    lineExec,
   ] = await Promise.all([
       db
         .select()
@@ -423,6 +481,55 @@ export async function computeMoneyAnalytics(
         .where(whereClause)
         .groupBy(monthExpr)
         .orderBy(monthExpr),
+      db
+        .select({
+          month: monthExpr,
+          categoryId: moneyTransaction.categoryId,
+          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+        })
+        .from(moneyTransaction)
+        .where(expenseWhere)
+        .groupBy(monthExpr, moneyTransaction.categoryId)
+        .orderBy(monthExpr),
+      db
+        .select({
+          merchantId: moneyTransaction.merchantId,
+          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+        })
+        .from(moneyTransaction)
+        .where(expenseWhere)
+        .groupBy(moneyTransaction.merchantId)
+        .orderBy(desc(sql`sum(${moneyTransaction.amountMinor})`))
+        .limit(15),
+      db
+        .select({
+          tagId: moneyTransactionTag.tagId,
+          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+        })
+        .from(moneyTransaction)
+        .innerJoin(
+          moneyTransactionTag,
+          eq(moneyTransactionTag.transactionId, moneyTransaction.id),
+        )
+        .where(expenseWhere)
+        .groupBy(moneyTransactionTag.tagId)
+        .orderBy(desc(sql`sum(${moneyTransaction.amountMinor})`))
+        .limit(15),
+      db
+        .select({
+          templateId: moneyTransaction.recurrenceSourceId,
+          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+        })
+        .from(moneyTransaction)
+        .where(
+          and(
+            expenseWhere,
+            sql`${moneyTransaction.recurrenceSourceId} IS NOT NULL`,
+          ),
+        )
+        .groupBy(moneyTransaction.recurrenceSourceId)
+        .orderBy(desc(sql`sum(${moneyTransaction.amountMinor})`))
+        .limit(15),
       db.execute(sql`${sankeyExpenseSql} UNION ALL ${sankeyIncomeSql}`),
     ]);
 
@@ -430,6 +537,12 @@ export async function computeMoneyAnalytics(
   const accountNameById = new Map(accountRows.map((a) => [a.id, a.name]));
 
   const catName = new Map(categories.map((c) => [c.id, c.name]));
+  const categoryRowsForSankey: CategoryRow[] = categories.map((c) => ({
+    id: c.id,
+    parentId: c.parentId ?? null,
+    name: c.name,
+  }));
+  const categoryLabels = buildCategoryLabelMap(categoryRowsForSankey);
 
   const stat = statRows[0];
   const expenseMinorTotal = Number(stat?.expenseMinor ?? 0);
@@ -482,8 +595,14 @@ export async function computeMoneyAnalytics(
     const target = String(row.target_id);
     const value = Number(row.value_minor ?? 0);
     if (value <= 0) continue;
-    labelById.set(source, String(row.source_label));
-    labelById.set(target, String(row.target_label));
+    labelById.set(
+      source,
+      sankeyNodeLabel(source, String(row.source_label), categoryLabels),
+    );
+    labelById.set(
+      target,
+      sankeyNodeLabel(target, String(row.target_label), categoryLabels),
+    );
     const link: SankeyLink = { source, target, value };
     if (source.startsWith("a:") && target.startsWith("c:")) {
       expenseLinks.push(link);
@@ -492,18 +611,12 @@ export async function computeMoneyAnalytics(
     }
   }
 
-  const categoryRowsForSankey: CategoryRow[] = categories.map((c) => ({
-    id: c.id,
-    parentId: c.parentId ?? null,
-    name: c.name,
-  }));
-
   const augmented = augmentExpenseSankeyWithBudgets(
     expenseLinks,
     budgetRows,
     categoryRowsForSankey,
     accountNameById,
-    catName,
+    categoryLabels,
   );
   for (const [id, name] of augmented.labelById) {
     labelById.set(id, name);
@@ -520,26 +633,113 @@ export async function computeMoneyAnalytics(
     links: allSankeyLinks,
   };
 
-  const { line, lineCompare, lineMode } = await buildNetLineSeries(
-    workspaceId,
-    filters,
-    from,
-    to,
-  );
+  const [lineResult, balanceSeries, merchantName, tagRows, templateRows] =
+    await Promise.all([
+      buildNetLineSeries(workspaceId, filters, from, to),
+      buildWorkspaceBalanceSeries(
+        workspaceId,
+        from,
+        to,
+        filters.accountIds,
+      ),
+      db
+        .select({ id: moneyMerchant.id, name: moneyMerchant.name })
+        .from(moneyMerchant)
+        .where(eq(moneyMerchant.workspaceId, workspaceId)),
+      db
+        .select({ id: moneyTag.id, name: moneyTag.name })
+        .from(moneyTag)
+        .where(eq(moneyTag.workspaceId, workspaceId)),
+      db
+        .select({
+          id: moneyRecurrentTemplate.id,
+          name: moneyRecurrentTemplate.name,
+        })
+        .from(moneyRecurrentTemplate)
+        .where(eq(moneyRecurrentTemplate.workspaceId, workspaceId)),
+    ]);
+
+  const merchantNameById = new Map(merchantName.map((m) => [m.id, m.name]));
+  const tagNameById = new Map(tagRows.map((t) => [t.id, t.name]));
+  const templateNameById = new Map(templateRows.map((t) => [t.id, t.name]));
+
+  const categoryByMonthRaw = categoryByMonthRows.map((row) => {
+    const categoryId = row.categoryId;
+    const valueMinor = Number(row.valueMinor);
+    if (categoryId == null) {
+      return {
+        month: String(row.month),
+        categoryId: null,
+        label: "Uncategorized",
+        expenseMinor: valueMinor,
+      };
+    }
+    return {
+      month: String(row.month),
+      categoryId,
+      label: catName.get(categoryId) ?? categoryId,
+      expenseMinor: valueMinor,
+    };
+  });
+  const categoryByMonthStacked = rollupCategoryByMonth(categoryByMonthRaw);
+
+  const merchantsSpend: LabelValueRow[] = merchantSpendRows
+    .map((row) => {
+      const valueMinor = Number(row.valueMinor);
+      if (valueMinor <= 0) return null;
+      const label =
+        row.merchantId == null
+          ? "No merchant"
+          : (merchantNameById.get(row.merchantId) ?? "Merchant");
+      return { label, valueMinor };
+    })
+    .filter((r): r is LabelValueRow => r != null);
+
+  const tagsSpend: LabelValueRow[] = tagSpendRows
+    .map((row) => {
+      const valueMinor = Number(row.valueMinor);
+      if (valueMinor <= 0) return null;
+      return {
+        label: tagNameById.get(row.tagId) ?? "Tag",
+        valueMinor,
+      };
+    })
+    .filter((r): r is LabelValueRow => r != null);
+
+  const recurringSpend: RecurringSpendRow[] = recurringSpendRows
+    .filter((row) => row.templateId != null && Number(row.valueMinor) > 0)
+    .map((row) => ({
+      label: templateNameById.get(row.templateId!) ?? "Recurring",
+      valueMinor: Number(row.valueMinor),
+      templateId: row.templateId,
+    }));
+
+  const savingsRatePct =
+    incomeMinorTotal > 0
+      ? Math.round(
+          ((incomeMinorTotal - expenseMinorTotal) / incomeMinorTotal) * 1000,
+        ) / 10
+      : null;
 
   return {
     pieSpend,
     pieIncome,
     column,
-    line,
-    lineCompare,
-    lineMode,
+    line: lineResult.line,
+    lineCompare: lineResult.lineCompare,
+    lineMode: lineResult.lineMode,
     sankey,
+    merchantsSpend,
+    tagsSpend,
+    categoryByMonthStacked,
+    recurringSpend,
+    balanceSeries,
     stats: {
       expenseMinor: expenseMinorTotal,
       incomeMinor: incomeMinorTotal,
       netMinor: netMinorTotal,
       transactionCount,
+      savingsRatePct,
     },
     range: { from, to },
   };

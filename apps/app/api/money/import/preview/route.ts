@@ -8,7 +8,7 @@ import { moneyImportTypeSchema } from "@/lib/money-import-types";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const ctx = await requireMoneyContext();
+  const ctx = await requireMoneyContext(req, { requireWrite: true });
   if ("error" in ctx) return ctx.error;
 
   const contentType = req.headers.get("content-type") ?? "";

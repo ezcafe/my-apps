@@ -67,6 +67,8 @@ import {
   parseMoneyAppKey,
   requireAuth,
   requireMoneyWorkspace,
+  requireSessionAuth,
+  requireWriteScope,
   type MoneyGraphQLContext,
 } from "@/lib/graphql/context";
 
@@ -107,161 +109,36 @@ function filtersFromInput(raw: Record<string, unknown> | null | undefined) {
   return parsed.data;
 }
 
-export const moneyResolvers = {
-  JSONObject: GraphQLJSONObject,
+type MutationHandler = (
+  parent: unknown,
+  args: unknown,
+  ctx: MoneyGraphQLContext,
+) => unknown;
 
-  Query: {
-    moneyBootstrap: async (
-      _: unknown,
-      __: unknown,
-      ctx: MoneyGraphQLContext,
-    ) => {
-      const userSub = requireAuth(ctx);
-      const result = await fetchMoneyBootstrapSafe(userSub);
-      if (!result.ok) {
-        if (result.code === "db_unavailable") mapServiceError(new Error("DB_UNAVAILABLE"));
-        gqlErr(result.message, "WORKSPACE_ERROR");
-      }
-      return result.data;
-    },
+function withMutationGuard(
+  handlers: Record<string, MutationHandler>,
+  before: (ctx: MoneyGraphQLContext) => void,
+): Record<string, MutationHandler> {
+  return Object.fromEntries(
+    Object.entries(handlers).map(([key, handler]) => [
+      key,
+      async (parent, args, ctx) => {
+        before(ctx);
+        return handler(parent, args, ctx);
+      },
+    ]),
+  );
+}
 
-    moneyAnalytics: async (
-      _: unknown,
-      args: { filters: Record<string, unknown> },
-      ctx: MoneyGraphQLContext,
-    ) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        const filters = filtersFromInput(args.filters);
-        return await computeMoneyAnalytics(workspaceId, filters);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyBudgets: async (
-      _: unknown,
-      args: { includeSpent: boolean; from?: string | null; to?: string | null },
-      ctx: MoneyGraphQLContext,
-    ) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        return await listMoneyBudgets(workspaceId, {
-          includeSpent: args.includeSpent,
-          from: args.from ?? null,
-          to: args.to ?? null,
-        });
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyTransactions: async (
-      _: unknown,
-      args: { query: Record<string, unknown> },
-      ctx: MoneyGraphQLContext,
-    ) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        return await listMoneyTransactions(workspaceId, args.query);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyAccounts: async (_: unknown, __: unknown, ctx: MoneyGraphQLContext) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        return await listMoneyAccounts(workspaceId);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyCategories: async (_: unknown, __: unknown, ctx: MoneyGraphQLContext) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        return await listMoneyCategories(workspaceId);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyMerchants: async (_: unknown, __: unknown, ctx: MoneyGraphQLContext) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        return await listMoneyMerchants(workspaceId);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyTags: async (_: unknown, __: unknown, ctx: MoneyGraphQLContext) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        return await listMoneyTags(workspaceId);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyRules: async (_: unknown, __: unknown, ctx: MoneyGraphQLContext) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        return await listMoneyRules(workspaceId);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyRecurrenceTemplates: async (
-      _: unknown,
-      __: unknown,
-      ctx: MoneyGraphQLContext,
-    ) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        return await listMoneyRecurrenceTemplates(workspaceId);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyTransaction: async (
-      _: unknown,
-      args: { id: string },
-      ctx: MoneyGraphQLContext,
-    ) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        return await getMoneyTransaction(workspaceId, args.id);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyParseCsv: async (
-      _: unknown,
-      args: { csv: string },
-      ctx: MoneyGraphQLContext,
-    ) => {
-      try {
-        requireMoneyWorkspace(ctx);
-        return parseMoneyImportCsv(args.csv);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-  },
-
-  Mutation: {
+const moneyMutations = withMutationGuard(
+  {
     moneySetActiveWorkspace: async (
       _: unknown,
       args: { workspaceId: string; app: string },
       ctx: MoneyGraphQLContext,
     ) => {
       try {
-        const userSub = requireAuth(ctx);
+        const userSub = requireSessionAuth(ctx);
         const appKey = parseMoneyAppKey(args.app);
         await setActiveWorkspaceApi(userSub, args.workspaceId, appKey);
         appendActiveWorkspaceCookieHeader(
@@ -297,7 +174,7 @@ export const moneyResolvers = {
       ctx: MoneyGraphQLContext,
     ) => {
       try {
-        const userSub = requireAuth(ctx);
+        const userSub = requireSessionAuth(ctx);
         const { workspaceId } = requireMoneyWorkspace(ctx);
         await cloneMoneyWorkspaceApi(userSub, workspaceId, {
           targetWorkspaceId: args.targetWorkspaceId,
@@ -314,7 +191,7 @@ export const moneyResolvers = {
       ctx: MoneyGraphQLContext,
     ) => {
       try {
-        const userSub = requireAuth(ctx);
+        const userSub = requireSessionAuth(ctx);
         const { workspaceId } = requireMoneyWorkspace(ctx);
         await resetMoneyWorkspaceApi(userSub, workspaceId);
         return { ok: true };
@@ -646,5 +523,159 @@ export const moneyResolvers = {
         mapServiceError(e);
       }
     },
+  } as Record<string, MutationHandler>,
+  (ctx) => {
+    requireWriteScope(ctx);
+    requireMoneyWorkspace(ctx);
   },
+);
+
+export const moneyResolvers = {
+  JSONObject: GraphQLJSONObject,
+
+  Query: {
+    moneyBootstrap: async (
+      _: unknown,
+      __: unknown,
+      ctx: MoneyGraphQLContext,
+    ) => {
+      const userSub = requireAuth(ctx);
+      const result = await fetchMoneyBootstrapSafe(userSub);
+      if (!result.ok) {
+        if (result.code === "db_unavailable") mapServiceError(new Error("DB_UNAVAILABLE"));
+        gqlErr(result.message, "WORKSPACE_ERROR");
+      }
+      return result.data;
+    },
+
+    moneyAnalytics: async (
+      _: unknown,
+      args: { filters: Record<string, unknown> },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        const filters = filtersFromInput(args.filters);
+        return await computeMoneyAnalytics(workspaceId, filters);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyBudgets: async (
+      _: unknown,
+      args: { includeSpent: boolean; from?: string | null; to?: string | null },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        return await listMoneyBudgets(workspaceId, {
+          includeSpent: args.includeSpent,
+          from: args.from ?? null,
+          to: args.to ?? null,
+        });
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyTransactions: async (
+      _: unknown,
+      args: { query: Record<string, unknown> },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        return await listMoneyTransactions(workspaceId, args.query);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyAccounts: async (_: unknown, __: unknown, ctx: MoneyGraphQLContext) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        return await listMoneyAccounts(workspaceId);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyCategories: async (_: unknown, __: unknown, ctx: MoneyGraphQLContext) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        return await listMoneyCategories(workspaceId);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyMerchants: async (_: unknown, __: unknown, ctx: MoneyGraphQLContext) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        return await listMoneyMerchants(workspaceId);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyTags: async (_: unknown, __: unknown, ctx: MoneyGraphQLContext) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        return await listMoneyTags(workspaceId);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyRules: async (_: unknown, __: unknown, ctx: MoneyGraphQLContext) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        return await listMoneyRules(workspaceId);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyRecurrenceTemplates: async (
+      _: unknown,
+      __: unknown,
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        return await listMoneyRecurrenceTemplates(workspaceId);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyTransaction: async (
+      _: unknown,
+      args: { id: string },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        return await getMoneyTransaction(workspaceId, args.id);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyParseCsv: async (
+      _: unknown,
+      args: { csv: string },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        requireMoneyWorkspace(ctx);
+        return parseMoneyImportCsv(args.csv);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+  },
+
+  Mutation: moneyMutations,
 };

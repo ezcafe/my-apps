@@ -1,11 +1,19 @@
 import { auth } from "@/auth";
+import { listApiTokensForUser } from "@/lib/api-token-service";
+import { fetchWorkspacesForUser } from "@/lib/money-workspace-bootstrap-data";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
+import { ApiTokenSettings } from "@/components/api-token-settings";
 import { DateFormatSettings } from "@/components/date-format-settings";
 import { StyleSettings } from "@/components/style-settings";
 import { ThemeSettings } from "@/components/theme-settings";
 
 export default async function SettingsPage() {
   const session = await auth();
+  const userSub = session?.user?.id;
+  const { workspaces } = userSub
+    ? await fetchWorkspacesForUser(userSub, "money")
+    : { workspaces: [] as { id: string; name: string; kind: string; isDefault: boolean }[] };
+  const apiTokens = userSub ? await listApiTokensForUser(userSub) : [];
 
   return (
     <div className="shell-main grid grid-cols-2 gap-x-2 gap-y-6 py-8 md:grid-cols-6 md:gap-x-4 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-8">
@@ -83,6 +91,23 @@ export default async function SettingsPage() {
             description="How dates appear across the app."
           >
             <DateFormatSettings embedded />
+          </SettingsSection>
+
+          <SettingsSection
+            id="settings-api-tokens"
+            title="API tokens"
+            description="Bearer tokens for Postman, scripts, and automation."
+          >
+            <ApiTokenSettings
+              embedded
+              initialWorkspaces={workspaces.map((w) => ({
+                id: w.id,
+                name: w.name,
+                kind: w.kind,
+                isDefault: w.isDefault,
+              }))}
+              initialTokens={apiTokens}
+            />
           </SettingsSection>
         </div>
       </div>

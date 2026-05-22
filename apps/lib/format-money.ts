@@ -1,5 +1,23 @@
 const VND_SYMBOL = "\u20AB"; // ₫
 
+/** Symbol for amount input leading add-on (not full formatted money). */
+export function getCurrencySymbol(currency: string): string {
+  const code = currency.toUpperCase();
+  if (code === "VND") return VND_SYMBOL;
+  try {
+    const parts = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      currencyDisplay: "narrowSymbol",
+    }).formatToParts(0);
+    const sym = parts.find((p) => p.type === "currency");
+    if (sym?.value && sym.value.length <= 3) return sym.value;
+  } catch {
+    /* fall through */
+  }
+  return "$";
+}
+
 export function getCurrencyFractionDigits(currency: string): number {
   return currency.toUpperCase() === "VND" ? 0 : 2;
 }

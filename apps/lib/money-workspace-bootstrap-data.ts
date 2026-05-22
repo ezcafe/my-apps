@@ -113,10 +113,24 @@ export async function fetchMoneyLookups(workspaceId: string) {
       .groupBy(moneyCategory.id)
       .orderBy(desc(sql`usage_count`), asc(moneyCategory.name)),
     db
-      .select()
+      .select({
+        ...getTableColumns(moneyMerchant),
+        usageCount: sql<number>`count(${moneyTransaction.id})::int`.as(
+          "usage_count",
+        ),
+      })
       .from(moneyMerchant)
+      .leftJoin(
+        moneyTransaction,
+        and(
+          eq(moneyTransaction.merchantId, moneyMerchant.id),
+          eq(moneyTransaction.workspaceId, workspaceId),
+          gte(moneyTransaction.occurredAt, since),
+        ),
+      )
       .where(eq(moneyMerchant.workspaceId, workspaceId))
-      .orderBy(asc(moneyMerchant.name)),
+      .groupBy(moneyMerchant.id)
+      .orderBy(desc(sql`usage_count`), asc(moneyMerchant.name)),
     db
       .select()
       .from(moneyTag)

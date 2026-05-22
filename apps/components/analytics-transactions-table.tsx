@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AnalyticsLookupAccount,
 } from "@/components/analytics-filters";
+import { colorByIndex } from "@/components/charts/chart-colors";
+import { useTheme } from "@/components/theme-provider";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
@@ -73,8 +75,8 @@ type ListResponse = {
   pageSize: number;
 };
 
-function defaultDirForSort(sort: TransactionListSortKey): "asc" | "desc" {
-  return sort === "kind" ? "asc" : "desc";
+function defaultDirForSort(_sort: TransactionListSortKey): "asc" | "desc" {
+  return "desc";
 }
 
 function truncateNote(s: string | null, max = 72): string {
@@ -101,7 +103,9 @@ export function AnalyticsTransactionsTable({
   deferFetchUntilVisible?: boolean;
 }) {
   const { ref: viewportRef, isInView } = useInViewOnce();
-  const { formatDateTime } = useFormatDate();
+  const { formatDate } = useFormatDate();
+  const { resolved, style } = useTheme();
+  const incomeAmountColor = colorByIndex(resolved, 3, style);
   const [page, setPage] = useState(1);
   const [{ sort, dir }, setSortState] = useState<{
     sort: TransactionListSortKey;
@@ -263,19 +267,11 @@ export function AnalyticsTransactionsTable({
                   {sortIndicator("occurredAt")}
                 </button>
               </th>
-              <th
-                scope="col"
-                className="px-3 py-2 font-medium"
-                aria-sort={sortAria("kind")}
-              >
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-1 py-0.5 font-medium transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] fx-press"
-                  onClick={() => onSortHeader("kind")}
-                >
-                  Kind
-                  {sortIndicator("kind")}
-                </button>
+              <th scope="col" className="px-3 py-2 font-medium">
+                Account
+              </th>
+              <th scope="col" className="px-3 py-2 font-medium">
+                Category
               </th>
               <th
                 scope="col"
@@ -291,14 +287,8 @@ export function AnalyticsTransactionsTable({
                   {sortIndicator("amountMinor")}
                 </button>
               </th>
-              <th scope="col" className="hidden px-3 py-2 font-medium lg:table-cell">
-                Account
-              </th>
-              <th scope="col" className="hidden px-3 py-2 font-medium md:table-cell">
-                Category
-              </th>
-              <th scope="col" className="hidden px-3 py-2 font-medium lg:table-cell">
-                Notes
+              <th scope="col" className="px-3 py-2 font-medium">
+                Note
               </th>
               <th scope="col" className="px-3 py-2 font-medium">
                 <span className="sr-only">Actions</span>
@@ -308,14 +298,14 @@ export function AnalyticsTransactionsTable({
           <tbody className="divide-y divide-border">
             {awaitingViewport ? (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-sm text-muted">
+                <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted">
                   Scroll to load transactions for this filter range.
                 </td>
               </tr>
             ) : null}
             {!awaitingViewport && loading && !payload ? (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-muted">
+                <td colSpan={6} className="px-3 py-6 text-center text-muted">
                   Loading transactions…
                 </td>
               </tr>
@@ -332,19 +322,25 @@ export function AnalyticsTransactionsTable({
                   className="transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]"
                 >
                   <td className="whitespace-nowrap px-3 py-2 text-muted">
-                    {formatDateTime(tx.occurredAt)}
+                    {formatDate(tx.occurredAt, { omitYear: true })}
                   </td>
-                  <td className="px-3 py-2 capitalize">{tx.kind}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                    {formatMinor(tx.amountMinor, currency)}
-                  </td>
-                  <td className="hidden max-w-[10rem] truncate px-3 py-2 lg:table-cell">
+                  <td className="max-w-[10rem] truncate px-3 py-2">
                     {acc?.name ?? "—"}
                   </td>
-                  <td className="hidden max-w-[10rem] truncate px-3 py-2 md:table-cell">
+                  <td className="max-w-[10rem] truncate px-3 py-2">
                     {categoryLabel}
                   </td>
-                  <td className="hidden max-w-[14rem] truncate px-3 py-2 text-muted lg:table-cell">
+                  <td
+                    className="whitespace-nowrap px-3 py-2 text-right tabular-nums"
+                    style={
+                      tx.kind === "income"
+                        ? { color: incomeAmountColor }
+                        : undefined
+                    }
+                  >
+                    {formatMinor(tx.amountMinor, currency)}
+                  </td>
+                  <td className="max-w-[14rem] truncate px-3 py-2 text-muted">
                     {truncateNote(tx.notes)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">

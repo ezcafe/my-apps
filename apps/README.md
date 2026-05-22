@@ -107,6 +107,10 @@ Shell navigation is registry-driven: edit [`lib/features/registry.ts`](lib/featu
 
 next-auth v5 with the Pocket ID OIDC provider. Configure `AUTH_POCKET_ID_*` and redirect URIs per the [Pocket ID OIDC docs](https://pocket-id.org/docs/guides/oidc-client-authentication). The login page is at `/login`.
 
+## External API (Postman / automation)
+
+Personal Bearer tokens (`mny_…`) for GraphQL and REST without a browser session. Create tokens under **Settings → API tokens**. See [`docs/API.md`](docs/API.md), [`docs/openapi.yaml`](docs/openapi.yaml), and `npm run api:export-schema` for Postman.
+
 ## Verification before merging
 
 - `npm run lint`

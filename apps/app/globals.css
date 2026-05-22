@@ -722,6 +722,30 @@ dialog::backdrop {
     align-items: start;
   }
 
+  /* Analytics chart cards: fixed block height; chart + legend share the box. */
+  .analytics-chart-container {
+    container-type: size;
+    container-name: chart;
+  }
+
+  /* Legend now sits to the left of the chart; width is driven by the grid
+     template column (20% of the chart container). */
+  .analytics-chart-legend-slot {
+    inline-size: 100%;
+  }
+
+  .analytics-chart-legend-slot .analytics-chart-legend {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.0625rem, 0.35cqh, 0.1875rem);
+    font-size: clamp(0.625rem, 2.75cqh, 0.75rem);
+    line-height: 1.25;
+  }
+
+  .analytics-chart-legend-slot .analytics-chart-legend button {
+    padding-block: clamp(0.0625rem, 0.3cqh, 0.125rem);
+  }
+
   /* Scoped preview: inherit token block without changing global html */
   .style-preview-scope[data-preview-style="linear"] {
     --radius: 0.5rem;
@@ -1075,5 +1099,71 @@ dialog::backdrop {
 
   .fx-vt-money-tab-active {
     view-transition-name: money-tab-active;
+  }
+
+  /* Chart mount animations */
+  .fx-chart-enter {
+    opacity: 1;
+    transform: translateY(0);
+    transition-property: opacity, transform;
+    transition-duration: 0.35s;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+
+    @starting-style {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fx-chart-enter {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+    }
+  }
+
+  @keyframes fx-chart-bar-grow {
+    from {
+      transform: scaleY(0);
+    }
+
+    to {
+      transform: scaleY(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .fx-chart-bar-grow {
+      transform-origin: bottom center;
+      transform-box: fill-box;
+      animation: fx-chart-bar-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+  }
+
+  @keyframes fx-chart-arc-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.88);
+    }
+
+    to {
+      opacity: 0.9;
+      transform: scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .fx-chart-arc-pop {
+      transform-origin: center;
+      transform-box: fill-box;
+      animation: fx-chart-arc-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .fx-chart-line-draw {
+      transition: stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    }
   }
 }

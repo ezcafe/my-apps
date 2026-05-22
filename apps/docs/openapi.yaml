@@ -1,0 +1,193 @@
+openapi: 3.1.0
+info:
+  title: Workspace app API
+  version: 1.0.0
+  description: REST endpoints for workspace and Money automation. GraphQL is at /api/graphql.
+servers:
+  - url: http://localhost:3000
+    description: Local development (set AUTH_URL)
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Personal API token (mny_…) or session is not used via OpenAPI; use Bearer for automation.
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+    ApiTokenListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        keyPrefix:
+          type: string
+        workspaceId:
+          type: string
+          format: uuid
+        appKey:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+            enum: [read, write]
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+paths:
+  /api/graphql:
+    post:
+      summary: Money GraphQL API
+      description: Primary API surface. See docs/money.graphql and docs/API.md.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                variables:
+                  type: object
+      responses:
+        "200":
+          description: GraphQL response
+  /api/workspace/list:
+    get:
+      summary: List workspaces for an app
+      parameters:
+        - name: app
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [money, notes, tasks]
+      responses:
+        "200":
+          description: Workspace list
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/tokens:
+    get:
+      summary: List API tokens (session only)
+      security: []
+      description: Requires browser session cookie, not Bearer token.
+      responses:
+        "200":
+          description: Token list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApiTokenListItem"
+    post:
+      summary: Create API token (session only)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, workspaceId]
+              properties:
+                name:
+                  type: string
+                workspaceId:
+                  type: string
+                  format: uuid
+                scopes:
+                  type: array
+                  items:
+                    type: string
+                    enum: [read, write]
+                expiresAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+      responses:
+        "201":
+          description: Token created; secret in data.token (shown once)
+  /api/tokens/{id}:
+    delete:
+      summary: Revoke API token (session only)
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Revoked
+        "404":
+          description: Not found
+  /api/money/import/preview:
+    post:
+      summary: Preview CSV import
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                file:
+                  type: string
+                  format: binary
+                columnMap:
+                  type: string
+      responses:
+        "200":
+          description: Preview payload
+  /api/money/import/commit:
+    post:
+      summary: Commit CSV import
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Import result
+  /api/money/import/abandon:
+    post:
+      summary: Abandon import preview
+      responses:
+        "204":
+          description: Discarded

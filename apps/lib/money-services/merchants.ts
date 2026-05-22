@@ -1,15 +1,32 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { moneyMerchant } from "@/db/schema/money";
+import { moneyMerchant, moneyTransaction } from "@/db/schema/money";
 import { merchantCreateSchema } from "@/lib/validators/money";
 import type { MoneyWorkspaceCtx } from "@/lib/money-services/types";
 
+const USAGE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+
 export async function listMoneyMerchants(workspaceId: string) {
+  const since = new Date(Date.now() - USAGE_WINDOW_MS);
   const rows = await db
-    .select()
+    .select({
+      ...getTableColumns(moneyMerchant),
+      usageCount: sql<number>`count(${moneyTransaction.id})::int`.as(
+        "usage_count",
+      ),
+    })
     .from(moneyMerchant)
+    .leftJoin(
+      moneyTransaction,
+      and(
+        eq(moneyTransaction.merchantId, moneyMerchant.id),
+        eq(moneyTransaction.workspaceId, workspaceId),
+        gte(moneyTransaction.occurredAt, since),
+      ),
+    )
     .where(eq(moneyMerchant.workspaceId, workspaceId))
-    .orderBy(asc(moneyMerchant.name));
+    .groupBy(moneyMerchant.id)
+    .orderBy(desc(sql`usage_count`), asc(moneyMerchant.name));
 
   return rows.map((r) => ({
     ...r,

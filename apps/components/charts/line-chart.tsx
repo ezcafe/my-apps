@@ -5,11 +5,17 @@ import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear, scalePoint } from "@visx/scale";
-import { useId, useMemo } from "react";
-import { chartExpenseHotPastel, colorByIndex } from "@/components/charts/chart-colors";
+import { useId, useLayoutEffect, useMemo, useRef } from "react";
+import {
+  chartExpenseColor,
+  chartIncomeColor,
+} from "@/components/charts/chart-income-expense-colors";
+import { ChartShell } from "@/components/charts/chart-shell";
+import type { ChartTooltipPayload } from "@/components/charts/use-chart-tooltip";
 import type { StylePreset } from "@/components/theme-provider";
 import { useTheme } from "@/components/theme-provider";
 import { useFormatDate } from "@/lib/format-date";
+import { prefersReducedMotion } from "@/lib/microinteractions";
 
 export type NetFlowPoint = {
   date: string;
@@ -37,14 +43,9 @@ function xTickIndices(length: number, maxTicks: number): number[] {
   return [...new Set(out)].sort((a, b) => a - b);
 }
 
-/** Full current calendar month (1 … last day) for month-compare x-axis. */
 function currentMonthDayDomain(): string[] {
   const now = new Date();
-  const lastDay = new Date(
-    now.getFullYear(),
-    now.getMonth() + 1,
-    0,
-  ).getDate();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   return Array.from({ length: lastDay }, (_, i) => String(i + 1));
 }
 
@@ -54,8 +55,16 @@ function netLineColor(
   stylePreset: StylePreset,
 ): string {
   const last = netValues[netValues.length - 1] ?? 0;
-  if (last < 0) return chartExpenseHotPastel(stylePreset, resolved);
-  return colorByIndex(resolved, 3, stylePreset);
+  if (last < 0) return chartExpenseColor(resolved, stylePreset);
+  return chartIncomeColor(resolved, stylePreset);
+}
+
+function pointerPayload(
+  e: React.PointerEvent,
+  label: string,
+  valueText: string,
+): ChartTooltipPayload {
+  return { label, valueText, clientX: e.clientX, clientY: e.clientY };
 }
 
 export function LineChart({
@@ -63,34 +72,58 @@ export function LineChart({
   comparison,
   xMode = "date",
   formatY,
+  formatXLabel,
+  hiddenSeries,
+  animate = true,
+  emptyMessage = "All series hidden — click legend to show",
 }: {
   data: NetFlowPoint[];
   comparison?: NetFlowComparison;
   xMode?: "date" | "dayOfMonth";
   formatY: (minor: number) => string;
+  formatXLabel?: (key: string) => string;
+  hiddenSeries?: Set<"primary" | "compare">;
+  animate?: boolean;
+  emptyMessage?: string;
 }) {
   const { resolved, style } = useTheme();
   const { formatChartDateTick } = useFormatDate();
+  const formatX = formatXLabel ?? formatChartDateTick;
   const clipId = useId().replace(/:/g, "");
+  const hidePrimary = hiddenSeries?.has("primary") ?? false;
+  const hideCompare = hiddenSeries?.has("compare") ?? false;
+  const allHidden =
+    (data.length > 0 || (comparison?.data.length ?? 0) > 0) &&
+    hidePrimary &&
+    (hideCompare || !comparison);
+
   return (
-    <ParentSize className="size-full min-h-0 min-w-0">
-      {({ width, height }) =>
-        width > 0 && height > 0 ? (
-          <LineInner
-            width={width}
-            height={height}
-            data={data}
-            comparison={comparison}
-            xMode={xMode}
-            formatY={formatY}
-            formatXTick={formatChartDateTick}
-            resolved={resolved}
-            stylePreset={style}
-            clipPathId={`analytics-line-clip-${clipId}`}
-          />
-        ) : null
-      }
-    </ParentSize>
+    <ChartShell isEmpty={allHidden} emptyMessage={emptyMessage}>
+      {(tooltipApi) => (
+        <ParentSize className="size-full min-h-0 min-w-0">
+          {({ width, height }) =>
+            width > 0 && height > 0 ? (
+              <LineInner
+                width={width}
+                height={height}
+                data={data}
+                comparison={comparison}
+                xMode={xMode}
+                formatY={formatY}
+                formatXTick={formatX}
+                resolved={resolved}
+                stylePreset={style}
+                clipPathId={`analytics-line-clip-${clipId}`}
+                hidePrimary={hidePrimary}
+                hideCompare={hideCompare}
+                animate={animate}
+                tooltipApi={tooltipApi}
+              />
+            ) : null
+          }
+        </ParentSize>
+      )}
+    </ChartShell>
   );
 }
 
@@ -105,6 +138,10 @@ function LineInner({
   resolved,
   stylePreset,
   clipPathId,
+  hidePrimary,
+  hideCompare,
+  animate,
+  tooltipApi,
 }: {
   width: number;
   height: number;
@@ -112,10 +149,18 @@ function LineInner({
   comparison?: NetFlowComparison;
   xMode: "date" | "dayOfMonth";
   formatY: (minor: number) => string;
-  formatXTick: (isoDate: string) => string;
+  formatXTick: (key: string) => string;
   resolved: "light" | "dark";
   stylePreset: StylePreset;
   clipPathId: string;
+  hidePrimary: boolean;
+  hideCompare: boolean;
+  animate?: boolean;
+  tooltipApi: {
+    showTooltip: (p: ChartTooltipPayload) => void;
+    moveTooltip: (p: ChartTooltipPayload) => void;
+    hideTooltip: () => void;
+  };
 }) {
   const yAxisLabelGutter = 52;
   const yAxisTitleOffset = 22;
@@ -124,7 +169,7 @@ function LineInner({
   const yTickLabelX = -labelBand + yAmountLabelsNudge;
   const marginLeftBase = Math.max(116, 28 + yAxisLabelGutter + yAxisTitleOffset);
   const margin = {
-    top: 28,
+    top: 16,
     right: 14,
     bottom: 56,
     left: marginLeftBase,
@@ -134,9 +179,7 @@ function LineInner({
   const yTotalLabelX = -margin.left + 20;
 
   const xDomain = useMemo(() => {
-    if (xMode === "dayOfMonth") {
-      return currentMonthDayDomain();
-    }
+    if (xMode === "dayOfMonth") return currentMonthDayDomain();
     const keys = new Set<string>();
     for (const p of data) keys.add(p.date);
     for (const p of comparison?.data ?? []) keys.add(p.date);
@@ -161,13 +204,17 @@ function LineInner({
   const allNetValues = useMemo(() => {
     const vals: number[] = [];
     for (const key of xDomain) {
-      const v = dataByKey.get(key);
-      if (v != null) vals.push(v);
-      const c = compareByKey.get(key);
-      if (c != null) vals.push(c);
+      if (!hidePrimary) {
+        const v = dataByKey.get(key);
+        if (v != null) vals.push(v);
+      }
+      if (!hideCompare) {
+        const c = compareByKey.get(key);
+        if (c != null) vals.push(c);
+      }
     }
     return vals;
-  }, [xDomain, dataByKey, compareByKey]);
+  }, [xDomain, dataByKey, compareByKey, hidePrimary, hideCompare]);
 
   const minY = Math.min(0, ...allNetValues);
   const maxY = Math.max(1, ...allNetValues);
@@ -177,19 +224,35 @@ function LineInner({
     nice: true,
   });
 
-  const primaryPoints = xDomain
-    .filter((key) => dataByKey.has(key))
-    .map((key) => ({
-      x: xScale(key) ?? 0,
-      y: yScale(dataByKey.get(key)!),
-    }));
+  const primaryPoints = useMemo(
+    () =>
+      hidePrimary
+        ? []
+        : xDomain
+            .filter((key) => dataByKey.has(key))
+            .map((key) => ({
+              key,
+              x: xScale(key) ?? 0,
+              y: yScale(dataByKey.get(key)!),
+              net: dataByKey.get(key)!,
+            })),
+    [hidePrimary, xDomain, dataByKey, xScale, yScale],
+  );
 
-  const comparePoints = xDomain
-    .filter((key) => compareByKey.has(key))
-    .map((key) => ({
-      x: xScale(key) ?? 0,
-      y: yScale(compareByKey.get(key)!),
-    }));
+  const comparePoints = useMemo(
+    () =>
+      hideCompare
+        ? []
+        : xDomain
+            .filter((key) => compareByKey.has(key))
+            .map((key) => ({
+              key,
+              x: xScale(key) ?? 0,
+              y: yScale(compareByKey.get(key)!),
+              net: compareByKey.get(key)!,
+            })),
+    [hideCompare, xDomain, compareByKey, xScale, yScale],
+  );
 
   const primaryColor = netLineColor(
     xDomain.filter((k) => dataByKey.has(k)).map((k) => dataByKey.get(k)!),
@@ -201,10 +264,39 @@ function LineInner({
   const yTicks = yScale.ticks(5);
   const xTicks = xTickIndices(xDomain.length, 6);
 
-  const legendCompareWidth = comparison
-    ? Math.min(200, 8 + comparison.label.length * 6.5)
-    : 0;
-  const legendPrimaryX = innerW - (comparison ? legendCompareWidth + 88 : 72);
+  const primaryPathRef = useRef<SVGPathElement | null>(null);
+  const comparePathRef = useRef<SVGPathElement | null>(null);
+
+  const reducedMotion = prefersReducedMotion();
+
+  useLayoutEffect(() => {
+    if (!animate || reducedMotion) return;
+    const runDraw = (el: SVGPathElement | null, isDashed: boolean) => {
+      if (!el) return;
+      const len = el.getTotalLength();
+      if (len <= 0) return;
+      el.style.strokeDasharray = isDashed ? `${len}` : `${len}`;
+      el.style.strokeDashoffset = `${len}`;
+      requestAnimationFrame(() => {
+        el.style.transition =
+          "stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)";
+        el.style.strokeDashoffset = "0";
+      });
+    };
+    if (!hidePrimary) runDraw(primaryPathRef.current, false);
+    if (!hideCompare) runDraw(comparePathRef.current, true);
+  }, [
+    animate,
+    reducedMotion,
+    hidePrimary,
+    hideCompare,
+    primaryPoints,
+    comparePoints,
+    width,
+    height,
+  ]);
+
+  const tickLabel = (key: string) => (xMode === "dayOfMonth" ? key : formatXTick(key));
 
   return (
     <svg
@@ -221,41 +313,6 @@ function LineInner({
             <rect x={0} y={0} width={innerW} height={innerH} />
           </clipPath>
         </defs>
-        <g fontSize={11} transform="translate(0, -14)">
-          <line
-            x1={legendPrimaryX}
-            y1={3}
-            x2={legendPrimaryX + 16}
-            y2={3}
-            stroke={primaryColor}
-            strokeWidth={2}
-          />
-          <text x={legendPrimaryX + 22} y={7} fill="currentColor">
-            This month
-          </text>
-          {comparison ? (
-            <>
-              <line
-                x1={innerW - legendCompareWidth}
-                y1={3}
-                x2={innerW - legendCompareWidth + 16}
-                y2={3}
-                stroke={compareColor}
-                strokeWidth={2}
-                strokeDasharray="4 3"
-                opacity={0.45}
-              />
-              <text
-                x={innerW - legendCompareWidth + 22}
-                y={7}
-                fill="currentColor"
-                opacity={0.75}
-              >
-                {comparison.label}
-              </text>
-            </>
-          ) : null}
-        </g>
         <Group clipPath={`url(#${clipPathId})`}>
           {yTicks.map((t, i) => (
             <line
@@ -281,6 +338,7 @@ function LineInner({
           ) : null}
           {comparison && comparePoints.length > 0 ? (
             <LinePath
+              innerRef={comparePathRef}
               data={comparePoints}
               x={(p) => p.x}
               y={(p) => p.y}
@@ -293,6 +351,7 @@ function LineInner({
           ) : null}
           {primaryPoints.length > 0 ? (
             <LinePath
+              innerRef={primaryPathRef}
               data={primaryPoints}
               x={(p) => p.x}
               y={(p) => p.y}
@@ -302,15 +361,68 @@ function LineInner({
               opacity={0.95}
             />
           ) : null}
-          {primaryPoints.map((p, i) => (
+          {comparePoints.map((p, i) => (
             <circle
-              key={`net-${i}`}
+              key={`cmp-${i}`}
               cx={p.x}
               cy={p.y}
-              r={2.25}
-              fill={primaryColor}
-              opacity={0.95}
+              r={8}
+              fill="transparent"
+              className="cursor-default"
+              onPointerEnter={(ev) =>
+                tooltipApi.showTooltip(
+                  pointerPayload(
+                    ev,
+                    comparison?.label
+                      ? `${tickLabel(p.key)} · ${comparison.label}`
+                      : tickLabel(p.key),
+                    formatY(p.net),
+                  ),
+                )
+              }
+              onPointerMove={(ev) =>
+                tooltipApi.moveTooltip(
+                  pointerPayload(
+                    ev,
+                    comparison?.label
+                      ? `${tickLabel(p.key)} · ${comparison.label}`
+                      : tickLabel(p.key),
+                    formatY(p.net),
+                  ),
+                )
+              }
+              onPointerLeave={() => tooltipApi.hideTooltip()}
             />
+          ))}
+          {primaryPoints.map((p, i) => (
+            <g key={`net-${i}`} className={animate ? "fx-chart-enter" : undefined}>
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r={8}
+                fill="transparent"
+                className="cursor-default"
+                onPointerEnter={(ev) =>
+                  tooltipApi.showTooltip(
+                    pointerPayload(ev, tickLabel(p.key), formatY(p.net)),
+                  )
+                }
+                onPointerMove={(ev) =>
+                  tooltipApi.moveTooltip(
+                    pointerPayload(ev, tickLabel(p.key), formatY(p.net)),
+                  )
+                }
+                onPointerLeave={() => tooltipApi.hideTooltip()}
+              />
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r={2.25}
+                fill={primaryColor}
+                opacity={0.95}
+                pointerEvents="none"
+              />
+            </g>
           ))}
         </Group>
 
@@ -351,8 +463,6 @@ function LineInner({
           if (key == null) return null;
           const x = xScale(key);
           if (x == null) return null;
-          const tickLabel =
-            xMode === "dayOfMonth" ? key : formatXTick(key);
           return (
             <g key={`xt-${key}`}>
               <line
@@ -369,7 +479,7 @@ function LineInner({
                 textAnchor="middle"
                 className="fill-muted text-[10px]"
               >
-                {tickLabel}
+                {tickLabel(key)}
               </text>
             </g>
           );

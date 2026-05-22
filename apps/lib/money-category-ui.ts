@@ -65,7 +65,7 @@ export function moneyCategoryLabel(
 ): string {
   if (!c.parentId) return c.name;
   const p = byId.get(c.parentId);
-  return p ? `${p.name} → ${c.name}` : c.name;
+  return p ? `${p.name}: ${c.name}` : c.name;
 }
 
 export function moneyRootCategories(categories: MoneyCategoryRow[]) {

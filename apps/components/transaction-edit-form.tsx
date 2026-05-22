@@ -3,12 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,7 +26,12 @@ import {
   moneyCategorySelectGroups,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
-import { minorToMajorInput, parseMajorToMinor } from "@/lib/format-money";
+import {
+  formatMinor,
+  getCurrencySymbol,
+  minorToMajorInput,
+  parseMajorToMinor,
+} from "@/lib/format-money";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
   MONEY_TRANSACTION_DELETE_MUTATION,
@@ -28,8 +39,14 @@ import {
   MONEY_TRANSACTION_UPDATE_MUTATION,
 } from "@/lib/money-gql-documents";
 
-type Account = { id: string; name: string; currency: string };
-type Merchant = { id: string; name: string };
+type Account = {
+  id: string;
+  name: string;
+  currency: string;
+  balanceMinor?: number;
+  usageCount?: number;
+};
+type Merchant = { id: string; name: string; usageCount?: number };
 type Tag = { id: string; name: string };
 
 type TxPayload = {
@@ -103,6 +120,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
   const [amountMajor, setAmountMajor] = useState("");
   const [occurredAt, setOccurredAt] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [categoryEmptyOnOther, setCategoryEmptyOnOther] = useState(false);
   const [merchantId, setMerchantId] = useState("");
   const [notes, setNotes] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -123,6 +141,63 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
   const categorySelectGroups = useMemo(
     () => moneyCategorySelectGroups(visibleCategories),
     [visibleCategories],
+  );
+  const accountQuickItems = useMemo(
+    () =>
+      accounts.map((a) => ({
+        id: a.id,
+        label: a.name,
+        usageCount: a.usageCount,
+      })),
+    [accounts],
+  );
+  const accountBalanceById = useMemo(
+    () => new Map(accounts.map((a) => [a.id, a.balanceMinor ?? 0] as const)),
+    [accounts],
+  );
+  const categoryQuickItems = useMemo(
+    () =>
+      visibleCategories.map((c) => ({
+        id: c.id,
+        label: moneyCategoryLabel(c, categoryById),
+        usageCount: c.usageCount,
+      })),
+    [visibleCategories, categoryById],
+  );
+  const categoryPickerItems = useMemo(() => {
+    const none = { id: "", label: "No category", isChild: false as const };
+    const fromGroups = categorySelectGroups.flatMap((g) =>
+      g.type === "single"
+        ? [
+            {
+              id: g.category.id,
+              label: moneyCategoryLabel(g.category, categoryById),
+              isChild: false as const,
+            },
+          ]
+        : [
+            {
+              id: g.parent.id,
+              label: `${g.parent.name} (all)`,
+              isChild: false as const,
+            },
+            ...g.children.map((c) => ({
+              id: c.id,
+              label: moneyCategoryLabel(c, categoryById),
+              isChild: true as const,
+            })),
+          ],
+    );
+    return [none, ...fromGroups];
+  }, [categorySelectGroups, categoryById]);
+  const merchantQuickItems = useMemo(
+    () =>
+      merchants.map((m) => ({
+        id: m.id,
+        label: m.name,
+        usageCount: m.usageCount,
+      })),
+    [merchants],
   );
   const toAccountOptions = useMemo(
     () => accounts.filter((a) => a.id !== accountId),
@@ -145,6 +220,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
     setPrevKind(kind);
     if (categoryId && !visibleCategories.some((c) => c.id === categoryId)) {
       setCategoryId("");
+      setCategoryEmptyOnOther(false);
     }
   }
 
@@ -178,6 +254,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
         setAmountMajor(minorToMajorInput(tx.amountMinor, defaultCurrency));
         setOccurredAt(isoToDatetimeLocal(tx.occurredAt));
         setCategoryId(tx.categoryId ?? "");
+        setCategoryEmptyOnOther(!tx.categoryId);
         setMerchantId(tx.merchantId ?? "");
         setNotes(tx.notes ?? "");
         setSelectedTagIds([...tx.tagIds]);
@@ -350,67 +427,41 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
           </fieldset>
 
           <Field label="Amount" required>
-            <Input
-              value={amountMajor}
-              onChange={(e) => setAmountMajor(e.target.value)}
-              inputMode="decimal"
-              placeholder={defaultCurrency === "VND" ? "25" : "24.99"}
-              required
-            />
+            <InputGroup>
+              <InputGroupAddon side="leading" aria-hidden>
+                {getCurrencySymbol(defaultCurrency)}
+              </InputGroupAddon>
+              <InputGroupInput
+                value={amountMajor}
+                onChange={(e) => setAmountMajor(e.target.value)}
+                inputMode="decimal"
+                placeholder={defaultCurrency === "VND" ? "25" : "24.99"}
+                required
+                aria-label="Amount"
+              />
+              <InputGroupAddon side="trailing" aria-hidden>
+                {defaultCurrency}
+              </InputGroupAddon>
+            </InputGroup>
           </Field>
 
-          <Field label="When">
-            <Input
-              type="datetime-local"
-              className={dateTimeLocalCls}
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-            />
-          </Field>
-
-          <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
-            <legend className="text-muted">
-              <span className="text-foreground" aria-hidden>
-                *
-              </span>{" "}
-              Account
-            </legend>
-            {accounts.length === 0 ? (
-              <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
-                No accounts yet. Add one in Settings.
-              </p>
-            ) : (
-              <div
-                className="grid min-w-0 gap-2"
-                style={{
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(min(100%, 13rem), 1fr))",
-                }}
-              >
-                {accounts.map((a) => (
-                  <label key={a.id} className="cursor-pointer">
-                    <input
-                      type="radio"
-                      name="edit-account-id"
-                      value={a.id}
-                      checked={accountId === a.id}
-                      onChange={() => setAccountId(a.id)}
-                      className="peer sr-only"
-                      required
-                    />
-                    <span className="flex min-h-14 flex-col rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-left transition-[border-color,box-shadow,transform] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
-                      <span className="text-sm font-medium text-foreground">
-                        {a.name}
-                      </span>
-                      <span className="text-xs text-muted">
-                        {defaultCurrency}
-                      </span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </fieldset>
+          <MoneyUsageQuickPick
+            legend="Account"
+            ariaLabel="Account"
+            required
+            className="[grid-column:1/-1]"
+            items={accountQuickItems}
+            selectedId={accountId}
+            onSelect={setAccountId}
+            otherLabel="Other account"
+            emptyMessage="No accounts yet. Add one in Settings."
+            renderPickerRow={(item) =>
+              formatMinor(
+                accountBalanceById.get(item.id) ?? 0,
+                defaultCurrency,
+              )
+            }
+          />
 
           {kind === "transfer" ? (
             <Field label="To Account" required className="[grid-column:1/-1]">
@@ -433,92 +484,42 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
               )}
             </Field>
           ) : (
-            <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
-              <legend className="text-muted">Category</legend>
-              <div
-                className="grid min-w-0 gap-2"
-                style={{
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
-                }}
-              >
-                <label className="cursor-pointer">
-                  <input
-                    type="radio"
-                    name="edit-category-id"
-                    value=""
-                    checked={categoryId === ""}
-                    onChange={() => setCategoryId("")}
-                    className="peer sr-only"
-                  />
-                  <span className="flex min-h-14 items-center rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-foreground transition-[border-color,box-shadow] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
-                    No category
-                  </span>
-                </label>
-                {categorySelectGroups.flatMap((g) =>
-                  g.type === "single"
-                    ? [
-                        <label key={g.category.id} className="cursor-pointer">
-                          <input
-                            type="radio"
-                            name="edit-category-id"
-                            value={g.category.id}
-                            checked={categoryId === g.category.id}
-                            onChange={() => setCategoryId(g.category.id)}
-                            className="peer sr-only"
-                          />
-                          <span className="flex min-h-14 items-center rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-foreground transition-[border-color,box-shadow] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
-                            {moneyCategoryLabel(g.category, categoryById)}
-                          </span>
-                        </label>,
-                      ]
-                    : [
-                        <label key={g.parent.id} className="cursor-pointer">
-                          <input
-                            type="radio"
-                            name="edit-category-id"
-                            value={g.parent.id}
-                            checked={categoryId === g.parent.id}
-                            onChange={() => setCategoryId(g.parent.id)}
-                            className="peer sr-only"
-                          />
-                          <span className="flex min-h-14 items-center rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-foreground transition-[border-color,box-shadow] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
-                            {g.parent.name}
-                          </span>
-                        </label>,
-                        ...g.children.map((c) => (
-                          <label key={c.id} className="cursor-pointer">
-                            <input
-                              type="radio"
-                              name="edit-category-id"
-                              value={c.id}
-                              checked={categoryId === c.id}
-                              onChange={() => setCategoryId(c.id)}
-                              className="peer sr-only"
-                            />
-                            <span className="flex min-h-14 items-center rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-foreground transition-[border-color,box-shadow] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
-                              {c.name}
-                            </span>
-                          </label>
-                        )),
-                      ],
-                )}
-              </div>
-            </fieldset>
+            <MoneyUsageQuickPick
+              legend="Category"
+              ariaLabel="Category"
+              className="[grid-column:1/-1]"
+              items={categoryQuickItems}
+              pickerItems={categoryPickerItems}
+              selectedId={categoryId}
+              onSelect={(id) => {
+                setCategoryId(id);
+                setCategoryEmptyOnOther(id === "");
+              }}
+              otherLabel="Other category"
+              emptyCountsAsOther
+              emptySelectedOnOther={categoryEmptyOnOther}
+              emptyMessage="No categories yet. Add one in Settings."
+            />
           )}
 
-          <Field label="Merchant">
-            <Select
-              value={merchantId}
-              onChange={(e) => setMerchantId(e.target.value)}
-            >
-              <option value="">—</option>
-              {merchants.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </Select>
+          <MoneyUsageQuickPick
+            legend="Merchant"
+            ariaLabel="Merchant"
+            items={merchantQuickItems}
+            selectedId={merchantId}
+            onSelect={setMerchantId}
+            otherLabel="Other merchant"
+            allowEmpty
+            emptyMessage="No merchants yet. Add one in Settings."
+          />
+
+          <Field label="When">
+            <Input
+              type="datetime-local"
+              className={dateTimeLocalCls}
+              value={occurredAt}
+              onChange={(e) => setOccurredAt(e.target.value)}
+            />
           </Field>
 
           <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">

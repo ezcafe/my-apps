@@ -1,61 +1,138 @@
 import type { WorkspaceAppKey } from "@/db/schema/workspace";
-import { auth } from "@/auth";
+import type { ApiTokenScope } from "@/db/schema/api-token";
 import {
-  assertWorkspaceMember,
-  parseWorkspaceAppKey,
-} from "@/lib/workspace-context";
-import { getWorkspaceIdForUser } from "@/lib/workspace";
+  hasWriteScope,
+  resolveMoneyWorkspaceId,
+  resolveRequestAuth,
+  verifyMoneyWorkspaceAccess,
+  type RequestAuthMethod,
+  type ResolvedRequestAuth,
+} from "@/lib/api-auth";
+import { isDbUnreachable } from "@/lib/db-errors";
+import { parseWorkspaceAppKey } from "@/lib/workspace-context";
 
 export type MoneyGraphQLContext = {
   responseHeaders: Headers;
+  request?: Request;
+  auth: ResolvedRequestAuth;
   userSub: string | null;
   workspaceId: string | null;
   /** User may browse authenticated routes without workspace binding until bootstrap resolves */
   workspaceMembershipVerified: boolean;
+  authMethod: RequestAuthMethod | null;
+  apiTokenId: string | null;
+  scopes: ApiTokenScope[] | null;
 };
 
 export async function createMoneyGraphQLContext(
   responseHeaders: Headers,
+  request?: Request,
 ): Promise<MoneyGraphQLContext> {
-  const session = await auth();
-  const userSub = session?.user?.id ?? null;
+  let auth: ResolvedRequestAuth;
+  try {
+    auth = await resolveRequestAuth(request);
+  } catch (e) {
+    if (isDbUnreachable(e)) {
+      return {
+        responseHeaders,
+        request,
+        auth: {
+          method: null,
+          userSub: null,
+          workspaceId: null,
+          apiTokenId: null,
+          scopes: null,
+        },
+        userSub: null,
+        workspaceId: null,
+        workspaceMembershipVerified: false,
+        authMethod: null,
+        apiTokenId: null,
+        scopes: null,
+      };
+    }
+    throw e;
+  }
+
+  const userSub = auth.userSub;
   if (!userSub) {
     return {
       responseHeaders,
+      request,
+      auth,
       userSub: null,
       workspaceId: null,
       workspaceMembershipVerified: false,
+      authMethod: null,
+      apiTokenId: null,
+      scopes: null,
     };
   }
 
   let workspaceId: string | null = null;
   try {
-    workspaceId = await getWorkspaceIdForUser(userSub);
-  } catch {
-    workspaceId = null;
+    workspaceId = await resolveMoneyWorkspaceId(auth);
+  } catch (e) {
+    if (isDbUnreachable(e)) {
+      return {
+        responseHeaders,
+        request,
+        auth,
+        userSub,
+        workspaceId: null,
+        workspaceMembershipVerified: false,
+        authMethod: auth.method,
+        apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
+        scopes: auth.method === "api_key" ? auth.scopes : null,
+      };
+    }
+    throw e;
   }
 
   if (!workspaceId) {
     return {
       responseHeaders,
+      request,
+      auth,
       userSub,
       workspaceId: null,
       workspaceMembershipVerified: false,
+      authMethod: auth.method,
+      apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
+      scopes: auth.method === "api_key" ? auth.scopes : null,
     };
   }
 
   let ok = false;
   try {
-    ok = await assertWorkspaceMember(userSub, workspaceId);
-  } catch {
-    ok = false;
+    ok = await verifyMoneyWorkspaceAccess(auth, workspaceId);
+  } catch (e) {
+    if (isDbUnreachable(e)) {
+      return {
+        responseHeaders,
+        request,
+        auth,
+        userSub,
+        workspaceId,
+        workspaceMembershipVerified: false,
+        authMethod: auth.method,
+        apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
+        scopes: auth.method === "api_key" ? auth.scopes : null,
+      };
+    }
+    throw e;
   }
 
   return {
     responseHeaders,
+    request,
+    auth,
     userSub,
     workspaceId,
     workspaceMembershipVerified: ok,
+    authMethod: auth.method,
+    apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
+    scopes: auth.method === "api_key" ? auth.scopes : null,
   };
 }
 
@@ -64,6 +141,12 @@ export function requireAuth(ctx: MoneyGraphQLContext): string {
     throw new Error("UNAUTHORIZED");
   }
   return ctx.userSub;
+}
+
+export function requireWriteScope(ctx: MoneyGraphQLContext): void {
+  if (!hasWriteScope(ctx.scopes)) {
+    throw new Error("FORBIDDEN");
+  }
 }
 
 export function requireMoneyWorkspace(ctx: MoneyGraphQLContext): {
@@ -77,10 +160,27 @@ export function requireMoneyWorkspace(ctx: MoneyGraphQLContext): {
   return { userSub, workspaceId: ctx.workspaceId };
 }
 
+export function requireMoneyWriteWorkspace(ctx: MoneyGraphQLContext): {
+  userSub: string;
+  workspaceId: string;
+} {
+  requireWriteScope(ctx);
+  return requireMoneyWorkspace(ctx);
+}
+
 export function parseMoneyAppKey(raw: string): WorkspaceAppKey {
   const app = parseWorkspaceAppKey(raw);
   if (!app || app !== "money") {
     throw new Error("BAD_REQUEST: app must be money");
   }
   return app;
+}
+
+/** Session-only: block API tokens from workspace-admin mutations. */
+export function requireSessionAuth(ctx: MoneyGraphQLContext): string {
+  const userSub = requireAuth(ctx);
+  if (ctx.authMethod === "api_key") {
+    throw new Error("FORBIDDEN");
+  }
+  return userSub;
 }

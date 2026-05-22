@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 type RouteCtx = { params: Promise<{ kind: string }> };
 
 export async function POST(req: Request, ctx: RouteCtx) {
-  const money = await requireMoneyContext();
+  const money = await requireMoneyContext(req, { requireWrite: true });
   if ("error" in money) return money.error;
 
   const { kind: kindParam } = await ctx.params;

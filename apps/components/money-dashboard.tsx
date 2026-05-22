@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
@@ -9,10 +10,19 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
-import { formatMinor, parseMajorToMinor } from "@/lib/format-money";
+import {
+  formatMinor,
+  getCurrencySymbol,
+  parseMajorToMinor,
+} from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
@@ -27,6 +37,7 @@ import {
   moneyCategorySelectGroups,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
+import { mostUsedPickId } from "@/lib/money-usage-quick-pick";
 import type { MoneyWorkspaceBootstrapData } from "@/lib/money-workspace-bootstrap-data";
 
 type Account = {
@@ -35,9 +46,10 @@ type Account = {
   currency: string;
   type: string;
   balanceMinor: number;
+  usageCount?: number;
 };
 type Category = MoneyCategoryRow;
-type Merchant = { id: string; name: string };
+type Merchant = { id: string; name: string; usageCount?: number };
 
 type WorkspaceRow = {
   id: string;
@@ -82,6 +94,49 @@ function dateToOccurredAt(date: string): string {
   return `${date}T00:00`;
 }
 
+function defaultAccountId(
+  accounts: readonly Account[],
+  selectedId: string,
+): string {
+  if (accounts.length === 0) return "";
+  if (selectedId && accounts.some((a) => a.id === selectedId)) return selectedId;
+  return mostUsedPickId(
+    accounts.map((a) => ({
+      id: a.id,
+      label: a.name,
+      usageCount: a.usageCount,
+    })),
+  );
+}
+
+function defaultCategoryPick(
+  allCategories: readonly Category[],
+  transactionKind: KindValue,
+  selectedId: string,
+  emptySelectedOnOther: boolean,
+): { id: string; emptyOnOther: boolean } {
+  if (transactionKind === "transfer") {
+    return { id: "", emptyOnOther: false };
+  }
+  const visible = categoriesOfKind(allCategories, transactionKind);
+  if (selectedId && visible.some((c) => c.id === selectedId)) {
+    return { id: selectedId, emptyOnOther: emptySelectedOnOther };
+  }
+  if (emptySelectedOnOther && selectedId === "") {
+    return { id: "", emptyOnOther: true };
+  }
+  return {
+    id: mostUsedPickId(
+      visible.map((c) => ({
+        id: c.id,
+        label: c.name,
+        usageCount: c.usageCount,
+      })),
+    ),
+    emptyOnOther: false,
+  };
+}
+
 export function MoneyDashboard() {
   const { data: session } = useSession();
   const userSub = session?.user?.id;
@@ -107,9 +162,9 @@ export function MoneyDashboard() {
   const [customDate, setCustomDate] = useState<string>("");
   const customDateInputRef = useRef<HTMLInputElement>(null);
   const [categoryId, setCategoryId] = useState("");
-  const [categoryQuery, setCategoryQuery] = useState("No category");
-  const [categoryFilterQuery, setCategoryFilterQuery] = useState("");
-  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [categoryEmptyOnOther, setCategoryEmptyOnOther] = useState(false);
+  const categoryEmptyOnOtherRef = useRef(categoryEmptyOnOther);
+  categoryEmptyOnOtherRef.current = categoryEmptyOnOther;
   const [merchantId, setMerchantId] = useState("");
   const [notes, setNotes] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -147,7 +202,7 @@ export function MoneyDashboard() {
           },
           ...group.children.map((child) => ({
             id: child.id,
-            label: child.name,
+            label: moneyCategoryLabel(child, categoryById),
             isChild: true,
           })),
         ],
@@ -174,18 +229,46 @@ export function MoneyDashboard() {
     () => categoryGroups.flatMap((group) => group.options),
     [categoryGroups],
   );
-  const selectedCategoryLabel = useMemo(
-    () => categoryOptions.find((option) => option.id === categoryId)?.label ?? "",
-    [categoryOptions, categoryId],
+  const accountQuickItems = useMemo(
+    () =>
+      accounts.map((a) => ({
+        id: a.id,
+        label: a.name,
+        usageCount: a.usageCount,
+      })),
+    [accounts],
   );
-  const filteredCategoryOptions = useMemo(() => {
-    const query = categoryFilterQuery.trim().toLowerCase();
-    const flat = categoryGroups.flatMap((group) => group.options);
-    if (!query) return flat;
-    return flat.filter((option) =>
-      option.label.toLowerCase().includes(query),
-    );
-  }, [categoryGroups, categoryFilterQuery]);
+  const accountBalanceById = useMemo(
+    () => new Map(accounts.map((a) => [a.id, a.balanceMinor] as const)),
+    [accounts],
+  );
+  const categoryQuickItems = useMemo(
+    () =>
+      visibleCategories.map((c) => ({
+        id: c.id,
+        label: moneyCategoryLabel(c, categoryById),
+        usageCount: c.usageCount,
+      })),
+    [visibleCategories, categoryById],
+  );
+  const categoryPickerItems = useMemo(
+    () =>
+      categoryOptions.map((option) => ({
+        id: option.id,
+        label: option.label,
+        isChild: option.isChild,
+      })),
+    [categoryOptions],
+  );
+  const merchantQuickItems = useMemo(
+    () =>
+      merchants.map((m) => ({
+        id: m.id,
+        label: m.name,
+        usageCount: m.usageCount,
+      })),
+    [merchants],
+  );
   const toAccountOptions = useMemo(
     () => accounts.filter((a) => a.id !== accountId),
     [accounts, accountId],
@@ -236,17 +319,20 @@ export function MoneyDashboard() {
     }
 
     setAccounts(ledgerBoot.accounts);
-    setAccountId((prev) => {
-      const data = ledgerBoot.accounts;
-      if (data.length === 0) return "";
-      const ok = data.some((a) => a.id === prev);
-      if (ok) return prev;
-      const firstCredit = data.find((a) => a.type === "credit");
-      return firstCredit?.id ?? data[0].id;
-    });
+    setAccountId((prev) => defaultAccountId(ledgerBoot.accounts, prev));
     setCategories(ledgerBoot.categories);
+    setCategoryId((prevId) => {
+      const pick = defaultCategoryPick(
+        ledgerBoot.categories,
+        kind,
+        prevId,
+        categoryEmptyOnOtherRef.current,
+      );
+      setCategoryEmptyOnOther(pick.emptyOnOther);
+      return pick.id;
+    });
     setMerchants(ledgerBoot.merchants);
-  }, [refreshWorkspaceCurrency]);
+  }, [kind, refreshWorkspaceCurrency]);
 
   useEffect(() => {
     let cancelled = false;
@@ -267,24 +353,23 @@ export function MoneyDashboard() {
     };
   }, [fetchBootstrapAndSync]);
 
-  const [prevSelectedCategoryLabel, setPrevSelectedCategoryLabel] = useState(
-    selectedCategoryLabel,
-  );
-  if (selectedCategoryLabel !== prevSelectedCategoryLabel) {
-    // React docs pattern for resetting state when a derived value changes:
-    // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
-    setPrevSelectedCategoryLabel(selectedCategoryLabel);
-    setCategoryQuery(selectedCategoryLabel);
-    setCategoryFilterQuery("");
-  }
-
   const [prevKind, setPrevKind] = useState(kind);
   if (kind !== prevKind) {
     setPrevKind(kind);
-    if (categoryId && !visibleCategories.some((c) => c.id === categoryId)) {
+    if (kind === "transfer") {
       setCategoryId("");
-      setCategoryQuery("No category");
-      setCategoryFilterQuery("");
+      setCategoryEmptyOnOther(false);
+    } else {
+      setCategoryId((prevId) => {
+        const pick = defaultCategoryPick(
+          categories,
+          kind,
+          prevId,
+          categoryEmptyOnOtherRef.current,
+        );
+        setCategoryEmptyOnOther(pick.emptyOnOther);
+        return pick.id;
+      });
     }
   }
 
@@ -490,15 +575,94 @@ export function MoneyDashboard() {
           ) : null}
 
           <Field label="Amount" required>
-            <Input
-              value={amountMajor}
-              onChange={(e) => setAmountMajor(e.target.value)}
-              inputMode="decimal"
-              placeholder={defaultCurrency === "VND" ? "25" : "24.99"}
-              autoFocus
-              required
-            />
+            <InputGroup>
+              <InputGroupAddon side="leading" aria-hidden>
+                {getCurrencySymbol(defaultCurrency)}
+              </InputGroupAddon>
+              <InputGroupInput
+                value={amountMajor}
+                onChange={(e) => setAmountMajor(e.target.value)}
+                inputMode="decimal"
+                placeholder={defaultCurrency === "VND" ? "25" : "24.99"}
+                autoFocus
+                required
+                aria-label="Amount"
+              />
+              <InputGroupAddon side="trailing" aria-hidden>
+                {defaultCurrency}
+              </InputGroupAddon>
+            </InputGroup>
           </Field>
+
+          <MoneyUsageQuickPick
+            legend="Account"
+            ariaLabel="Account"
+            required
+            className="[grid-column:1/-1]"
+            items={accountQuickItems}
+            selectedId={accountId}
+            onSelect={setAccountId}
+            otherLabel="Other account"
+            emptyMessage="No accounts yet. Add one in Settings."
+            renderPickerRow={(item) =>
+              formatMinor(
+                accountBalanceById.get(item.id) ?? 0,
+                defaultCurrency,
+              )
+            }
+          />
+
+          {kind === "transfer" ? (
+            <Field label="To Account" required className="[grid-column:1/-1]">
+              {toAccountOptions.length === 0 ? (
+                <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
+                  Add another account to create transfers.
+                </p>
+              ) : (
+                <Select
+                  value={effectiveToAccountId}
+                  onChange={(e) => setToAccountId(e.target.value)}
+                  required
+                >
+                  {toAccountOptions.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} · {formatMinor(a.balanceMinor, defaultCurrency)}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          ) : null}
+
+          {kind !== "transfer" ? (
+            <MoneyUsageQuickPick
+              legend="Category"
+              ariaLabel="Category"
+              className="[grid-column:1/-1]"
+              items={categoryQuickItems}
+              pickerItems={categoryPickerItems}
+              selectedId={categoryId}
+              onSelect={(id) => {
+                setCategoryId(id);
+                setCategoryEmptyOnOther(id === "");
+              }}
+              otherLabel="Other category"
+              emptyCountsAsOther
+              emptySelectedOnOther={categoryEmptyOnOther}
+              emptyMessage="No categories yet. Add one in Settings."
+            />
+          ) : null}
+
+          <MoneyUsageQuickPick
+            legend="Merchant"
+            ariaLabel="Merchant"
+            items={merchantQuickItems}
+            selectedId={merchantId}
+            onSelect={setMerchantId}
+            otherLabel="Other merchant"
+            allowEmpty
+            emptyMessage="No merchants yet. Add one in Settings."
+          />
 
           <fieldset className="grid min-w-0 gap-1.5 text-sm">
             <legend className="text-muted">When</legend>
@@ -543,160 +707,6 @@ export function MoneyDashboard() {
               tabIndex={-1}
             />
           </fieldset>
-
-          <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
-            <legend className="text-muted">
-              <span className="text-foreground" aria-hidden>
-                *
-              </span>{" "}
-              Account
-            </legend>
-            {accounts.length === 0 ? (
-              <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
-                No accounts yet. Add one in Settings.
-              </p>
-            ) : (
-              <div
-                className="grid min-w-0 gap-2"
-                style={{
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(min(100%, 13rem), 1fr))",
-                }}
-              >
-                {accounts.map((a) => (
-                  <label key={a.id} className="cursor-pointer">
-                    <input
-                      type="radio"
-                      name="account-id"
-                      value={a.id}
-                      checked={accountId === a.id}
-                      onChange={() => setAccountId(a.id)}
-                      className="peer sr-only"
-                      required
-                    />
-                    <span className="flex min-h-14 flex-col rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-left transition-[border-color,box-shadow,transform] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
-                      <span className="text-sm font-medium text-foreground">
-                        {a.name}
-                      </span>
-                      <span className="text-xs text-muted">
-                        {formatMinor(a.balanceMinor, defaultCurrency)}
-                      </span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </fieldset>
-
-          {kind === "transfer" ? (
-            <Field label="To Account" required className="[grid-column:1/-1]">
-              {toAccountOptions.length === 0 ? (
-                <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
-                  Add another account to create transfers.
-                </p>
-              ) : (
-                <Select
-                  value={effectiveToAccountId}
-                  onChange={(e) => setToAccountId(e.target.value)}
-                  required
-                >
-                  {toAccountOptions.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} · {formatMinor(a.balanceMinor, defaultCurrency)}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-          ) : null}
-
-          {kind !== "transfer" ? (
-            <Field label="Category" className="relative [grid-column:1/-1]">
-              <div className="relative">
-                <Input
-                  type="text"
-                  value={categoryQuery}
-                  onFocus={() => {
-                    setCategoryFilterQuery("");
-                    setCategoryMenuOpen(true);
-                  }}
-                  onChange={(e) => {
-                    const nextQuery = e.target.value;
-                    setCategoryQuery(nextQuery);
-                    setCategoryFilterQuery(nextQuery);
-                    setCategoryMenuOpen(true);
-                  }}
-                  onBlur={() => {
-                    queueMicrotask(() => {
-                      setCategoryMenuOpen(false);
-                      setCategoryQuery(selectedCategoryLabel);
-                      setCategoryFilterQuery("");
-                    });
-                  }}
-                  placeholder="Search category"
-                  role="combobox"
-                  aria-expanded={categoryMenuOpen}
-                  aria-controls="category-combobox-options"
-                  aria-autocomplete="list"
-                />
-                {categoryMenuOpen ? (
-                  <ul
-                    id="category-combobox-options"
-                    role="listbox"
-                    className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-[var(--radius-md)] border border-border bg-surface p-1 shadow-[var(--shadow-md)] fx-fade-in"
-                  >
-                    {filteredCategoryOptions.length === 0 ? (
-                      <li className="px-3 py-2 text-sm text-muted">
-                        No matches
-                      </li>
-                    ) : (
-                      filteredCategoryOptions.map((option) => (
-                        <li
-                          key={option.id === "" ? "none" : option.id}
-                          role="option"
-                          aria-selected={categoryId === option.id}
-                        >
-                          <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setCategoryId(option.id);
-                              setCategoryQuery(option.label);
-                              setCategoryFilterQuery("");
-                              setCategoryMenuOpen(false);
-                            }}
-                            className={cn(
-                              "flex w-full items-center rounded-[var(--radius-sm)] py-2 pr-3 text-left text-sm transition-colors duration-150",
-                              option.isChild ? "pl-8" : "pl-3",
-                              categoryId === option.id
-                                ? "bg-accent text-accent-foreground"
-                                : "text-foreground hover:bg-muted-surface",
-                            )}
-                          >
-                            {option.label}
-                          </button>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                ) : null}
-              </div>
-            </Field>
-          ) : null}
-
-          <Field label="Merchant">
-            <Select
-              value={merchantId}
-              onChange={(e) => setMerchantId(e.target.value)}
-            >
-              <option value="">—</option>
-              {merchants.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
 
           <Field
             label="Tags"
