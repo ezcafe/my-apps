@@ -43,7 +43,7 @@ export function SettingsSection({
 }: {
   id: string;
   title: string;
-  description?: string;
+  description?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -55,7 +55,7 @@ export function SettingsSection({
         <h2 className="font-display text-base font-semibold leading-6 text-foreground">
           {title}
         </h2>
-        {description ? (
+        {description != null && description !== "" ? (
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
             {description}
           </p>

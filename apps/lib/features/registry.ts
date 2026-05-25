@@ -1,7 +1,7 @@
 import type { WorkspaceAppKey } from "@/db/schema/workspace";
 
 /** Icons resolved in the shell (`app-shell.tsx`) to avoid bundling React components into shared server modules. */
-export type ShellNavIconId = "home" | "money" | "settings";
+export type ShellNavIconId = "home" | "money" | "help" | "settings";
 
 /** Routes that are not tied to a `WorkspaceAppKey` (marketing, account, theme). */
 export type CoreShellNavItem = {
@@ -53,6 +53,15 @@ const shellNavItemsSource: ShellNavItem[] = [
     order: 10,
     workspaceAppKey: "money",
     icon: "money",
+  },
+  {
+    kind: "core",
+    id: "help",
+    label: "Help",
+    href: "/help",
+    order: 15,
+    icon: "help",
+    activeMatch: "prefix",
   },
   {
     kind: "core",

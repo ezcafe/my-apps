@@ -14,6 +14,8 @@ export async function proxy(request: Request, event: NextFetchEvent) {
 
 export const config = {
   matcher: [
+    "/help",
+    "/help/:path*",
     "/settings/:path*",
     "/analytics/:path*",
     "/money",

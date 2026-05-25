@@ -7,27 +7,11 @@ import { cn } from "@/lib/cn";
 import { dateFormatPreview } from "@/lib/format-date";
 import { withViewTransition } from "@/lib/microinteractions";
 
-const OPTIONS: { id: DateFormat; label: string; description: string }[] = [
-  {
-    id: "locale",
-    label: "System",
-    description: "Follow your browser locale",
-  },
-  {
-    id: "mdy",
-    label: "US",
-    description: "Month / day / year",
-  },
-  {
-    id: "dmy",
-    label: "European",
-    description: "Day / month / year",
-  },
-  {
-    id: "ymd",
-    label: "ISO",
-    description: "Year-month-day",
-  },
+const OPTIONS: { id: DateFormat; label: string }[] = [
+  { id: "locale", label: "System" },
+  { id: "mdy", label: "US" },
+  { id: "dmy", label: "EU" },
+  { id: "ymd", label: "ISO" },
 ];
 
 export function DateFormatSettings({ embedded }: { embedded?: boolean }) {
@@ -57,10 +41,7 @@ export function DateFormatSettings({ embedded }: { embedded?: boolean }) {
       <div
         role="radiogroup"
         aria-label="Date format"
-        className="grid gap-2"
-        style={{
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
-        }}
+        className="inline-flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1 shadow-[var(--shadow-sm)]"
       >
         {OPTIONS.map((opt) => {
           const active = dateFormat === opt.id;
@@ -70,26 +51,26 @@ export function DateFormatSettings({ embedded }: { embedded?: boolean }) {
               type="button"
               role="radio"
               aria-checked={active}
+              aria-label={`${opt.label}, example ${dateFormatPreview(opt.id)}`}
               onClick={() => pick(opt.id)}
               className={cn(
-                "rounded-[var(--radius-md)] border border-border bg-background p-3 text-left transition-[background-color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
-                active &&
-                  "border-ring shadow-[0_0_0_1px_var(--ring)] ring-2 ring-ring/30 ring-offset-2 ring-offset-background",
+                "min-w-16 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
+                active
+                  ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
+                  : "text-muted hover:bg-muted-surface hover:text-foreground",
               )}
             >
-              <span className="block text-sm font-medium text-foreground">
-                {opt.label}
-              </span>
-              <span className="mt-0.5 block text-xs text-muted">
-                {opt.description}
-              </span>
-              <span className="mt-2 block font-mono text-xs text-foreground">
-                {dateFormatPreview(opt.id)}
-              </span>
+              {opt.label}
             </button>
           );
         })}
       </div>
+      <p className="text-xs text-muted">
+        Example:{" "}
+        <span className="font-mono text-foreground">
+          {dateFormatPreview(dateFormat)}
+        </span>
+      </p>
     </>
   );
 

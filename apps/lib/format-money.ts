@@ -25,7 +25,9 @@ export function getCurrencyFractionDigits(currency: string): number {
 export function formatMinor(minor: number, currency = "USD") {
   const code = currency.toUpperCase();
   const fractionDigits = getCurrencyFractionDigits(currency);
-  const major = minor / 100;
+  const scale = 10 ** fractionDigits;
+  const major = minor / scale;
+  let output: string;
 
   if (code === "VND") {
     try {
@@ -33,34 +35,39 @@ export function formatMinor(minor: number, currency = "USD") {
         minimumFractionDigits: fractionDigits,
         maximumFractionDigits: fractionDigits,
       }).format(major);
-      return `${num}${VND_SYMBOL}`;
+      output = `${num}${VND_SYMBOL}`;
     } catch {
-      return `${major.toFixed(fractionDigits)}${VND_SYMBOL}`;
+      output = `${major.toFixed(fractionDigits)}${VND_SYMBOL}`;
+    }
+  } else {
+    try {
+      output = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: code,
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
+      }).format(major);
+    } catch {
+      const num = major.toFixed(fractionDigits);
+      output = `${code} ${num}`;
     }
   }
 
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: code,
-      minimumFractionDigits: fractionDigits,
-      maximumFractionDigits: fractionDigits,
-    }).format(major);
-  } catch {
-    const num = major.toFixed(fractionDigits);
-    return `${code} ${num}`;
-  }
+  return output;
 }
 
 export function parseMajorToMinor(value: string, currency = "USD"): number | null {
   const fractionDigits = getCurrencyFractionDigits(currency);
+  const scale = 10 ** fractionDigits;
   const n = Number.parseFloat(value.replace(/,/g, ""));
   if (Number.isNaN(n)) return null;
-  if (fractionDigits === 0) return Math.round(n) * 100;
-  return Math.round(n * 100);
+  const minor = Math.round(n * scale);
+  return minor;
 }
 
 export function minorToMajorInput(minor: number, currency = "USD"): string {
   const fractionDigits = getCurrencyFractionDigits(currency);
-  return (minor / 100).toFixed(fractionDigits);
+  const scale = 10 ** fractionDigits;
+  const output = (minor / scale).toFixed(fractionDigits);
+  return output;
 }

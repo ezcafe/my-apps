@@ -1,5 +1,7 @@
 # HTTP API for automation and Postman
 
+In-app tutorial: sign in and open **Help** (`/help`). When the API surface changes, update this file and [`lib/api-help-content.ts`](../lib/api-help-content.ts) together.
+
 The workspace app exposes **GraphQL** (primary) and **REST** endpoints. The web UI uses session cookies; external clients use **personal API tokens**.
 
 ## Base URL

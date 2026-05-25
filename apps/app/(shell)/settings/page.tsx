@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "@/auth";
 import { listApiTokensForUser } from "@/lib/api-token-service";
 import { fetchWorkspacesForUser } from "@/lib/money-workspace-bootstrap-data";
@@ -30,43 +31,26 @@ export default async function SettingsPage() {
             title="Account"
             description="Profile comes from your Pocket ID OIDC claims."
           >
-            <ul
-              role="list"
-              className="divide-y divide-border border-t border-border"
-            >
-              <li className="py-6">
-                <div className="flex flex-col gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium leading-6 text-foreground">
-                      Signed-in identity
-                    </p>
-                    <p className="mt-1 text-sm leading-6 text-muted">
-                      Subject, email, and display name from your IdP session.
-                    </p>
-                  </div>
-                  <dl className="space-y-4 text-sm">
-                    <div>
-                      <dt className="text-muted">Subject</dt>
-                      <dd className="mt-1 font-mono text-xs break-all text-foreground">
-                        {session?.user?.id}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted">Email</dt>
-                      <dd className="mt-1 text-foreground">
-                        {session?.user?.email ?? "—"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted">Name</dt>
-                      <dd className="mt-1 text-foreground">
-                        {session?.user?.name ?? "—"}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              </li>
-            </ul>
+            <dl className="divide-y divide-border rounded-[var(--radius-md)] border border-border bg-background text-sm shadow-[var(--shadow-sm)]">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 py-3">
+                <dt className="text-muted">Name</dt>
+                <dd className="min-w-0 font-medium text-foreground">
+                  {session?.user?.name ?? "—"}
+                </dd>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 py-3">
+                <dt className="text-muted">Email</dt>
+                <dd className="min-w-0 text-foreground">
+                  {session?.user?.email ?? "—"}
+                </dd>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 py-3">
+                <dt className="text-muted">Subject</dt>
+                <dd className="min-w-0 max-w-full font-mono text-xs break-all text-foreground">
+                  {session?.user?.id ?? "—"}
+                </dd>
+              </div>
+            </dl>
           </SettingsSection>
 
           <SettingsSection
@@ -96,7 +80,18 @@ export default async function SettingsPage() {
           <SettingsSection
             id="settings-api-tokens"
             title="API tokens"
-            description="Bearer tokens for Postman, scripts, and automation."
+            description={
+              <>
+                Bearer tokens for Postman, scripts, and automation.{" "}
+                <Link
+                  href="/help"
+                  className="font-medium text-accent underline-offset-4 hover:underline"
+                >
+                  API tutorial
+                </Link>{" "}
+                on the Help page.
+              </>
+            }
           >
             <ApiTokenSettings
               embedded
