@@ -61,8 +61,8 @@ const CHART_CARD_HEIGHT_TALL = "h-[360px] min-h-[360px] max-h-[360px]";
 const CHART_CARD_MIN_HEIGHT_HALF_PX = 280;
 /** Applied to the Card around any chart so its rows lay out vertically. */
 const CHART_CARD_LAYOUT = "flex flex-col";
-/** Fills the chart plot slot inside AnalyticsChartContainer. */
-const CHART_SLOT_CLASS = "h-full min-h-0 overflow-y-auto";
+/** Fills the chart plot slot inside AnalyticsChartContainer for non-scrollable empty states. */
+const CHART_SLOT_CLASS = "h-full min-h-0 overflow-hidden";
 
 function AnalyticsChartContainer({
   className,
