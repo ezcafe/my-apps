@@ -10,6 +10,43 @@ services:
     # postgres:18+ — mount parent dir only (see https://github.com/docker-library/postgres/pull/1259).
     volumes:
       - money_pg_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  migrate:
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: postgresql://money:money@db:5432/money
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://money:money@db:5432/money
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      AUTH_SECRET: ${AUTH_SECRET:-local-dev-auth-secret-change-me}
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+      AUTH_POCKET_ID_ISSUER: ${AUTH_POCKET_ID_ISSUER:-https://id.example.com}
+      AUTH_POCKET_ID_ID: ${AUTH_POCKET_ID_ID:-}
+      AUTH_POCKET_ID_SECRET: ${AUTH_POCKET_ID_SECRET:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   money_pg_data:

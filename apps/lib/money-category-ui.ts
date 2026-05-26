@@ -10,7 +10,7 @@ export type MoneyCategoryRow = {
 };
 
 export function categoriesOfKind<T extends { kind: MoneyCategoryKind }>(
-  rows: T[],
+  rows: readonly T[],
   kind: MoneyCategoryKind,
 ): T[] {
   return rows.filter((c) => c.kind === kind);

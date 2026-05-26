@@ -413,7 +413,7 @@ function HelpSectionBody({
       ) : null}
 
       {section.graphqlQueries?.map((example) => (
-        <HelpGraphqlQueryExample
+        <HelpGraphqlExample
           key={example.id}
           example={example}
           baseUrl={baseUrl}

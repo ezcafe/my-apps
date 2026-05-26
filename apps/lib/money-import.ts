@@ -408,6 +408,9 @@ async function importTransactions(
       txKind = catRow.kind;
     }
     if (r.categoryId) {
+      if (txKind === "transfer") {
+        throw new Error("Transfer transactions cannot reference a category");
+      }
       await assertCategoriesKindMatchTx(
         tx,
         ctx.workspaceId,

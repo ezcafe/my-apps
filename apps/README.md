@@ -33,6 +33,32 @@ npm run dev:turbo
 
 Open <http://localhost:3000>.
 
+## Docker (production-style)
+
+Use Docker Compose when you want the Next.js app and PostgreSQL to run together as containers with a smaller runtime image.
+
+```bash
+cp .env.example .env
+# set AUTH_SECRET at minimum
+# fill AUTH_POCKET_ID_* when you want the real login flow to work
+
+docker compose up --build
+```
+
+What Compose does:
+
+- Starts `db` on port `5432`
+- Runs a one-shot `migrate` service with checked-in Drizzle migrations
+- Starts the production Next.js container on port `3000` only after migrations succeed
+
+Docker-specific notes:
+
+- The app container uses `DATABASE_URL=postgresql://money:money@db:5432/money`, so the hostname is `db`, not `localhost`.
+- The runtime image is built from Next.js standalone output, so it only copies the files needed to serve the app.
+- The Docker build uses `next build --webpack` for production-image stability on Next.js 16, while local development can keep using Turbopack.
+- If `AUTH_POCKET_ID_*` is unset, the app can still boot, but Pocket ID login will not work until those values are configured.
+- Override `NEXT_PUBLIC_APP_URL` if the app is served from anything other than `http://localhost:3000`.
+
 ## Scripts
 
 | Script | Purpose |

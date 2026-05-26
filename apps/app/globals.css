@@ -8,6 +8,10 @@
   Default preset (SSR / no JS): linear — matches FOUC script + ThemeProvider.
 */
 
+:root {
+  --font-geist-sans: ui-sans-serif;
+}
+
 /* ---- Linear / Vercel ---- */
 :root[data-style="linear"],
 :root:not([data-style]) {
