@@ -16,6 +16,10 @@ import {
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  MoneyAnalyticsChartsSkeleton,
+  MoneyAnalyticsPageSkeleton,
+} from "@/components/money-analytics-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
@@ -192,7 +196,7 @@ function DeferredChartLoading({ ariaLabel }: { ariaLabel: string }) {
   );
 }
 
-function AnalyticsDashboardSkeleton() {
+export function AnalyticsDashboardSkeleton() {
   return (
     <div
       className="grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3"
@@ -217,7 +221,7 @@ function AnalyticsDashboardSkeleton() {
   );
 }
 
-function AnalyticsChartsSkeleton() {
+export function AnalyticsChartsSkeleton() {
   return (
     <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3">
       <Skeleton className="col-span-2 h-24 md:col-span-6 lg:col-span-12" />
@@ -1157,7 +1161,7 @@ function AnalyticsDashboardLoaded() {
           </div>
         ) : null}
 
-        <Suspense fallback={<AnalyticsChartsSkeleton />}>
+        <Suspense fallback={<MoneyAnalyticsChartsSkeleton />}>
           <AnalyticsChartsShell
             applied={applied}
             workspaceKey={activeWorkspaceId}
@@ -1204,7 +1208,7 @@ function AnalyticsDashboardLoaded() {
 
 export function AnalyticsDashboard() {
   return (
-    <Suspense fallback={<AnalyticsDashboardSkeleton />}>
+    <Suspense fallback={<MoneyAnalyticsPageSkeleton />}>
       <AnalyticsDashboardLoaded />
     </Suspense>
   );
