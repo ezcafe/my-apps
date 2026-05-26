@@ -18,8 +18,8 @@ Multi-feature Next.js workspace built around a small **shell** and a **Money** f
 cp .env.example .env
 # fill in AUTH_SECRET, AUTH_POCKET_ID_*, AUTH_URL
 
-# bring up Postgres 18 (or point DATABASE_URL elsewhere)
-docker compose up -d db
+# bring up Postgres 18 for local dev (or point DATABASE_URL elsewhere)
+docker compose -f docker-compose-db.yml up -d
 
 # install + apply schema
 npm install
@@ -33,9 +33,32 @@ npm run dev:turbo
 
 Open <http://localhost:3000>.
 
+## Docker (local development DB only)
+
+Use `docker-compose-db.yml` when you only want the local PostgreSQL 18 database for development. The Next.js app still runs directly on your machine with `npm run dev` or `npm run dev:turbo`.
+
+```bash
+cp .env.example .env
+# optionally override DATABASE_URL if you are not using the default local DB
+
+docker compose -f docker-compose-db.yml up -d
+```
+
+What this file does:
+
+- Starts `db` on port `5432`
+- Persists data in the named Docker volume `money_pg_data`
+- Exposes the default dev database at `postgresql://money:money@localhost:5432/money`
+
+Docker-specific notes:
+
+- Default container credentials are defined in `docker-compose-db.yml`: user `money`, password `money`, database `money`.
+- For the app running on your machine, use `localhost` in `DATABASE_URL`, not `db`.
+- Stop the database with `docker compose -f docker-compose-db.yml down`; add `-v` if you also want to remove the local volume.
+
 ## Docker (production-style)
 
-Use Docker Compose when you want the Next.js app and PostgreSQL to run together as containers with a smaller runtime image.
+Use the default `docker-compose.yml` when you want the Next.js app and PostgreSQL to run together as containers with a smaller runtime image.
 
 ```bash
 cp .env.example .env
