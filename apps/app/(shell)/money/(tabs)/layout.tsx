@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { MoneySectionTabs } from "@/components/money-section-tabs";
+import { MoneyWorkspaceProvider } from "@/components/money-workspace-provider";
 
 export default function MoneyTabsLayout({ children }: { children: ReactNode }) {
   return (
@@ -10,7 +11,9 @@ export default function MoneyTabsLayout({ children }: { children: ReactNode }) {
       <div className="col-span-2 md:col-span-6 lg:col-span-12">
         <MoneySectionTabs />
       </div>
-      <div className="col-span-2 min-w-0 md:col-span-6 lg:col-span-12">{children}</div>
+      <div className="col-span-2 min-w-0 md:col-span-6 lg:col-span-12">
+        <MoneyWorkspaceProvider>{children}</MoneyWorkspaceProvider>
+      </div>
     </>
   );
 }

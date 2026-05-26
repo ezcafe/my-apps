@@ -186,132 +186,149 @@ function SankeyInner({
           nodeAlign={sankeyJustify}
           size={[chartW, chartH]}
         >
-          {({ graph, createPath }) => (
-            <>
-              <Group>
-                {graph.links.map((link, i) => {
-                  const sourceNode = link.source as SankeyNode<NodeDatum, LinkDatum>;
-                  const targetNode = link.target as SankeyNode<NodeDatum, LinkDatum>;
-                  const srcIdx = graph.nodes.indexOf(
-                    sourceNode as (typeof graph.nodes)[number],
-                  );
-                  const colorIdx = srcIdx >= 0 ? srcIdx : i;
-                  const strokeW = Math.max(0.75, link.width ?? 0.75);
-                  const amount = Number(link.value ?? 0);
-                  const tipLabel = `${sourceNode.label} → ${targetNode.label}`;
-                  const tipValue = formatMinor(amount, currency);
-                  const hitW = Math.max(14, strokeW * 2.5);
-                  const linkKey = `${sourceNode.name}→${targetNode.name}:${String(link.value ?? 0)}:${i}`;
+          {({ graph, createPath }) => {
+            const nodeIndexByRef = new Map(
+              graph.nodes.map((node, index) => [node, index] as const),
+            );
+            const nodeIncomingByRef = new Map<typeof graph.nodes[number], number>();
+            const nodeOutgoingByRef = new Map<typeof graph.nodes[number], number>();
+            for (const link of graph.links) {
+              const value = Number(link.value ?? 0);
+              const sourceNode = link.source as (typeof graph.nodes)[number];
+              const targetNode = link.target as (typeof graph.nodes)[number];
+              nodeOutgoingByRef.set(
+                sourceNode,
+                (nodeOutgoingByRef.get(sourceNode) ?? 0) + value,
+              );
+              nodeIncomingByRef.set(
+                targetNode,
+                (nodeIncomingByRef.get(targetNode) ?? 0) + value,
+              );
+            }
 
-                  return (
-                    <g
-                      key={linkKey}
-                      className={animate ? "fx-chart-enter" : undefined}
-                      style={animate ? { animationDelay: `${i * 25}ms` } : undefined}
-                    >
-                      <LinkHorizontal
-                        data={link}
-                        path={createPath}
-                        fill="none"
-                        stroke="transparent"
-                        strokeOpacity={0}
-                        strokeWidth={hitW}
-                        pointerEvents="stroke"
-                        className="cursor-default"
-                        onPointerEnter={(e) =>
-                          tooltipApi.showTooltip(
-                            pointerPayload(e, tipLabel, tipValue),
-                          )
-                        }
-                        onPointerMove={(e) =>
-                          tooltipApi.moveTooltip(
-                            pointerPayload(e, tipLabel, tipValue),
-                          )
-                        }
-                        onPointerLeave={() => tooltipApi.hideTooltip()}
-                      />
-                      <LinkHorizontal
-                        data={link}
-                        path={createPath}
-                        fill="none"
-                        stroke={colorByIndex(resolved, colorIdx, stylePreset)}
-                        strokeOpacity={0.42}
-                        strokeWidth={strokeW}
-                        pointerEvents="none"
-                      />
-                    </g>
-                  );
-                })}
-              </Group>
-              <Group>
-                {graph.nodes.map((node, i) => {
-                  const { x0, x1, y0, y1 } = node;
-                  if (
-                    x0 === undefined ||
-                    x1 === undefined ||
-                    y0 === undefined ||
-                    y1 === undefined
-                  ) {
-                    return null;
-                  }
+            return (
+              <>
+                <Group>
+                  {graph.links.map((link, i) => {
+                    const sourceNode = link.source as SankeyNode<NodeDatum, LinkDatum>;
+                    const targetNode = link.target as SankeyNode<NodeDatum, LinkDatum>;
+                    const colorIdx = nodeIndexByRef.get(
+                      sourceNode as (typeof graph.nodes)[number],
+                    );
+                    const strokeW = Math.max(0.75, link.width ?? 0.75);
+                    const amount = Number(link.value ?? 0);
+                    const tipLabel = `${sourceNode.label} → ${targetNode.label}`;
+                    const tipValue = formatMinor(amount, currency);
+                    const hitW = Math.max(14, strokeW * 2.5);
+                    const linkKey = `${sourceNode.name}→${targetNode.name}:${String(link.value ?? 0)}:${i}`;
 
-                  const nd = node as SankeyNode<NodeDatum, LinkDatum>;
-                  const inSum = graph.links
-                    .filter((l) => l.target === node)
-                    .reduce((s, l) => s + Number(l.value ?? 0), 0);
-                  const outSum = graph.links
-                    .filter((l) => l.source === node)
-                    .reduce((s, l) => s + Number(l.value ?? 0), 0);
-                  const nodeThrough = Math.max(inSum, outSum);
-                  const tipLabel = nd.label;
-                  const tipValue = `Total through: ${formatMinor(nodeThrough, currency)}`;
-                  const nodeW = x1 - x0;
-                  const nodeH = y1 - y0;
-                  const labelOnLeft = x0 < chartW / 2;
-
-                  return (
-                    <g
-                      key={`${nd.name}-${i}`}
-                      className={animate ? "fx-chart-enter" : undefined}
-                      style={animate ? { animationDelay: `${i * 30}ms` } : undefined}
-                    >
-                      <BarRounded
-                        x={x0}
-                        y={y0}
-                        width={nodeW}
-                        height={nodeH}
-                        radius={2}
-                        all
-                        fill={colorByIndex(resolved, i, stylePreset)}
-                        opacity={0.88}
-                        className="cursor-default"
-                        onPointerEnter={(e) =>
-                          tooltipApi.showTooltip(
-                            pointerPayload(e, tipLabel, tipValue),
-                          )
-                        }
-                        onPointerMove={(e) =>
-                          tooltipApi.moveTooltip(
-                            pointerPayload(e, tipLabel, tipValue),
-                          )
-                        }
-                        onPointerLeave={() => tooltipApi.hideTooltip()}
-                      />
-                      <text
-                        x={labelOnLeft ? x0 + 6 : x1 - 6}
-                        y={y0 + nodeH / 2}
-                        dominantBaseline="middle"
-                        textAnchor={labelOnLeft ? "start" : "end"}
-                        className="fill-foreground pointer-events-none text-[10px]"
+                    return (
+                      <g
+                        key={linkKey}
+                        className={animate ? "fx-chart-enter" : undefined}
+                        style={animate ? { animationDelay: `${i * 25}ms` } : undefined}
                       >
-                        {truncateLabel(nd.label, labelMaxChars)}
-                      </text>
-                    </g>
-                  );
-                })}
-              </Group>
-            </>
-          )}
+                        <LinkHorizontal
+                          data={link}
+                          path={createPath}
+                          fill="none"
+                          stroke="transparent"
+                          strokeOpacity={0}
+                          strokeWidth={hitW}
+                          pointerEvents="stroke"
+                          className="cursor-default"
+                          onPointerEnter={(e) =>
+                            tooltipApi.showTooltip(
+                              pointerPayload(e, tipLabel, tipValue),
+                            )
+                          }
+                          onPointerMove={(e) =>
+                            tooltipApi.moveTooltip(
+                              pointerPayload(e, tipLabel, tipValue),
+                            )
+                          }
+                          onPointerLeave={() => tooltipApi.hideTooltip()}
+                        />
+                        <LinkHorizontal
+                          data={link}
+                          path={createPath}
+                          fill="none"
+                          stroke={colorByIndex(resolved, colorIdx ?? i, stylePreset)}
+                          strokeOpacity={0.42}
+                          strokeWidth={strokeW}
+                          pointerEvents="none"
+                        />
+                      </g>
+                    );
+                  })}
+                </Group>
+                <Group>
+                  {graph.nodes.map((node, i) => {
+                    const { x0, x1, y0, y1 } = node;
+                    if (
+                      x0 === undefined ||
+                      x1 === undefined ||
+                      y0 === undefined ||
+                      y1 === undefined
+                    ) {
+                      return null;
+                    }
+
+                    const nd = node as SankeyNode<NodeDatum, LinkDatum>;
+                    const nodeThrough = Math.max(
+                      nodeIncomingByRef.get(node) ?? 0,
+                      nodeOutgoingByRef.get(node) ?? 0,
+                    );
+                    const tipLabel = nd.label;
+                    const tipValue = `Total through: ${formatMinor(nodeThrough, currency)}`;
+                    const nodeW = x1 - x0;
+                    const nodeH = y1 - y0;
+                    const labelOnLeft = x0 < chartW / 2;
+
+                    return (
+                      <g
+                        key={`${nd.name}-${i}`}
+                        className={animate ? "fx-chart-enter" : undefined}
+                        style={animate ? { animationDelay: `${i * 30}ms` } : undefined}
+                      >
+                        <BarRounded
+                          x={x0}
+                          y={y0}
+                          width={nodeW}
+                          height={nodeH}
+                          radius={2}
+                          all
+                          fill={colorByIndex(resolved, i, stylePreset)}
+                          opacity={0.88}
+                          className="cursor-default"
+                          onPointerEnter={(e) =>
+                            tooltipApi.showTooltip(
+                              pointerPayload(e, tipLabel, tipValue),
+                            )
+                          }
+                          onPointerMove={(e) =>
+                            tooltipApi.moveTooltip(
+                              pointerPayload(e, tipLabel, tipValue),
+                            )
+                          }
+                          onPointerLeave={() => tooltipApi.hideTooltip()}
+                        />
+                        <text
+                          x={labelOnLeft ? x0 + 6 : x1 - 6}
+                          y={y0 + nodeH / 2}
+                          dominantBaseline="middle"
+                          textAnchor={labelOnLeft ? "start" : "end"}
+                          className="fill-foreground pointer-events-none text-[10px]"
+                        >
+                          {truncateLabel(nd.label, labelMaxChars)}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </Group>
+              </>
+            );
+          }}
         </Sankey>
       </Group>
     </svg>

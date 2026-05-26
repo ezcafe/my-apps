@@ -33,6 +33,14 @@ export const moneyTypeDefs = /* GraphQL */ `
     tags: [JSONObject!]!
   }
 
+  type MoneyWorkspaceStatePayload {
+    workspaceId: ID!
+    defaultCurrency: String
+    needsCurrencySetup: Boolean!
+    defaultWorkspaceId: ID
+    workspaces: [MoneyBootstrapWorkspace!]!
+  }
+
   type MoneyTransactionConnection {
     data: [JSONObject!]!
     total: Int!
@@ -64,7 +72,10 @@ export const moneyTypeDefs = /* GraphQL */ `
 
   type Query {
     moneyBootstrap: MoneyBootstrapPayload!
+    moneyWorkspaceState: MoneyWorkspaceStatePayload!
     moneyAnalytics(filters: AnalyticsFiltersInput!): JSONObject!
+    moneyAnalyticsOverview(filters: AnalyticsFiltersInput!): JSONObject!
+    moneyAnalyticsBreakdown(filters: AnalyticsFiltersInput!): JSONObject!
     moneyBudgets(includeSpent: Boolean!, from: String, to: String): [JSONObject!]!
     moneyTransactions(query: JSONObject!): MoneyTransactionConnection!
     moneyAccounts: [JSONObject!]!

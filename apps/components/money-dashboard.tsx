@@ -1,7 +1,12 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  MoneyLookupQuickPickSkeleton,
+  MoneyTagsFieldSkeleton,
+} from "@/components/money-dashboard-skeleton";
 import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
@@ -16,6 +21,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
 import {
@@ -26,7 +32,6 @@ import {
 import { useFormatDate } from "@/lib/format-date";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
-  MONEY_BOOTSTRAP_QUERY,
   MONEY_SET_ACTIVE_WORKSPACE_MUTATION,
   MONEY_TRANSACTION_CREATE_MUTATION,
 } from "@/lib/money-gql-documents";
@@ -35,31 +40,17 @@ import {
   moneyCategoryById,
   moneyCategoryLabel,
   moneyCategorySelectGroups,
-  type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
+import {
+  moneyFormLookupsQueryOptions,
+  moneyWorkspaceStateQueryOptions,
+  type MoneyAccountLookup,
+  type MoneyCategoryLookup,
+} from "@/lib/money-query-options";
 import { mostUsedPickId } from "@/lib/money-usage-quick-pick";
-import type { MoneyWorkspaceBootstrapData } from "@/lib/money-workspace-bootstrap-data";
 
-type Account = {
-  id: string;
-  name: string;
-  currency: string;
-  type: string;
-  balanceMinor: number;
-  usageCount?: number;
-};
-type Category = MoneyCategoryRow;
-type Merchant = { id: string; name: string; usageCount?: number };
-
-type WorkspaceRow = {
-  id: string;
-  name: string;
-  kind: "personal" | "shared";
-  ownedByUserSub: string | null;
-  defaultCurrency: string | null;
-  role: "owner" | "member";
-  isDefault: boolean;
-};
+type Account = MoneyAccountLookup;
+type Category = MoneyCategoryLookup;
 
 const KIND_OPTIONS = [
   { value: "expense", label: "Expense" },
@@ -137,21 +128,54 @@ function defaultCategoryPick(
   };
 }
 
+function queryErrorMessage(error: unknown): string | null {
+  return error instanceof Error ? error.message : null;
+}
+
 export function MoneyDashboard() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const userSub = session?.user?.id;
   const notify = useNotify();
   const { formatDate } = useFormatDate();
-  const { defaultCurrency, refreshWorkspaceCurrency } = useWorkspaceCurrency();
+  const {
+    defaultCurrency,
+    needsCurrencySetup,
+    refreshWorkspaceCurrency,
+    workspaceReady,
+  } = useWorkspaceCurrency();
+  const canRunMoneyQueries =
+    status === "authenticated" && typeof window !== "undefined";
+  const workspaceStateQuery = useQuery({
+    ...moneyWorkspaceStateQueryOptions(),
+    enabled: canRunMoneyQueries,
+  });
+  const formLookupsQuery = useQuery({
+    ...moneyFormLookupsQueryOptions(),
+    enabled: canRunMoneyQueries,
+  });
 
-  const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState("");
+  const workspaceState = workspaceStateQuery.data;
+  const workspaces = useMemo(
+    () => workspaceState?.workspaces ?? [],
+    [workspaceState?.workspaces],
+  );
+  const coreWorkspaceId = workspaceState?.workspaceId ?? "";
+  const loadedAccounts = useMemo(
+    () => formLookupsQuery.data?.moneyAccounts ?? [],
+    [formLookupsQuery.data?.moneyAccounts],
+  );
+  const loadedCategories = useMemo(
+    () => formLookupsQuery.data?.moneyCategories ?? [],
+    [formLookupsQuery.data?.moneyCategories],
+  );
+  const loadedMerchants = useMemo(
+    () => formLookupsQuery.data?.moneyMerchants ?? [],
+    [formLookupsQuery.data?.moneyMerchants],
+  );
 
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [merchants, setMerchants] = useState<Merchant[]>([]);
+  const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(null);
 
-  const [accountId, setAccountId] = useState("");
+  const [selectedAccountId, setSelectedAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
   const [kind, setKind] = useState<KindValue>("expense");
   const [amountMajor, setAmountMajor] = useState("");
@@ -161,16 +185,91 @@ export function MoneyDashboard() {
   const [whenMode, setWhenMode] = useState<WhenMode>("today");
   const [customDate, setCustomDate] = useState<string>("");
   const customDateInputRef = useRef<HTMLInputElement>(null);
-  const [categoryId, setCategoryId] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [categoryEmptyOnOther, setCategoryEmptyOnOther] = useState(false);
-  const categoryEmptyOnOtherRef = useRef(categoryEmptyOnOther);
-  categoryEmptyOnOtherRef.current = categoryEmptyOnOther;
-  const [merchantId, setMerchantId] = useState("");
+  const [selectedMerchantId, setSelectedMerchantId] = useState("");
   const [notes, setNotes] = useState("");
   const [tagsInput, setTagsInput] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
+  const loadErr =
+    bootstrapErr ??
+    queryErrorMessage(workspaceStateQuery.error) ??
+    queryErrorMessage(formLookupsQuery.error);
+  const resolvedWorkspaceId = useMemo(() => {
+    let resolvedId = coreWorkspaceId;
+    if (!workspaces.some((w) => w.id === resolvedId)) {
+      resolvedId =
+        workspaces.find((w) => w.isDefault)?.id ??
+        workspaces[0]?.id ??
+        resolvedId;
+    }
+    return resolvedId;
+  }, [coreWorkspaceId, workspaces]);
+  const activeWorkspaceId = pendingWorkspaceId ?? resolvedWorkspaceId;
+  const workspaceSyncPending =
+    pendingWorkspaceId != null ||
+    (resolvedWorkspaceId !== "" && resolvedWorkspaceId !== coreWorkspaceId);
+  const lookupsReady =
+    workspaceReady && !workspaceSyncPending && formLookupsQuery.isSuccess;
+  const accountsReady = lookupsReady;
+  const merchantPickerReady =
+    lookupsReady;
+  const accountEmptyMessage =
+    !workspaceReady || workspaceStateQuery.isLoading || workspaceSyncPending
+      ? "Loading accounts..."
+      : formLookupsQuery.isError
+        ? "Couldn’t load accounts."
+        : "No accounts yet. Add one in Settings.";
+  const categoryEmptyMessage =
+    !workspaceReady || workspaceStateQuery.isLoading || workspaceSyncPending
+      ? "Loading categories..."
+      : formLookupsQuery.isError
+        ? "Couldn’t load categories."
+        : "No categories yet. Add one in Settings.";
+  const merchantEmptyMessage =
+    !workspaceReady || workspaceStateQuery.isLoading || workspaceSyncPending
+      ? "Loading merchants..."
+      : formLookupsQuery.isError
+        ? "Couldn’t load merchants."
+        : "No merchants yet. Add one in Settings.";
+  const accounts = useMemo(
+    () => (workspaceSyncPending ? [] : loadedAccounts),
+    [workspaceSyncPending, loadedAccounts],
+  );
+  const categories = useMemo(
+    () => (workspaceSyncPending ? [] : loadedCategories),
+    [workspaceSyncPending, loadedCategories],
+  );
+  const merchants = useMemo(
+    () => (workspaceSyncPending ? [] : loadedMerchants),
+    [workspaceSyncPending, loadedMerchants],
+  );
+  const accountId = defaultAccountId(loadedAccounts, selectedAccountId);
+  const categorySelection = useMemo(
+    () =>
+      defaultCategoryPick(
+        loadedCategories,
+        kind,
+        selectedCategoryId,
+        categoryEmptyOnOther,
+      ),
+    [loadedCategories, kind, selectedCategoryId, categoryEmptyOnOther],
+  );
+  const categoryId = categorySelection.id;
+  const categoryOtherSelected = categorySelection.emptyOnOther;
+  const merchantId =
+    selectedMerchantId &&
+    loadedMerchants.some((merchant) => merchant.id === selectedMerchantId)
+      ? selectedMerchantId
+      : "";
+  const initialDashboardPending =
+    status === "loading" ||
+    workspaceStateQuery.isLoading ||
+    !workspaceReady ||
+    (formLookupsQuery.isLoading && !formLookupsQuery.data);
+  const lookupSkeletonVisible = initialDashboardPending;
 
   const visibleCategories = useMemo(
     () => (kind === "transfer" ? [] : categoriesOfKind(categories, kind)),
@@ -285,98 +384,49 @@ export function MoneyDashboard() {
     return toAccountOptions[0]?.id ?? "";
   }, [kind, toAccountId, accountId, toAccountOptions]);
 
-  const fetchBootstrapAndSync = useCallback(async () => {
-    const res = await moneyGraphQLRequest<{ moneyBootstrap: MoneyWorkspaceBootstrapData }>(
-      MONEY_BOOTSTRAP_QUERY,
-    );
-    const boot = res.moneyBootstrap;
-    setWorkspaces(boot.workspaces);
-
-    let resolvedId = boot.workspaceId;
-    if (!boot.workspaces.some((w) => w.id === resolvedId)) {
-      resolvedId =
-        boot.workspaces.find((w) => w.isDefault)?.id ??
-        boot.workspaces[0]?.id ??
-        resolvedId;
-    }
-
-    setActiveWorkspaceId(resolvedId);
-
-    let ledgerBoot = boot;
-    if (
-      resolvedId &&
-      resolvedId !== boot.workspaceId &&
-      boot.workspaces.some((w) => w.id === resolvedId)
-    ) {
-      await moneyGraphQLRequest(MONEY_SET_ACTIVE_WORKSPACE_MUTATION, {
-        workspaceId: resolvedId,
-      });
-      await refreshWorkspaceCurrency();
-      const res2 = await moneyGraphQLRequest<{ moneyBootstrap: MoneyWorkspaceBootstrapData }>(
-        MONEY_BOOTSTRAP_QUERY,
-      );
-      ledgerBoot = res2.moneyBootstrap;
-    }
-
-    setAccounts(ledgerBoot.accounts);
-    setAccountId((prev) => defaultAccountId(ledgerBoot.accounts, prev));
-    setCategories(ledgerBoot.categories);
-    setCategoryId((prevId) => {
-      const pick = defaultCategoryPick(
-        ledgerBoot.categories,
-        kind,
-        prevId,
-        categoryEmptyOnOtherRef.current,
-      );
-      setCategoryEmptyOnOther(pick.emptyOnOther);
-      return pick.id;
-    });
-    setMerchants(ledgerBoot.merchants);
-  }, [kind, refreshWorkspaceCurrency]);
+  const autoSyncedWorkspaceRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!resolvedWorkspaceId || resolvedWorkspaceId === coreWorkspaceId) {
+      autoSyncedWorkspaceRef.current = null;
+      return;
+    }
+    if (!workspaces.some((workspace) => workspace.id === resolvedWorkspaceId)) {
+      return;
+    }
+
+    const syncKey = `${coreWorkspaceId}:${resolvedWorkspaceId}`;
+    if (autoSyncedWorkspaceRef.current === syncKey) return;
+    autoSyncedWorkspaceRef.current = syncKey;
+
     let cancelled = false;
-    queueMicrotask(() => {
-      void (async () => {
-        try {
-          if (cancelled) return;
-          await fetchBootstrapAndSync();
-        } catch (e: unknown) {
-          if (!cancelled) {
-            setBootstrapErr(e instanceof Error ? e.message : "Error");
-          }
-        }
-      })();
-    });
+    void (async () => {
+      try {
+        await moneyGraphQLRequest(MONEY_SET_ACTIVE_WORKSPACE_MUTATION, {
+          workspaceId: resolvedWorkspaceId,
+        });
+        if (cancelled) return;
+        setBootstrapErr(null);
+        await refreshWorkspaceCurrency();
+      } catch (e: unknown) {
+        if (cancelled) return;
+        autoSyncedWorkspaceRef.current = null;
+        setBootstrapErr(e instanceof Error ? e.message : "Error");
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
-  }, [fetchBootstrapAndSync]);
-
-  const [prevKind, setPrevKind] = useState(kind);
-  if (kind !== prevKind) {
-    setPrevKind(kind);
-    if (kind === "transfer") {
-      setCategoryId("");
-      setCategoryEmptyOnOther(false);
-    } else {
-      setCategoryId((prevId) => {
-        const pick = defaultCategoryPick(
-          categories,
-          kind,
-          prevId,
-          categoryEmptyOnOtherRef.current,
-        );
-        setCategoryEmptyOnOther(pick.emptyOnOther);
-        return pick.id;
-      });
-    }
-  }
+  }, [coreWorkspaceId, refreshWorkspaceCurrency, resolvedWorkspaceId, workspaces]);
 
   async function saveTransaction(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     try {
+      if (!workspaceReady) throw new Error("Workspace is still loading");
+      if (needsCurrencySetup) throw new Error("Set a workspace currency first");
+      if (workspaceSyncPending) throw new Error("Workspace is still switching");
       const minor = parseMajorToMinor(amountMajor, defaultCurrency);
       if (!accountId) throw new Error("Pick an account");
       if (minor == null || minor <= 0) throw new Error("Invalid amount");
@@ -461,17 +511,21 @@ export function MoneyDashboard() {
 
   const submitDisabled =
     submitting ||
+    !workspaceReady ||
+    needsCurrencySetup ||
+    workspaceSyncPending ||
+    !accountsReady ||
     accounts.length === 0 ||
     !accountId ||
     (kind === "transfer" && !effectiveToAccountId);
 
   return (
-    <div className="min-w-0 max-w-4xl space-y-6 fx-fade-in">
-      {bootstrapErr ? (
+    <div className="min-w-0 max-w-4xl space-y-6">
+      {loadErr ? (
         <Alert
           variant="error"
           title="Unable to load"
-          description={bootstrapErr}
+          description={loadErr}
         />
       ) : null}
 
@@ -529,22 +583,24 @@ export function MoneyDashboard() {
             <Field label="Workspace" className="[grid-column:1/-1]">
               <Select
                 value={activeWorkspaceId}
-                disabled={workspaces.length === 0}
+                disabled={workspaces.length === 0 || workspaceSyncPending}
                 onChange={async (e) => {
                   const next = e.target.value;
                   if (!next || next === activeWorkspaceId) return;
                   try {
+                    setBootstrapErr(null);
+                    setPendingWorkspaceId(next);
                     await moneyGraphQLRequest(MONEY_SET_ACTIVE_WORKSPACE_MUTATION, {
                       workspaceId: next,
                     });
-                    setActiveWorkspaceId(next);
                     await refreshWorkspaceCurrency();
-                    await fetchBootstrapAndSync();
+                    setPendingWorkspaceId(null);
                     notify.success(
                       "Workspace switched",
                       "Ledger data was refreshed.",
                     );
                   } catch (err: unknown) {
+                    setPendingWorkspaceId(null);
                     notify.error(
                       "Couldn’t switch workspace",
                       err instanceof Error ? err.message : "Something went wrong",
@@ -571,6 +627,9 @@ export function MoneyDashboard() {
                   );
                 })}
               </Select>
+              {workspaceSyncPending ? (
+                <p className="mt-1 text-xs text-muted">Switching workspace…</p>
+              ) : null}
             </Field>
           ) : null}
 
@@ -594,27 +653,41 @@ export function MoneyDashboard() {
             </InputGroup>
           </Field>
 
-          <MoneyUsageQuickPick
-            legend="Account"
-            ariaLabel="Account"
-            required
-            className="[grid-column:1/-1]"
-            items={accountQuickItems}
-            selectedId={accountId}
-            onSelect={setAccountId}
-            otherLabel="Other account"
-            emptyMessage="No accounts yet. Add one in Settings."
-            renderPickerRow={(item) =>
-              formatMinor(
-                accountBalanceById.get(item.id) ?? 0,
-                defaultCurrency,
-              )
-            }
-          />
+          {lookupSkeletonVisible ? (
+            <MoneyLookupQuickPickSkeleton
+              legend="Account"
+              required
+              className="[grid-column:1/-1]"
+            />
+          ) : (
+            <MoneyUsageQuickPick
+              legend="Account"
+              ariaLabel="Account"
+              required
+              className="[grid-column:1/-1]"
+              items={accountQuickItems}
+              selectedId={accountId}
+              onSelect={setSelectedAccountId}
+              otherLabel="Other account"
+              emptyMessage={accountEmptyMessage}
+              renderPickerRow={(item) =>
+                formatMinor(
+                  accountBalanceById.get(item.id) ?? 0,
+                  defaultCurrency,
+                )
+              }
+            />
+          )}
 
           {kind === "transfer" ? (
             <Field label="To Account" required className="[grid-column:1/-1]">
-              {toAccountOptions.length === 0 ? (
+              {lookupSkeletonVisible ? (
+                <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+              ) : !accountsReady ? (
+                <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
+                  Loading accounts...
+                </p>
+              ) : toAccountOptions.length === 0 ? (
                 <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
                   Add another account to create transfers.
                 </p>
@@ -635,34 +708,45 @@ export function MoneyDashboard() {
           ) : null}
 
           {kind !== "transfer" ? (
-            <MoneyUsageQuickPick
-              legend="Category"
-              ariaLabel="Category"
-              className="[grid-column:1/-1]"
-              items={categoryQuickItems}
-              pickerItems={categoryPickerItems}
-              selectedId={categoryId}
-              onSelect={(id) => {
-                setCategoryId(id);
-                setCategoryEmptyOnOther(id === "");
-              }}
-              otherLabel="Other category"
-              emptyCountsAsOther
-              emptySelectedOnOther={categoryEmptyOnOther}
-              emptyMessage="No categories yet. Add one in Settings."
-            />
+            lookupSkeletonVisible ? (
+              <MoneyLookupQuickPickSkeleton
+                legend="Category"
+                className="[grid-column:1/-1]"
+              />
+            ) : (
+              <MoneyUsageQuickPick
+                legend="Category"
+                ariaLabel="Category"
+                className="[grid-column:1/-1]"
+                items={categoryQuickItems}
+                pickerItems={categoryPickerItems}
+                selectedId={categoryId}
+                onSelect={(id) => {
+                  setSelectedCategoryId(id);
+                  setCategoryEmptyOnOther(id === "");
+                }}
+                otherLabel="Other category"
+                emptyCountsAsOther
+                emptySelectedOnOther={categoryOtherSelected}
+                emptyMessage={categoryEmptyMessage}
+              />
+            )
           ) : null}
 
-          <MoneyUsageQuickPick
-            legend="Merchant"
-            ariaLabel="Merchant"
-            items={merchantQuickItems}
-            selectedId={merchantId}
-            onSelect={setMerchantId}
-            otherLabel="Other merchant"
-            allowEmpty
-            emptyMessage="No merchants yet. Add one in Settings."
-          />
+          {lookupSkeletonVisible ? (
+            <MoneyLookupQuickPickSkeleton legend="Merchant" chips={3} />
+          ) : (
+            <MoneyUsageQuickPick
+              legend="Merchant"
+              ariaLabel="Merchant"
+              items={merchantQuickItems}
+              selectedId={merchantId}
+              onSelect={setSelectedMerchantId}
+              otherLabel="Other merchant"
+              allowEmpty={merchantPickerReady}
+              emptyMessage={merchantEmptyMessage}
+            />
+          )}
 
           <fieldset className="grid min-w-0 gap-1.5 text-sm">
             <legend className="text-muted">When</legend>
@@ -708,18 +792,22 @@ export function MoneyDashboard() {
             />
           </fieldset>
 
-          <Field
-            label="Tags"
-            hint="Separate tags with spaces. Tags are created and linked when you save."
-            className="[grid-column:1/-1]"
-          >
-            <Input
-              type="text"
-              placeholder="groceries travel"
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-            />
-          </Field>
+          {lookupSkeletonVisible ? (
+            <MoneyTagsFieldSkeleton className="[grid-column:1/-1]" />
+          ) : (
+            <Field
+              label="Tags"
+              hint="Separate tags with spaces. Tags are created and linked when you save."
+              className="[grid-column:1/-1]"
+            >
+              <Input
+                type="text"
+                placeholder="groceries travel"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+              />
+            </Field>
+          )}
 
           <Field label="Notes" className="[grid-column:1/-1]">
             <Textarea

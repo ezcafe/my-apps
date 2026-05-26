@@ -6,27 +6,27 @@ import { isDbUnreachable } from "@/lib/db-errors";
 import {
   fetchMoneyLookups,
   fetchWorkspacesForUser,
+  type MoneyWorkspaceCoreData,
   type MoneyWorkspaceBootstrapData,
 } from "@/lib/money-workspace-bootstrap-data";
 import { getWorkspaceIdForUser } from "@/lib/workspace";
 
-export async function fetchMoneyBootstrapPayload(
+export async function fetchMoneyWorkspaceStatePayload(
   userSub: string,
-): Promise<MoneyWorkspaceBootstrapData> {
+): Promise<MoneyWorkspaceCoreData> {
   await ensureUserBootstrap(userSub);
   const workspaceId = await getWorkspaceIdForUser(userSub);
   if (!workspaceId) {
     throw new Error("Workspace unavailable");
   }
 
-  const [ws, wsPack, lookups] = await Promise.all([
+  const [ws, wsPack] = await Promise.all([
     db
       .select({ defaultCurrency: workspace.defaultCurrency })
       .from(workspace)
       .where(eq(workspace.id, workspaceId))
       .limit(1),
     fetchWorkspacesForUser(userSub, "money"),
-    fetchMoneyLookups(workspaceId),
   ]);
 
   const defaultCurrency = ws[0]?.defaultCurrency ?? null;
@@ -37,8 +37,41 @@ export async function fetchMoneyBootstrapPayload(
     needsCurrencySetup: !defaultCurrency,
     workspaces: wsPack.workspaces,
     defaultWorkspaceId: wsPack.defaultWorkspaceId,
+  };
+}
+
+export async function fetchMoneyBootstrapPayload(
+  userSub: string,
+): Promise<MoneyWorkspaceBootstrapData> {
+  const workspaceState = await fetchMoneyWorkspaceStatePayload(userSub);
+  const workspaceCurrency = workspaceState.defaultCurrency ?? "USD";
+  const lookups = await fetchMoneyLookups(workspaceState.workspaceId, workspaceCurrency);
+
+  return {
+    ...workspaceState,
     ...lookups,
   };
+}
+
+export async function fetchMoneyWorkspaceStateSafe(userSub: string): Promise<
+  | { ok: true; data: MoneyWorkspaceCoreData }
+  | { ok: false; code: "db_unavailable" | "workspace_error"; message: string }
+> {
+  try {
+    const data = await fetchMoneyWorkspaceStatePayload(userSub);
+    return { ok: true, data };
+  } catch (e) {
+    if (isDbUnreachable(e)) {
+      return {
+        ok: false,
+        code: "db_unavailable",
+        message:
+          "Cannot reach PostgreSQL. Start the database or fix DATABASE_URL.",
+      };
+    }
+    const message = e instanceof Error ? e.message : "Workspace unavailable";
+    return { ok: false, code: "workspace_error", message };
+  }
 }
 
 export async function fetchMoneyBootstrapSafe(userSub: string): Promise<

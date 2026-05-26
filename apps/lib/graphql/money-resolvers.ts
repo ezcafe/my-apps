@@ -1,8 +1,15 @@
 import { GraphQLError } from "graphql";
 import { GraphQLJSONObject } from "graphql-scalars";
 import { analyticsFiltersSchema } from "@/lib/validators/money";
-import { computeMoneyAnalytics } from "@/lib/money-services/analytics";
-import { fetchMoneyBootstrapSafe } from "@/lib/money-services/bootstrap";
+import {
+  computeMoneyAnalytics,
+  computeMoneyAnalyticsBreakdown,
+  computeMoneyAnalyticsOverview,
+} from "@/lib/money-services/analytics";
+import {
+  fetchMoneyBootstrapSafe,
+  fetchMoneyWorkspaceStateSafe,
+} from "@/lib/money-services/bootstrap";
 import {
   createMoneyBudget,
   deleteMoneyBudget,
@@ -548,6 +555,20 @@ export const moneyResolvers = {
       return result.data;
     },
 
+    moneyWorkspaceState: async (
+      _: unknown,
+      __: unknown,
+      ctx: MoneyGraphQLContext,
+    ) => {
+      const userSub = requireAuth(ctx);
+      const result = await fetchMoneyWorkspaceStateSafe(userSub);
+      if (!result.ok) {
+        if (result.code === "db_unavailable") mapServiceError(new Error("DB_UNAVAILABLE"));
+        gqlErr(result.message, "WORKSPACE_ERROR");
+      }
+      return result.data;
+    },
+
     moneyAnalytics: async (
       _: unknown,
       args: { filters: Record<string, unknown> },
@@ -557,6 +578,34 @@ export const moneyResolvers = {
         const { workspaceId } = requireMoneyWorkspace(ctx);
         const filters = filtersFromInput(args.filters);
         return await computeMoneyAnalytics(workspaceId, filters);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyAnalyticsOverview: async (
+      _: unknown,
+      args: { filters: Record<string, unknown> },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        const filters = filtersFromInput(args.filters);
+        return await computeMoneyAnalyticsOverview(workspaceId, filters);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyAnalyticsBreakdown: async (
+      _: unknown,
+      args: { filters: Record<string, unknown> },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        const filters = filtersFromInput(args.filters);
+        return await computeMoneyAnalyticsBreakdown(workspaceId, filters);
       } catch (e) {
         mapServiceError(e);
       }

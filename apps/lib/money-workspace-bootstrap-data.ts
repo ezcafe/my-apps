@@ -13,7 +13,6 @@ import {
   workspaceMember,
   type WorkspaceAppKey,
 } from "@/db/schema/workspace";
-import { getWorkspaceDefaultCurrency } from "@/lib/workspace";
 
 const USAGE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -25,6 +24,15 @@ export type BootstrapWorkspaceRow = {
   defaultCurrency: string | null;
   role: "owner" | "member";
   isDefault: boolean;
+};
+
+export type MoneyWorkspaceCoreData = {
+  workspaceId: string;
+  defaultCurrency: string | null;
+  needsCurrencySetup: boolean;
+  workspaces: BootstrapWorkspaceRow[];
+  /** User’s saved default workspace for this app (may differ from active cookie). */
+  defaultWorkspaceId: string | null;
 };
 
 /** Same rows as GET /api/workspace/list?app=money */
@@ -68,10 +76,11 @@ export async function fetchWorkspacesForUser(
 }
 
 /** Accounts / categories / merchants / tags matching individual money API GET shapes. */
-export async function fetchMoneyLookups(workspaceId: string) {
+export async function fetchMoneyLookups(
+  workspaceId: string,
+  workspaceCurrency: string,
+) {
   const since = new Date(Date.now() - USAGE_WINDOW_MS);
-  const workspaceCurrency =
-    (await getWorkspaceDefaultCurrency(workspaceId)) ?? "USD";
 
   const [accountRows, categoryRows, merchantRows, tagRows] = await Promise.all([
     db
@@ -160,11 +169,5 @@ export async function fetchMoneyLookups(workspaceId: string) {
 }
 
 /** JSON `data` field from GET /api/money/workspace/bootstrap */
-export type MoneyWorkspaceBootstrapData = {
-  workspaceId: string;
-  defaultCurrency: string | null;
-  needsCurrencySetup: boolean;
-  workspaces: BootstrapWorkspaceRow[];
-  /** User’s saved default workspace for this app (may differ from active cookie). */
-  defaultWorkspaceId: string | null;
-} & Awaited<ReturnType<typeof fetchMoneyLookups>>;
+export type MoneyWorkspaceBootstrapData = MoneyWorkspaceCoreData &
+  Awaited<ReturnType<typeof fetchMoneyLookups>>;

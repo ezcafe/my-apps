@@ -24,19 +24,43 @@ export const MONEY_BOOTSTRAP_QUERY = /* GraphQL */ `
   }
 `;
 
-export const MONEY_ANALYTICS_PAGE_QUERY = /* GraphQL */ `
-  query MoneyAnalyticsPage(
-    $filters: AnalyticsFiltersInput!
-    $includeSpent: Boolean!
-    $budgetFrom: String
-    $budgetTo: String
-  ) {
-    moneyAnalytics(filters: $filters)
-    moneyBudgets(
-      includeSpent: $includeSpent
-      from: $budgetFrom
-      to: $budgetTo
-    )
+export const MONEY_WORKSPACE_STATE_QUERY = /* GraphQL */ `
+  query MoneyWorkspaceState {
+    moneyWorkspaceState {
+      workspaceId
+      defaultCurrency
+      needsCurrencySetup
+      defaultWorkspaceId
+      workspaces {
+        id
+        name
+        kind
+        ownedByUserSub
+        defaultCurrency
+        role
+        isDefault
+      }
+    }
+  }
+`;
+
+export const MONEY_FORM_LOOKUPS_QUERY = /* GraphQL */ `
+  query MoneyFormLookups {
+    moneyAccounts
+    moneyCategories
+    moneyMerchants
+  }
+`;
+
+export const MONEY_ANALYTICS_OVERVIEW_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsOverview($filters: AnalyticsFiltersInput!) {
+    moneyAnalyticsOverview(filters: $filters)
+  }
+`;
+
+export const MONEY_ANALYTICS_BREAKDOWN_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsBreakdown($filters: AnalyticsFiltersInput!) {
+    moneyAnalyticsBreakdown(filters: $filters)
   }
 `;
 

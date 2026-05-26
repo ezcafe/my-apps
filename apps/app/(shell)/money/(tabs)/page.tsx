@@ -1,12 +1,12 @@
 import dynamic from "next/dynamic";
-import { MoneyTabContentFallback } from "@/components/money-tab-content-fallback";
+import { MoneyDashboardSkeleton } from "@/components/money-dashboard-skeleton";
 
 const MoneyDashboardLazy = dynamic(
   () =>
     import("@/components/money-dashboard").then((mod) => ({
       default: mod.MoneyDashboard,
     })),
-  { loading: () => <MoneyTabContentFallback /> },
+  { loading: () => <MoneyDashboardSkeleton /> },
 );
 
 export default function MoneyPage() {

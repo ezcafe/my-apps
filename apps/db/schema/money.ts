@@ -208,6 +208,16 @@ export const moneyTransaction = pgTable(
       t.merchantId,
       t.occurredAt,
     ),
+    index("money_tx_workspace_account_occurred_idx").on(
+      t.workspaceId,
+      t.accountId,
+      t.occurredAt,
+    ),
+    index("money_tx_workspace_recurrence_occurred_idx").on(
+      t.workspaceId,
+      t.recurrenceSourceId,
+      t.occurredAt,
+    ),
     index("money_tx_account_idx").on(t.accountId),
   ],
 );
