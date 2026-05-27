@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import type { ReactNode, Ref } from "react";
@@ -19,12 +19,12 @@ import { Card } from "@/components/ui/card";
 import {
   MoneyAnalyticsChartsSkeleton,
   MoneyAnalyticsPageSkeleton,
+  MoneyAnalyticsTransactionsTableSkeleton,
 } from "@/components/money-analytics-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 import { AnalyticsStats } from "@/components/analytics-stats";
-import { AnalyticsTransactionsTable } from "@/components/analytics-transactions-table";
 import { ChartLegendList } from "@/components/charts/chart-legend-list";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import {
@@ -49,14 +49,24 @@ import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_SET_ACTIVE_WORKSPACE_MUTATION } from "@/lib/money-gql-documents";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import {
-  moneyAnalyticsBreakdownQueryOptions,
+  moneyAnalyticsBudgetsQueryOptions,
+  moneyAnalyticsChartLookupsQueryOptions,
+  moneyAnalyticsDistributionQueryOptions,
+  moneyAnalyticsLeadersQueryOptions,
+  moneyAnalyticsMerchantLookupsQueryOptions,
   moneyAnalyticsOverviewQueryOptions,
-  moneyBootstrapQueryOptions,
+  moneyAnalyticsSummaryQueryOptions,
+  moneyAnalyticsSankeyQueryOptions,
+  moneyWorkspaceStateQueryOptions,
 } from "@/lib/money-query-options";
 import { useFormatDate } from "@/lib/format-date";
 import type {
-  MoneyAnalyticsBreakdownPayload,
+  MoneyAnalyticsBudgetPayload,
+  MoneyAnalyticsDistributionPayload,
+  MoneyAnalyticsLeadersPayload,
   MoneyAnalyticsOverviewPayload,
+  MoneyAnalyticsSummaryPayload,
+  MoneyAnalyticsSankeyPayload,
 } from "@/lib/money-services/analytics";
 import { useInViewOnce } from "@/lib/use-in-view-once";
 
@@ -168,6 +178,14 @@ const StackedAreaChart = dynamic(
   { ssr: false },
 );
 
+const AnalyticsTransactionsTableLazy = dynamic(
+  () =>
+    import("@/components/analytics-transactions-table").then((m) => ({
+      default: m.AnalyticsTransactionsTable,
+    })),
+  { loading: () => <MoneyAnalyticsTransactionsTableSkeleton /> },
+);
+
 function ChartViewportFallback({ ariaLabel }: { ariaLabel: string }) {
   return (
     <Skeleton
@@ -241,8 +259,9 @@ export function AnalyticsChartsSkeleton() {
   );
 }
 
-type AnalyticsChartsShellProps = {
+type AnalyticsStagesProps = {
   applied: AnalyticsFiltersValue;
+  filterQuery: string;
   workspaceKey: string;
   defaultCurrency: string;
   budgetRef: Ref<HTMLDivElement | null>;
@@ -254,6 +273,7 @@ type AnalyticsChartsShellProps = {
   recurringRef: Ref<HTMLDivElement | null>;
   tagsRef: Ref<HTMLDivElement | null>;
   categoryTrendRef: Ref<HTMLDivElement | null>;
+  transactionsRef: Ref<HTMLDivElement | null>;
   budgetInView: boolean;
   sankeyInView: boolean;
   spendByCategoryInView: boolean;
@@ -263,45 +283,41 @@ type AnalyticsChartsShellProps = {
   recurringInView: boolean;
   tagsInView: boolean;
   categoryTrendInView: boolean;
+  transactionsInView: boolean;
   resolved: ReturnType<typeof useTheme>["resolved"];
   style: ReturnType<typeof useTheme>["style"];
+  lookupsReady: boolean;
   categories: MoneyCategoryRow[];
   accounts: AnalyticsLookupAccount[];
   tags: AnalyticsLookupTag[];
 };
 
-function AnalyticsChartsShell(props: AnalyticsChartsShellProps) {
-  const { categories, accounts, tags, ...rest } = props;
-  const filterKey = useMemo(() => buildQuery(rest.applied), [rest.applied]);
+function AnalyticsSummaryShell(props: AnalyticsStagesProps) {
+  const filterKey = useMemo(() => props.filterQuery, [props.filterQuery]);
   const { data } = useSuspenseQuery(
-    moneyAnalyticsOverviewQueryOptions(rest.workspaceKey, rest.applied),
+    moneyAnalyticsSummaryQueryOptions(props.workspaceKey, props.applied),
   );
 
   return (
     <AnalyticsChartsView
-      key={`${rest.workspaceKey}:${filterKey}`}
-      overview={data.moneyAnalyticsOverview as MoneyAnalyticsOverviewPayload}
-      categories={categories}
-      accounts={accounts}
-      tags={tags}
-      {...rest}
+      key={`${props.workspaceKey}:${filterKey}`}
+      summary={data.moneyAnalyticsSummary as MoneyAnalyticsSummaryPayload}
+      {...props}
     />
   );
 }
 
-type AnalyticsChartsViewProps = AnalyticsChartsShellProps & {
-  overview: MoneyAnalyticsOverviewPayload;
+type AnalyticsChartsViewProps = AnalyticsStagesProps & {
+  summary: MoneyAnalyticsSummaryPayload;
 };
 
 function AnalyticsChartsView({
-  overview,
-  categories,
-  accounts,
-  tags,
+  summary,
   ...rest
 }: AnalyticsChartsViewProps) {
   const {
     applied,
+    filterQuery,
     workspaceKey,
     budgetRef,
     sankeyRef,
@@ -312,6 +328,7 @@ function AnalyticsChartsView({
     recurringRef,
     tagsRef,
     categoryTrendRef,
+    transactionsRef,
     budgetInView,
     sankeyInView,
     spendByCategoryInView,
@@ -321,76 +338,152 @@ function AnalyticsChartsView({
     recurringInView,
     tagsInView,
     categoryTrendInView,
+    transactionsInView,
     resolved,
     style,
+    lookupsReady,
+    categories,
+    accounts,
+    tags,
     defaultCurrency,
   } = rest;
 
-  const shouldLoadBreakdown =
-    budgetInView ||
-    sankeyInView ||
-    spendByCategoryInView ||
-    merchantsInView ||
-    recurringInView ||
-    tagsInView ||
-    categoryTrendInView;
-  const { data: breakdownResponse } = useQuery({
-    ...moneyAnalyticsBreakdownQueryOptions(workspaceKey, applied),
-    enabled: shouldLoadBreakdown && Boolean(workspaceKey),
+  const { data: overviewResponse } = useQuery({
+    ...moneyAnalyticsOverviewQueryOptions(workspaceKey, applied),
+    enabled: Boolean(workspaceKey),
   });
-  const breakdown =
-    (breakdownResponse?.moneyAnalyticsBreakdown as MoneyAnalyticsBreakdownPayload | undefined) ??
-    null;
+  const overview =
+    (overviewResponse?.moneyAnalyticsOverview as
+      | MoneyAnalyticsOverviewPayload
+      | undefined) ?? null;
+  const overviewReady = overview !== null;
+  const distributionStageInView = spendByCategoryInView || categoryTrendInView;
+  const leadersStageInView = merchantsInView || recurringInView || tagsInView;
+  const budgetStageReady = !budgetInView;
+  const sankeyStageReady = !sankeyInView;
+  const distributionStageReady = !distributionStageInView;
+  const leadersStageReady = !leadersStageInView;
+
+  const { data: budgetsResponse } = useQuery({
+    ...moneyAnalyticsBudgetsQueryOptions(workspaceKey, applied),
+    enabled:
+      budgetInView &&
+      lookupsReady &&
+      overviewReady &&
+      Boolean(workspaceKey),
+  });
+  const budgets =
+    (budgetsResponse?.moneyAnalyticsBudgets as
+      | MoneyAnalyticsBudgetPayload
+      | undefined) ?? null;
+  const budgetSectionReady = budgetStageReady || budgets != null;
+
+  const { data: sankeyResponse } = useQuery({
+    ...moneyAnalyticsSankeyQueryOptions(workspaceKey, applied),
+    enabled:
+      sankeyInView &&
+      overviewReady &&
+      budgetSectionReady &&
+      Boolean(workspaceKey),
+  });
+  const sankeyPayload =
+    (sankeyResponse?.moneyAnalyticsSankey as
+      | MoneyAnalyticsSankeyPayload
+      | undefined) ?? null;
+  const sankeySectionReady = sankeyStageReady || sankeyPayload != null;
+
+  const { data: distributionResponse } = useQuery({
+    ...moneyAnalyticsDistributionQueryOptions(workspaceKey, applied),
+    enabled:
+      distributionStageInView &&
+      overviewReady &&
+      sankeySectionReady &&
+      Boolean(workspaceKey),
+  });
+  const distribution =
+    (distributionResponse?.moneyAnalyticsDistribution as
+      | MoneyAnalyticsDistributionPayload
+      | undefined) ?? null;
+  const distributionSectionReady = distributionStageReady || distribution != null;
+
+  const { data: leadersResponse } = useQuery({
+    ...moneyAnalyticsLeadersQueryOptions(workspaceKey, applied),
+    enabled:
+      leadersStageInView &&
+      overviewReady &&
+      distributionSectionReady &&
+      Boolean(workspaceKey),
+  });
+  const leaders =
+    (leadersResponse?.moneyAnalyticsLeaders as
+      | MoneyAnalyticsLeadersPayload
+      | undefined) ?? null;
+  const leadersSectionReady = leadersStageReady || leaders != null;
   const incomeByCategoryInView = spendByCategoryInView;
+  const summaryStats = summary.stats;
+  const summaryRange = summary.range;
+  const overviewColumn = overview?.column ?? [];
+  const overviewLine = overview?.line ?? [];
+  const overviewLineCompare = overview?.lineCompare;
+  const overviewLineMode = overview?.lineMode ?? "date";
 
-  const pieSpendForChart = breakdown?.pieSpend.map((p) => ({
+  const pieSpendForChart = distribution?.pieSpend.map((p) => ({
     label: p.label,
     valueMinor: p.valueMinor,
   })) ?? [];
-  const pieIncomeForChart = breakdown?.pieIncome.map((p) => ({
+  const pieIncomeForChart = distribution?.pieIncome.map((p) => ({
     label: p.label,
     valueMinor: p.valueMinor,
   })) ?? [];
 
-  const pieSpendHasData = breakdown?.pieSpend.some((p) => p.valueMinor > 0) ?? false;
-  const pieIncomeHasData = breakdown?.pieIncome.some((p) => p.valueMinor > 0) ?? false;
-  const columnHasFlow = overview.column.some(
+  const pieSpendHasData =
+    distribution?.pieSpend.some((p) => p.valueMinor > 0) ?? false;
+  const pieIncomeHasData =
+    distribution?.pieIncome.some((p) => p.valueMinor > 0) ?? false;
+  const columnHasFlow = overviewColumn.some(
     (c) => c.expenseMinor > 0 || c.incomeMinor > 0,
   );
-  const columnExpenseTotal = overview.column.reduce((s, c) => s + c.expenseMinor, 0);
-  const columnIncomeTotal = overview.column.reduce((s, c) => s + c.incomeMinor, 0);
-  const pieSpendTotal = breakdown?.pieSpend.reduce((s, p) => s + p.valueMinor, 0) ?? 0;
-  const pieIncomeTotal = breakdown?.pieIncome.reduce((s, p) => s + p.valueMinor, 0) ?? 0;
-  const sankeyHasData = breakdown?.sankey.links.length ? breakdown.sankey.links.length > 0 : false;
+  const columnExpenseTotal = overviewColumn.reduce((s, c) => s + c.expenseMinor, 0);
+  const columnIncomeTotal = overviewColumn.reduce((s, c) => s + c.incomeMinor, 0);
+  const pieSpendTotal =
+    distribution?.pieSpend.reduce((s, p) => s + p.valueMinor, 0) ?? 0;
+  const pieIncomeTotal =
+    distribution?.pieIncome.reduce((s, p) => s + p.valueMinor, 0) ?? 0;
+  const sankeyHasData =
+    sankeyPayload?.sankey.links.length
+      ? sankeyPayload.sankey.links.length > 0
+      : false;
   const lineHasData =
-    overview.line.some((p) => p.netMinor !== 0) ||
-    (overview.lineCompare?.points.some((p) => p.netMinor !== 0) ?? false);
-  const merchantsHasData = breakdown?.merchantsSpend.some((m) => m.valueMinor > 0) ?? false;
-  const tagsHasData = breakdown?.tagsSpend.some((t) => t.valueMinor > 0) ?? false;
+    overviewLine.some((p) => p.netMinor !== 0) ||
+    (overviewLineCompare?.points.some((p) => p.netMinor !== 0) ?? false);
+  const merchantsHasData =
+    leaders?.merchantsSpend.some((m) => m.valueMinor > 0) ?? false;
+  const tagsHasData = leaders?.tagsSpend.some((t) => t.valueMinor > 0) ?? false;
   const categoryTrendHasData =
-    breakdown?.categoryByMonthStacked.some((m) =>
+    distribution?.categoryByMonthStacked.some((m) =>
       m.series.some((s) => s.valueMinor > 0),
     ) ?? false;
-  const recurringHasData = breakdown?.recurringSpend.some((r) => r.valueMinor > 0) ?? false;
+  const recurringHasData =
+    leaders?.recurringSpend.some((r) => r.valueMinor > 0) ?? false;
   const divergingHasData =
-    overview.stats.incomeMinor > 0 || overview.stats.expenseMinor > 0;
+    summaryStats.incomeMinor > 0 || summaryStats.expenseMinor > 0;
   const budgetChartRows = useMemo(
     () =>
-      breakdown
-        ? budgetRowsForChart(breakdown.budgets, categories, accounts, tags)
+      budgets
+        ? budgetRowsForChart(budgets.budgets, categories, accounts, tags)
         : [],
-    [breakdown, categories, accounts, tags],
+    [budgets, categories, accounts, tags],
   );
   const budgetChartHasData = budgetChartRows.some(
     (b) => b.valueMinor > 0 || (b.limitMinor ?? 0) > 0,
   );
 
   const { formatMonthYear } = useFormatDate();
-  const lineCompareLabel = overview.lineCompare
-    ? formatMonthYear(overview.lineCompare.fromDate)
+  const lineCompareLabel = overviewLineCompare
+    ? formatMonthYear(overviewLineCompare.fromDate)
     : null;
 
-  const isCurrentMonthCompare = Boolean(overview.lineCompare);
+  const isCurrentMonthCompare = Boolean(overviewLineCompare);
 
   const [hiddenSpendCategories, setHiddenSpendCategories] = useState(
     () => new Set<string>(),
@@ -421,24 +514,24 @@ function AnalyticsChartsView({
 
   const spendLegendItems = useMemo(
     () =>
-      (breakdown?.pieSpend ?? []).slice(0, 8).map((p, i) => ({
+      (distribution?.pieSpend ?? []).slice(0, 8).map((p, i) => ({
         key: p.label,
         label: p.label,
         color: colorByIndex(resolved, i, style),
         valueText: formatMinor(p.valueMinor, defaultCurrency),
       })),
-    [breakdown?.pieSpend, resolved, style, defaultCurrency],
+    [distribution?.pieSpend, resolved, style, defaultCurrency],
   );
 
   const incomeLegendItems = useMemo(
     () =>
-      (breakdown?.pieIncome ?? []).slice(0, 8).map((p, i) => ({
+      (distribution?.pieIncome ?? []).slice(0, 8).map((p, i) => ({
         key: p.label,
         label: p.label,
         color: colorByIndex(resolved, i, style),
         valueText: formatMinor(p.valueMinor, defaultCurrency),
       })),
-    [breakdown?.pieIncome, resolved, style, defaultCurrency],
+    [distribution?.pieIncome, resolved, style, defaultCurrency],
   );
 
   const columnLegendItems = useMemo(
@@ -460,21 +553,22 @@ function AnalyticsChartsView({
   );
 
   const linePrimaryColor = useMemo(() => {
-    const last = overview.line[overview.line.length - 1]?.netMinor ?? 0;
+    const line = overview?.line ?? [];
+    const last = line[line.length - 1]?.netMinor ?? 0;
     return last < 0
       ? chartExpenseColor(resolved, style)
       : chartIncomeColor(resolved, style);
-  }, [overview.line, resolved, style]);
+  }, [overview, resolved, style]);
 
   const categoryTrendLegendItems = useMemo(() => {
-    if (!breakdown) return [];
+    if (!distribution) return [];
     const keys = new Set<string>();
-    for (const m of breakdown.categoryByMonthStacked) {
+    for (const m of distribution.categoryByMonthStacked) {
       for (const s of m.series) keys.add(s.key);
     }
     return [...keys].map((key, i) => {
       const label =
-        breakdown.categoryByMonthStacked
+        distribution.categoryByMonthStacked
           .flatMap((m) => m.series)
           .find((s) => s.key === key)?.label ?? key;
       return {
@@ -484,24 +578,25 @@ function AnalyticsChartsView({
         valueText: "",
       };
     });
-  }, [breakdown, resolved, style]);
+  }, [distribution, resolved, style]);
 
   const lineLegendItems = useMemo(() => {
+    const line = overview?.line ?? [];
+    const lineCompare = overview?.lineCompare;
     const items = [
       {
         key: "primary",
         label: isCurrentMonthCompare ? "This month" : "Selected range",
         color: linePrimaryColor,
         valueText: formatMinor(
-          overview.line[overview.line.length - 1]?.netMinor ?? 0,
+          line[line.length - 1]?.netMinor ?? 0,
           defaultCurrency,
         ),
       },
     ];
-    if (overview.lineCompare && lineCompareLabel) {
+    if (lineCompare && lineCompareLabel) {
       const compareLast =
-        overview.lineCompare.points[overview.lineCompare.points.length - 1]
-          ?.netMinor ?? 0;
+        lineCompare.points[lineCompare.points.length - 1]?.netMinor ?? 0;
       items.push({
         key: "compare",
         label: lineCompareLabel,
@@ -511,8 +606,7 @@ function AnalyticsChartsView({
     }
     return items;
   }, [
-    overview.line,
-    overview.lineCompare,
+    overview,
     lineCompareLabel,
     linePrimaryColor,
     defaultCurrency,
@@ -522,9 +616,9 @@ function AnalyticsChartsView({
   return (
     <>
       <AnalyticsStats
-        stats={overview.stats}
-        column={overview.column}
-        range={overview.range}
+        stats={summaryStats}
+        column={overviewColumn}
+        range={summaryRange}
         currency={defaultCurrency}
       />
 
@@ -533,7 +627,7 @@ function AnalyticsChartsView({
         ref={netFlowRef}
       >
         <h2 className="mb-2 font-display text-lg font-medium">Net cumulative flow</h2>
-        {overview.lineCompare ? (
+        {overviewLineCompare ? (
           <p className="mb-2 text-xs text-muted">
             Solid: this month through today. Dashed: {lineCompareLabel}.
           </p>
@@ -559,18 +653,20 @@ function AnalyticsChartsView({
           }
         >
           {netFlowInView ? (
-            lineHasData ? (
+            !overviewReady ? (
+              <DeferredChartLoading ariaLabel="Loading net cumulative flow chart" />
+            ) : lineHasData ? (
               <LineChart
-                data={overview.line}
+                data={overviewLine}
                 comparison={
-                  overview.lineCompare && lineCompareLabel
+                  overviewLineCompare && lineCompareLabel
                     ? {
                         label: lineCompareLabel,
-                        data: overview.lineCompare.points,
+                        data: overviewLineCompare.points,
                       }
                     : undefined
                 }
-                xMode={overview.lineMode ?? "date"}
+                xMode={overviewLineMode}
                 formatY={(minor) => formatMinor(minor, defaultCurrency)}
                 hiddenSeries={hiddenLineSeries}
                 animate={netFlowInView}
@@ -595,10 +691,12 @@ function AnalyticsChartsView({
         <h2 className="mb-2 font-display text-lg font-medium">Income vs expenses</h2>
         <p className="mb-2 text-xs text-muted">Totals for the selected filter range.</p>
         <AnalyticsChartContainer>
-          {divergingHasData ? (
+          {!overviewReady ? (
+            <DeferredChartLoading ariaLabel="Loading income versus expenses chart" />
+          ) : divergingHasData ? (
             <DivergingBarChart
-              incomeMinor={overview.stats.incomeMinor}
-              expenseMinor={overview.stats.expenseMinor}
+              incomeMinor={summaryStats.incomeMinor}
+              expenseMinor={summaryStats.expenseMinor}
               formatValue={formatChartValue}
             />
           ) : (
@@ -630,7 +728,7 @@ function AnalyticsChartsView({
         <AnalyticsChartContainer>
           {!budgetInView ? (
             <ChartViewportFallback ariaLabel="Budget chart loads when this section is visible" />
-          ) : !breakdown ? (
+          ) : !budgets || !lookupsReady ? (
             <DeferredChartLoading ariaLabel="Loading budget chart" />
           ) : budgetChartHasData ? (
             <HorizontalBarChart
@@ -663,12 +761,12 @@ function AnalyticsChartsView({
         <AnalyticsChartContainer className="text-foreground">
           {!sankeyInView ? (
             <ChartViewportFallback ariaLabel="Money flow chart loads when this section is visible" />
-          ) : !breakdown ? (
+          ) : !sankeyPayload ? (
             <DeferredChartLoading ariaLabel="Loading money flow chart" />
           ) : sankeyHasData ? (
             <SankeyChart
-              nodes={breakdown.sankey.nodes}
-              links={breakdown.sankey.links}
+              nodes={sankeyPayload.sankey.nodes}
+              links={sankeyPayload.sankey.links}
               currency={defaultCurrency}
               animate={sankeyInView}
             />
@@ -705,7 +803,7 @@ function AnalyticsChartsView({
             }
           >
             {spendByCategoryInView ? (
-              !breakdown ? (
+              !distribution ? (
                 <DeferredChartLoading ariaLabel="Loading spend by category chart" />
               ) : pieSpendHasData ? (
                 <PieByCategoryChart
@@ -752,7 +850,7 @@ function AnalyticsChartsView({
           >
             {!incomeByCategoryInView ? (
               <ChartViewportFallback ariaLabel="Income by category chart loads when this section is visible" />
-            ) : !breakdown ? (
+            ) : !distribution ? (
               <DeferredChartLoading ariaLabel="Loading income by category chart" />
             ) : pieIncomeHasData ? (
               <PieByCategoryChart
@@ -797,9 +895,11 @@ function AnalyticsChartsView({
             }
           >
             {monthlyColumnsInView ? (
-              columnHasFlow ? (
+              !overviewReady ? (
+                <DeferredChartLoading ariaLabel="Loading monthly expense and income chart" />
+              ) : columnHasFlow ? (
                 <ColumnChart
-                  data={overview.column}
+                  data={overviewColumn}
                   hiddenSeries={hiddenColumnSeries}
                   animate={monthlyColumnsInView}
                   formatValue={formatChartValue}
@@ -841,11 +941,11 @@ function AnalyticsChartsView({
             }
           >
             {categoryTrendInView ? (
-              !breakdown ? (
+              !distribution ? (
                 <DeferredChartLoading ariaLabel="Loading category spend trend chart" />
               ) : categoryTrendHasData ? (
                 <StackedAreaChart
-                  data={breakdown.categoryByMonthStacked}
+                  data={distribution.categoryByMonthStacked}
                   hiddenKeys={hiddenCategoryTrendKeys}
                   formatValue={formatChartValue}
                   animate={categoryTrendInView}
@@ -869,11 +969,11 @@ function AnalyticsChartsView({
           <h2 className="mb-2 font-display text-lg font-medium">Spend by tag</h2>
           <AnalyticsChartContainer>
             {tagsInView ? (
-              !breakdown ? (
+              !leaders ? (
                 <DeferredChartLoading ariaLabel="Loading spend by tag chart" />
               ) : tagsHasData ? (
                 <HorizontalBarChart
-                  data={breakdown.tagsSpend.map((t, i) => ({
+                  data={leaders.tagsSpend.map((t, i) => ({
                     key: `t-${i}-${t.label}`,
                     label: t.label,
                     valueMinor: t.valueMinor,
@@ -900,11 +1000,11 @@ function AnalyticsChartsView({
           <h2 className="mb-2 font-display text-lg font-medium">Top merchants</h2>
           <AnalyticsChartContainer>
             {merchantsInView ? (
-              !breakdown ? (
+              !leaders ? (
                 <DeferredChartLoading ariaLabel="Loading top merchants chart" />
               ) : merchantsHasData ? (
                 <HorizontalBarChart
-                  data={breakdown.merchantsSpend.map((m, i) => ({
+                  data={leaders.merchantsSpend.map((m, i) => ({
                     key: `m-${i}-${m.label}`,
                     label: m.label,
                     valueMinor: m.valueMinor,
@@ -940,11 +1040,11 @@ function AnalyticsChartsView({
         <AnalyticsChartContainer>
           {!recurringInView ? (
             <ChartViewportFallback ariaLabel="Recurring spend chart loads when this section is visible" />
-          ) : !breakdown ? (
+          ) : !leaders ? (
             <DeferredChartLoading ariaLabel="Loading recurring spend chart" />
           ) : recurringHasData ? (
             <HorizontalBarChart
-              data={breakdown.recurringSpend.map((r, i) => ({
+              data={leaders.recurringSpend.map((r, i) => ({
                 key: r.templateId ?? `r-${i}`,
                 label: r.label,
                 valueMinor: r.valueMinor,
@@ -963,21 +1063,45 @@ function AnalyticsChartsView({
           )}
         </AnalyticsChartContainer>
       </Card>
+
+      <div
+        ref={transactionsRef}
+        className="col-span-2 md:col-span-6 lg:col-span-12"
+      >
+        {transactionsInView && lookupsReady && overviewReady && leadersSectionReady ? (
+          <AnalyticsTransactionsTableLazy
+            filterQuery={filterQuery}
+            activeWorkspaceId={workspaceKey}
+            accounts={accounts}
+            categories={categories}
+            currency={defaultCurrency}
+            deferFetchUntilVisible={false}
+          />
+        ) : (
+          <MoneyAnalyticsTransactionsTableSkeleton />
+        )}
+      </div>
     </>
   );
 }
 
 function AnalyticsDashboardLoaded() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const userSub = session?.user?.id;
-  const { defaultCurrency, refreshWorkspaceCurrency } = useWorkspaceCurrency();
+  const {
+    workspaceId: coreWorkspaceId,
+    defaultCurrency,
+    refreshWorkspaceCurrency,
+    workspaceReady,
+  } = useWorkspaceCurrency();
   const { resolved, style } = useTheme();
-  const queryClient = useQueryClient();
+  const canRunMoneyQueries =
+    status === "authenticated" && typeof window !== "undefined";
 
   const {
     ref: budgetRef,
     isInView: budgetInView,
-  } = useInViewOnce();
+  } = useInViewOnce("96px 0px");
   const {
     ref: sankeyRef,
     isInView: sankeyInView,
@@ -985,29 +1109,24 @@ function AnalyticsDashboardLoaded() {
   const {
     ref: spendByCategoryRef,
     isInView: spendByCategoryInView,
-  } = useInViewOnce();
+  } = useInViewOnce("144px 0px");
   const {
     ref: monthlyColumnsRef,
     isInView: monthlyColumnsInView,
   } = useInViewOnce();
   const { ref: netFlowRef, isInView: netFlowInView } = useInViewOnce();
-  const { ref: merchantsRef, isInView: merchantsInView } = useInViewOnce();
-  const { ref: recurringRef, isInView: recurringInView } = useInViewOnce();
-  const { ref: tagsRef, isInView: tagsInView } = useInViewOnce();
-  const { ref: categoryTrendRef, isInView: categoryTrendInView } = useInViewOnce();
+  const { ref: merchantsRef, isInView: merchantsInView } = useInViewOnce("144px 0px");
+  const { ref: recurringRef, isInView: recurringInView } = useInViewOnce("160px 0px");
+  const { ref: tagsRef, isInView: tagsInView } = useInViewOnce("144px 0px");
+  const { ref: categoryTrendRef, isInView: categoryTrendInView } =
+    useInViewOnce("144px 0px");
+  const { ref: transactionsRef, isInView: transactionsInView } =
+    useInViewOnce("240px 0px");
 
-  const { data: boot } = useSuspenseQuery(moneyBootstrapQueryOptions());
-
-  const workspaces = boot.workspaces as AnalyticsWorkspaceRow[];
-  const accounts = boot.accounts as AnalyticsLookupAccount[];
-  const categories = boot.categories as MoneyCategoryRow[];
-  const merchants = boot.merchants as AnalyticsLookupMerchant[];
-  const tags = boot.tags as AnalyticsLookupTag[];
-
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState(boot.workspaceId);
-  const [switchingWorkspace, setSwitchingWorkspace] = useState(false);
+  const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
-
   const [draft, setDraft] = useState<AnalyticsFiltersValue>(() =>
     defaultAnalyticsFilters(),
   );
@@ -1017,74 +1136,141 @@ function AnalyticsDashboardLoaded() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [isFilterPending, startFilterTransition] = useTransition();
 
-  const fetchSeq = useRef(0);
+  const workspaceStateQuery = useQuery({
+    ...moneyWorkspaceStateQueryOptions(),
+    enabled: canRunMoneyQueries,
+  });
+
+  const workspaces = useMemo(
+    () =>
+      (workspaceStateQuery.data?.workspaces ?? []) as AnalyticsWorkspaceRow[],
+    [workspaceStateQuery.data?.workspaces],
+  );
+  const resolvedWorkspaceId = useMemo(() => {
+    let resolvedId = coreWorkspaceId ?? "";
+    if (!workspaces.some((workspace) => workspace.id === resolvedId)) {
+      resolvedId =
+        workspaces.find((workspace) => workspace.isDefault)?.id ??
+        workspaces[0]?.id ??
+        resolvedId;
+    }
+    return resolvedId;
+  }, [coreWorkspaceId, workspaces]);
+  const activeWorkspaceId = pendingWorkspaceId ?? resolvedWorkspaceId;
+  const workspaceSyncPending =
+    pendingWorkspaceId != null ||
+    (resolvedWorkspaceId !== "" &&
+      resolvedWorkspaceId !== (coreWorkspaceId ?? ""));
+
+  const chartLookupsQuery = useQuery({
+    ...moneyAnalyticsChartLookupsQueryOptions(activeWorkspaceId),
+    enabled:
+      canRunMoneyQueries &&
+      workspaceReady &&
+      !workspaceSyncPending &&
+      Boolean(activeWorkspaceId),
+  });
+  const merchantLookupsQuery = useQuery({
+    ...moneyAnalyticsMerchantLookupsQueryOptions(activeWorkspaceId),
+    enabled:
+      canRunMoneyQueries &&
+      filtersOpen &&
+      workspaceReady &&
+      !workspaceSyncPending &&
+      Boolean(activeWorkspaceId),
+  });
+
+  const accounts = useMemo(
+    () =>
+      (workspaceSyncPending
+        ? []
+        : (chartLookupsQuery.data?.moneyAccounts ?? [])) as AnalyticsLookupAccount[],
+    [workspaceSyncPending, chartLookupsQuery.data?.moneyAccounts],
+  );
+  const categories = useMemo(
+    () =>
+      (workspaceSyncPending
+        ? []
+        : (chartLookupsQuery.data?.moneyCategories ?? [])) as MoneyCategoryRow[],
+    [workspaceSyncPending, chartLookupsQuery.data?.moneyCategories],
+  );
+  const tags = useMemo(
+    () =>
+      (workspaceSyncPending
+        ? []
+        : (chartLookupsQuery.data?.moneyTags ?? [])) as AnalyticsLookupTag[],
+    [workspaceSyncPending, chartLookupsQuery.data?.moneyTags],
+  );
+  const merchants = useMemo(
+    () =>
+      (workspaceSyncPending
+        ? []
+        : (merchantLookupsQuery.data?.moneyMerchants ?? [])) as AnalyticsLookupMerchant[],
+    [workspaceSyncPending, merchantLookupsQuery.data?.moneyMerchants],
+  );
+  const lookupsReady = !workspaceSyncPending && chartLookupsQuery.isSuccess;
 
   const draftKey = useMemo(() => JSON.stringify(draft), [draft]);
   const appliedKey = useMemo(() => JSON.stringify(applied), [applied]);
   const dirty = draftKey !== appliedKey;
-
   const analyticsFilterQuery = useMemo(() => buildQuery(applied), [applied]);
 
+  const autoSyncedWorkspaceRef = useRef<string | null>(null);
+
   useEffect(() => {
+    if (!resolvedWorkspaceId || resolvedWorkspaceId === (coreWorkspaceId ?? "")) {
+      autoSyncedWorkspaceRef.current = null;
+      return;
+    }
+    if (!workspaces.some((workspace) => workspace.id === resolvedWorkspaceId)) {
+      return;
+    }
+
+    const syncKey = `${coreWorkspaceId ?? ""}:${resolvedWorkspaceId}`;
+    if (autoSyncedWorkspaceRef.current === syncKey) return;
+    autoSyncedWorkspaceRef.current = syncKey;
+
     let cancelled = false;
-    const seq = ++fetchSeq.current;
     void (async () => {
       try {
-        let resolvedId = boot.workspaceId;
-        if (!boot.workspaces.some((w) => w.id === resolvedId)) {
-          resolvedId =
-            boot.workspaces.find((w) => w.isDefault)?.id ??
-            boot.workspaces[0]?.id ??
-            resolvedId;
-        }
-        if (cancelled || seq !== fetchSeq.current) return;
-        setActiveWorkspaceId(resolvedId);
-        if (
-          resolvedId &&
-          resolvedId !== boot.workspaceId &&
-          boot.workspaces.some((w) => w.id === resolvedId)
-        ) {
-          await moneyGraphQLRequest(MONEY_SET_ACTIVE_WORKSPACE_MUTATION, {
-            workspaceId: resolvedId,
-          });
-          await refreshWorkspaceCurrency();
-          await queryClient.invalidateQueries({ queryKey: ["money", "bootstrap"] });
-        }
+        await moneyGraphQLRequest(MONEY_SET_ACTIVE_WORKSPACE_MUTATION, {
+          workspaceId: resolvedWorkspaceId,
+        });
+        if (cancelled) return;
+        setError(null);
+        await refreshWorkspaceCurrency();
       } catch (e: unknown) {
-        if (!cancelled && seq === fetchSeq.current) {
-          setError(e instanceof Error ? e.message : "Error");
-        }
+        if (cancelled) return;
+        autoSyncedWorkspaceRef.current = null;
+        setError(e instanceof Error ? e.message : "Error");
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [boot.workspaces, boot.workspaceId, queryClient, refreshWorkspaceCurrency]);
+  }, [coreWorkspaceId, refreshWorkspaceCurrency, resolvedWorkspaceId, workspaces]);
 
   const handleWorkspaceChange = useCallback(
     async (next: string) => {
       if (!next || next === activeWorkspaceId) return;
-      setSwitchingWorkspace(true);
+      setPendingWorkspaceId(next);
       setError(null);
       try {
         await moneyGraphQLRequest(MONEY_SET_ACTIVE_WORKSPACE_MUTATION, {
           workspaceId: next,
         });
-        setActiveWorkspaceId(next);
         await refreshWorkspaceCurrency();
-        await queryClient.invalidateQueries({ queryKey: ["money", "bootstrap"] });
-        await queryClient.invalidateQueries({ queryKey: ["money", "analyticsOverview"] });
-        await queryClient.invalidateQueries({ queryKey: ["money", "analyticsBreakdown"] });
         const fresh = defaultAnalyticsFilters();
         setDraft(fresh);
         setApplied(fresh);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Error");
       } finally {
-        setSwitchingWorkspace(false);
+        setPendingWorkspaceId(null);
       }
     },
-    [activeWorkspaceId, queryClient, refreshWorkspaceCurrency],
+    [activeWorkspaceId, refreshWorkspaceCurrency],
   );
 
   const handleApply = useCallback(() => {
@@ -1100,12 +1286,29 @@ function AnalyticsDashboardLoaded() {
     setApplied(fresh);
   }, []);
 
+  const loadError =
+    error ??
+    (workspaceStateQuery.error instanceof Error
+      ? workspaceStateQuery.error.message
+      : null) ??
+    (chartLookupsQuery.error instanceof Error
+      ? chartLookupsQuery.error.message
+      : null) ??
+    (filtersOpen && merchantLookupsQuery.error instanceof Error
+      ? merchantLookupsQuery.error.message
+      : null);
+
+  if (!workspaceReady && !workspaceStateQuery.data && !workspaceStateQuery.error) {
+    return <MoneyAnalyticsPageSkeleton />;
+  }
+
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 md:mb-4 fx-fade-in">
         <p className="max-w-prose text-sm text-muted">
-          Workspace-scoped aggregates for the range you set in Filter (default: start through end of
-          the current calendar month). Apply to refresh charts.
+          Workspace-scoped aggregates for the range you set in Filter (default:
+          start through end of the current calendar month). Apply to refresh
+          charts.
         </p>
         <Button
           type="button"
@@ -1147,7 +1350,7 @@ function AnalyticsDashboardLoaded() {
             workspaces={workspaces}
             activeWorkspaceId={activeWorkspaceId}
             onWorkspaceChange={handleWorkspaceChange}
-            switchingWorkspace={switchingWorkspace}
+            switchingWorkspace={workspaceSyncPending}
             userSub={userSub}
             onClose={() => setFiltersOpen(false)}
           />
@@ -1155,61 +1358,59 @@ function AnalyticsDashboardLoaded() {
       ) : null}
 
       <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3">
-        {error ? (
+        {loadError ? (
           <div className="col-span-2 md:col-span-6 lg:col-span-12">
-            <Alert variant="error" title="Couldn’t load analytics" description={error} />
+            <Alert
+              variant="error"
+              title="Couldn’t load analytics"
+              description={loadError}
+            />
           </div>
         ) : null}
 
-        <Suspense fallback={<MoneyAnalyticsChartsSkeleton />}>
-          <AnalyticsChartsShell
-            applied={applied}
-            workspaceKey={activeWorkspaceId}
-            defaultCurrency={defaultCurrency}
-            budgetRef={budgetRef}
-            sankeyRef={sankeyRef}
-            spendByCategoryRef={spendByCategoryRef}
-            monthlyColumnsRef={monthlyColumnsRef}
-            netFlowRef={netFlowRef}
-            merchantsRef={merchantsRef}
-            recurringRef={recurringRef}
-            tagsRef={tagsRef}
-            categoryTrendRef={categoryTrendRef}
-            budgetInView={budgetInView}
-            sankeyInView={sankeyInView}
-            spendByCategoryInView={spendByCategoryInView}
-            monthlyColumnsInView={monthlyColumnsInView}
-            netFlowInView={netFlowInView}
-            merchantsInView={merchantsInView}
-            recurringInView={recurringInView}
-            tagsInView={tagsInView}
-            categoryTrendInView={categoryTrendInView}
-            resolved={resolved}
-            style={style}
-            categories={categories}
-            accounts={accounts}
-            tags={tags}
-          />
-        </Suspense>
-
-        {activeWorkspaceId ? (
-          <AnalyticsTransactionsTable
-            filterQuery={analyticsFilterQuery}
-            activeWorkspaceId={activeWorkspaceId}
-            accounts={accounts}
-            categories={categories}
-            currency={defaultCurrency}
-          />
-        ) : null}
+        {activeWorkspaceId && !workspaceSyncPending ? (
+          <Suspense fallback={<MoneyAnalyticsChartsSkeleton />}>
+            <AnalyticsSummaryShell
+              applied={applied}
+              filterQuery={analyticsFilterQuery}
+              workspaceKey={activeWorkspaceId}
+              defaultCurrency={defaultCurrency}
+              budgetRef={budgetRef}
+              sankeyRef={sankeyRef}
+              spendByCategoryRef={spendByCategoryRef}
+              monthlyColumnsRef={monthlyColumnsRef}
+              netFlowRef={netFlowRef}
+              merchantsRef={merchantsRef}
+              recurringRef={recurringRef}
+              tagsRef={tagsRef}
+              categoryTrendRef={categoryTrendRef}
+              transactionsRef={transactionsRef}
+              budgetInView={budgetInView}
+              sankeyInView={sankeyInView}
+              spendByCategoryInView={spendByCategoryInView}
+              monthlyColumnsInView={monthlyColumnsInView}
+              netFlowInView={netFlowInView}
+              merchantsInView={merchantsInView}
+              recurringInView={recurringInView}
+              tagsInView={tagsInView}
+              categoryTrendInView={categoryTrendInView}
+              transactionsInView={transactionsInView}
+              resolved={resolved}
+              style={style}
+              lookupsReady={lookupsReady}
+              categories={categories}
+              accounts={accounts}
+              tags={tags}
+            />
+          </Suspense>
+        ) : (
+          <MoneyAnalyticsChartsSkeleton />
+        )}
       </div>
     </>
   );
 }
 
 export function AnalyticsDashboard() {
-  return (
-    <Suspense fallback={<MoneyAnalyticsPageSkeleton />}>
-      <AnalyticsDashboardLoaded />
-    </Suspense>
-  );
+  return <AnalyticsDashboardLoaded />;
 }

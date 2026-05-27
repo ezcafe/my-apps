@@ -3,8 +3,13 @@ import { GraphQLJSONObject } from "graphql-scalars";
 import { analyticsFiltersSchema } from "@/lib/validators/money";
 import {
   computeMoneyAnalytics,
+  computeMoneyAnalyticsBudgets,
   computeMoneyAnalyticsBreakdown,
+  computeMoneyAnalyticsDistribution,
+  computeMoneyAnalyticsLeaders,
   computeMoneyAnalyticsOverview,
+  computeMoneyAnalyticsSummary,
+  computeMoneyAnalyticsSankey,
 } from "@/lib/money-services/analytics";
 import {
   fetchMoneyBootstrapSafe,
@@ -592,6 +597,76 @@ export const moneyResolvers = {
         const { workspaceId } = requireMoneyWorkspace(ctx);
         const filters = filtersFromInput(args.filters);
         return await computeMoneyAnalyticsOverview(workspaceId, filters);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyAnalyticsSummary: async (
+      _: unknown,
+      args: { filters: Record<string, unknown> },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        const filters = filtersFromInput(args.filters);
+        return await computeMoneyAnalyticsSummary(workspaceId, filters);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyAnalyticsDistribution: async (
+      _: unknown,
+      args: { filters: Record<string, unknown> },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        const filters = filtersFromInput(args.filters);
+        return await computeMoneyAnalyticsDistribution(workspaceId, filters);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyAnalyticsBudgets: async (
+      _: unknown,
+      args: { filters: Record<string, unknown> },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        const filters = filtersFromInput(args.filters);
+        return await computeMoneyAnalyticsBudgets(workspaceId, filters);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyAnalyticsSankey: async (
+      _: unknown,
+      args: { filters: Record<string, unknown> },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        const filters = filtersFromInput(args.filters);
+        return await computeMoneyAnalyticsSankey(workspaceId, filters);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyAnalyticsLeaders: async (
+      _: unknown,
+      args: { filters: Record<string, unknown> },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        const filters = filtersFromInput(args.filters);
+        return await computeMoneyAnalyticsLeaders(workspaceId, filters);
       } catch (e) {
         mapServiceError(e);
       }

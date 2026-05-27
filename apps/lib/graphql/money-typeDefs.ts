@@ -74,7 +74,12 @@ export const moneyTypeDefs = /* GraphQL */ `
     moneyBootstrap: MoneyBootstrapPayload!
     moneyWorkspaceState: MoneyWorkspaceStatePayload!
     moneyAnalytics(filters: AnalyticsFiltersInput!): JSONObject!
+    moneyAnalyticsSummary(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsOverview(filters: AnalyticsFiltersInput!): JSONObject!
+    moneyAnalyticsDistribution(filters: AnalyticsFiltersInput!): JSONObject!
+    moneyAnalyticsBudgets(filters: AnalyticsFiltersInput!): JSONObject!
+    moneyAnalyticsSankey(filters: AnalyticsFiltersInput!): JSONObject!
+    moneyAnalyticsLeaders(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsBreakdown(filters: AnalyticsFiltersInput!): JSONObject!
     moneyBudgets(includeSpent: Boolean!, from: String, to: String): [JSONObject!]!
     moneyTransactions(query: JSONObject!): MoneyTransactionConnection!

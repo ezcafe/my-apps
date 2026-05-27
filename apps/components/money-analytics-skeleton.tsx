@@ -49,7 +49,7 @@ function AnalyticsChartCardSkeleton({
   );
 }
 
-function AnalyticsTransactionsTableSkeleton() {
+export function MoneyAnalyticsTransactionsTableSkeleton() {
   return (
     <Card className="col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12">
       <Skeleton className="mb-3 h-6 w-32" />
@@ -171,7 +171,7 @@ function AnalyticsGridContent({ includeTable }: { includeTable: boolean }) {
         descriptionWidthClass="w-56 max-w-full"
       />
 
-      {includeTable ? <AnalyticsTransactionsTableSkeleton /> : null}
+      {includeTable ? <MoneyAnalyticsTransactionsTableSkeleton /> : null}
     </>
   );
 }

@@ -53,14 +53,7 @@ export type RecurringSpendRow = {
   templateId: string | null;
 };
 
-export type MoneyAnalyticsOverviewPayload = {
-  column: { month: string; expenseMinor: number; incomeMinor: number }[];
-  line: { date: string; netMinor: number }[];
-  lineCompare?: {
-    fromDate: string;
-    points: { date: string; netMinor: number }[];
-  };
-  lineMode?: "dayOfMonth" | "date";
+export type MoneyAnalyticsSummaryPayload = {
   stats: {
     expenseMinor: number;
     incomeMinor: number;
@@ -71,22 +64,47 @@ export type MoneyAnalyticsOverviewPayload = {
   range: { from: string; to: string };
 };
 
-export type MoneyAnalyticsBreakdownPayload = {
+export type MoneyAnalyticsOverviewPayload = {
+  column: { month: string; expenseMinor: number; incomeMinor: number }[];
+  line: { date: string; netMinor: number }[];
+  lineCompare?: {
+    fromDate: string;
+    points: { date: string; netMinor: number }[];
+  };
+  lineMode?: "dayOfMonth" | "date";
+};
+
+export type MoneyAnalyticsDistributionPayload = {
   pieSpend: PieRow[];
   pieIncome: PieRow[];
+  categoryByMonthStacked: StackedMonthSeries[];
+};
+
+export type MoneyAnalyticsBudgetPayload = {
+  budgets: BudgetListRowEnriched[];
+};
+
+export type MoneyAnalyticsSankeyPayload = {
   sankey: {
     /** Graph ids: `a:` account, `c:` category, `b:` budget (when budgets apply). */
     nodes: { id: string; name: string }[];
     links: { source: string; target: string; value: number }[];
   };
-  merchantsSpend: LabelValueRow[];
-  tagsSpend: LabelValueRow[];
-  categoryByMonthStacked: StackedMonthSeries[];
-  recurringSpend: RecurringSpendRow[];
-  budgets: BudgetListRowEnriched[];
 };
 
-export type MoneyAnalyticsPayload = MoneyAnalyticsOverviewPayload &
+export type MoneyAnalyticsLeadersPayload = {
+  merchantsSpend: LabelValueRow[];
+  tagsSpend: LabelValueRow[];
+  recurringSpend: RecurringSpendRow[];
+};
+
+export type MoneyAnalyticsBreakdownPayload = MoneyAnalyticsDistributionPayload &
+  MoneyAnalyticsBudgetPayload &
+  MoneyAnalyticsSankeyPayload &
+  MoneyAnalyticsLeadersPayload;
+
+export type MoneyAnalyticsPayload = MoneyAnalyticsSummaryPayload &
+  MoneyAnalyticsOverviewPayload &
   MoneyAnalyticsBreakdownPayload;
 
 type SankeyLink = { source: string; target: string; value: number };
@@ -382,10 +400,10 @@ async function buildNetLineSeries(
   };
 }
 
-export async function computeMoneyAnalyticsOverview(
+export async function computeMoneyAnalyticsSummary(
   workspaceId: string,
   filters: AnalyticsFiltersData,
-): Promise<MoneyAnalyticsOverviewPayload> {
+): Promise<MoneyAnalyticsSummaryPayload> {
   const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
 
   const conditions = moneyTransactionConditionsForAnalytics(
@@ -394,28 +412,14 @@ export async function computeMoneyAnalyticsOverview(
   );
   const whereClause = and(...conditions);
 
-  const monthExpr = sql`to_char((${moneyTransaction.occurredAt} at time zone 'utc'), 'YYYY-MM')`;
-  const [statRows, columnRows, lineResult] = await Promise.all([
-    db
-      .select({
-        transactionCount: sql<number>`count(*)::int`,
-        expenseMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'expense' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
-        incomeMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'income' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
-      })
-      .from(moneyTransaction)
-      .where(whereClause),
-    db
-      .select({
-        month: monthExpr,
-        expenseMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'expense' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
-        incomeMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'income' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
-      })
-      .from(moneyTransaction)
-      .where(whereClause)
-      .groupBy(monthExpr)
-      .orderBy(monthExpr),
-    buildNetLineSeries(workspaceId, filters, from, to),
-  ]);
+  const statRows = await db
+    .select({
+      transactionCount: sql<number>`count(*)::int`,
+      expenseMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'expense' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
+      incomeMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'income' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
+    })
+    .from(moneyTransaction)
+    .where(whereClause);
 
   const stat = statRows[0];
   const expenseMinorTotal = Number(stat?.expenseMinor ?? 0);
@@ -429,14 +433,6 @@ export async function computeMoneyAnalyticsOverview(
       : null;
 
   return {
-    column: columnRows.map((row) => ({
-      month: String(row.month),
-      expenseMinor: Number(row.expenseMinor),
-      incomeMinor: Number(row.incomeMinor),
-    })),
-    line: lineResult.line,
-    lineCompare: lineResult.lineCompare,
-    lineMode: lineResult.lineMode,
     stats: {
       expenseMinor: expenseMinorTotal,
       incomeMinor: incomeMinorTotal,
@@ -448,10 +444,10 @@ export async function computeMoneyAnalyticsOverview(
   };
 }
 
-export async function computeMoneyAnalyticsBreakdown(
+export async function computeMoneyAnalyticsOverview(
   workspaceId: string,
   filters: AnalyticsFiltersData,
-): Promise<MoneyAnalyticsBreakdownPayload> {
+): Promise<MoneyAnalyticsOverviewPayload> {
   const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
 
   const conditions = moneyTransactionConditionsForAnalytics(
@@ -461,6 +457,150 @@ export async function computeMoneyAnalyticsBreakdown(
   const whereClause = and(...conditions);
 
   const monthExpr = sql`to_char((${moneyTransaction.occurredAt} at time zone 'utc'), 'YYYY-MM')`;
+  const [columnRows, lineResult] = await Promise.all([
+    db
+      .select({
+        month: monthExpr,
+        expenseMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'expense' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
+        incomeMinor: sql<string>`coalesce(sum(case when ${moneyTransaction.kind} = 'income' then ${moneyTransaction.amountMinor} else 0 end), 0)`,
+      })
+      .from(moneyTransaction)
+      .where(whereClause)
+      .groupBy(monthExpr)
+      .orderBy(monthExpr),
+    buildNetLineSeries(workspaceId, filters, from, to),
+  ]);
+
+  return {
+    column: columnRows.map((row) => ({
+      month: String(row.month),
+      expenseMinor: Number(row.expenseMinor),
+      incomeMinor: Number(row.incomeMinor),
+    })),
+    line: lineResult.line,
+    lineCompare: lineResult.lineCompare,
+    lineMode: lineResult.lineMode,
+  };
+}
+
+export async function computeMoneyAnalyticsDistribution(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+): Promise<MoneyAnalyticsDistributionPayload> {
+  const conditions = moneyTransactionConditionsForAnalytics(
+    workspaceId,
+    filters,
+  );
+  const whereClause = and(...conditions);
+  const monthExpr = sql`to_char((${moneyTransaction.occurredAt} at time zone 'utc'), 'YYYY-MM')`;
+
+  const [categories, pieSpendRows, pieIncomeRows, categoryByMonthRows] =
+    await Promise.all([
+      db
+        .select()
+        .from(moneyCategory)
+        .where(eq(moneyCategory.workspaceId, workspaceId)),
+      db
+        .select({
+          categoryId: moneyTransaction.categoryId,
+          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+        })
+        .from(moneyTransaction)
+        .where(and(whereClause, eq(moneyTransaction.kind, "expense")))
+        .groupBy(moneyTransaction.categoryId),
+      db
+        .select({
+          categoryId: moneyTransaction.categoryId,
+          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+        })
+        .from(moneyTransaction)
+        .where(and(whereClause, eq(moneyTransaction.kind, "income")))
+        .groupBy(moneyTransaction.categoryId),
+      db
+        .select({
+          month: monthExpr,
+          categoryId: moneyTransaction.categoryId,
+          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+        })
+        .from(moneyTransaction)
+        .where(and(whereClause, eq(moneyTransaction.kind, "expense")))
+        .groupBy(monthExpr, moneyTransaction.categoryId)
+        .orderBy(monthExpr),
+    ]);
+
+  const catName = new Map(categories.map((category) => [category.id, category.name]));
+  const buildPie = (
+    rows: { categoryId: string | null; valueMinor: string }[],
+  ): PieRow[] =>
+    rows.map((row) => {
+      const categoryId = row.categoryId;
+      const valueMinor = Number(row.valueMinor);
+      if (categoryId == null) {
+        return {
+          categoryId: null,
+          label: "Uncategorized",
+          valueMinor,
+        };
+      }
+      return {
+        categoryId,
+        label: catName.get(categoryId) ?? categoryId,
+        valueMinor,
+      };
+    });
+
+  const categoryByMonthRaw = categoryByMonthRows.map((row) => {
+    const categoryId = row.categoryId;
+    const valueMinor = Number(row.valueMinor);
+    if (categoryId == null) {
+      return {
+        month: String(row.month),
+        categoryId: null,
+        label: "Uncategorized",
+        expenseMinor: valueMinor,
+      };
+    }
+    return {
+      month: String(row.month),
+      categoryId,
+      label: catName.get(categoryId) ?? categoryId,
+      expenseMinor: valueMinor,
+    };
+  });
+
+  return {
+    pieSpend: buildPie(pieSpendRows),
+    pieIncome: buildPie(pieIncomeRows),
+    categoryByMonthStacked: rollupCategoryByMonth(categoryByMonthRaw),
+  };
+}
+
+export async function computeMoneyAnalyticsBudgets(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+): Promise<MoneyAnalyticsBudgetPayload> {
+  const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
+  const budgets = await listMoneyBudgets(workspaceId, {
+    includeSpent: true,
+    from,
+    to,
+  });
+
+  return {
+    budgets: budgets as BudgetListRowEnriched[],
+  };
+}
+
+export async function computeMoneyAnalyticsSankey(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+): Promise<MoneyAnalyticsSankeyPayload> {
+  const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
+  const conditions = moneyTransactionConditionsForAnalytics(
+    workspaceId,
+    filters,
+  );
+  const whereClause = and(...conditions);
   const sankeyExpenseSql = sql`
       SELECT
         ('a:' || ${moneyTransaction.accountId}::text) as source_id,
@@ -488,23 +628,8 @@ export async function computeMoneyAnalyticsBreakdown(
       GROUP BY ${moneyTransaction.accountId}, ${moneyAccount.name}, ${moneyTransaction.categoryId}, ${moneyCategory.name}
     `;
 
-  const expenseWhere = and(whereClause, eq(moneyTransaction.kind, "expense"));
-
-  const [
-    categories,
-    accountRows,
-    budgetRowsResolved,
-    pieSpendRows,
-    pieIncomeRows,
-    categoryByMonthRows,
-    merchantSpendRows,
-    tagSpendRows,
-    recurringSpendRows,
-    sankeyExec,
-    merchantName,
-    tagRows,
-    templateRows,
-  ] = await Promise.all([
+  const [categories, accountRows, budgetRowsResolved, sankeyExec] =
+    await Promise.all([
       db
         .select()
         .from(moneyCategory)
@@ -518,122 +643,17 @@ export async function computeMoneyAnalyticsBreakdown(
         from,
         to,
       }),
-      db
-        .select({
-          categoryId: moneyTransaction.categoryId,
-          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
-        })
-        .from(moneyTransaction)
-        .where(and(whereClause, eq(moneyTransaction.kind, "expense")))
-        .groupBy(moneyTransaction.categoryId),
-      db
-        .select({
-          categoryId: moneyTransaction.categoryId,
-          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
-        })
-        .from(moneyTransaction)
-        .where(and(whereClause, eq(moneyTransaction.kind, "income")))
-        .groupBy(moneyTransaction.categoryId),
-      db
-        .select({
-          month: monthExpr,
-          categoryId: moneyTransaction.categoryId,
-          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
-        })
-        .from(moneyTransaction)
-        .where(expenseWhere)
-        .groupBy(monthExpr, moneyTransaction.categoryId)
-        .orderBy(monthExpr),
-      db
-        .select({
-          merchantId: moneyTransaction.merchantId,
-          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
-        })
-        .from(moneyTransaction)
-        .where(expenseWhere)
-        .groupBy(moneyTransaction.merchantId)
-        .orderBy(desc(sql`sum(${moneyTransaction.amountMinor})`))
-        .limit(15),
-      db
-        .select({
-          tagId: moneyTransactionTag.tagId,
-          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
-        })
-        .from(moneyTransaction)
-        .innerJoin(
-          moneyTransactionTag,
-          eq(moneyTransactionTag.transactionId, moneyTransaction.id),
-        )
-        .where(expenseWhere)
-        .groupBy(moneyTransactionTag.tagId)
-        .orderBy(desc(sql`sum(${moneyTransaction.amountMinor})`))
-        .limit(15),
-      db
-        .select({
-          templateId: moneyTransaction.recurrenceSourceId,
-          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
-        })
-        .from(moneyTransaction)
-        .where(
-          and(
-            expenseWhere,
-            sql`${moneyTransaction.recurrenceSourceId} IS NOT NULL`,
-          ),
-        )
-        .groupBy(moneyTransaction.recurrenceSourceId)
-        .orderBy(desc(sql`sum(${moneyTransaction.amountMinor})`))
-        .limit(15),
       db.execute(sql`${sankeyExpenseSql} UNION ALL ${sankeyIncomeSql}`),
-      db
-        .select({ id: moneyMerchant.id, name: moneyMerchant.name })
-        .from(moneyMerchant)
-        .where(eq(moneyMerchant.workspaceId, workspaceId)),
-      db
-        .select({ id: moneyTag.id, name: moneyTag.name })
-        .from(moneyTag)
-        .where(eq(moneyTag.workspaceId, workspaceId)),
-      db
-        .select({
-          id: moneyRecurrentTemplate.id,
-          name: moneyRecurrentTemplate.name,
-        })
-        .from(moneyRecurrentTemplate)
-        .where(eq(moneyRecurrentTemplate.workspaceId, workspaceId)),
     ]);
 
   const budgetRows = budgetRowsResolved as BudgetListRowEnriched[];
-  const accountNameById = new Map(accountRows.map((a) => [a.id, a.name]));
-
-  const catName = new Map(categories.map((c) => [c.id, c.name]));
-  const categoryRowsForSankey: CategoryRow[] = categories.map((c) => ({
-    id: c.id,
-    parentId: c.parentId ?? null,
-    name: c.name,
+  const accountNameById = new Map(accountRows.map((account) => [account.id, account.name]));
+  const categoryRowsForSankey: CategoryRow[] = categories.map((category) => ({
+    id: category.id,
+    parentId: category.parentId ?? null,
+    name: category.name,
   }));
   const categoryLabels = buildCategoryLabelMap(categoryRowsForSankey);
-
-  const buildPie = (
-    rows: { categoryId: string | null; valueMinor: string }[],
-  ): PieRow[] =>
-    rows.map((row) => {
-      const categoryId = row.categoryId;
-      const valueMinor = Number(row.valueMinor);
-      if (categoryId == null) {
-        return {
-          categoryId: null,
-          label: "Uncategorized",
-          valueMinor,
-        };
-      }
-      return {
-        categoryId,
-        label: catName.get(categoryId) ?? categoryId,
-        valueMinor,
-      };
-    });
-
-  const pieSpend = buildPie(pieSpendRows);
-  const pieIncome = buildPie(pieIncomeRows);
 
   const sankeyRowsRaw = sankeyExec as unknown as Iterable<{
     source_id: string;
@@ -680,38 +700,99 @@ export async function computeMoneyAnalyticsBreakdown(
 
   const allSankeyLinks: SankeyLink[] = [...augmented.links, ...incomeLinks];
   const nodeIds = new Set<string>();
-  for (const l of allSankeyLinks) {
-    nodeIds.add(l.source);
-    nodeIds.add(l.target);
+  for (const link of allSankeyLinks) {
+    nodeIds.add(link.source);
+    nodeIds.add(link.target);
   }
-  const sankey = {
-    nodes: [...nodeIds].map((id) => ({ id, name: labelById.get(id) ?? id })),
-    links: allSankeyLinks,
+
+  return {
+    sankey: {
+      nodes: [...nodeIds].map((id) => ({ id, name: labelById.get(id) ?? id })),
+      links: allSankeyLinks,
+    },
   };
+}
 
-  const merchantNameById = new Map(merchantName.map((m) => [m.id, m.name]));
-  const tagNameById = new Map(tagRows.map((t) => [t.id, t.name]));
-  const templateNameById = new Map(templateRows.map((t) => [t.id, t.name]));
+export async function computeMoneyAnalyticsLeaders(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+): Promise<MoneyAnalyticsLeadersPayload> {
+  const conditions = moneyTransactionConditionsForAnalytics(
+    workspaceId,
+    filters,
+  );
+  const whereClause = and(...conditions);
+  const expenseWhere = and(whereClause, eq(moneyTransaction.kind, "expense"));
 
-  const categoryByMonthRaw = categoryByMonthRows.map((row) => {
-    const categoryId = row.categoryId;
-    const valueMinor = Number(row.valueMinor);
-    if (categoryId == null) {
-      return {
-        month: String(row.month),
-        categoryId: null,
-        label: "Uncategorized",
-        expenseMinor: valueMinor,
-      };
-    }
-    return {
-      month: String(row.month),
-      categoryId,
-      label: catName.get(categoryId) ?? categoryId,
-      expenseMinor: valueMinor,
-    };
-  });
-  const categoryByMonthStacked = rollupCategoryByMonth(categoryByMonthRaw);
+  const [
+    merchantSpendRows,
+    tagSpendRows,
+    recurringSpendRows,
+    merchantRows,
+    tagRows,
+    templateRows,
+  ] = await Promise.all([
+    db
+      .select({
+        merchantId: moneyTransaction.merchantId,
+        valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+      })
+      .from(moneyTransaction)
+      .where(expenseWhere)
+      .groupBy(moneyTransaction.merchantId)
+      .orderBy(desc(sql`sum(${moneyTransaction.amountMinor})`))
+      .limit(15),
+    db
+      .select({
+        tagId: moneyTransactionTag.tagId,
+        valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+      })
+      .from(moneyTransaction)
+      .innerJoin(
+        moneyTransactionTag,
+        eq(moneyTransactionTag.transactionId, moneyTransaction.id),
+      )
+      .where(expenseWhere)
+      .groupBy(moneyTransactionTag.tagId)
+      .orderBy(desc(sql`sum(${moneyTransaction.amountMinor})`))
+      .limit(15),
+    db
+      .select({
+        templateId: moneyTransaction.recurrenceSourceId,
+        valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+      })
+      .from(moneyTransaction)
+      .where(
+        and(
+          expenseWhere,
+          sql`${moneyTransaction.recurrenceSourceId} IS NOT NULL`,
+        ),
+      )
+      .groupBy(moneyTransaction.recurrenceSourceId)
+      .orderBy(desc(sql`sum(${moneyTransaction.amountMinor})`))
+      .limit(15),
+    db
+      .select({ id: moneyMerchant.id, name: moneyMerchant.name })
+      .from(moneyMerchant)
+      .where(eq(moneyMerchant.workspaceId, workspaceId)),
+    db
+      .select({ id: moneyTag.id, name: moneyTag.name })
+      .from(moneyTag)
+      .where(eq(moneyTag.workspaceId, workspaceId)),
+    db
+      .select({
+        id: moneyRecurrentTemplate.id,
+        name: moneyRecurrentTemplate.name,
+      })
+      .from(moneyRecurrentTemplate)
+      .where(eq(moneyRecurrentTemplate.workspaceId, workspaceId)),
+  ]);
+
+  const merchantNameById = new Map(merchantRows.map((merchant) => [merchant.id, merchant.name]));
+  const tagNameById = new Map(tagRows.map((tag) => [tag.id, tag.name]));
+  const templateNameById = new Map(
+    templateRows.map((template) => [template.id, template.name]),
+  );
 
   const merchantsSpend: LabelValueRow[] = merchantSpendRows
     .map((row) => {
@@ -723,7 +804,7 @@ export async function computeMoneyAnalyticsBreakdown(
           : (merchantNameById.get(row.merchantId) ?? "Merchant");
       return { label, valueMinor };
     })
-    .filter((r): r is LabelValueRow => r != null);
+    .filter((row): row is LabelValueRow => row != null);
 
   const tagsSpend: LabelValueRow[] = tagSpendRows
     .map((row) => {
@@ -734,7 +815,7 @@ export async function computeMoneyAnalyticsBreakdown(
         valueMinor,
       };
     })
-    .filter((r): r is LabelValueRow => r != null);
+    .filter((row): row is LabelValueRow => row != null);
 
   const recurringSpend: RecurringSpendRow[] = recurringSpendRows
     .filter((row) => row.templateId != null && Number(row.valueMinor) > 0)
@@ -745,14 +826,28 @@ export async function computeMoneyAnalyticsBreakdown(
     }));
 
   return {
-    pieSpend,
-    pieIncome,
-    sankey,
     merchantsSpend,
     tagsSpend,
-    categoryByMonthStacked,
     recurringSpend,
-    budgets: budgetRows,
+  };
+}
+
+export async function computeMoneyAnalyticsBreakdown(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+): Promise<MoneyAnalyticsBreakdownPayload> {
+  const [distribution, budgets, sankey, leaders] = await Promise.all([
+    computeMoneyAnalyticsDistribution(workspaceId, filters),
+    computeMoneyAnalyticsBudgets(workspaceId, filters),
+    computeMoneyAnalyticsSankey(workspaceId, filters),
+    computeMoneyAnalyticsLeaders(workspaceId, filters),
+  ]);
+
+  return {
+    ...distribution,
+    ...budgets,
+    ...sankey,
+    ...leaders,
   };
 }
 
@@ -760,12 +855,14 @@ export async function computeMoneyAnalytics(
   workspaceId: string,
   filters: AnalyticsFiltersData,
 ): Promise<MoneyAnalyticsPayload> {
-  const [overview, breakdown] = await Promise.all([
+  const [summary, overview, breakdown] = await Promise.all([
+    computeMoneyAnalyticsSummary(workspaceId, filters),
     computeMoneyAnalyticsOverview(workspaceId, filters),
     computeMoneyAnalyticsBreakdown(workspaceId, filters),
   ]);
 
   return {
+    ...summary,
     ...overview,
     ...breakdown,
   };

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type {
   AnalyticsLookupAccount,
 } from "@/components/analytics-filters";
@@ -18,64 +19,13 @@ import {
   moneyCategoryLabel,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
-import { moneyGraphQLRequest } from "@/lib/gql-client";
-import { MONEY_TRANSACTIONS_QUERY } from "@/lib/money-gql-documents";
+import { moneyTransactionsQueryOptions } from "@/lib/money-query-options";
 import { useInViewOnce } from "@/lib/use-in-view-once";
 import type { TransactionListSortKey } from "@/lib/validators/money";
 
-function transactionListQueryObject(
-  filterQuery: string,
-  page: number,
-  pageSize: number,
-  sort: TransactionListSortKey,
-  dir: "asc" | "desc",
-): Record<string, unknown> {
-  const u = new URLSearchParams(filterQuery);
-  const out: Record<string, unknown> = {
-    page,
-    pageSize,
-    sort,
-    dir,
-  };
-  const from = u.get("from");
-  const to = u.get("to");
-  if (from) out.from = from;
-  if (to) out.to = to;
-  for (const key of [
-    "accountIds",
-    "categoryIds",
-    "merchantIds",
-    "tagIds",
-    "kinds",
-  ] as const) {
-    const all = u.getAll(key);
-    if (all.length) out[key] = all;
-  }
-  return out;
-}
-
 const PAGE_SIZE = 20;
 
-type TxRow = {
-  id: string;
-  accountId: string;
-  kind: "expense" | "income" | "transfer";
-  amountMinor: number;
-  occurredAt: string;
-  categoryId: string | null;
-  merchantId: string | null;
-  notes: string | null;
-  tagIds: string[];
-};
-
-type ListResponse = {
-  data: TxRow[];
-  total: number;
-  page: number;
-  pageSize: number;
-};
-
-function defaultDirForSort(_sort: TransactionListSortKey): "asc" | "desc" {
+function defaultDirForSort(): "asc" | "desc" {
   return "desc";
 }
 
@@ -112,10 +62,6 @@ export function AnalyticsTransactionsTable({
     dir: "asc" | "desc";
   }>({ sort: "occurredAt", dir: "desc" });
 
-  const [payload, setPayload] = useState<ListResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [localError, setLocalError] = useState<string | null>(null);
-
   const prevFilterRef = useRef(filterQuery);
   useEffect(() => {
     if (prevFilterRef.current !== filterQuery) {
@@ -130,55 +76,26 @@ export function AnalyticsTransactionsTable({
   );
   const categoryById = useMemo(() => moneyCategoryById(categories), [categories]);
 
-  useEffect(() => {
-    if (!activeWorkspaceId) return;
-    if (deferFetchUntilVisible && !isInView) return;
-    let cancelled = false;
-    const queryObj = transactionListQueryObject(
+  const transactionsQuery = useQuery({
+    ...moneyTransactionsQueryOptions(
+      activeWorkspaceId,
       filterQuery,
       page,
       PAGE_SIZE,
       sort,
       dir,
-    );
-    queueMicrotask(() => {
-      if (cancelled) return;
-      void (async () => {
-        setLoading(true);
-        setLocalError(null);
-        try {
-          const body = await moneyGraphQLRequest<{
-            moneyTransactions: ListResponse;
-          }>(MONEY_TRANSACTIONS_QUERY, { query: queryObj });
-          if (cancelled) return;
-          const chunk = body.moneyTransactions;
-          setPayload({
-            data: (chunk.data ?? []) as TxRow[],
-            total: chunk.total ?? 0,
-            page: chunk.page ?? page,
-            pageSize: chunk.pageSize ?? PAGE_SIZE,
-          });
-        } catch (e: unknown) {
-          if (cancelled) return;
-          setLocalError(e instanceof Error ? e.message : "Error");
-          setPayload(null);
-        } finally {
-          if (!cancelled) setLoading(false);
-        }
-      })();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    activeWorkspaceId,
-    deferFetchUntilVisible,
-    isInView,
-    filterQuery,
-    page,
-    sort,
-    dir,
-  ]);
+    ),
+    enabled:
+      Boolean(activeWorkspaceId) &&
+      (!deferFetchUntilVisible || isInView),
+  });
+  const payload = transactionsQuery.data ?? null;
+  const loading = transactionsQuery.isLoading;
+  const fetching = transactionsQuery.isFetching;
+  const localError =
+    transactionsQuery.error instanceof Error
+      ? transactionsQuery.error.message
+      : null;
 
   const totalPages = useMemo(() => {
     if (!payload) return 1;
@@ -196,7 +113,7 @@ export function AnalyticsTransactionsTable({
     setSortState((s) =>
       s.sort === col
         ? { sort: col, dir: s.dir === "asc" ? "desc" : "asc" }
-        : { sort: col, dir: defaultDirForSort(col) },
+        : { sort: col, dir: defaultDirForSort() },
     );
     setPage(1);
   };
@@ -369,7 +286,7 @@ export function AnalyticsTransactionsTable({
               type="button"
               variant="secondary"
               size="sm"
-              disabled={page <= 1 || loading}
+              disabled={page <= 1 || fetching}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               Previous
@@ -378,7 +295,7 @@ export function AnalyticsTransactionsTable({
               type="button"
               variant="secondary"
               size="sm"
-              disabled={page >= totalPages || loading}
+              disabled={page >= totalPages || fetching}
               onClick={() => setPage((p) => p + 1)}
             >
               Next

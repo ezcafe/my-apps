@@ -49,14 +49,14 @@ export function AnalyticsStats({
   currency,
 }: {
   stats: AnalyticsStatsPayload;
-  column: ColumnRow[];
+  column?: ColumnRow[];
   range: { from: string; to: string };
   currency: string;
 }) {
   const { resolved, style } = useTheme();
   const { formatPeriod } = useFormatDate();
   const period = formatPeriod(range.from, range.to);
-  const mom = expenseMomTrend(column);
+  const mom = expenseMomTrend(column ?? []);
 
   const incomeColor = chartIncomeColor(resolved, style);
   const expenseColor = chartExpenseColor(resolved, style);

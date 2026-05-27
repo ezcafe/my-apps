@@ -52,9 +52,53 @@ export const MONEY_FORM_LOOKUPS_QUERY = /* GraphQL */ `
   }
 `;
 
+export const MONEY_ANALYTICS_CHART_LOOKUPS_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsChartLookups {
+    moneyAccounts
+    moneyCategories
+    moneyTags
+  }
+`;
+
+export const MONEY_ANALYTICS_MERCHANT_LOOKUPS_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsMerchantLookups {
+    moneyMerchants
+  }
+`;
+
 export const MONEY_ANALYTICS_OVERVIEW_QUERY = /* GraphQL */ `
   query MoneyAnalyticsOverview($filters: AnalyticsFiltersInput!) {
     moneyAnalyticsOverview(filters: $filters)
+  }
+`;
+
+export const MONEY_ANALYTICS_SUMMARY_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsSummary($filters: AnalyticsFiltersInput!) {
+    moneyAnalyticsSummary(filters: $filters)
+  }
+`;
+
+export const MONEY_ANALYTICS_DISTRIBUTION_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsDistribution($filters: AnalyticsFiltersInput!) {
+    moneyAnalyticsDistribution(filters: $filters)
+  }
+`;
+
+export const MONEY_ANALYTICS_BUDGETS_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsBudgets($filters: AnalyticsFiltersInput!) {
+    moneyAnalyticsBudgets(filters: $filters)
+  }
+`;
+
+export const MONEY_ANALYTICS_SANKEY_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsSankey($filters: AnalyticsFiltersInput!) {
+    moneyAnalyticsSankey(filters: $filters)
+  }
+`;
+
+export const MONEY_ANALYTICS_LEADERS_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsLeaders($filters: AnalyticsFiltersInput!) {
+    moneyAnalyticsLeaders(filters: $filters)
   }
 `;
 
