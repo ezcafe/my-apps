@@ -12,13 +12,17 @@ function resolveMoneyGraphQLEndpoint(): string {
   return "http://127.0.0.1:3000/api/graphql";
 }
 
+let moneyGraphqlClient: GraphQLClient | null = null;
+
 function getMoneyGraphqlClient() {
-  return new GraphQLClient(resolveMoneyGraphQLEndpoint(), {
+  if (moneyGraphqlClient) return moneyGraphqlClient;
+  moneyGraphqlClient = new GraphQLClient(resolveMoneyGraphQLEndpoint(), {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
   });
+  return moneyGraphqlClient;
 }
 
 export async function moneyGraphQLRequest<T extends Record<string, unknown>>(

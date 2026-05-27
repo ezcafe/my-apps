@@ -1,4 +1,4 @@
-import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { auth } from "@/auth";
@@ -60,14 +60,16 @@ function tokenPrefix(secret: string): string {
 async function hashApiToken(secret: string): Promise<string> {
   const salt = randomBytes(16);
   const derived = (await scryptAsync(secret, salt, 64)) as Buffer;
-  return `scrypt:${salt.toString("base64url")}:${derived.toString("base64url")}`;
+  return `scrypt:N=16384,r=8,p=1:${salt.toString("base64url")}:${derived.toString("base64url")}`;
 }
 
 async function verifyApiTokenHash(secret: string, stored: string): Promise<boolean> {
   const parts = stored.split(":");
-  if (parts.length !== 3 || parts[0] !== "scrypt") return false;
-  const salt = Buffer.from(parts[1]!, "base64url");
-  const expected = Buffer.from(parts[2]!, "base64url");
+  if (parts[0] !== "scrypt") return false;
+  const hasParams = parts.length === 4;
+  if (!hasParams && parts.length !== 3) return false;
+  const salt = Buffer.from(parts[hasParams ? 2 : 1]!, "base64url");
+  const expected = Buffer.from(parts[hasParams ? 3 : 2]!, "base64url");
   const derived = (await scryptAsync(secret, salt, 64)) as Buffer;
   if (derived.length !== expected.length) return false;
   return timingSafeEqual(derived, expected);
@@ -238,5 +240,6 @@ export async function verifyMoneyWorkspaceAccess(
 
 /** Stable fingerprint for logs (never log full secrets). */
 export function apiTokenLogFingerprint(secret: string): string {
-  return createHash("sha256").update(secret).digest("hex").slice(0, 8);
+  const key = process.env.AUTH_SECRET ?? "dev-local-fingerprint-key";
+  return createHmac("sha256", key).update(secret).digest("hex").slice(0, 8);
 }

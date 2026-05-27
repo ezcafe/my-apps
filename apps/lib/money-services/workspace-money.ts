@@ -5,9 +5,11 @@ import { workspace, workspaceMember } from "@/db/schema/workspace";
 import { isDbUnreachable } from "@/lib/db-errors";
 import { cloneMoneyWorkspaceStructure } from "@/lib/money-clone-workspace";
 import { resetMoneyWorkspaceData } from "@/lib/money-reset-workspace";
+import { writeAuditEvent } from "@/lib/audit-log";
 import {
   assertWorkspaceMember,
   assertWorkspaceOwner,
+  isWorkspaceIdCookieSafe,
 } from "@/lib/workspace-context";
 import { workspaceCurrencyPatchSchema } from "@/lib/validators/workspace";
 import type { WorkspaceAppKey } from "@/db/schema/workspace";
@@ -72,6 +74,12 @@ export async function cloneMoneyWorkspaceApi(
   if (!ownerOk) throw new Error("FORBIDDEN");
 
   await cloneMoneyWorkspaceStructure(sourceWorkspaceId, targetWorkspaceId);
+  await writeAuditEvent({
+    action: "workspace.money.cloned",
+    userSub,
+    workspaceId: targetWorkspaceId,
+    detail: { sourceWorkspaceId },
+  });
   return { ok: true as const };
 }
 
@@ -88,6 +96,11 @@ export async function resetMoneyWorkspaceApi(
     if (isDbUnreachable(e)) throw new Error("DB_UNAVAILABLE");
     throw e;
   }
+  await writeAuditEvent({
+    action: "workspace.money.reset",
+    userSub,
+    workspaceId,
+  });
   return { ok: true as const };
 }
 
@@ -96,6 +109,9 @@ export async function setActiveWorkspaceApi(
   workspaceId: string,
   app: WorkspaceAppKey,
 ): Promise<void> {
+  if (!isWorkspaceIdCookieSafe(workspaceId)) {
+    throw new Error("BAD_REQUEST");
+  }
   const ok = await assertWorkspaceMember(userSub, workspaceId);
   if (!ok) throw new Error("FORBIDDEN");
   if (app !== "money") throw new Error("Unsupported app");

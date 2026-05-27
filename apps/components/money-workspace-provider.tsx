@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -18,7 +19,7 @@ import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_WORKSPACE_CURRENCY_MUTATION } from "@/lib/money-gql-documents";
 import {
   invalidateMoneyWorkspaceQueries,
-  moneyWorkspaceStateQueryOptions,
+  moneyBootstrapQueryOptions,
 } from "@/lib/money-query-options";
 
 type WorkspaceCurrencyContextValue = {
@@ -47,11 +48,24 @@ export function useWorkspaceCurrency() {
 function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const canRunMoneyQueries = typeof window !== "undefined";
-  const workspaceStateQuery = useQuery({
-    ...moneyWorkspaceStateQueryOptions(),
+  const bootstrapQuery = useQuery({
+    ...moneyBootstrapQueryOptions(),
     enabled: canRunMoneyQueries,
   });
-  const workspaceState = workspaceStateQuery.data;
+  const workspaceState = bootstrapQuery.data;
+
+  useEffect(() => {
+    const boot = bootstrapQuery.data;
+    if (!boot?.workspaceId) return;
+    queryClient.setQueryData(
+      ["money", "analyticsChartLookups", boot.workspaceId],
+      {
+        moneyAccounts: boot.accounts,
+        moneyCategories: boot.categories,
+        moneyTags: boot.tags,
+      },
+    );
+  }, [bootstrapQuery.data, queryClient]);
   const [currencyDraft, setCurrencyDraft] = useState<{
     workspaceId: string | null;
     value: string;
@@ -62,7 +76,7 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
   const workspaceId = workspaceState?.workspaceId ?? null;
   const defaultCurrency = workspaceState?.defaultCurrency ?? DEFAULT_CURRENCY;
   const needsCurrencySetup = workspaceState?.needsCurrencySetup ?? false;
-  const workspaceReady = workspaceStateQuery.isSuccess;
+  const workspaceReady = bootstrapQuery.isSuccess;
   const currencyPick =
     currencyDraft?.workspaceId === workspaceId
       ? currencyDraft.value

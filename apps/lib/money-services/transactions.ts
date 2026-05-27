@@ -148,20 +148,21 @@ export async function listMoneyTransactions(
   const orderCol = sortColumnMap[q.sort];
   const orderExpr = q.dir === "asc" ? asc(orderCol) : desc(orderCol);
 
-  const [{ value: total }] = await db
-    .select({ value: count() })
-    .from(moneyTransaction)
-    .where(whereClause);
-
   const offset = (q.page - 1) * q.pageSize;
 
-  const rows = await db
-    .select()
-    .from(moneyTransaction)
-    .where(whereClause)
-    .orderBy(orderExpr)
-    .limit(q.pageSize)
-    .offset(offset);
+  const [[{ value: total }], rows] = await Promise.all([
+    db
+      .select({ value: count() })
+      .from(moneyTransaction)
+      .where(whereClause),
+    db
+      .select()
+      .from(moneyTransaction)
+      .where(whereClause)
+      .orderBy(orderExpr)
+      .limit(q.pageSize)
+      .offset(offset),
+  ]);
 
   const ids = rows.map((r) => r.id);
   const tagLinks =

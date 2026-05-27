@@ -4,12 +4,23 @@ import { validateColumnMapTargets } from "@/lib/money-import-column-map";
 import { MAX_IMPORT_BYTES, parseMoneyImportCsv } from "@/lib/money-import-csv";
 import { stashImportPreview } from "@/lib/money-import-preview-store";
 import { moneyImportTypeSchema } from "@/lib/money-import-types";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { assertSameOrigin } from "@/lib/request-guards";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   const ctx = await requireMoneyContext(req, { requireWrite: true });
   if ("error" in ctx) return ctx.error;
+  const allowed = await enforceRateLimit({
+    name: "money:import:preview",
+    request: req,
+    userKey: ctx.userSub,
+    points: Number(process.env.MONEY_IMPORT_PREVIEW_RPM ?? 20),
+    durationSeconds: 60,
+  });
+  if (!allowed) return new Response("Too many requests", { status: 429 });
+  if (!assertSameOrigin(req)) return badRequest("Cross-origin request blocked");
 
   const contentType = req.headers.get("content-type") ?? "";
   if (!contentType.includes("multipart/form-data")) {

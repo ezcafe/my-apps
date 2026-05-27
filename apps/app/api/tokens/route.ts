@@ -10,6 +10,8 @@ import {
   listApiTokensForUser,
 } from "@/lib/api-token-service";
 import { resolveSessionUserSub } from "@/lib/api-auth";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { assertSameOrigin, readJsonBounded } from "@/lib/request-guards";
 import { apiTokenCreateSchema } from "@/lib/validators/api-token";
 
 export const dynamic = "force-dynamic";
@@ -28,10 +30,19 @@ export async function GET() {
 export async function POST(req: Request) {
   const userSub = await resolveSessionUserSub();
   if (!userSub) return unauthorized();
+  const allowed = await enforceRateLimit({
+    name: "tokens:create",
+    request: req,
+    userKey: userSub,
+    points: Number(process.env.API_TOKEN_CREATE_RPM ?? 20),
+    durationSeconds: 60,
+  });
+  if (!allowed) return new Response("Too many requests", { status: 429 });
+  if (!assertSameOrigin(req)) return badRequest("Cross-origin request blocked");
 
   let body: unknown;
   try {
-    body = await req.json();
+    body = await readJsonBounded(req, Number(process.env.JSON_MAX_BYTES ?? 262144));
   } catch {
     return badRequest("Invalid JSON");
   }

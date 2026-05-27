@@ -203,7 +203,7 @@ function ShellPopoverAuth() {
           size="sm"
           className="w-full justify-center"
           leading={<IconSignOut className="size-4" />}
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={() => signOut({ redirectTo: "/" })}
         >
           Sign out
         </Button>
@@ -296,7 +296,7 @@ function AuthActionsRail() {
           title={
             session?.user?.email ? `Sign out (${session.user.email})` : "Sign out"
           }
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={() => signOut({ redirectTo: "/" })}
         >
           <IconSignOut className="size-5" />
         </Button>

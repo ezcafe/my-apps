@@ -61,7 +61,7 @@ export function AnalyticsStats({
   const incomeColor = chartIncomeColor(resolved, style);
   const expenseColor = chartExpenseColor(resolved, style);
   const netColor = stats.netMinor >= 0 ? incomeColor : expenseColor;
-  const animationKey = `${range.from}-${range.to}-${stats.incomeMinor}-${stats.expenseMinor}-${stats.netMinor}-${stats.savingsRatePct ?? "n"}`;
+  const animationKey = `${range.from}-${range.to}`;
   const savingsLabel =
     stats.savingsRatePct == null
       ? "—"

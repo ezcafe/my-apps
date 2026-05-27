@@ -16,6 +16,8 @@ import {
 } from "@/lib/money-import-types";
 
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+export const MAX_IMPORT_ROWS = 50_000;
+const MAX_IMPORT_RECORD_BYTES = 16 * 1024;
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -41,8 +43,12 @@ function parseCsvToRecords(text: string): {
     skip_empty_lines: true,
     trim: true,
     relax_column_count: true,
-    relax_quotes: true,
+    relax_quotes: false,
+    max_record_size: MAX_IMPORT_RECORD_BYTES,
   }) as string[][];
+  if (all.length > MAX_IMPORT_ROWS + 1) {
+    throw new Error(`CSV has more than ${MAX_IMPORT_ROWS} rows`);
+  }
   if (!all.length) return { headers: [], records: [] };
   const headers = all[0].map((h, i) => {
     const t = String(h ?? "").trim();

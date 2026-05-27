@@ -17,6 +17,7 @@ Multi-feature Next.js workspace built around a small **shell** and a **Money** f
 ```bash
 cp .env.example .env
 # fill in AUTH_SECRET, AUTH_POCKET_ID_*, AUTH_URL
+# suggested: AUTH_SECRET=$(openssl rand -base64 32)
 
 # bring up Postgres 18 for local dev (or point DATABASE_URL elsewhere)
 docker compose -f docker-compose-db.yml up -d
@@ -62,7 +63,7 @@ Use the default `docker-compose.yml` when you want the Next.js app and PostgreSQ
 
 ```bash
 cp .env.example .env
-# set AUTH_SECRET at minimum
+# set AUTH_SECRET at minimum (recommended: openssl rand -base64 32)
 # fill AUTH_POCKET_ID_* when you want the real login flow to work
 
 docker compose up --build

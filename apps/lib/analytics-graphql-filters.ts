@@ -1,6 +1,43 @@
 import type { AnalyticsFiltersValue } from "@/components/analytics-filters";
 import { buildQuery } from "@/lib/analytics-build-query";
 
+function stringArraysEqual(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+/** Shallow equality for analytics filter state (stable query keys, dirty checks). */
+export function analyticsFiltersEqual(
+  a: AnalyticsFiltersValue,
+  b: AnalyticsFiltersValue,
+): boolean {
+  return (
+    a.fromDate === b.fromDate &&
+    a.toDate === b.toDate &&
+    stringArraysEqual(a.accountIds, b.accountIds) &&
+    stringArraysEqual(a.categoryIds, b.categoryIds) &&
+    stringArraysEqual(a.merchantIds, b.merchantIds) &&
+    stringArraysEqual(a.tagIds, b.tagIds) &&
+    stringArraysEqual(a.kinds, b.kinds)
+  );
+}
+
+/** Tuple segment for TanStack Query keys (no JSON.stringify). */
+export function analyticsFiltersQueryKey(applied: AnalyticsFiltersValue) {
+  return [
+    applied.fromDate,
+    applied.toDate,
+    applied.accountIds,
+    applied.categoryIds,
+    applied.merchantIds,
+    applied.tagIds,
+    applied.kinds,
+  ] as const;
+}
+
 /** Maps UI analytics filters to `AnalyticsFiltersInput` for GraphQL. */
 export function analyticsFiltersToGraphQLInput(
   f: AnalyticsFiltersValue,

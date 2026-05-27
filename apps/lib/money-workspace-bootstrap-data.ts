@@ -3,7 +3,6 @@ import { db } from "@/db";
 import {
   moneyAccount,
   moneyCategory,
-  moneyMerchant,
   moneyTag,
   moneyTransaction,
 } from "@/db/schema/money";
@@ -82,7 +81,7 @@ export async function fetchMoneyLookups(
 ) {
   const since = new Date(Date.now() - USAGE_WINDOW_MS);
 
-  const [accountRows, categoryRows, merchantRows, tagRows] = await Promise.all([
+  const [accountRows, categoryRows, tagRows] = await Promise.all([
     db
       .select({
         ...getTableColumns(moneyAccount),
@@ -122,25 +121,6 @@ export async function fetchMoneyLookups(
       .groupBy(moneyCategory.id)
       .orderBy(desc(sql`usage_count`), asc(moneyCategory.name)),
     db
-      .select({
-        ...getTableColumns(moneyMerchant),
-        usageCount: sql<number>`count(${moneyTransaction.id})::int`.as(
-          "usage_count",
-        ),
-      })
-      .from(moneyMerchant)
-      .leftJoin(
-        moneyTransaction,
-        and(
-          eq(moneyTransaction.merchantId, moneyMerchant.id),
-          eq(moneyTransaction.workspaceId, workspaceId),
-          gte(moneyTransaction.occurredAt, since),
-        ),
-      )
-      .where(eq(moneyMerchant.workspaceId, workspaceId))
-      .groupBy(moneyMerchant.id)
-      .orderBy(desc(sql`usage_count`), asc(moneyMerchant.name)),
-    db
       .select()
       .from(moneyTag)
       .where(eq(moneyTag.workspaceId, workspaceId))
@@ -154,10 +134,6 @@ export async function fetchMoneyLookups(
       createdAt: r.createdAt.toISOString(),
     })),
     categories: categoryRows.map((r) => ({
-      ...r,
-      createdAt: r.createdAt.toISOString(),
-    })),
-    merchants: merchantRows.map((r) => ({
       ...r,
       createdAt: r.createdAt.toISOString(),
     })),

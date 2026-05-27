@@ -29,7 +29,6 @@ export const moneyTypeDefs = /* GraphQL */ `
     workspaces: [MoneyBootstrapWorkspace!]!
     accounts: [JSONObject!]!
     categories: [JSONObject!]!
-    merchants: [JSONObject!]!
     tags: [JSONObject!]!
   }
 
@@ -70,17 +69,136 @@ export const moneyTypeDefs = /* GraphQL */ `
     nextRunAt: String!
   }
 
+  input MoneyAccountCreateInput {
+    name: String!
+    type: String
+    institution: String
+    balanceMinor: Int
+    sortOrder: Int
+    archived: Boolean
+  }
+
+  input MoneyAccountUpdateInput {
+    name: String
+    type: String
+    institution: String
+    balanceMinor: Int
+    sortOrder: Int
+    archived: Boolean
+  }
+
+  input MoneyCategoryCreateInput {
+    name: String!
+    kind: String!
+    parentId: ID
+    archived: Boolean
+  }
+
+  input MoneyCategoryUpdateInput {
+    name: String
+    parentId: ID
+    archived: Boolean
+  }
+
+  input MoneyMerchantCreateInput {
+    name: String!
+    normalizedName: String
+  }
+
+  input MoneyMerchantUpdateInput {
+    name: String
+    normalizedName: String
+  }
+
+  input MoneyTagCreateInput {
+    name: String!
+    color: String
+  }
+
+  input MoneyTagUpdateInput {
+    name: String
+    color: String
+  }
+
+  input MoneyBudgetCreateInput {
+    scopeType: String!
+    scopeId: ID
+    limitAmountMinor: Int!
+  }
+
+  input MoneyBudgetUpdateInput {
+    scopeType: String
+    scopeId: ID
+    limitAmountMinor: Int
+  }
+
+  input MoneyRuleCreateInput {
+    name: String!
+    kind: String!
+    priority: Int
+    match: JSONObject!
+    action: JSONObject!
+    active: Boolean
+  }
+
+  input MoneyRuleUpdateInput {
+    name: String
+    priority: Int
+    match: JSONObject
+    action: JSONObject
+    active: Boolean
+  }
+
+  input MoneyRecurrenceCreateInput {
+    name: String!
+    cadence: String!
+    nextRunAt: String!
+    template: JSONObject!
+    active: Boolean
+  }
+
+  input MoneyRecurrenceUpdateInput {
+    name: String
+    cadence: String
+    nextRunAt: String
+    template: JSONObject
+    active: Boolean
+  }
+
+  input MoneyTransactionCreateInput {
+    accountId: ID!
+    toAccountId: ID
+    kind: String
+    amountMinor: Int!
+    occurredAt: String
+    categoryId: ID
+    merchantId: ID
+    notes: String
+    tagIds: [ID!]
+    tagNames: [String!]
+  }
+
+  input MoneyTransactionUpdateInput {
+    accountId: ID
+    toAccountId: ID
+    kind: String
+    amountMinor: Int
+    occurredAt: String
+    categoryId: ID
+    merchantId: ID
+    notes: String
+    tagIds: [ID!]
+  }
+
   type Query {
     moneyBootstrap: MoneyBootstrapPayload!
     moneyWorkspaceState: MoneyWorkspaceStatePayload!
-    moneyAnalytics(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsSummary(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsOverview(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsDistribution(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsBudgets(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsSankey(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsLeaders(filters: AnalyticsFiltersInput!): JSONObject!
-    moneyAnalyticsBreakdown(filters: AnalyticsFiltersInput!): JSONObject!
     moneyBudgets(includeSpent: Boolean!, from: String, to: String): [JSONObject!]!
     moneyTransactions(query: JSONObject!): MoneyTransactionConnection!
     moneyAccounts: [JSONObject!]!
@@ -99,37 +217,37 @@ export const moneyTypeDefs = /* GraphQL */ `
     moneyWorkspaceClone(targetWorkspaceId: ID!): MoneyWorkspaceCloneResult!
     moneyWorkspaceReset: MoneyWorkspaceResetResult!
 
-    moneyAccountCreate(input: JSONObject!): JSONObject!
-    moneyAccountUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyAccountCreate(input: MoneyAccountCreateInput!): JSONObject!
+    moneyAccountUpdate(id: ID!, input: MoneyAccountUpdateInput!): JSONObject!
     moneyAccountArchive(id: ID!): MoneyOk!
 
-    moneyCategoryCreate(input: JSONObject!): JSONObject!
-    moneyCategoryUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyCategoryCreate(input: MoneyCategoryCreateInput!): JSONObject!
+    moneyCategoryUpdate(id: ID!, input: MoneyCategoryUpdateInput!): JSONObject!
     moneyCategoryArchive(id: ID!): MoneyOk!
 
-    moneyMerchantCreate(input: JSONObject!): JSONObject!
-    moneyMerchantUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyMerchantCreate(input: MoneyMerchantCreateInput!): JSONObject!
+    moneyMerchantUpdate(id: ID!, input: MoneyMerchantUpdateInput!): JSONObject!
     moneyMerchantDelete(id: ID!): MoneyOk!
 
-    moneyTagCreate(input: JSONObject!): JSONObject!
-    moneyTagUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyTagCreate(input: MoneyTagCreateInput!): JSONObject!
+    moneyTagUpdate(id: ID!, input: MoneyTagUpdateInput!): JSONObject!
     moneyTagDelete(id: ID!): MoneyOk!
 
-    moneyBudgetCreate(input: JSONObject!): JSONObject!
-    moneyBudgetUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyBudgetCreate(input: MoneyBudgetCreateInput!): JSONObject!
+    moneyBudgetUpdate(id: ID!, input: MoneyBudgetUpdateInput!): JSONObject!
     moneyBudgetDelete(id: ID!): MoneyOk!
 
-    moneyRuleCreate(input: JSONObject!): JSONObject!
-    moneyRuleUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyRuleCreate(input: MoneyRuleCreateInput!): JSONObject!
+    moneyRuleUpdate(id: ID!, input: MoneyRuleUpdateInput!): JSONObject!
     moneyRuleDelete(id: ID!): MoneyOk!
 
-    moneyRecurrenceCreate(input: JSONObject!): JSONObject!
-    moneyRecurrenceUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyRecurrenceCreate(input: MoneyRecurrenceCreateInput!): JSONObject!
+    moneyRecurrenceUpdate(id: ID!, input: MoneyRecurrenceUpdateInput!): JSONObject!
     moneyRecurrenceDelete(id: ID!): MoneyOk!
     moneyRecurrenceGenerate(id: ID!): MoneyRecurrenceGenerateResult!
 
-    moneyTransactionCreate(input: JSONObject!): JSONObject!
-    moneyTransactionUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyTransactionCreate(input: MoneyTransactionCreateInput!): JSONObject!
+    moneyTransactionUpdate(id: ID!, input: MoneyTransactionUpdateInput!): JSONObject!
     moneyTransactionDelete(id: ID!): MoneyOk!
   }
 `;

@@ -11,6 +11,8 @@ const store = new Map<string, Entry>();
 
 /** Bound by CSV size cap; entries are short-lived. Not shared across serverless instances. */
 const PREVIEW_TTL_MS = 60 * 60 * 1000;
+const MAX_PREVIEWS_PER_USER = 5;
+const MAX_PREVIEWS_GLOBAL = 250;
 
 function pruneExpired() {
   const now = Date.now();
@@ -28,6 +30,19 @@ export function stashImportPreview(
   rows: unknown[],
 ): string {
   pruneExpired();
+  const userKeys = Array.from(store.entries())
+    .filter(([, value]) => value.userSub === ctx.userSub)
+    .map(([key]) => key);
+  while (userKeys.length >= MAX_PREVIEWS_PER_USER) {
+    const oldest = userKeys.shift();
+    if (!oldest) break;
+    store.delete(oldest);
+  }
+  while (store.size >= MAX_PREVIEWS_GLOBAL) {
+    const firstKey = store.keys().next().value as string | undefined;
+    if (!firstKey) break;
+    store.delete(firstKey);
+  }
   const id = randomUUID();
   store.set(id, {
     userSub: ctx.userSub,

@@ -1,11 +1,9 @@
 "use client";
 
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
-import type { ReactNode, Ref } from "react";
+import type { Ref } from "react";
 import {
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -13,9 +11,23 @@ import {
   useState,
   useTransition,
 } from "react";
+import {
+  BudgetVsActualCard,
+  CategorySpendTrendCard,
+  CHART_CARD_HEIGHT_FULL,
+  CHART_CARD_HEIGHT_HALF,
+  IncomeByCategoryCard,
+  IncomeVsExpenseCard,
+  MoneyFlowSankeyCard,
+  MonthlyColumnsCard,
+  NetCumulativeFlowCard,
+  RecurringSpendCard,
+  SpendByCategoryCard,
+  SpendByTagCard,
+  TopMerchantsCard,
+} from "@/components/analytics-chart-cards";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   MoneyAnalyticsChartsSkeleton,
   MoneyAnalyticsPageSkeleton,
@@ -23,15 +35,7 @@ import {
 } from "@/components/money-analytics-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
-import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 import { AnalyticsStats } from "@/components/analytics-stats";
-import { ChartLegendList } from "@/components/charts/chart-legend-list";
-import { colorByIndex } from "@/components/charts/chart-colors";
-import {
-  chartExpenseColor,
-  chartIncomeColor,
-} from "@/components/charts/chart-income-expense-colors";
-import { toggleSetKey } from "@/lib/chart-legend-toggle";
 import { useTheme } from "@/components/theme-provider";
 import { Alert } from "@/components/ui/alert";
 import {
@@ -44,6 +48,7 @@ import {
 } from "@/components/analytics-filters";
 import { budgetRowsForChart } from "@/lib/analytics-budget-label";
 import { buildQuery } from "@/lib/analytics-build-query";
+import { analyticsFiltersEqual } from "@/lib/analytics-graphql-filters";
 import { formatMinor } from "@/lib/format-money";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_SET_ACTIVE_WORKSPACE_MUTATION } from "@/lib/money-gql-documents";
@@ -53,9 +58,8 @@ import {
   moneyAnalyticsChartLookupsQueryOptions,
   moneyAnalyticsDistributionQueryOptions,
   moneyAnalyticsLeadersQueryOptions,
+  moneyAnalyticsDashboardQueryOptions,
   moneyAnalyticsMerchantLookupsQueryOptions,
-  moneyAnalyticsOverviewQueryOptions,
-  moneyAnalyticsSummaryQueryOptions,
   moneyAnalyticsSankeyQueryOptions,
   moneyWorkspaceStateQueryOptions,
 } from "@/lib/money-query-options";
@@ -70,110 +74,10 @@ import type {
 } from "@/lib/money-services/analytics";
 import { useInViewOnce } from "@/lib/use-in-view-once";
 
-/** Total card height (heading + description + chart fit inside). */
-const CHART_CARD_HEIGHT_FULL = "h-[260px] min-h-[260px] max-h-[260px]";
-const CHART_CARD_HEIGHT_HALF = "h-[280px] min-h-[280px] max-h-[280px]";
-/** Taller variant for flow/sankey-style cards. */
-const CHART_CARD_HEIGHT_TALL = "h-[360px] min-h-[360px] max-h-[360px]";
-const CHART_CARD_MIN_HEIGHT_HALF_PX = 280;
-/** Applied to the Card around any chart so its rows lay out vertically. */
-const CHART_CARD_LAYOUT = "flex flex-col";
-/** Fills the chart plot slot inside AnalyticsChartContainer for non-scrollable empty states. */
-const CHART_SLOT_CLASS = "h-full min-h-0 overflow-hidden";
-
-function AnalyticsChartContainer({
-  className,
-  legend,
-  children,
-}: {
-  className?: string;
-  legend?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={[
-        "analytics-chart-container grid min-h-0 w-full flex-1 overflow-hidden",
-        legend
-          ? "[grid-template-columns:minmax(0,20%)_minmax(0,80%)]"
-          : "grid-cols-[minmax(0,1fr)]",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      {legend ? (
-        <div className="analytics-chart-legend-slot min-h-0 min-w-0 overflow-y-auto overscroll-contain border-r border-border/60 pr-2">
-          {legend}
-        </div>
-      ) : null}
-      <div className="relative min-h-0 min-w-0 place-self-center overflow-hidden h-full w-full">
-        <div className="absolute inset-0 min-h-0 min-w-0">{children}</div>
-      </div>
-    </div>
-  );
-}
-
 const AnalyticsFilters = dynamic(
   () =>
     import("@/components/analytics-filters").then((m) => ({
       default: m.AnalyticsFilters,
-    })),
-  { ssr: false },
-);
-
-const ColumnChart = dynamic(
-  () =>
-    import("@/components/charts/column-chart").then((m) => ({
-      default: m.ColumnChart,
-    })),
-  { ssr: false },
-);
-
-const LineChart = dynamic(
-  () =>
-    import("@/components/charts/line-chart").then((m) => ({
-      default: m.LineChart,
-    })),
-  { ssr: false },
-);
-
-const PieByCategoryChart = dynamic(
-  () =>
-    import("@/components/charts/pie-chart").then((m) => ({
-      default: m.PieByCategoryChart,
-    })),
-  { ssr: false },
-);
-
-const SankeyChart = dynamic(
-  () =>
-    import("@/components/charts/sankey-chart").then((m) => ({
-      default: m.SankeyChart,
-    })),
-  { ssr: false },
-);
-
-const DivergingBarChart = dynamic(
-  () =>
-    import("@/components/charts/diverging-bar-chart").then((m) => ({
-      default: m.DivergingBarChart,
-    })),
-  { ssr: false },
-);
-
-const HorizontalBarChart = dynamic(
-  () =>
-    import("@/components/charts/horizontal-bar-chart").then((m) => ({
-      default: m.HorizontalBarChart,
-    })),
-  { ssr: false },
-);
-
-const StackedAreaChart = dynamic(
-  () =>
-    import("@/components/charts/stacked-area-chart").then((m) => ({
-      default: m.StackedAreaChart,
     })),
   { ssr: false },
 );
@@ -185,34 +89,6 @@ const AnalyticsTransactionsTableLazy = dynamic(
     })),
   { loading: () => <MoneyAnalyticsTransactionsTableSkeleton /> },
 );
-
-function ChartViewportFallback({ ariaLabel }: { ariaLabel: string }) {
-  return (
-    <Skeleton
-      className="flex h-full w-full min-h-0 min-w-0 items-center justify-center text-xs text-muted"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-      aria-label={ariaLabel}
-    >
-      Chart loads when visible
-    </Skeleton>
-  );
-}
-
-function DeferredChartLoading({ ariaLabel }: { ariaLabel: string }) {
-  return (
-    <Skeleton
-      className="flex h-full w-full min-h-0 min-w-0 items-center justify-center text-xs text-muted"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-      aria-label={ariaLabel}
-    >
-      Loading chart data…
-    </Skeleton>
-  );
-}
 
 export function AnalyticsDashboardSkeleton() {
   return (
@@ -293,26 +169,33 @@ type AnalyticsStagesProps = {
 };
 
 function AnalyticsSummaryShell(props: AnalyticsStagesProps) {
-  const filterKey = useMemo(() => props.filterQuery, [props.filterQuery]);
-  const { data } = useSuspenseQuery(
-    moneyAnalyticsSummaryQueryOptions(props.workspaceKey, props.applied),
+  const { data } = useQuery(
+    moneyAnalyticsDashboardQueryOptions(props.workspaceKey, props.applied),
   );
+  const summary = data?.moneyAnalyticsSummary as
+    | MoneyAnalyticsSummaryPayload
+    | undefined;
+  const overview = data?.moneyAnalyticsOverview as
+    | MoneyAnalyticsOverviewPayload
+    | undefined;
+
+  if (!summary || !overview) {
+    return <MoneyAnalyticsChartsSkeleton />;
+  }
 
   return (
-    <AnalyticsChartsView
-      key={`${props.workspaceKey}:${filterKey}`}
-      summary={data.moneyAnalyticsSummary as MoneyAnalyticsSummaryPayload}
-      {...props}
-    />
+    <AnalyticsChartsView summary={summary} overview={overview} {...props} />
   );
 }
 
 type AnalyticsChartsViewProps = AnalyticsStagesProps & {
   summary: MoneyAnalyticsSummaryPayload;
+  overview: MoneyAnalyticsOverviewPayload;
 };
 
 function AnalyticsChartsView({
   summary,
+  overview,
   ...rest
 }: AnalyticsChartsViewProps) {
   const {
@@ -348,125 +231,113 @@ function AnalyticsChartsView({
     defaultCurrency,
   } = rest;
 
-  const { data: overviewResponse } = useQuery({
-    ...moneyAnalyticsOverviewQueryOptions(workspaceKey, applied),
-    enabled: Boolean(workspaceKey),
-  });
-  const overview =
-    (overviewResponse?.moneyAnalyticsOverview as
-      | MoneyAnalyticsOverviewPayload
-      | undefined) ?? null;
-  const overviewReady = overview !== null;
-  const distributionStageInView = spendByCategoryInView || categoryTrendInView;
-  const leadersStageInView = merchantsInView || recurringInView || tagsInView;
-  const budgetStageReady = !budgetInView;
-  const sankeyStageReady = !sankeyInView;
-  const distributionStageReady = !distributionStageInView;
-  const leadersStageReady = !leadersStageInView;
+  const overviewReady = true;
 
   const { data: budgetsResponse } = useQuery({
     ...moneyAnalyticsBudgetsQueryOptions(workspaceKey, applied),
-    enabled:
-      budgetInView &&
-      lookupsReady &&
-      overviewReady &&
-      Boolean(workspaceKey),
+    enabled: budgetInView && lookupsReady && Boolean(workspaceKey),
   });
   const budgets =
     (budgetsResponse?.moneyAnalyticsBudgets as
       | MoneyAnalyticsBudgetPayload
       | undefined) ?? null;
-  const budgetSectionReady = budgetStageReady || budgets != null;
 
   const { data: sankeyResponse } = useQuery({
     ...moneyAnalyticsSankeyQueryOptions(workspaceKey, applied),
-    enabled:
-      sankeyInView &&
-      overviewReady &&
-      budgetSectionReady &&
-      Boolean(workspaceKey),
+    enabled: sankeyInView && Boolean(workspaceKey),
   });
   const sankeyPayload =
     (sankeyResponse?.moneyAnalyticsSankey as
       | MoneyAnalyticsSankeyPayload
       | undefined) ?? null;
-  const sankeySectionReady = sankeyStageReady || sankeyPayload != null;
+  const distributionStageInView = spendByCategoryInView || categoryTrendInView;
 
   const { data: distributionResponse } = useQuery({
     ...moneyAnalyticsDistributionQueryOptions(workspaceKey, applied),
-    enabled:
-      distributionStageInView &&
-      overviewReady &&
-      sankeySectionReady &&
-      Boolean(workspaceKey),
+    enabled: distributionStageInView && Boolean(workspaceKey),
   });
   const distribution =
     (distributionResponse?.moneyAnalyticsDistribution as
       | MoneyAnalyticsDistributionPayload
       | undefined) ?? null;
-  const distributionSectionReady = distributionStageReady || distribution != null;
+  const leadersStageInView = merchantsInView || recurringInView || tagsInView;
 
   const { data: leadersResponse } = useQuery({
     ...moneyAnalyticsLeadersQueryOptions(workspaceKey, applied),
-    enabled:
-      leadersStageInView &&
-      overviewReady &&
-      distributionSectionReady &&
-      Boolean(workspaceKey),
+    enabled: leadersStageInView && Boolean(workspaceKey),
   });
   const leaders =
     (leadersResponse?.moneyAnalyticsLeaders as
       | MoneyAnalyticsLeadersPayload
       | undefined) ?? null;
-  const leadersSectionReady = leadersStageReady || leaders != null;
   const incomeByCategoryInView = spendByCategoryInView;
   const summaryStats = summary.stats;
   const summaryRange = summary.range;
-  const overviewColumn = overview?.column ?? [];
-  const overviewLine = overview?.line ?? [];
+  const overviewColumn = useMemo(() => overview?.column ?? [], [overview?.column]);
   const overviewLineCompare = overview?.lineCompare;
-  const overviewLineMode = overview?.lineMode ?? "date";
 
-  const pieSpendForChart = distribution?.pieSpend.map((p) => ({
-    label: p.label,
-    valueMinor: p.valueMinor,
-  })) ?? [];
-  const pieIncomeForChart = distribution?.pieIncome.map((p) => ({
-    label: p.label,
-    valueMinor: p.valueMinor,
-  })) ?? [];
-
-  const pieSpendHasData =
-    distribution?.pieSpend.some((p) => p.valueMinor > 0) ?? false;
-  const pieIncomeHasData =
-    distribution?.pieIncome.some((p) => p.valueMinor > 0) ?? false;
-  const columnHasFlow = overviewColumn.some(
-    (c) => c.expenseMinor > 0 || c.incomeMinor > 0,
+  const pieSpendHasData = useMemo(
+    () => distribution?.pieSpend.some((p) => p.valueMinor > 0) ?? false,
+    [distribution?.pieSpend],
   );
-  const columnExpenseTotal = overviewColumn.reduce((s, c) => s + c.expenseMinor, 0);
-  const columnIncomeTotal = overviewColumn.reduce((s, c) => s + c.incomeMinor, 0);
-  const pieSpendTotal =
-    distribution?.pieSpend.reduce((s, p) => s + p.valueMinor, 0) ?? 0;
-  const pieIncomeTotal =
-    distribution?.pieIncome.reduce((s, p) => s + p.valueMinor, 0) ?? 0;
-  const sankeyHasData =
-    sankeyPayload?.sankey.links.length
-      ? sankeyPayload.sankey.links.length > 0
-      : false;
-  const lineHasData =
-    overviewLine.some((p) => p.netMinor !== 0) ||
-    (overviewLineCompare?.points.some((p) => p.netMinor !== 0) ?? false);
-  const merchantsHasData =
-    leaders?.merchantsSpend.some((m) => m.valueMinor > 0) ?? false;
-  const tagsHasData = leaders?.tagsSpend.some((t) => t.valueMinor > 0) ?? false;
-  const categoryTrendHasData =
-    distribution?.categoryByMonthStacked.some((m) =>
-      m.series.some((s) => s.valueMinor > 0),
-    ) ?? false;
-  const recurringHasData =
-    leaders?.recurringSpend.some((r) => r.valueMinor > 0) ?? false;
-  const divergingHasData =
-    summaryStats.incomeMinor > 0 || summaryStats.expenseMinor > 0;
+  const pieIncomeHasData = useMemo(
+    () => distribution?.pieIncome.some((p) => p.valueMinor > 0) ?? false,
+    [distribution?.pieIncome],
+  );
+  const columnHasFlow = useMemo(
+    () =>
+      overviewColumn.some((c) => c.expenseMinor > 0 || c.incomeMinor > 0),
+    [overviewColumn],
+  );
+  const columnExpenseTotal = useMemo(
+    () => overviewColumn.reduce((s, c) => s + c.expenseMinor, 0),
+    [overviewColumn],
+  );
+  const columnIncomeTotal = useMemo(
+    () => overviewColumn.reduce((s, c) => s + c.incomeMinor, 0),
+    [overviewColumn],
+  );
+  const pieSpendTotal = useMemo(
+    () => distribution?.pieSpend.reduce((s, p) => s + p.valueMinor, 0) ?? 0,
+    [distribution?.pieSpend],
+  );
+  const pieIncomeTotal = useMemo(
+    () => distribution?.pieIncome.reduce((s, p) => s + p.valueMinor, 0) ?? 0,
+    [distribution?.pieIncome],
+  );
+  const sankeyHasData = useMemo(
+    () => (sankeyPayload?.sankey.links.length ?? 0) > 0,
+    [sankeyPayload?.sankey.links.length],
+  );
+  const lineHasData = useMemo(
+    () =>
+      (overview?.line.some((p) => p.netMinor !== 0) ?? false) ||
+      (overviewLineCompare?.points.some((p) => p.netMinor !== 0) ?? false),
+    [overview?.line, overviewLineCompare?.points],
+  );
+  const merchantsHasData = useMemo(
+    () => leaders?.merchantsSpend.some((m) => m.valueMinor > 0) ?? false,
+    [leaders?.merchantsSpend],
+  );
+  const tagsHasData = useMemo(
+    () => leaders?.tagsSpend.some((t) => t.valueMinor > 0) ?? false,
+    [leaders?.tagsSpend],
+  );
+  const categoryTrendHasData = useMemo(
+    () =>
+      distribution?.categoryByMonthStacked.some((m) =>
+        m.series.some((s) => s.valueMinor > 0),
+      ) ?? false,
+    [distribution?.categoryByMonthStacked],
+  );
+  const recurringHasData = useMemo(
+    () => leaders?.recurringSpend.some((r) => r.valueMinor > 0) ?? false,
+    [leaders?.recurringSpend],
+  );
+  const divergingHasData = useMemo(
+    () => summaryStats.incomeMinor > 0 || summaryStats.expenseMinor > 0,
+    [summaryStats.expenseMinor, summaryStats.incomeMinor],
+  );
   const budgetChartRows = useMemo(
     () =>
       budgets
@@ -474,8 +345,9 @@ function AnalyticsChartsView({
         : [],
     [budgets, categories, accounts, tags],
   );
-  const budgetChartHasData = budgetChartRows.some(
-    (b) => b.valueMinor > 0 || (b.limitMinor ?? 0) > 0,
+  const budgetChartHasData = useMemo(
+    () => budgetChartRows.some((b) => b.valueMinor > 0 || (b.limitMinor ?? 0) > 0),
+    [budgetChartRows],
   );
 
   const { formatMonthYear } = useFormatDate();
@@ -484,134 +356,12 @@ function AnalyticsChartsView({
     : null;
 
   const isCurrentMonthCompare = Boolean(overviewLineCompare);
-
-  const [hiddenSpendCategories, setHiddenSpendCategories] = useState(
-    () => new Set<string>(),
-  );
-  const [hiddenIncomeCategories, setHiddenIncomeCategories] = useState(
-    () => new Set<string>(),
-  );
-  const [hiddenColumnSeries, setHiddenColumnSeries] = useState(
-    () => new Set<"expense" | "income">(),
-  );
-  const [hiddenLineSeries, setHiddenLineSeries] = useState(
-    () => new Set<"primary" | "compare">(),
-  );
-  const [hiddenCategoryTrendKeys, setHiddenCategoryTrendKeys] = useState(
-    () => new Set<string>(),
-  );
-  const [hoveredSpendCategory, setHoveredSpendCategory] = useState<string | null>(
-    null,
-  );
-  const [hoveredIncomeCategory, setHoveredIncomeCategory] = useState<string | null>(
-    null,
-  );
+  const theme = useMemo(() => ({ resolved, style }), [resolved, style]);
 
   const formatChartValue = useCallback(
     (minor: number) => formatMinor(minor, defaultCurrency),
     [defaultCurrency],
   );
-
-  const spendLegendItems = useMemo(
-    () =>
-      (distribution?.pieSpend ?? []).slice(0, 8).map((p, i) => ({
-        key: p.label,
-        label: p.label,
-        color: colorByIndex(resolved, i, style),
-        valueText: formatMinor(p.valueMinor, defaultCurrency),
-      })),
-    [distribution?.pieSpend, resolved, style, defaultCurrency],
-  );
-
-  const incomeLegendItems = useMemo(
-    () =>
-      (distribution?.pieIncome ?? []).slice(0, 8).map((p, i) => ({
-        key: p.label,
-        label: p.label,
-        color: colorByIndex(resolved, i, style),
-        valueText: formatMinor(p.valueMinor, defaultCurrency),
-      })),
-    [distribution?.pieIncome, resolved, style, defaultCurrency],
-  );
-
-  const columnLegendItems = useMemo(
-    () => [
-      {
-        key: "expense",
-        label: "Expense",
-        color: chartExpenseColor(resolved, style),
-        valueText: formatMinor(columnExpenseTotal, defaultCurrency),
-      },
-      {
-        key: "income",
-        label: "Income",
-        color: chartIncomeColor(resolved, style),
-        valueText: formatMinor(columnIncomeTotal, defaultCurrency),
-      },
-    ],
-    [resolved, style, columnExpenseTotal, columnIncomeTotal, defaultCurrency],
-  );
-
-  const linePrimaryColor = useMemo(() => {
-    const line = overview?.line ?? [];
-    const last = line[line.length - 1]?.netMinor ?? 0;
-    return last < 0
-      ? chartExpenseColor(resolved, style)
-      : chartIncomeColor(resolved, style);
-  }, [overview, resolved, style]);
-
-  const categoryTrendLegendItems = useMemo(() => {
-    if (!distribution) return [];
-    const keys = new Set<string>();
-    for (const m of distribution.categoryByMonthStacked) {
-      for (const s of m.series) keys.add(s.key);
-    }
-    return [...keys].map((key, i) => {
-      const label =
-        distribution.categoryByMonthStacked
-          .flatMap((m) => m.series)
-          .find((s) => s.key === key)?.label ?? key;
-      return {
-        key,
-        label,
-        color: colorByIndex(resolved, i, style),
-        valueText: "",
-      };
-    });
-  }, [distribution, resolved, style]);
-
-  const lineLegendItems = useMemo(() => {
-    const line = overview?.line ?? [];
-    const lineCompare = overview?.lineCompare;
-    const items = [
-      {
-        key: "primary",
-        label: isCurrentMonthCompare ? "This month" : "Selected range",
-        color: linePrimaryColor,
-        valueText: formatMinor(
-          line[line.length - 1]?.netMinor ?? 0,
-          defaultCurrency,
-        ),
-      },
-    ];
-    if (lineCompare && lineCompareLabel) {
-      const compareLast =
-        lineCompare.points[lineCompare.points.length - 1]?.netMinor ?? 0;
-      items.push({
-        key: "compare",
-        label: lineCompareLabel,
-        color: "var(--muted)",
-        valueText: formatMinor(compareLast, defaultCurrency),
-      });
-    }
-    return items;
-  }, [
-    overview,
-    lineCompareLabel,
-    linePrimaryColor,
-    defaultCurrency,
-    isCurrentMonthCompare,
-  ]);
 
   return (
     <>
@@ -622,453 +372,112 @@ function AnalyticsChartsView({
         currency={defaultCurrency}
       />
 
-      <Card
-        className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
-        ref={netFlowRef}
-      >
-        <h2 className="mb-2 font-display text-lg font-medium">Net cumulative flow</h2>
-        {overviewLineCompare ? (
-          <p className="mb-2 text-xs text-muted">
-            Solid: this month through today. Dashed: {lineCompareLabel}.
-          </p>
-        ) : (
-          <p className="mb-2 text-xs text-muted">
-            Cumulative income minus expenses for the selected range.
-          </p>
-        )}
-        <AnalyticsChartContainer
-          legend={
-            lineHasData && netFlowInView ? (
-              <ChartLegendList
-                items={lineLegendItems}
-                hiddenKeys={hiddenLineSeries}
-                onToggle={(key) =>
-                  setHiddenLineSeries((s) =>
-                    toggleSetKey(s, key as "primary" | "compare"),
-                  )
-                }
-                showValues={false}
-              />
-            ) : undefined
-          }
-        >
-          {netFlowInView ? (
-            !overviewReady ? (
-              <DeferredChartLoading ariaLabel="Loading net cumulative flow chart" />
-            ) : lineHasData ? (
-              <LineChart
-                data={overviewLine}
-                comparison={
-                  overviewLineCompare && lineCompareLabel
-                    ? {
-                        label: lineCompareLabel,
-                        data: overviewLineCompare.points,
-                      }
-                    : undefined
-                }
-                xMode={overviewLineMode}
-                formatY={(minor) => formatMinor(minor, defaultCurrency)}
-                hiddenSeries={hiddenLineSeries}
-                animate={netFlowInView}
-              />
-            ) : (
-              <AnalyticsEmptyState
-                title="No cash flow in this range"
-                description="Widen the range or add transactions."
-                descriptionClassName="line-clamp-1"
-                minHeightClass="min-h-0"
-                className={CHART_SLOT_CLASS}
-                action={{ href: "/money", label: "Add or view transactions" }}
-              />
-            )
-          ) : (
-            <ChartViewportFallback ariaLabel="Net cumulative flow chart loads when this section is visible" />
-          )}
-        </AnalyticsChartContainer>
-      </Card>
+      <NetCumulativeFlowCard
+        cardRef={netFlowRef}
+        inView={netFlowInView}
+        overviewReady={overviewReady}
+        overview={overview}
+        lineHasData={lineHasData}
+        lineCompareLabel={lineCompareLabel}
+        isCurrentMonthCompare={isCurrentMonthCompare}
+        defaultCurrency={defaultCurrency}
+        theme={theme}
+      />
 
-      <Card className={`col-span-2 w-full min-w-0 p-4 md:col-span-3 lg:col-span-6 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}>
-        <h2 className="mb-2 font-display text-lg font-medium">Income vs expenses</h2>
-        <p className="mb-2 text-xs text-muted">Totals for the selected filter range.</p>
-        <AnalyticsChartContainer>
-          {!overviewReady ? (
-            <DeferredChartLoading ariaLabel="Loading income versus expenses chart" />
-          ) : divergingHasData ? (
-            <DivergingBarChart
-              incomeMinor={summaryStats.incomeMinor}
-              expenseMinor={summaryStats.expenseMinor}
-              formatValue={formatChartValue}
-            />
-          ) : (
-            <AnalyticsEmptyState
-              title="No income or expenses in this range"
-              description="Add transactions or widen the date range."
-              minHeightClass="min-h-0"
-              className={CHART_SLOT_CLASS}
-              action={{ href: "/money", label: "Add or view transactions" }}
-            />
-          )}
-        </AnalyticsChartContainer>
-      </Card>
+      <IncomeVsExpenseCard
+        overviewReady={overviewReady}
+        summaryStats={summaryStats}
+        divergingHasData={divergingHasData}
+        formatChartValue={formatChartValue}
+      />
 
-      <Card
-        className={`col-span-2 w-full min-w-0 p-4 md:col-span-3 lg:col-span-6 ${CHART_CARD_LAYOUT}`}
-        ref={budgetRef}
-        style={{
-          height: Math.max(
-            CHART_CARD_MIN_HEIGHT_HALF_PX,
-            budgetChartRows.length * 36,
-          ),
-        }}
-      >
-        <h2 className="mb-2 font-display text-lg font-medium">Budget vs actual</h2>
-        <p className="mb-2 text-xs text-muted">
-          Spent amount against budget limit for the selected range.
-        </p>
-        <AnalyticsChartContainer>
-          {!budgetInView ? (
-            <ChartViewportFallback ariaLabel="Budget chart loads when this section is visible" />
-          ) : !budgets || !lookupsReady ? (
-            <DeferredChartLoading ariaLabel="Loading budget chart" />
-          ) : budgetChartHasData ? (
-            <HorizontalBarChart
-              data={budgetChartRows}
-              formatValue={formatChartValue}
-              variant="budget"
-            />
-          ) : (
-            <AnalyticsEmptyState
-              title="No budgets in this workspace"
-              description="Create budgets in Money settings."
-              minHeightClass="min-h-0"
-              className={CHART_SLOT_CLASS}
-              action={{ href: "/money/settings", label: "Money settings" }}
-            />
-          )}
-        </AnalyticsChartContainer>
-      </Card>
+      <BudgetVsActualCard
+        cardRef={budgetRef}
+        inView={budgetInView}
+        lookupsReady={lookupsReady}
+        budgets={budgets}
+        budgetChartRows={budgetChartRows}
+        budgetChartHasData={budgetChartHasData}
+        formatChartValue={formatChartValue}
+      />
 
-      <Card
-        className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
-        ref={sankeyRef}
-      >
-        <h2 className="mb-1 font-display text-lg font-medium">Money flow</h2>
-        <p className="mb-2 text-xs text-muted">
-          Expenses run from accounts to categories (through account budgets when set), then into
-          category or whole-workspace budgets when applicable. Income runs from categories into
-          accounts. Tag budgets appear on the flow when applicable.
-        </p>
-        <AnalyticsChartContainer className="text-foreground">
-          {!sankeyInView ? (
-            <ChartViewportFallback ariaLabel="Money flow chart loads when this section is visible" />
-          ) : !sankeyPayload ? (
-            <DeferredChartLoading ariaLabel="Loading money flow chart" />
-          ) : sankeyHasData ? (
-            <SankeyChart
-              nodes={sankeyPayload.sankey.nodes}
-              links={sankeyPayload.sankey.links}
-              currency={defaultCurrency}
-              animate={sankeyInView}
-            />
-          ) : (
-            <AnalyticsEmptyState
-              icon="flow"
-              title="No money flow for this range"
-              description="Add categorized expenses or income, or widen the date range."
-              minHeightClass="min-h-0"
-              className={CHART_SLOT_CLASS}
-              action={{ href: "/money", label: "Add or view transactions" }}
-            />
-          )}
-        </AnalyticsChartContainer>
-      </Card>
+      <MoneyFlowSankeyCard
+        cardRef={sankeyRef}
+        inView={sankeyInView}
+        sankeyPayload={sankeyPayload}
+        sankeyHasData={sankeyHasData}
+        defaultCurrency={defaultCurrency}
+      />
 
       <div className="col-span-2 grid min-w-0 grid-cols-3 gap-2 md:col-span-6 md:gap-3 lg:col-span-12 lg:gap-3">
-        <Card className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`} ref={spendByCategoryRef}>
-          <h2 className="mb-2 font-display text-lg font-medium">Spend by category</h2>
-          <AnalyticsChartContainer
-            legend={
-              spendByCategoryInView && pieSpendHasData ? (
-                <ChartLegendList
-                  items={spendLegendItems}
-                  hiddenKeys={hiddenSpendCategories}
-                  onToggle={(key) =>
-                    setHiddenSpendCategories((s) => toggleSetKey(s, key))
-                  }
-                  hoveredKey={hoveredSpendCategory}
-                  onHover={setHoveredSpendCategory}
-                  showValues={false}
-                />
-              ) : undefined
-            }
-          >
-            {spendByCategoryInView ? (
-              !distribution ? (
-                <DeferredChartLoading ariaLabel="Loading spend by category chart" />
-              ) : pieSpendHasData ? (
-                <PieByCategoryChart
-                  data={pieSpendForChart}
-                  hiddenLabels={hiddenSpendCategories}
-                  hoveredLabel={hoveredSpendCategory}
-                  animate={spendByCategoryInView}
-                  formatValue={formatChartValue}
-                  centerTotalMinor={pieSpendTotal}
-                  centerLabel="Spent"
-                />
-              ) : (
-                <AnalyticsEmptyState
-                  title="No category spend in this range"
-                  description="Add expenses or adjust filters for this range."
-                  minHeightClass="min-h-0"
-                  className={CHART_SLOT_CLASS}
-                  action={{ href: "/money", label: "Add or view transactions" }}
-                />
-              )
-            ) : (
-              <ChartViewportFallback ariaLabel="Spend by category chart loads when this section is visible" />
-            )}
-          </AnalyticsChartContainer>
-        </Card>
-
-        <Card className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}>
-          <h2 className="mb-2 font-display text-lg font-medium">Income by category</h2>
-          <AnalyticsChartContainer
-            legend={
-              incomeByCategoryInView && pieIncomeHasData ? (
-                <ChartLegendList
-                  items={incomeLegendItems}
-                  hiddenKeys={hiddenIncomeCategories}
-                  onToggle={(key) =>
-                    setHiddenIncomeCategories((s) => toggleSetKey(s, key))
-                  }
-                  hoveredKey={hoveredIncomeCategory}
-                  onHover={setHoveredIncomeCategory}
-                  showValues={false}
-                />
-              ) : undefined
-            }
-          >
-            {!incomeByCategoryInView ? (
-              <ChartViewportFallback ariaLabel="Income by category chart loads when this section is visible" />
-            ) : !distribution ? (
-              <DeferredChartLoading ariaLabel="Loading income by category chart" />
-            ) : pieIncomeHasData ? (
-              <PieByCategoryChart
-                data={pieIncomeForChart}
-                hiddenLabels={hiddenIncomeCategories}
-                hoveredLabel={hoveredIncomeCategory}
-                animate={incomeByCategoryInView}
-                formatValue={formatChartValue}
-                centerTotalMinor={pieIncomeTotal}
-                centerLabel="Earned"
-              />
-            ) : (
-              <AnalyticsEmptyState
-                title="No category income in this range"
-                description="Add income or adjust filters for this range."
-                minHeightClass="min-h-0"
-                className={CHART_SLOT_CLASS}
-                action={{ href: "/money", label: "Add or view transactions" }}
-              />
-            )}
-          </AnalyticsChartContainer>
-        </Card>
-
-        <Card className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`} ref={monthlyColumnsRef}>
-          <h2 className="mb-2 font-display text-lg font-medium">
-            Monthly expense and income
-          </h2>
-          <AnalyticsChartContainer
-            legend={
-              monthlyColumnsInView && columnHasFlow ? (
-                <ChartLegendList
-                  items={columnLegendItems}
-                  hiddenKeys={hiddenColumnSeries}
-                  onToggle={(key) =>
-                    setHiddenColumnSeries((s) =>
-                      toggleSetKey(s, key as "expense" | "income"),
-                    )
-                  }
-                  showValues={false}
-                />
-              ) : undefined
-            }
-          >
-            {monthlyColumnsInView ? (
-              !overviewReady ? (
-                <DeferredChartLoading ariaLabel="Loading monthly expense and income chart" />
-              ) : columnHasFlow ? (
-                <ColumnChart
-                  data={overviewColumn}
-                  hiddenSeries={hiddenColumnSeries}
-                  animate={monthlyColumnsInView}
-                  formatValue={formatChartValue}
-                  showNetLine
-                />
-              ) : (
-                <AnalyticsEmptyState
-                  title="No monthly expense or income to plot"
-                  description="Add transactions or widen the range to see bars."
-                  minHeightClass="min-h-0"
-                  className={CHART_SLOT_CLASS}
-                  action={{ href: "/money", label: "Add or view transactions" }}
-                />
-              )
-            ) : (
-              <ChartViewportFallback ariaLabel="Monthly expense and income chart loads when this section is visible" />
-            )}
-          </AnalyticsChartContainer>
-        </Card>
-
-        <Card className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`} ref={categoryTrendRef}>
-          <h2 className="mb-2 font-display text-lg font-medium">
-            Category spend trend
-          </h2>
-          <AnalyticsChartContainer
-            legend={
-              categoryTrendInView &&
-              categoryTrendHasData &&
-              categoryTrendLegendItems.length > 0 ? (
-                <ChartLegendList
-                  items={categoryTrendLegendItems}
-                  hiddenKeys={hiddenCategoryTrendKeys}
-                  onToggle={(key) =>
-                    setHiddenCategoryTrendKeys((s) => toggleSetKey(s, key))
-                  }
-                  showValues={false}
-                />
-              ) : undefined
-            }
-          >
-            {categoryTrendInView ? (
-              !distribution ? (
-                <DeferredChartLoading ariaLabel="Loading category spend trend chart" />
-              ) : categoryTrendHasData ? (
-                <StackedAreaChart
-                  data={distribution.categoryByMonthStacked}
-                  hiddenKeys={hiddenCategoryTrendKeys}
-                  formatValue={formatChartValue}
-                  animate={categoryTrendInView}
-                />
-              ) : (
-                <AnalyticsEmptyState
-                  title="No category trend in this range"
-                  description="Add categorized expenses across months."
-                  minHeightClass="min-h-0"
-                  className={CHART_SLOT_CLASS}
-                  action={{ href: "/money", label: "Add or view transactions" }}
-                />
-              )
-            ) : (
-              <ChartViewportFallback ariaLabel="Category spend trend chart loads when this section is visible" />
-            )}
-          </AnalyticsChartContainer>
-        </Card>
-
-        <Card className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`} ref={tagsRef}>
-          <h2 className="mb-2 font-display text-lg font-medium">Spend by tag</h2>
-          <AnalyticsChartContainer>
-            {tagsInView ? (
-              !leaders ? (
-                <DeferredChartLoading ariaLabel="Loading spend by tag chart" />
-              ) : tagsHasData ? (
-                <HorizontalBarChart
-                  data={leaders.tagsSpend.map((t, i) => ({
-                    key: `t-${i}-${t.label}`,
-                    label: t.label,
-                    valueMinor: t.valueMinor,
-                  }))}
-                  formatValue={formatChartValue}
-                  animate={tagsInView}
-                />
-              ) : (
-                <AnalyticsEmptyState
-                  title="No tagged spend in this range"
-                  description="Tag expenses or adjust filters for this range."
-                  minHeightClass="min-h-0"
-                  className={CHART_SLOT_CLASS}
-                  action={{ href: "/money", label: "Add or view transactions" }}
-                />
-              )
-            ) : (
-              <ChartViewportFallback ariaLabel="Spend by tag chart loads when this section is visible" />
-            )}
-          </AnalyticsChartContainer>
-        </Card>
-
-        <Card className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`} ref={merchantsRef}>
-          <h2 className="mb-2 font-display text-lg font-medium">Top merchants</h2>
-          <AnalyticsChartContainer>
-            {merchantsInView ? (
-              !leaders ? (
-                <DeferredChartLoading ariaLabel="Loading top merchants chart" />
-              ) : merchantsHasData ? (
-                <HorizontalBarChart
-                  data={leaders.merchantsSpend.map((m, i) => ({
-                    key: `m-${i}-${m.label}`,
-                    label: m.label,
-                    valueMinor: m.valueMinor,
-                  }))}
-                  formatValue={formatChartValue}
-                  animate={merchantsInView}
-                />
-              ) : (
-                <AnalyticsEmptyState
-                  title="No merchant spend in this range"
-                  description="Add expenses with merchants or widen the range."
-                  minHeightClass="min-h-0"
-                  className={CHART_SLOT_CLASS}
-                  action={{ href: "/money", label: "Add or view transactions" }}
-                />
-              )
-            ) : (
-              <ChartViewportFallback ariaLabel="Top merchants chart loads when this section is visible" />
-            )}
-          </AnalyticsChartContainer>
-        </Card>
+        <SpendByCategoryCard
+          cardRef={spendByCategoryRef}
+          inView={spendByCategoryInView}
+          distribution={distribution}
+          pieSpendHasData={pieSpendHasData}
+          pieSpendTotal={pieSpendTotal}
+          formatChartValue={formatChartValue}
+          theme={theme}
+          defaultCurrency={defaultCurrency}
+        />
+        <IncomeByCategoryCard
+          inView={incomeByCategoryInView}
+          distribution={distribution}
+          pieIncomeHasData={pieIncomeHasData}
+          pieIncomeTotal={pieIncomeTotal}
+          formatChartValue={formatChartValue}
+          theme={theme}
+          defaultCurrency={defaultCurrency}
+        />
+        <MonthlyColumnsCard
+          cardRef={monthlyColumnsRef}
+          inView={monthlyColumnsInView}
+          overviewReady={overviewReady}
+          overviewColumn={overviewColumn}
+          columnHasFlow={columnHasFlow}
+          columnExpenseTotal={columnExpenseTotal}
+          columnIncomeTotal={columnIncomeTotal}
+          formatChartValue={formatChartValue}
+          theme={theme}
+          defaultCurrency={defaultCurrency}
+        />
+        <CategorySpendTrendCard
+          cardRef={categoryTrendRef}
+          inView={categoryTrendInView}
+          distribution={distribution}
+          categoryTrendHasData={categoryTrendHasData}
+          formatChartValue={formatChartValue}
+          theme={theme}
+        />
+        <SpendByTagCard
+          cardRef={tagsRef}
+          inView={tagsInView}
+          leaders={leaders}
+          tagsHasData={tagsHasData}
+          formatChartValue={formatChartValue}
+        />
+        <TopMerchantsCard
+          cardRef={merchantsRef}
+          inView={merchantsInView}
+          leaders={leaders}
+          merchantsHasData={merchantsHasData}
+          formatChartValue={formatChartValue}
+        />
       </div>
 
-
-      <Card
-        className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_FULL}`}
-        ref={recurringRef}
-      >
-        <h2 className="mb-2 font-display text-lg font-medium">Recurring spend</h2>
-        <p className="mb-2 text-xs text-muted">
-          Expenses posted from recurrence templates in this range.
-        </p>
-        <AnalyticsChartContainer>
-          {!recurringInView ? (
-            <ChartViewportFallback ariaLabel="Recurring spend chart loads when this section is visible" />
-          ) : !leaders ? (
-            <DeferredChartLoading ariaLabel="Loading recurring spend chart" />
-          ) : recurringHasData ? (
-            <HorizontalBarChart
-              data={leaders.recurringSpend.map((r, i) => ({
-                key: r.templateId ?? `r-${i}`,
-                label: r.label,
-                valueMinor: r.valueMinor,
-              }))}
-              formatValue={formatChartValue}
-              animate={recurringInView}
-            />
-          ) : (
-            <AnalyticsEmptyState
-              title="No recurring spend in this range"
-              description="Generated transactions from templates appear here."
-              minHeightClass="min-h-0"
-              className={CHART_SLOT_CLASS}
-              action={{ href: "/money/settings/recurrence", label: "Recurrence settings" }}
-            />
-          )}
-        </AnalyticsChartContainer>
-      </Card>
+      <RecurringSpendCard
+        cardRef={recurringRef}
+        inView={recurringInView}
+        leaders={leaders}
+        recurringHasData={recurringHasData}
+        formatChartValue={formatChartValue}
+      />
 
       <div
         ref={transactionsRef}
         className="col-span-2 md:col-span-6 lg:col-span-12"
       >
-        {transactionsInView && lookupsReady && overviewReady && leadersSectionReady ? (
+        {transactionsInView && lookupsReady && overviewReady ? (
           <AnalyticsTransactionsTableLazy
             filterQuery={filterQuery}
             activeWorkspaceId={workspaceKey}
@@ -1085,9 +494,13 @@ function AnalyticsChartsView({
   );
 }
 
-function AnalyticsDashboardLoaded() {
-  const { data: session, status } = useSession();
-  const userSub = session?.user?.id;
+function AnalyticsDashboardLoaded({
+  userSub,
+  authenticated,
+}: {
+  userSub?: string;
+  authenticated: boolean;
+}) {
   const {
     workspaceId: coreWorkspaceId,
     defaultCurrency,
@@ -1095,8 +508,7 @@ function AnalyticsDashboardLoaded() {
     workspaceReady,
   } = useWorkspaceCurrency();
   const { resolved, style } = useTheme();
-  const canRunMoneyQueries =
-    status === "authenticated" && typeof window !== "undefined";
+  const canRunMoneyQueries = authenticated && typeof window !== "undefined";
 
   const {
     ref: budgetRef,
@@ -1210,9 +622,7 @@ function AnalyticsDashboardLoaded() {
   );
   const lookupsReady = !workspaceSyncPending && chartLookupsQuery.isSuccess;
 
-  const draftKey = useMemo(() => JSON.stringify(draft), [draft]);
-  const appliedKey = useMemo(() => JSON.stringify(applied), [applied]);
-  const dirty = draftKey !== appliedKey;
+  const dirty = !analyticsFiltersEqual(draft, applied);
   const analyticsFilterQuery = useMemo(() => buildQuery(applied), [applied]);
 
   const autoSyncedWorkspaceRef = useRef<string | null>(null);
@@ -1369,40 +779,38 @@ function AnalyticsDashboardLoaded() {
         ) : null}
 
         {activeWorkspaceId && !workspaceSyncPending ? (
-          <Suspense fallback={<MoneyAnalyticsChartsSkeleton />}>
-            <AnalyticsSummaryShell
-              applied={applied}
-              filterQuery={analyticsFilterQuery}
-              workspaceKey={activeWorkspaceId}
-              defaultCurrency={defaultCurrency}
-              budgetRef={budgetRef}
-              sankeyRef={sankeyRef}
-              spendByCategoryRef={spendByCategoryRef}
-              monthlyColumnsRef={monthlyColumnsRef}
-              netFlowRef={netFlowRef}
-              merchantsRef={merchantsRef}
-              recurringRef={recurringRef}
-              tagsRef={tagsRef}
-              categoryTrendRef={categoryTrendRef}
-              transactionsRef={transactionsRef}
-              budgetInView={budgetInView}
-              sankeyInView={sankeyInView}
-              spendByCategoryInView={spendByCategoryInView}
-              monthlyColumnsInView={monthlyColumnsInView}
-              netFlowInView={netFlowInView}
-              merchantsInView={merchantsInView}
-              recurringInView={recurringInView}
-              tagsInView={tagsInView}
-              categoryTrendInView={categoryTrendInView}
-              transactionsInView={transactionsInView}
-              resolved={resolved}
-              style={style}
-              lookupsReady={lookupsReady}
-              categories={categories}
-              accounts={accounts}
-              tags={tags}
-            />
-          </Suspense>
+          <AnalyticsSummaryShell
+            applied={applied}
+            filterQuery={analyticsFilterQuery}
+            workspaceKey={activeWorkspaceId}
+            defaultCurrency={defaultCurrency}
+            budgetRef={budgetRef}
+            sankeyRef={sankeyRef}
+            spendByCategoryRef={spendByCategoryRef}
+            monthlyColumnsRef={monthlyColumnsRef}
+            netFlowRef={netFlowRef}
+            merchantsRef={merchantsRef}
+            recurringRef={recurringRef}
+            tagsRef={tagsRef}
+            categoryTrendRef={categoryTrendRef}
+            transactionsRef={transactionsRef}
+            budgetInView={budgetInView}
+            sankeyInView={sankeyInView}
+            spendByCategoryInView={spendByCategoryInView}
+            monthlyColumnsInView={monthlyColumnsInView}
+            netFlowInView={netFlowInView}
+            merchantsInView={merchantsInView}
+            recurringInView={recurringInView}
+            tagsInView={tagsInView}
+            categoryTrendInView={categoryTrendInView}
+            transactionsInView={transactionsInView}
+            resolved={resolved}
+            style={style}
+            lookupsReady={lookupsReady}
+            categories={categories}
+            accounts={accounts}
+            tags={tags}
+          />
         ) : (
           <MoneyAnalyticsChartsSkeleton />
         )}
@@ -1411,6 +819,14 @@ function AnalyticsDashboardLoaded() {
   );
 }
 
-export function AnalyticsDashboard() {
-  return <AnalyticsDashboardLoaded />;
+export function AnalyticsDashboard({
+  userSub,
+  authenticated,
+}: {
+  userSub?: string;
+  authenticated: boolean;
+}) {
+  return (
+    <AnalyticsDashboardLoaded userSub={userSub} authenticated={authenticated} />
+  );
 }

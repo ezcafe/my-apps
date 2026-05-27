@@ -5,15 +5,36 @@ import PocketId from "@/auth/providers/pocket-id";
 const issuer = process.env.AUTH_POCKET_ID_ISSUER;
 const clientId = process.env.AUTH_POCKET_ID_ID;
 const clientSecret = process.env.AUTH_POCKET_ID_SECRET;
+const authSecret = process.env.AUTH_SECRET;
+const isProduction = process.env.NODE_ENV === "production";
 
-const pocketProvider =
-  issuer && clientId && clientSecret
-    ? PocketId({ issuer, clientId, clientSecret })
-    : PocketId({
-        issuer: "https://placeholder.invalid",
-        clientId: "placeholder",
-        clientSecret: "placeholder",
-      });
+if (!authSecret) {
+  throw new Error("AUTH_SECRET is required");
+}
+
+if (
+  isProduction &&
+  authSecret === "local-dev-auth-secret-change-me"
+) {
+  throw new Error("AUTH_SECRET must not use the known local default value");
+}
+
+const missingPocketOidc =
+  !issuer || !clientId || !clientSecret;
+
+if (isProduction && missingPocketOidc) {
+  throw new Error(
+    "AUTH_POCKET_ID_ISSUER, AUTH_POCKET_ID_ID, and AUTH_POCKET_ID_SECRET are required in production",
+  );
+}
+
+const pocketProvider = missingPocketOidc
+  ? PocketId({
+      issuer: "https://placeholder.invalid",
+      clientId: "placeholder",
+      clientSecret: "placeholder",
+    })
+  : PocketId({ issuer, clientId, clientSecret });
 
 export const authConfig = {
   providers: [pocketProvider],

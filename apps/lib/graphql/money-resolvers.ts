@@ -2,9 +2,7 @@ import { GraphQLError } from "graphql";
 import { GraphQLJSONObject } from "graphql-scalars";
 import { analyticsFiltersSchema } from "@/lib/validators/money";
 import {
-  computeMoneyAnalytics,
   computeMoneyAnalyticsBudgets,
-  computeMoneyAnalyticsBreakdown,
   computeMoneyAnalyticsDistribution,
   computeMoneyAnalyticsLeaders,
   computeMoneyAnalyticsOverview,
@@ -66,6 +64,7 @@ import {
   updateMoneyTransaction,
 } from "@/lib/money-services/transactions";
 import { parseMoneyImportCsv } from "@/lib/money-services/csv-parse";
+import { MAX_IMPORT_BYTES } from "@/lib/money-import-csv";
 import {
   cloneMoneyWorkspaceApi,
   patchWorkspaceCurrency,
@@ -574,20 +573,6 @@ export const moneyResolvers = {
       return result.data;
     },
 
-    moneyAnalytics: async (
-      _: unknown,
-      args: { filters: Record<string, unknown> },
-      ctx: MoneyGraphQLContext,
-    ) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        const filters = filtersFromInput(args.filters);
-        return await computeMoneyAnalytics(workspaceId, filters);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
     moneyAnalyticsOverview: async (
       _: unknown,
       args: { filters: Record<string, unknown> },
@@ -624,7 +609,11 @@ export const moneyResolvers = {
       try {
         const { workspaceId } = requireMoneyWorkspace(ctx);
         const filters = filtersFromInput(args.filters);
-        return await computeMoneyAnalyticsDistribution(workspaceId, filters);
+        return await computeMoneyAnalyticsDistribution(
+          workspaceId,
+          filters,
+          ctx.loaders,
+        );
       } catch (e) {
         mapServiceError(e);
       }
@@ -638,7 +627,11 @@ export const moneyResolvers = {
       try {
         const { workspaceId } = requireMoneyWorkspace(ctx);
         const filters = filtersFromInput(args.filters);
-        return await computeMoneyAnalyticsBudgets(workspaceId, filters);
+        return await computeMoneyAnalyticsBudgets(
+          workspaceId,
+          filters,
+          ctx.loaders,
+        );
       } catch (e) {
         mapServiceError(e);
       }
@@ -652,7 +645,11 @@ export const moneyResolvers = {
       try {
         const { workspaceId } = requireMoneyWorkspace(ctx);
         const filters = filtersFromInput(args.filters);
-        return await computeMoneyAnalyticsSankey(workspaceId, filters);
+        return await computeMoneyAnalyticsSankey(
+          workspaceId,
+          filters,
+          ctx.loaders,
+        );
       } catch (e) {
         mapServiceError(e);
       }
@@ -667,20 +664,6 @@ export const moneyResolvers = {
         const { workspaceId } = requireMoneyWorkspace(ctx);
         const filters = filtersFromInput(args.filters);
         return await computeMoneyAnalyticsLeaders(workspaceId, filters);
-      } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyAnalyticsBreakdown: async (
-      _: unknown,
-      args: { filters: Record<string, unknown> },
-      ctx: MoneyGraphQLContext,
-    ) => {
-      try {
-        const { workspaceId } = requireMoneyWorkspace(ctx);
-        const filters = filtersFromInput(args.filters);
-        return await computeMoneyAnalyticsBreakdown(workspaceId, filters);
       } catch (e) {
         mapServiceError(e);
       }
@@ -794,6 +777,10 @@ export const moneyResolvers = {
     ) => {
       try {
         requireMoneyWorkspace(ctx);
+        const size = new TextEncoder().encode(args.csv).length;
+        if (size > MAX_IMPORT_BYTES) {
+          gqlErr(`CSV exceeds ${MAX_IMPORT_BYTES} bytes`, "BAD_REQUEST");
+        }
         return parseMoneyImportCsv(args.csv);
       } catch (e) {
         mapServiceError(e);

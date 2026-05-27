@@ -4,16 +4,27 @@ import { db } from "@/db";
 import { workspace, workspaceMember } from "@/db/schema/workspace";
 import { badRequest, unauthorized } from "@/lib/api-money";
 import { seedMoneyWorkspaceDefaults } from "@/lib/bootstrap";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { assertSameOrigin, readJsonBounded } from "@/lib/request-guards";
 import { workspaceCreateSchema } from "@/lib/validators/workspace";
 
 export async function POST(req: Request) {
   const session = await auth();
   const userSub = session?.user?.id;
   if (!userSub) return unauthorized();
+  const allowed = await enforceRateLimit({
+    name: "workspace:create",
+    request: req,
+    userKey: userSub,
+    points: Number(process.env.WORKSPACE_CREATE_RPM ?? 10),
+    durationSeconds: 60,
+  });
+  if (!allowed) return new Response("Too many requests", { status: 429 });
+  if (!assertSameOrigin(req)) return badRequest("Cross-origin request blocked");
 
   let body: unknown;
   try {
-    body = await req.json();
+    body = await readJsonBounded(req, Number(process.env.JSON_MAX_BYTES ?? 262144));
   } catch {
     return badRequest("Invalid JSON");
   }

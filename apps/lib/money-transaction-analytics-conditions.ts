@@ -1,6 +1,6 @@
 import { eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
-import { moneyTransaction } from "@/db/schema/money";
+import { moneyTransaction, moneyTransactionTag } from "@/db/schema/money";
 import { analyticsFiltersSchema } from "@/lib/validators/money";
 import type { z } from "zod";
 
@@ -61,15 +61,16 @@ export function moneyTransactionConditionsForAnalytics(
     conditions.push(inArray(moneyTransaction.kind, filters.kinds));
   }
   if (filters.tagIds && filters.tagIds.length > 0) {
-    for (const tagId of filters.tagIds) {
-      conditions.push(
-        sql`EXISTS (
-          SELECT 1 FROM money_transaction_tag mtt
-          WHERE mtt.transaction_id = ${moneyTransaction.id}
-            AND mtt.tag_id = ${tagId}
-        )`,
-      );
-    }
+    const tagIds = filters.tagIds;
+    conditions.push(
+      sql`${moneyTransaction.id} IN (
+        SELECT ${moneyTransactionTag.transactionId}
+        FROM ${moneyTransactionTag}
+        WHERE ${inArray(moneyTransactionTag.tagId, tagIds)}
+        GROUP BY ${moneyTransactionTag.transactionId}
+        HAVING count(DISTINCT ${moneyTransactionTag.tagId}) = ${tagIds.length}
+      )`,
+    );
   }
 
   return conditions;

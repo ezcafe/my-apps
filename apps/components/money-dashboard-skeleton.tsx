@@ -127,7 +127,6 @@ export function MoneyDashboardSkeleton() {
               </InputGroupAddon>
               <InputGroupInput
                 value=""
-                onChange={() => {}}
                 inputMode="decimal"
                 placeholder="24.99"
                 disabled
@@ -164,7 +163,7 @@ export function MoneyDashboardSkeleton() {
           <MoneyTagsFieldSkeleton className="[grid-column:1/-1]" />
 
           <Field label="Notes" className="[grid-column:1/-1]">
-            <Textarea rows={3} value="" onChange={() => {}} disabled />
+            <Textarea rows={3} value="" disabled />
           </Field>
 
           <div className="flex flex-wrap items-center gap-3 [grid-column:1/-1]">

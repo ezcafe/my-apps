@@ -4,16 +4,27 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { workspace, workspaceMember } from "@/db/schema/workspace";
 import { badRequest, forbidden, unauthorized } from "@/lib/api-money";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { assertSameOrigin, readJsonBounded } from "@/lib/request-guards";
 import { workspaceCurrencyPatchSchema } from "@/lib/validators/workspace";
 
 export async function PATCH(req: Request) {
   const session = await auth();
   const userSub = session?.user?.id;
   if (!userSub) return unauthorized();
+  const allowed = await enforceRateLimit({
+    name: "workspace:currency",
+    request: req,
+    userKey: userSub,
+    points: Number(process.env.WORKSPACE_CURRENCY_RPM ?? 30),
+    durationSeconds: 60,
+  });
+  if (!allowed) return new Response("Too many requests", { status: 429 });
+  if (!assertSameOrigin(req)) return badRequest("Cross-origin request blocked");
 
   let body: unknown;
   try {
-    body = await req.json();
+    body = await readJsonBounded(req, Number(process.env.JSON_MAX_BYTES ?? 262144));
   } catch {
     return badRequest("Invalid JSON");
   }

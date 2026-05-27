@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: monorepoRoot,
   experimental: {
     optimizePackageImports: [
+      "@tanstack/react-query",
       "@visx/curve",
       "@visx/group",
       "@visx/responsive",
@@ -21,6 +22,7 @@ const nextConfig: NextConfig = {
       "@visx/sankey",
       "@visx/shape",
       "d3-shape",
+      "next-auth/react",
     ],
   },
   turbopack: {
@@ -28,6 +30,48 @@ const nextConfig: NextConfig = {
     // package directory; locally we still widen the root to the monorepo for npm workspace parity.
     // https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory
     root: monorepoRoot,
+  },
+  async headers() {
+    const scriptSrc = [
+      "'self'",
+      // Next.js injects small inline bootstrap/runtime scripts during initial HTML render.
+      // Without nonce-based CSP plumbing, blocking inline scripts breaks first paint/hydration.
+      "'unsafe-inline'",
+      ...(process.env.NODE_ENV === "development" ? ["'unsafe-eval'"] : []),
+    ].join(" ");
+    const csp = [
+      "default-src 'self'",
+      `script-src ${scriptSrc}`,
+      `script-src-elem ${scriptSrc}`,
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+      "upgrade-insecure-requests",
+    ].join("; ");
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: csp },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains; preload",
+          },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
+      },
+    ];
   },
 };
 

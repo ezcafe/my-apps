@@ -12,6 +12,7 @@ import { isDbUnreachable } from "@/lib/db-errors";
 import { parseWorkspaceAppKey } from "@/lib/workspace-context";
 
 export type MoneyGraphQLContext = {
+  requestId: string;
   responseHeaders: Headers;
   request?: Request;
   auth: ResolvedRequestAuth;
@@ -22,9 +23,12 @@ export type MoneyGraphQLContext = {
   authMethod: RequestAuthMethod | null;
   apiTokenId: string | null;
   scopes: ApiTokenScope[] | null;
+  /** Per-request promise cache for deduplicating service-layer fetches. */
+  loaders: Map<string, Promise<unknown>>;
 };
 
 export async function createMoneyGraphQLContext(
+  requestId: string,
   responseHeaders: Headers,
   request?: Request,
 ): Promise<MoneyGraphQLContext> {
@@ -34,6 +38,7 @@ export async function createMoneyGraphQLContext(
   } catch (e) {
     if (isDbUnreachable(e)) {
       return {
+        requestId,
         responseHeaders,
         request,
         auth: {
@@ -49,6 +54,7 @@ export async function createMoneyGraphQLContext(
         authMethod: null,
         apiTokenId: null,
         scopes: null,
+        loaders: new Map(),
       };
     }
     throw e;
@@ -57,6 +63,7 @@ export async function createMoneyGraphQLContext(
   const userSub = auth.userSub;
   if (!userSub) {
     return {
+      requestId,
       responseHeaders,
       request,
       auth,
@@ -66,6 +73,7 @@ export async function createMoneyGraphQLContext(
       authMethod: null,
       apiTokenId: null,
       scopes: null,
+      loaders: new Map(),
     };
   }
 
@@ -75,6 +83,7 @@ export async function createMoneyGraphQLContext(
   } catch (e) {
     if (isDbUnreachable(e)) {
       return {
+        requestId,
         responseHeaders,
         request,
         auth,
@@ -84,6 +93,7 @@ export async function createMoneyGraphQLContext(
         authMethod: auth.method,
         apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
         scopes: auth.method === "api_key" ? auth.scopes : null,
+        loaders: new Map(),
       };
     }
     throw e;
@@ -91,6 +101,7 @@ export async function createMoneyGraphQLContext(
 
   if (!workspaceId) {
     return {
+      requestId,
       responseHeaders,
       request,
       auth,
@@ -100,6 +111,7 @@ export async function createMoneyGraphQLContext(
       authMethod: auth.method,
       apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
       scopes: auth.method === "api_key" ? auth.scopes : null,
+      loaders: new Map(),
     };
   }
 
@@ -109,6 +121,7 @@ export async function createMoneyGraphQLContext(
   } catch (e) {
     if (isDbUnreachable(e)) {
       return {
+        requestId,
         responseHeaders,
         request,
         auth,
@@ -118,12 +131,14 @@ export async function createMoneyGraphQLContext(
         authMethod: auth.method,
         apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
         scopes: auth.method === "api_key" ? auth.scopes : null,
+        loaders: new Map(),
       };
     }
     throw e;
   }
 
   return {
+    requestId,
     responseHeaders,
     request,
     auth,
@@ -133,6 +148,7 @@ export async function createMoneyGraphQLContext(
     authMethod: auth.method,
     apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
     scopes: auth.method === "api_key" ? auth.scopes : null,
+    loaders: new Map(),
   };
 }
 

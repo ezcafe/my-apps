@@ -2,76 +2,50 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-/** Parse IO-style rootMargin (subset of CSS margin syntax) into pixel insets. */
-function parseRootMarginPixels(rootMargin: string): {
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-} {
-  const parts = rootMargin.trim().split(/\s+/).filter(Boolean);
-  const px = (s: string) => Number.parseFloat(s.replace(/px$/i, "")) || 0;
+const observersByMargin = new Map<string, IntersectionObserver>();
+const callbacksByElement = new Map<Element, Set<() => void>>();
 
-  if (parts.length === 1) {
-    const v = px(parts[0]!);
-    return { top: v, right: v, bottom: v, left: v };
+function getSharedObserver(rootMargin: string): IntersectionObserver {
+  let observer = observersByMargin.get(rootMargin);
+  if (!observer) {
+    observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const callbacks = callbacksByElement.get(entry.target);
+          if (!callbacks) continue;
+          for (const cb of callbacks) cb();
+        }
+      },
+      { root: null, rootMargin, threshold: 0 },
+    );
+    observersByMargin.set(rootMargin, observer);
   }
-  if (parts.length === 2) {
-    const vertical = px(parts[0]!);
-    const horizontal = px(parts[1]!);
-    return {
-      top: vertical,
-      bottom: vertical,
-      left: horizontal,
-      right: horizontal,
-    };
-  }
-  if (parts.length === 3) {
-    return {
-      top: px(parts[0]!),
-      right: px(parts[1]!),
-      bottom: px(parts[2]!),
-      left: px(parts[1]!),
-    };
-  }
-  if (parts.length >= 4) {
-    return {
-      top: px(parts[0]!),
-      right: px(parts[1]!),
-      bottom: px(parts[2]!),
-      left: px(parts[3]!),
-    };
-  }
-  return { top: 0, right: 0, bottom: 0, left: 0 };
+  return observer;
 }
 
-/** Mirrors IntersectionObserver root=null + rootMargin overlap (layout viewport). */
-function elementIntersectsInflatedViewport(
-  el: HTMLElement,
-  rootMargin: string,
-): boolean {
-  const m = parseRootMarginPixels(rootMargin);
-  const r = el.getBoundingClientRect();
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+function subscribe(element: Element, rootMargin: string, onVisible: () => void) {
+  let callbacks = callbacksByElement.get(element);
+  if (!callbacks) {
+    callbacks = new Set();
+    callbacksByElement.set(element, callbacks);
+    getSharedObserver(rootMargin).observe(element);
+  }
+  callbacks.add(onVisible);
+}
 
-  const rootLeft = -m.left;
-  const rootTop = -m.top;
-  const rootRight = vw + m.right;
-  const rootBottom = vh + m.bottom;
-
-  return !(
-    r.bottom <= rootTop ||
-    r.top >= rootBottom ||
-    r.right <= rootLeft ||
-    r.left >= rootRight
-  );
+function unsubscribe(element: Element, rootMargin: string, onVisible: () => void) {
+  const callbacks = callbacksByElement.get(element);
+  if (!callbacks) return;
+  callbacks.delete(onVisible);
+  if (callbacks.size > 0) return;
+  callbacksByElement.delete(element);
+  getSharedObserver(rootMargin).unobserve(element);
 }
 
 /**
  * Sets `isInView` to true once the element intersects the viewport (with optional root margin).
- * Uses a callback ref so effects re-run when the node mounts after conditional rendering (e.g. data fetch).
- * Geometry is rechecked on resize/scroll because IntersectionObserver updates can be unreliable on resize alone.
+ * Uses a shared module-level IntersectionObserver per rootMargin value.
  */
 export function useInViewOnce(rootMargin = "120px 0px") {
   const [target, setTarget] = useState<HTMLDivElement | null>(null);
@@ -82,76 +56,14 @@ export function useInViewOnce(rootMargin = "120px 0px") {
   }, []);
 
   useEffect(() => {
-    const el: HTMLDivElement | null = target;
+    const el = target;
     if (!el || isInView) return;
 
-    let finished = false;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          finish();
-        }
-      },
-      { root: null, rootMargin, threshold: 0 },
-    );
-
-    function cleanupListeners() {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", onWinScroll, true);
-      const vp = window.visualViewport;
-      if (vp != null) {
-        vp.removeEventListener("resize", onVpResize);
-        vp.removeEventListener("scroll", onVpScroll);
-      }
-    }
-
-    function finish() {
-      if (finished) return;
-      finished = true;
-      observer.disconnect();
-      cleanupListeners();
-      setIsInView(true);
-    }
-
-    function checkGeometry() {
-      if (finished || !el) return;
-      if (elementIntersectsInflatedViewport(el, rootMargin)) {
-        finish();
-      }
-    }
-
-    function onResize() {
-      checkGeometry();
-    }
-    function onWinScroll() {
-      checkGeometry();
-    }
-    function onVpResize() {
-      checkGeometry();
-    }
-    function onVpScroll() {
-      checkGeometry();
-    }
-
-    observer.observe(el);
-
-    window.addEventListener("resize", onResize);
-    window.addEventListener("scroll", onWinScroll, true);
-    const visualViewport = window.visualViewport;
-    if (visualViewport != null) {
-      visualViewport.addEventListener("resize", onVpResize);
-      visualViewport.addEventListener("scroll", onVpScroll);
-    }
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(checkGeometry);
-    });
+    const onVisible = () => setIsInView(true);
+    subscribe(el, rootMargin, onVisible);
 
     return () => {
-      finished = true;
-      observer.disconnect();
-      cleanupListeners();
+      unsubscribe(el, rootMargin, onVisible);
     };
   }, [target, isInView, rootMargin]);
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { RootProviders } from "@/components/root-providers";
 
@@ -7,34 +8,6 @@ export const metadata: Metadata = {
   description:
     "Household workspace — Money, analytics, and more. Minimal themes with adjustable presets.",
 };
-
-const STORAGE_SCRIPT = `
-(function () {
-  try {
-    var root = document.documentElement;
-    var t = localStorage.getItem("workspace_theme");
-    var mq = window.matchMedia("(prefers-color-scheme: dark)");
-    var resolved =
-      t === "light" || t === "dark"
-        ? t
-        : mq.matches
-          ? "dark"
-          : "light";
-    root.classList.toggle("dark", resolved === "dark");
-    var s = localStorage.getItem("workspace_style");
-    if (
-      s === "linear" ||
-      s === "apple" ||
-      s === "swiss" ||
-      s === "notion"
-    ) {
-      root.dataset.style = s;
-    } else {
-      root.dataset.style = "linear";
-    }
-  } catch (e) {}
-})();
-`;
 
 export default function RootLayout({
   children,
@@ -49,7 +22,7 @@ export default function RootLayout({
       className="h-full"
     >
       <body className="min-h-dvh bg-background text-foreground antialiased">
-        <script dangerouslySetInnerHTML={{ __html: STORAGE_SCRIPT }} />
+        <Script src="/theme-init.js" strategy="beforeInteractive" />
         <RootProviders>{children}</RootProviders>
       </body>
     </html>

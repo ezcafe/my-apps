@@ -69,6 +69,10 @@ export async function assertWorkspaceOwner(
 const COOKIE_WORKSPACE_UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+export function isWorkspaceIdCookieSafe(workspaceId: string): boolean {
+  return COOKIE_WORKSPACE_UUID_RE.test(workspaceId);
+}
+
 function parseCookieWorkspaceId(raw: string | undefined): string | null {
   if (!raw || !COOKIE_WORKSPACE_UUID_RE.test(raw)) return null;
   return raw;
@@ -141,6 +145,9 @@ export function setActiveWorkspaceCookie(
   appKey: WorkspaceAppKey,
   workspaceId: string,
 ): NextResponse {
+  if (!isWorkspaceIdCookieSafe(workspaceId)) {
+    throw new Error("Invalid workspaceId");
+  }
   res.cookies.set(workspaceCookieName(appKey), workspaceId, {
     httpOnly: true,
     sameSite: "lax",
@@ -157,6 +164,9 @@ export function appendActiveWorkspaceCookieHeader(
   appKey: WorkspaceAppKey,
   workspaceId: string,
 ): void {
+  if (!isWorkspaceIdCookieSafe(workspaceId)) {
+    throw new Error("Invalid workspaceId");
+  }
   const attrs = [
     `${workspaceCookieName(appKey)}=${workspaceId}`,
     "Path=/",

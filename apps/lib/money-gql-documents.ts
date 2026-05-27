@@ -18,7 +18,6 @@ export const MONEY_BOOTSTRAP_QUERY = /* GraphQL */ `
       }
       accounts
       categories
-      merchants
       tags
     }
   }
@@ -78,6 +77,13 @@ export const MONEY_ANALYTICS_SUMMARY_QUERY = /* GraphQL */ `
   }
 `;
 
+export const MONEY_ANALYTICS_DASHBOARD_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsDashboard($filters: AnalyticsFiltersInput!) {
+    moneyAnalyticsSummary(filters: $filters)
+    moneyAnalyticsOverview(filters: $filters)
+  }
+`;
+
 export const MONEY_ANALYTICS_DISTRIBUTION_QUERY = /* GraphQL */ `
   query MoneyAnalyticsDistribution($filters: AnalyticsFiltersInput!) {
     moneyAnalyticsDistribution(filters: $filters)
@@ -99,12 +105,6 @@ export const MONEY_ANALYTICS_SANKEY_QUERY = /* GraphQL */ `
 export const MONEY_ANALYTICS_LEADERS_QUERY = /* GraphQL */ `
   query MoneyAnalyticsLeaders($filters: AnalyticsFiltersInput!) {
     moneyAnalyticsLeaders(filters: $filters)
-  }
-`;
-
-export const MONEY_ANALYTICS_BREAKDOWN_QUERY = /* GraphQL */ `
-  query MoneyAnalyticsBreakdown($filters: AnalyticsFiltersInput!) {
-    moneyAnalyticsBreakdown(filters: $filters)
   }
 `;
 

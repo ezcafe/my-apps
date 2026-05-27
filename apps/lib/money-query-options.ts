@@ -2,15 +2,18 @@
 
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import type { AnalyticsFiltersValue } from "@/components/analytics-filters";
-import { analyticsFiltersToGraphQLInput } from "@/lib/analytics-graphql-filters";
+import {
+  analyticsFiltersQueryKey,
+  analyticsFiltersToGraphQLInput,
+} from "@/lib/analytics-graphql-filters";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
-  MONEY_ANALYTICS_BREAKDOWN_QUERY,
   MONEY_ANALYTICS_BUDGETS_QUERY,
   MONEY_ANALYTICS_CHART_LOOKUPS_QUERY,
   MONEY_ANALYTICS_DISTRIBUTION_QUERY,
   MONEY_ANALYTICS_LEADERS_QUERY,
   MONEY_ANALYTICS_MERCHANT_LOOKUPS_QUERY,
+  MONEY_ANALYTICS_DASHBOARD_QUERY,
   MONEY_ANALYTICS_OVERVIEW_QUERY,
   MONEY_ANALYTICS_SUMMARY_QUERY,
   MONEY_ANALYTICS_SANKEY_QUERY,
@@ -21,7 +24,6 @@ import {
 } from "@/lib/money-gql-documents";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import type {
-  MoneyAnalyticsBreakdownPayload,
   MoneyAnalyticsBudgetPayload,
   MoneyAnalyticsDistributionPayload,
   MoneyAnalyticsLeadersPayload,
@@ -149,13 +151,6 @@ export function moneyAnalyticsMerchantLookupsQueryOptions(workspaceKey: string) 
   });
 }
 
-function analyticsQueryVariables(applied: AnalyticsFiltersValue) {
-  return {
-    appliedKey: JSON.stringify(applied),
-    filters: analyticsFiltersToGraphQLInput(applied),
-  };
-}
-
 export type MoneyAnalyticsOverviewQueryResult = {
   moneyAnalyticsOverview: MoneyAnalyticsOverviewPayload;
 };
@@ -164,8 +159,9 @@ export type MoneyAnalyticsSummaryQueryResult = {
   moneyAnalyticsSummary: MoneyAnalyticsSummaryPayload;
 };
 
-export type MoneyAnalyticsBreakdownQueryResult = {
-  moneyAnalyticsBreakdown: MoneyAnalyticsBreakdownPayload;
+export type MoneyAnalyticsDashboardQueryResult = {
+  moneyAnalyticsSummary: MoneyAnalyticsSummaryPayload;
+  moneyAnalyticsOverview: MoneyAnalyticsOverviewPayload;
 };
 
 export type MoneyAnalyticsDistributionQueryResult = {
@@ -188,10 +184,15 @@ export function moneyAnalyticsSummaryQueryOptions(
   workspaceKey: string,
   applied: AnalyticsFiltersValue,
 ) {
-  const { appliedKey, filters } = analyticsQueryVariables(applied);
+  const filters = analyticsFiltersToGraphQLInput(applied);
 
   return queryOptions({
-    queryKey: ["money", "analyticsSummary", workspaceKey, appliedKey] as const,
+    queryKey: [
+      "money",
+      "analyticsSummary",
+      workspaceKey,
+      ...analyticsFiltersQueryKey(applied),
+    ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsSummaryQueryResult>(
         MONEY_ANALYTICS_SUMMARY_QUERY,
@@ -204,14 +205,44 @@ export function moneyAnalyticsSummaryQueryOptions(
   });
 }
 
+export function moneyAnalyticsDashboardQueryOptions(
+  workspaceKey: string,
+  applied: AnalyticsFiltersValue,
+) {
+  const filters = analyticsFiltersToGraphQLInput(applied);
+
+  return queryOptions({
+    queryKey: [
+      "money",
+      "analyticsDashboard",
+      workspaceKey,
+      ...analyticsFiltersQueryKey(applied),
+    ] as const,
+    queryFn: async () => {
+      const res = await moneyGraphQLRequest<MoneyAnalyticsDashboardQueryResult>(
+        MONEY_ANALYTICS_DASHBOARD_QUERY,
+        { filters },
+      );
+      return res;
+    },
+    placeholderData: (previousData) => previousData,
+    staleTime: 20_000,
+  });
+}
+
 export function moneyAnalyticsOverviewQueryOptions(
   workspaceKey: string,
   applied: AnalyticsFiltersValue,
 ) {
-  const { appliedKey, filters } = analyticsQueryVariables(applied);
+  const filters = analyticsFiltersToGraphQLInput(applied);
 
   return queryOptions({
-    queryKey: ["money", "analyticsOverview", workspaceKey, appliedKey] as const,
+    queryKey: [
+      "money",
+      "analyticsOverview",
+      workspaceKey,
+      ...analyticsFiltersQueryKey(applied),
+    ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsOverviewQueryResult>(
         MONEY_ANALYTICS_OVERVIEW_QUERY,
@@ -224,34 +255,19 @@ export function moneyAnalyticsOverviewQueryOptions(
   });
 }
 
-export function moneyAnalyticsBreakdownQueryOptions(
-  workspaceKey: string,
-  applied: AnalyticsFiltersValue,
-) {
-  const { appliedKey, filters } = analyticsQueryVariables(applied);
-
-  return queryOptions({
-    queryKey: ["money", "analyticsBreakdown", workspaceKey, appliedKey] as const,
-    queryFn: async () => {
-      const res = await moneyGraphQLRequest<MoneyAnalyticsBreakdownQueryResult>(
-        MONEY_ANALYTICS_BREAKDOWN_QUERY,
-        { filters },
-      );
-      return res;
-    },
-    placeholderData: (previousData) => previousData,
-    staleTime: 30_000,
-  });
-}
-
 export function moneyAnalyticsDistributionQueryOptions(
   workspaceKey: string,
   applied: AnalyticsFiltersValue,
 ) {
-  const { appliedKey, filters } = analyticsQueryVariables(applied);
+  const filters = analyticsFiltersToGraphQLInput(applied);
 
   return queryOptions({
-    queryKey: ["money", "analyticsDistribution", workspaceKey, appliedKey] as const,
+    queryKey: [
+      "money",
+      "analyticsDistribution",
+      workspaceKey,
+      ...analyticsFiltersQueryKey(applied),
+    ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsDistributionQueryResult>(
         MONEY_ANALYTICS_DISTRIBUTION_QUERY,
@@ -268,10 +284,15 @@ export function moneyAnalyticsBudgetsQueryOptions(
   workspaceKey: string,
   applied: AnalyticsFiltersValue,
 ) {
-  const { appliedKey, filters } = analyticsQueryVariables(applied);
+  const filters = analyticsFiltersToGraphQLInput(applied);
 
   return queryOptions({
-    queryKey: ["money", "analyticsBudgets", workspaceKey, appliedKey] as const,
+    queryKey: [
+      "money",
+      "analyticsBudgets",
+      workspaceKey,
+      ...analyticsFiltersQueryKey(applied),
+    ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsBudgetQueryResult>(
         MONEY_ANALYTICS_BUDGETS_QUERY,
@@ -288,10 +309,15 @@ export function moneyAnalyticsSankeyQueryOptions(
   workspaceKey: string,
   applied: AnalyticsFiltersValue,
 ) {
-  const { appliedKey, filters } = analyticsQueryVariables(applied);
+  const filters = analyticsFiltersToGraphQLInput(applied);
 
   return queryOptions({
-    queryKey: ["money", "analyticsSankey", workspaceKey, appliedKey] as const,
+    queryKey: [
+      "money",
+      "analyticsSankey",
+      workspaceKey,
+      ...analyticsFiltersQueryKey(applied),
+    ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsSankeyQueryResult>(
         MONEY_ANALYTICS_SANKEY_QUERY,
@@ -308,10 +334,15 @@ export function moneyAnalyticsLeadersQueryOptions(
   workspaceKey: string,
   applied: AnalyticsFiltersValue,
 ) {
-  const { appliedKey, filters } = analyticsQueryVariables(applied);
+  const filters = analyticsFiltersToGraphQLInput(applied);
 
   return queryOptions({
-    queryKey: ["money", "analyticsLeaders", workspaceKey, appliedKey] as const,
+    queryKey: [
+      "money",
+      "analyticsLeaders",
+      workspaceKey,
+      ...analyticsFiltersQueryKey(applied),
+    ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsLeadersQueryResult>(
         MONEY_ANALYTICS_LEADERS_QUERY,

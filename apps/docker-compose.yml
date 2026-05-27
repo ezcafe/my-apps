@@ -4,9 +4,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: money
-      POSTGRES_PASSWORD: money
-      POSTGRES_DB: money
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     # postgres:18+ — mount parent dir only (see https://github.com/docker-library/postgres/pull/1259).
     volumes:
       - money_pg_data:/var/lib/postgresql
@@ -22,7 +22,7 @@ services:
       context: .
       target: migrator
     environment:
-      DATABASE_URL: postgresql://money:money@db:5432/money
+      DATABASE_URL: ${DATABASE_URL}
     depends_on:
       db:
         condition: service_healthy
@@ -35,9 +35,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://money:money@db:5432/money
+      DATABASE_URL: ${DATABASE_URL}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-      AUTH_SECRET: ${AUTH_SECRET:-local-dev-auth-secret-change-me}
+      AUTH_SECRET: ${AUTH_SECRET}
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
       AUTH_POCKET_ID_ISSUER: ${AUTH_POCKET_ID_ISSUER:-https://id.example.com}
       AUTH_POCKET_ID_ID: ${AUTH_POCKET_ID_ID:-}

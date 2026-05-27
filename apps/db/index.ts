@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { sql } from "drizzle-orm";
 import * as schema from "./schema";
 
 type Schema = typeof schema;
@@ -17,7 +18,18 @@ function getClient() {
     if (!connectionString) {
       throw new Error("DATABASE_URL is not set");
     }
-    globalForMoney.__money_pg_client = postgres(connectionString, { max: 10 });
+    const max = Number(process.env.PG_POOL_MAX ?? 10);
+    globalForMoney.__money_pg_client = postgres(connectionString, {
+      max,
+      idle_timeout: 30,
+      connect_timeout: 5,
+      max_lifetime: 60 * 30,
+      connection: {
+        statement_timeout: 5_000,
+        lock_timeout: 2_000,
+        idle_in_transaction_session_timeout: 10_000,
+      },
+    });
   }
   return globalForMoney.__money_pg_client;
 }
@@ -39,3 +51,17 @@ export const db = new Proxy({} as AppDatabase, {
     return value;
   },
 });
+
+/**
+ * Runs a callback with `app.workspace_id` set in the transaction scope.
+ * Use this wrapper when enabling strict Postgres RLS in runtime paths.
+ */
+export async function withWorkspaceRls<T>(
+  workspaceId: string,
+  run: (tx: Parameters<Parameters<AppDatabase["transaction"]>[0]>[0]) => Promise<T>,
+): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('app.workspace_id', ${workspaceId}, true)`);
+    return run(tx);
+  });
+}

@@ -6,6 +6,7 @@ import {
   hashApiTokenForStorage,
   API_TOKEN_PREFIX_LENGTH,
 } from "@/lib/api-auth";
+import { writeAuditEvent } from "@/lib/audit-log";
 import { assertWorkspaceMember } from "@/lib/workspace-context";
 
 export type ApiTokenListItem = {
@@ -95,6 +96,12 @@ export async function createApiTokenForUser(
     });
 
   if (!row) throw new Error("Failed to create token");
+  await writeAuditEvent({
+    action: "api_token.created",
+    userSub,
+    workspaceId: row.workspaceId,
+    detail: { tokenId: row.id, scopes: row.scopes },
+  });
 
   return {
     token: secret,
@@ -128,5 +135,13 @@ export async function revokeApiTokenForUser(
     )
     .returning({ id: apiToken.id });
 
-  return result.length > 0;
+  const ok = result.length > 0;
+  if (ok) {
+    await writeAuditEvent({
+      action: "api_token.revoked",
+      userSub,
+      detail: { tokenId },
+    });
+  }
+  return ok;
 }
