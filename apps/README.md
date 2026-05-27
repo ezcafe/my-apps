@@ -72,12 +72,15 @@ docker compose up --build
 What Compose does:
 
 - Starts `db` on port `5432`
+- Starts `pgbouncer` on port `6432` (transaction pool mode)
 - Runs a one-shot `migrate` service with checked-in Drizzle migrations
 - Starts the production Next.js container on port `3000` only after migrations succeed
+- Runs daily logical backups into the `money_pg_backups` volume
 
 Docker-specific notes:
 
-- The app container uses `DATABASE_URL=postgresql://money:money@db:5432/money`, so the hostname is `db`, not `localhost`.
+- The app/migration containers default to `DATABASE_URL=postgresql://…@pgbouncer:5432/…`.
+- For direct SQL from host tools, continue using `localhost:5432` (Postgres) or `localhost:6432` (PgBouncer).
 - The runtime image is built from Next.js standalone output, so it only copies the files needed to serve the app.
 - The Docker build uses `next build --webpack` for production-image stability on Next.js 16, while local development can keep using Turbopack.
 - If `AUTH_POCKET_ID_*` is unset, the app can still boot, but Pocket ID login will not work until those values are configured.

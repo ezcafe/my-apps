@@ -50,127 +50,12 @@ type BudgetApiRow = {
   createdAt: Date;
 };
 
-async function ensureBudgetScopeColumnsIfMissing() {
-  await db.execute(sql`
-    DO $$
-    BEGIN
-      IF NOT EXISTS (
-        SELECT 1
-        FROM pg_type t
-        JOIN pg_namespace n ON n.oid = t.typnamespace
-        WHERE t.typname = 'money_budget_scope'
-          AND n.nspname = current_schema()
-      ) THEN
-        CREATE TYPE money_budget_scope AS ENUM ('workspace', 'category', 'account', 'tag');
-      END IF;
-    END
-    $$;
-  `);
-
-  await db.execute(sql`
-    ALTER TABLE money_budget
-      ADD COLUMN IF NOT EXISTS scope_type money_budget_scope;
-  `);
-  await db.execute(sql`
-    ALTER TABLE money_budget
-      ADD COLUMN IF NOT EXISTS scope_id uuid;
-  `);
-
-  await db.execute(sql`
-    UPDATE money_budget
-    SET scope_type = CASE WHEN category_id IS NULL THEN 'workspace'::money_budget_scope ELSE 'category'::money_budget_scope END,
-        scope_id = category_id
-    WHERE scope_type IS NULL;
-  `);
-
-  await db.execute(sql`
-    ALTER TABLE money_budget
-      ALTER COLUMN scope_type SET NOT NULL;
-  `);
-}
-
-async function alignLegacyBudgetColumnsForScopedModel() {
-  await db.execute(sql`
-    DO $$
-    BEGIN
-      IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'money_budget'
-          AND column_name = 'period_start'
-      ) THEN
-        ALTER TABLE money_budget ALTER COLUMN period_start DROP NOT NULL;
-      END IF;
-      IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'money_budget'
-          AND column_name = 'period_end'
-      ) THEN
-        ALTER TABLE money_budget ALTER COLUMN period_end DROP NOT NULL;
-      END IF;
-    END
-    $$;
-  `);
-}
-
 async function loadBudgetRowsCompat(workspaceId: string): Promise<BudgetApiRow[]> {
-  try {
-    const rows = await db
-      .select()
-      .from(moneyBudget)
-      .where(eq(moneyBudget.workspaceId, workspaceId))
-      .orderBy(asc(moneyBudget.scopeType), asc(moneyBudget.scopeId));
-    return rows;
-  } catch (e) {
-    const directCode =
-      e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : "";
-    const causeCode =
-      e &&
-      typeof e === "object" &&
-      "cause" in e &&
-      (e as { cause?: unknown }).cause &&
-      typeof (e as { cause?: unknown }).cause === "object" &&
-      "code" in ((e as { cause?: unknown }).cause as { code?: unknown })
-        ? String(((e as { cause?: unknown }).cause as { code?: unknown }).code ?? "")
-        : "";
-    const msg = e instanceof Error ? e.message : "";
-    const isMissingScopeType =
-      directCode === "42703" ||
-      causeCode === "42703" ||
-      msg.includes("scope_type") ||
-      msg.includes("column \"scope_type\" does not exist");
-    if (!isMissingScopeType) throw e;
-
-    let legacy: Array<Record<string, unknown>> = [];
-    try {
-      const legacyRaw = await db.execute(sql`
-        select id, workspace_id, category_id, limit_amount_minor, currency, created_at
-        from money_budget
-        where workspace_id = ${workspaceId}
-        order by category_id asc nulls first
-      `);
-      const maybeRows = (
-        legacyRaw as unknown as
-          | Array<Record<string, unknown>>
-          | { rows?: Array<Record<string, unknown>> }
-      );
-      legacy = Array.isArray(maybeRows) ? maybeRows : (maybeRows.rows ?? []);
-    } catch (legacyErr) {
-      throw legacyErr;
-    }
-    return legacy.map((r) => ({
-      id: String(r.id),
-      workspaceId: String(r.workspace_id),
-      scopeType: r.category_id ? "category" : "workspace",
-      scopeId: r.category_id ? String(r.category_id) : null,
-      limitAmountMinor: Number(r.limit_amount_minor ?? 0),
-      currency: String(r.currency ?? "USD"),
-      createdAt: new Date(String(r.created_at)),
-    }));
-  }
+  return db
+    .select()
+    .from(moneyBudget)
+    .where(eq(moneyBudget.workspaceId, workspaceId))
+    .orderBy(asc(moneyBudget.scopeType), asc(moneyBudget.scopeId));
 }
 
 type SpentAggregates = {
@@ -381,38 +266,6 @@ export async function createMoneyBudget(
   if (err) throw new Error(err);
 
   try {
-    const budgetColsRaw = await db.execute(sql`
-      select current_schema() as current_schema,
-             current_database() as current_database,
-             exists (
-               select 1
-               from information_schema.columns
-               where table_schema = current_schema()
-                 and table_name = 'money_budget'
-                 and column_name = 'scope_type'
-             ) as has_scope_type,
-             exists (
-               select 1
-               from information_schema.columns
-               where table_schema = current_schema()
-                 and table_name = 'money_budget'
-                 and column_name = 'scope_id'
-             ) as has_scope_id
-    `);
-    const budgetColsRows = (
-      budgetColsRaw as unknown as
-        | Array<Record<string, unknown>>
-        | { rows?: Array<Record<string, unknown>> }
-    );
-    const budgetCols = Array.isArray(budgetColsRows)
-      ? budgetColsRows[0]
-      : budgetColsRows.rows?.[0];
-
-    if (!budgetCols?.has_scope_type || !budgetCols?.has_scope_id) {
-      await ensureBudgetScopeColumnsIfMissing();
-    }
-    await alignLegacyBudgetColumnsForScopedModel();
-
     const workspaceCurrency =
       (await getWorkspaceDefaultCurrency(workspaceId)) ?? "USD";
     const [created] = await db

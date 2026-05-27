@@ -9,24 +9,6 @@ type RateLimitOptions = {
   userKey?: string | null;
 };
 
-const globalForRateLimit = globalThis as unknown as {
-  __rate_limit_table_ready__?: boolean;
-};
-
-async function ensureRateLimitTable() {
-  if (globalForRateLimit.__rate_limit_table_ready__) return;
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS security_rate_limit (
-      key text NOT NULL,
-      bucket_start timestamptz NOT NULL,
-      count integer NOT NULL DEFAULT 0,
-      updated_at timestamptz NOT NULL DEFAULT now(),
-      PRIMARY KEY (key, bucket_start)
-    )
-  `);
-  globalForRateLimit.__rate_limit_table_ready__ = true;
-}
-
 function normalizeIp(value: string | null): string | null {
   if (!value) return null;
   const ip = value.split(",")[0]?.trim();
@@ -52,7 +34,6 @@ export function rateLimitPrincipal(
 }
 
 export async function enforceRateLimit(opts: RateLimitOptions): Promise<boolean> {
-  await ensureRateLimitTable();
   const principal = rateLimitPrincipal(opts.request, opts.userKey);
   const now = Date.now();
   const bucketMs = opts.durationSeconds * 1000;

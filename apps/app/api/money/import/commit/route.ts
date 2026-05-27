@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { badRequest, requireMoneyContext } from "@/lib/api-money";
+import { badRequest, requireMoneyContext, withMoneyWorkspaceRls } from "@/lib/api-money";
 import { validateRowsForCommit } from "@/lib/money-import-csv";
 import { deleteImportPreview, getImportPreview } from "@/lib/money-import-preview-store";
 import { importCommitBodySchema } from "@/lib/money-import-types";
@@ -37,9 +37,9 @@ export async function POST(req: Request) {
   }
 
   const { type, previewId, rows } = parsed.data;
-  const rowSource = previewId
-    ? getImportPreview(ctx, previewId)
-    : rows;
+  const rowSource = await withMoneyWorkspaceRls(ctx, async () =>
+    previewId ? getImportPreview(ctx, previewId) : rows,
+  );
   if (previewId && !rowSource) {
     return badRequest(
       "Import preview expired or was discarded. Run Preview again.",
@@ -55,8 +55,14 @@ export async function POST(req: Request) {
   }
 
   try {
-    const imported = await commitMoneyImport(ctx, type, validated.rows);
-    if (previewId) deleteImportPreview(ctx, previewId);
+    const imported = await withMoneyWorkspaceRls(ctx, () =>
+      commitMoneyImport(ctx, type, validated.rows),
+    );
+    if (previewId) {
+      await withMoneyWorkspaceRls(ctx, () =>
+        deleteImportPreview(ctx, previewId),
+      );
+    }
     return NextResponse.json(
       { data: { imported } },
       { headers: { "Cache-Control": "no-store" } },

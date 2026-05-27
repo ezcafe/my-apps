@@ -35,6 +35,8 @@ export const workspace = pgTable(
     ownedByUserSub: text("owned_by_user_sub"),
     /** App-wide default currency for amount display/input; required before using Money features. */
     defaultCurrency: text("default_currency"),
+    /** IANA timezone name used for local-date analytics bucketing. */
+    tzName: text("tz_name").notNull().default("UTC"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

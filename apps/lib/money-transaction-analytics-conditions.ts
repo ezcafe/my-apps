@@ -64,11 +64,14 @@ export function moneyTransactionConditionsForAnalytics(
     const tagIds = filters.tagIds;
     conditions.push(
       sql`${moneyTransaction.id} IN (
-        SELECT ${moneyTransactionTag.transactionId}
-        FROM ${moneyTransactionTag}
-        WHERE ${inArray(moneyTransactionTag.tagId, tagIds)}
-        GROUP BY ${moneyTransactionTag.transactionId}
-        HAVING count(DISTINCT ${moneyTransactionTag.tagId}) = ${tagIds.length}
+        WITH matched_transactions AS (
+          SELECT ${moneyTransactionTag.transactionId} AS transaction_id
+          FROM ${moneyTransactionTag}
+          WHERE ${inArray(moneyTransactionTag.tagId, tagIds)}
+          GROUP BY ${moneyTransactionTag.transactionId}
+          HAVING count(DISTINCT ${moneyTransactionTag.tagId}) = ${tagIds.length}
+        )
+        SELECT transaction_id FROM matched_transactions
       )`,
     );
   }

@@ -89,10 +89,12 @@ export async function ensureUserBootstrap(userSub: string) {
     .where(eq(workspaceMember.userSub, userSub))
     .limit(1);
 
-  if (existing.length > 0) return;
+  if (existing.length > 0) {
+    return;
+  }
 
   await db.transaction(async (tx) => {
-    const [ws] = await tx
+    const [insertedWs] = await tx
       .insert(workspace)
       .values({
         name: "Personal",
@@ -100,20 +102,39 @@ export async function ensureUserBootstrap(userSub: string) {
         ownedByUserSub: userSub,
         defaultCurrency: null,
       })
+      .onConflictDoNothing()
       .returning();
+
+    const ws =
+      insertedWs ??
+      (
+        await tx
+          .select({ id: workspace.id })
+          .from(workspace)
+          .where(eq(workspace.ownedByUserSub, userSub))
+          .limit(1)
+      )[0];
+    if (!ws) {
+      throw new Error("Failed to resolve personal workspace during bootstrap");
+    }
 
     await tx.insert(workspaceMember).values({
       workspaceId: ws.id,
       userSub,
       role: "owner",
-    });
+    }).onConflictDoNothing();
 
     await tx.insert(userWorkspaceDefault).values({
       userSub,
       appKey: "money",
       defaultWorkspaceId: ws.id,
+    }).onConflictDoUpdate({
+      target: [userWorkspaceDefault.userSub, userWorkspaceDefault.appKey],
+      set: { defaultWorkspaceId: ws.id },
     });
 
-    await seedMoneyWorkspaceDefaults(tx, ws.id);
+    if (insertedWs) {
+      await seedMoneyWorkspaceDefaults(tx, ws.id);
+    }
   });
 }

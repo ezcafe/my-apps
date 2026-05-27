@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { badRequest, requireMoneyContext } from "@/lib/api-money";
+import { badRequest, requireMoneyContext, withMoneyWorkspaceRls } from "@/lib/api-money";
 import { executeMoneyCsvImport } from "@/lib/execute-money-csv-import";
 import { isMoneyImportKind } from "@/lib/money-import-kinds";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -40,7 +40,9 @@ export async function POST(req: Request, ctx: RouteCtx) {
   }
 
   try {
-    const created = await executeMoneyCsvImport(money, kindParam, rows);
+    const created = await withMoneyWorkspaceRls(money, () =>
+      executeMoneyCsvImport(money, kindParam, rows),
+    );
     return NextResponse.json(
       { data: { created } },
       { headers: { "Cache-Control": "no-store" } },

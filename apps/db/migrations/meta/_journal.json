@@ -64,6 +64,62 @@
       "when": 1779832600000,
       "tag": "0008_money_analytics_perf_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779832700000,
+      "tag": "0009_money_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779832800000,
+      "tag": "0010_audit_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779832900000,
+      "tag": "0011_security_rate_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1779833000000,
+      "tag": "0012_money_perf_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1779833100000,
+      "tag": "0013_money_rls_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1779833200000,
+      "tag": "0014_workspace_timezone",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1779833300000,
+      "tag": "0015_money_import_preview",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1779833400000,
+      "tag": "0016_money_balance_trigger",
+      "breakpoints": true
     }
   ]
 }

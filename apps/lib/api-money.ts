@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { runInWorkspace } from "@/db";
 import { isDbUnreachable } from "@/lib/db-errors";
 import {
   hasWriteScope,
@@ -102,4 +103,11 @@ export function moneyContextFromAuth(
     workspaceId: auth.workspaceId,
     scopes: auth.method === "api_key" ? auth.scopes : null,
   };
+}
+
+export async function withMoneyWorkspaceRls<T>(
+  ctx: MoneyRequestContext,
+  run: () => Promise<T>,
+): Promise<T> {
+  return runInWorkspace(ctx.workspaceId, run);
 }

@@ -1,5 +1,6 @@
 import { GraphQLError } from "graphql";
 import { GraphQLJSONObject } from "graphql-scalars";
+import { runInWorkspace } from "@/db";
 import { analyticsFiltersSchema } from "@/lib/validators/money";
 import {
   computeMoneyAnalyticsBudgets,
@@ -120,23 +121,43 @@ function filtersFromInput(raw: Record<string, unknown> | null | undefined) {
   return parsed.data;
 }
 
-type MutationHandler = (
-  parent: unknown,
-  args: unknown,
+type ResolverHandler = (
+  parent: any,
+  args: any,
   ctx: MoneyGraphQLContext,
 ) => unknown;
 
+function withWorkspaceRlsHandler<T extends ResolverHandler>(handler: T): T {
+  return (async (parent, args, ctx) => {
+    if (!ctx.workspaceId || !ctx.workspaceMembershipVerified) {
+      return handler(parent, args, ctx);
+    }
+    return runInWorkspace(ctx.workspaceId, async () => handler(parent, args, ctx));
+  }) as T;
+}
+
 function withMutationGuard(
-  handlers: Record<string, MutationHandler>,
+  handlers: Record<string, ResolverHandler>,
   before: (ctx: MoneyGraphQLContext) => void,
-): Record<string, MutationHandler> {
+): Record<string, ResolverHandler> {
   return Object.fromEntries(
     Object.entries(handlers).map(([key, handler]) => [
       key,
-      async (parent, args, ctx) => {
+      withWorkspaceRlsHandler(async (parent, args, ctx) => {
         before(ctx);
         return handler(parent, args, ctx);
-      },
+      }),
+    ]),
+  );
+}
+
+function withQueryWorkspaceRls(
+  handlers: Record<string, ResolverHandler>,
+): Record<string, ResolverHandler> {
+  return Object.fromEntries(
+    Object.entries(handlers).map(([key, handler]) => [
+      key,
+      withWorkspaceRlsHandler(handler),
     ]),
   );
 }
@@ -534,7 +555,7 @@ const moneyMutations = withMutationGuard(
         mapServiceError(e);
       }
     },
-  } as Record<string, MutationHandler>,
+  } as Record<string, ResolverHandler>,
   (ctx) => {
     requireWriteScope(ctx);
     requireMoneyWorkspace(ctx);
@@ -544,7 +565,7 @@ const moneyMutations = withMutationGuard(
 export const moneyResolvers = {
   JSONObject: GraphQLJSONObject,
 
-  Query: {
+  Query: withQueryWorkspaceRls({
     moneyBootstrap: async (
       _: unknown,
       __: unknown,
@@ -786,7 +807,7 @@ export const moneyResolvers = {
         mapServiceError(e);
       }
     },
-  },
+  }),
 
   Mutation: moneyMutations,
 };

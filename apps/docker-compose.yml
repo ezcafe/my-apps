@@ -1,6 +1,16 @@
 services:
   db:
-    image: postgres:18
+    image: postgres:latest
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c track_io_timing=on
+      -c log_min_duration_statement=500
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c work_mem=16MB
+      -c max_connections=100
     ports:
       - "5432:5432"
     environment:
@@ -10,6 +20,8 @@ services:
     # postgres:18+ — mount parent dir only (see https://github.com/docker-library/postgres/pull/1259).
     volumes:
       - money_pg_data:/var/lib/postgresql
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -17,15 +29,50 @@ services:
       retries: 12
       start_period: 5s
 
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    ports:
+      - "6432:5432"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "1000"
+      DEFAULT_POOL_SIZE: "25"
+      ADMIN_USERS: ${POSTGRES_USER}
+      AUTH_TYPE: plain
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db-backup:
+    image: prodrigestivill/postgres-backup-local:16
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: "7"
+      BACKUP_KEEP_WEEKS: "4"
+      BACKUP_KEEP_MONTHS: "6"
+      BACKUP_DIR: /backups
+    volumes:
+      - money_pg_backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
   migrate:
     build:
       context: .
       target: migrator
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}}
     depends_on:
-      db:
-        condition: service_healthy
+      pgbouncer:
+        condition: service_started
     restart: "no"
 
   app:
@@ -35,7 +82,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}}
+      PG_STARTUP_TIMEOUTS: "0"
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       AUTH_SECRET: ${AUTH_SECRET}
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
@@ -43,10 +91,24 @@ services:
       AUTH_POCKET_ID_ID: ${AUTH_POCKET_ID_ID:-}
       AUTH_POCKET_ID_SECRET: ${AUTH_POCKET_ID_SECRET:-}
     depends_on:
-      db:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      pgbouncer:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
 volumes:
   money_pg_data:
+  money_pg_backups:

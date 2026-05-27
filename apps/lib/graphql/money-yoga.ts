@@ -85,7 +85,7 @@ function useServerTimingPlugin(): Plugin {
 
 function useIntrospectionGuardPlugin(): Plugin {
   return {
-    onValidate({ params, addValidationError }) {
+    onValidate({ params, setResult }) {
       if (process.env.NODE_ENV !== "production") return;
       let found = false;
       visit(params.documentAST, {
@@ -96,9 +96,7 @@ function useIntrospectionGuardPlugin(): Plugin {
         },
       });
       if (!found) return;
-      addValidationError(
-        new GraphQLError("GraphQL introspection is disabled in production"),
-      );
+      setResult([new GraphQLError("GraphQL introspection is disabled in production")]);
     },
   };
 }
@@ -109,10 +107,18 @@ function useRequestIdErrorPlugin(): Plugin {
       const responseHeaders = responseHeadersByRequest.get(request);
       const requestId = responseHeaders?.get("x-request-id");
       if (!requestId || !("errors" in result) || !result.errors?.length) return;
-      for (const err of result.errors) {
-        err.extensions = { ...err.extensions, requestId };
-      }
-      setResult(result);
+      const nextErrors = result.errors.map(
+        (err) =>
+          new GraphQLError(err.message, {
+            nodes: err.nodes,
+            source: err.source,
+            positions: err.positions,
+            path: err.path,
+            originalError: err.originalError,
+            extensions: { ...err.extensions, requestId },
+          }),
+      );
+      setResult({ ...result, errors: nextErrors });
     },
   };
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Sets each money_account.balance_minor to the sum of transaction effects only (see
- * lib/money-account-balance.ts for rules). This replaces the column; re-apply any
- * opening balance or manual adjustments via account PATCH afterward if needed.
+ * Reconciles each money_account.balance_minor to the sum of transaction effects only
+ * (see lib/money-account-balance.ts for rules). The runtime trigger should already
+ * keep balances correct; this script is a maintenance backstop for drift detection.
  *
  * Usage: DATABASE_URL=... node scripts/recompute-money-balances.mjs
  */

@@ -137,13 +137,13 @@ export const MONEY_SET_ACTIVE_WORKSPACE_MUTATION = /* GraphQL */ `
 `;
 
 export const MONEY_TRANSACTION_CREATE_MUTATION = /* GraphQL */ `
-  mutation MoneyTransactionCreate($input: JSONObject!) {
+  mutation MoneyTransactionCreate($input: MoneyTransactionCreateInput!) {
     moneyTransactionCreate(input: $input)
   }
 `;
 
 export const MONEY_TRANSACTION_UPDATE_MUTATION = /* GraphQL */ `
-  mutation MoneyTransactionUpdate($id: ID!, $input: JSONObject!) {
+  mutation MoneyTransactionUpdate($id: ID!, $input: MoneyTransactionUpdateInput!) {
     moneyTransactionUpdate(id: $id, input: $input)
   }
 `;

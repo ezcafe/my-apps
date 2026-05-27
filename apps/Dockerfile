@@ -9,6 +9,11 @@ COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 
 FROM deps AS builder
+ENV AUTH_SECRET=docker-build-placeholder
+ENV AUTH_URL=http://localhost:3000
+ENV AUTH_POCKET_ID_ISSUER=https://id.example.com
+ENV AUTH_POCKET_ID_ID=docker-build-client
+ENV AUTH_POCKET_ID_SECRET=docker-build-secret
 COPY . .
 RUN npx next build --webpack
 

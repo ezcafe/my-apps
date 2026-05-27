@@ -9,6 +9,7 @@ import {
   moneyTransaction,
   moneyTransactionTag,
 } from "@/db/schema/money";
+import { workspace } from "@/db/schema/workspace";
 import {
   rollupCategoryByMonth,
   type StackedMonthSeries,
@@ -101,6 +102,24 @@ async function loadWorkspaceBudgets(
     from,
     to,
   });
+}
+
+async function loadWorkspaceTimezone(
+  workspaceId: string,
+  loaders?: MoneyServiceLoaders,
+): Promise<string> {
+  const load = async () => {
+    const [row] = await db
+      .select({ tzName: workspace.tzName })
+      .from(workspace)
+      .where(eq(workspace.id, workspaceId))
+      .limit(1);
+    return row?.tzName ?? "UTC";
+  };
+  if (loaders) {
+    return getOrCreate(loaders, `workspace-tz:${workspaceId}`, load);
+  }
+  return load();
 }
 
 type PieRow = {
@@ -348,27 +367,24 @@ function augmentExpenseSankeyWithBudgets(
 
 async function fetchCumulativeLine(
   whereClause: ReturnType<typeof and>,
+  timezone: string,
 ): Promise<RawCumulativeLineRow[]> {
   const lineExec = await db.execute(sql`
-      SELECT DISTINCT ON (d)
-        to_char(d, 'YYYY-MM-DD') AS date,
-        cum_exp AS cumulative_expense,
-        cum_inc AS cumulative_income
-      FROM (
+      WITH daily AS (
         SELECT
-          (occurred_at AT TIME ZONE 'utc')::date AS d,
-          occurred_at,
-          id,
-          SUM(
-            CASE WHEN kind = 'expense' THEN amount_minor ELSE 0 END
-          ) OVER (ORDER BY occurred_at ASC, id ASC) AS cum_exp,
-          SUM(
-            CASE WHEN kind = 'income' THEN amount_minor ELSE 0 END
-          ) OVER (ORDER BY occurred_at ASC, id ASC) AS cum_inc
+          (occurred_at AT TIME ZONE ${timezone})::date AS d,
+          SUM(CASE WHEN kind = 'expense' THEN amount_minor ELSE 0 END) AS day_exp,
+          SUM(CASE WHEN kind = 'income' THEN amount_minor ELSE 0 END) AS day_inc
         FROM ${moneyTransaction}
         WHERE ${whereClause}
-      ) x
-      ORDER BY d, occurred_at DESC, id DESC
+        GROUP BY 1
+      )
+      SELECT
+        to_char(d, 'YYYY-MM-DD') AS date,
+        SUM(day_exp) OVER (ORDER BY d ASC) AS cumulative_expense,
+        SUM(day_inc) OVER (ORDER BY d ASC) AS cumulative_income
+      FROM daily
+      ORDER BY d ASC
     `);
 
   const lineRaw = lineExec as unknown as Iterable<{
@@ -399,6 +415,7 @@ async function buildNetLineSeries(
   filters: AnalyticsFiltersData,
   fromISO: string,
   toISO: string,
+  timezone: string,
 ): Promise<{
   line: { date: string; netMinor: number }[];
   lineCompare?: { fromDate: string; points: { date: string; netMinor: number }[] };
@@ -429,8 +446,8 @@ async function buildNetLineSeries(
     );
 
     const [raw, prevRaw] = await Promise.all([
-      fetchCumulativeLine(whereClause),
-      fetchCumulativeLine(and(...prevConditions)),
+      fetchCumulativeLine(whereClause, timezone),
+      fetchCumulativeLine(and(...prevConditions), timezone),
     ]);
 
     const [y, m] = fromDate.split("-").map(Number);
@@ -451,7 +468,7 @@ async function buildNetLineSeries(
     };
   }
 
-  const raw = await fetchCumulativeLine(whereClause);
+  const raw = await fetchCumulativeLine(whereClause, timezone);
   return {
     line: mapRawLineToNet(raw),
     lineMode: "date",
@@ -507,6 +524,7 @@ export async function computeMoneyAnalyticsOverview(
   filters: AnalyticsFiltersData,
 ): Promise<MoneyAnalyticsOverviewPayload> {
   const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
+  const timezone = await loadWorkspaceTimezone(workspaceId);
 
   const conditions = moneyTransactionConditionsForAnalytics(
     workspaceId,
@@ -514,7 +532,7 @@ export async function computeMoneyAnalyticsOverview(
   );
   const whereClause = and(...conditions);
 
-  const monthExpr = sql`to_char((${moneyTransaction.occurredAt} at time zone 'utc'), 'YYYY-MM')`;
+  const monthExpr = sql<string>`to_char((${moneyTransaction.occurredAt} at time zone ${timezone}), 'YYYY-MM')`;
   const [columnRows, lineResult] = await Promise.all([
     db
       .select({
@@ -524,9 +542,9 @@ export async function computeMoneyAnalyticsOverview(
       })
       .from(moneyTransaction)
       .where(whereClause)
-      .groupBy(monthExpr)
-      .orderBy(monthExpr),
-    buildNetLineSeries(workspaceId, filters, from, to),
+      .groupBy(sql`1`)
+      .orderBy(sql`1`),
+    buildNetLineSeries(workspaceId, filters, from, to, timezone),
   ]);
 
   return {
@@ -546,12 +564,13 @@ export async function computeMoneyAnalyticsDistribution(
   filters: AnalyticsFiltersData,
   loaders?: MoneyServiceLoaders,
 ): Promise<MoneyAnalyticsDistributionPayload> {
+  const timezone = await loadWorkspaceTimezone(workspaceId, loaders);
   const conditions = moneyTransactionConditionsForAnalytics(
     workspaceId,
     filters,
   );
   const whereClause = and(...conditions);
-  const monthExpr = sql`to_char((${moneyTransaction.occurredAt} at time zone 'utc'), 'YYYY-MM')`;
+  const monthExpr = sql<string>`to_char((${moneyTransaction.occurredAt} at time zone ${timezone}), 'YYYY-MM')`;
 
   const [categories, pieSpendRows, pieIncomeRows, categoryByMonthRows] =
     await Promise.all([
@@ -580,8 +599,8 @@ export async function computeMoneyAnalyticsDistribution(
         })
         .from(moneyTransaction)
         .where(and(whereClause, eq(moneyTransaction.kind, "expense")))
-        .groupBy(monthExpr, moneyTransaction.categoryId)
-        .orderBy(monthExpr),
+        .groupBy(sql`1`, moneyTransaction.categoryId)
+        .orderBy(sql`1`),
     ]);
 
   const catName = new Map(categories.map((category) => [category.id, category.name]));

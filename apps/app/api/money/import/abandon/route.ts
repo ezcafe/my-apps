@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { badRequest, requireMoneyContext } from "@/lib/api-money";
+import { badRequest, requireMoneyContext, withMoneyWorkspaceRls } from "@/lib/api-money";
 import { deleteImportPreview } from "@/lib/money-import-preview-store";
 import { importAbandonBodySchema } from "@/lib/money-import-types";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -34,7 +34,9 @@ export async function POST(req: Request) {
     );
   }
 
-  deleteImportPreview(ctx, parsed.data.previewId);
+  await withMoneyWorkspaceRls(ctx, () =>
+    deleteImportPreview(ctx, parsed.data.previewId),
+  );
 
   return new NextResponse(null, {
     status: 204,

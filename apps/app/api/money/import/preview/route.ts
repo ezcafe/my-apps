@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { badRequest, requireMoneyContext } from "@/lib/api-money";
+import { badRequest, requireMoneyContext, withMoneyWorkspaceRls } from "@/lib/api-money";
 import { validateColumnMapTargets } from "@/lib/money-import-column-map";
 import { MAX_IMPORT_BYTES, parseMoneyImportCsv } from "@/lib/money-import-csv";
 import { stashImportPreview } from "@/lib/money-import-preview-store";
@@ -84,7 +84,9 @@ export async function POST(req: Request) {
     return badRequest(result.error);
   }
 
-  const previewId = stashImportPreview(ctx, result.preview.rows);
+  const previewId = await withMoneyWorkspaceRls(ctx, () =>
+    stashImportPreview(ctx, result.preview.rows),
+  );
 
   return NextResponse.json(
     { data: { ...result.preview, previewId } },

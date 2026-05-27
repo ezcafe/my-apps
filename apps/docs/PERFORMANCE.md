@@ -77,9 +77,43 @@ Expect fast 429s at `-c 500` when rate limit is hit; repeat requests should hit 
 - Redis-backed shared response cache (cache hits across pods)
 - Edge caching of authenticated page HTML
 
+## Database housekeeping jobs
+
+Schedule these jobs from a cron sidecar (or `pg_cron` when available):
+
+```sql
+DELETE FROM security_rate_limit
+WHERE bucket_start < now() - interval '1 hour';
+
+DELETE FROM money_import_preview
+WHERE expires_at < now();
+```
+
+## pg_stat_statements quick checks
+
+After enabling `pg_stat_statements`, list top heavy queries:
+
+```sql
+SELECT
+  query,
+  calls,
+  total_exec_time,
+  mean_exec_time,
+  rows
+FROM pg_stat_statements
+ORDER BY total_exec_time DESC
+LIMIT 20;
+```
+
+## Partitioning thresholds (watch list)
+
+- Consider partitioning `money_transaction` by `occurred_at` when table size exceeds ~10M rows or autovacuum falls behind.
+- Consider partitioning `audit_event` by `created_at` when retention exceeds ~50M rows.
+- Keep unpartitioned tables until one of these thresholds is hit; partitioning adds migration and query complexity.
+
 ## Database migrations
 
-After pulling changes, apply new migrations (e.g. `0005_money_tx_perf_indexes.sql`) so index definitions exist in your database.
+After pulling changes, apply new migrations (e.g. `0012_money_perf_indexes.sql`) so index definitions exist in your database.
 
 ## References
 
