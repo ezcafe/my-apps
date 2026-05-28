@@ -11,10 +11,22 @@ import type { StylePreset } from "@/components/theme-provider";
 import { useTheme } from "@/components/theme-provider";
 import { formatMinor } from "@/lib/format-money";
 
-type Link = { source: string; target: string; value: number };
+type Link = {
+  source: string;
+  target: string;
+  value: number;
+  percentage?: number;
+  color?: string;
+};
 
-type NodeDatum = { name: string; label: string };
-type LinkDatum = { value: number };
+type NodeDatum = {
+  name: string;
+  label: string;
+  value?: number;
+  percentage?: number;
+  color?: string;
+};
+type LinkDatum = { value: number; percentage?: number; color?: string };
 
 function truncateLabel(name: string, maxChars: number): string {
   if (name.length <= maxChars) return name;
@@ -35,7 +47,13 @@ export function SankeyChart({
   currency = "USD",
   animate = true,
 }: {
-  nodes: { id: string; name: string }[];
+  nodes: {
+    id: string;
+    name: string;
+    value?: number;
+    percentage?: number;
+    color?: string;
+  }[];
   links: Link[];
   currency?: string;
   animate?: boolean;
@@ -79,7 +97,13 @@ function SankeyInner({
 }: {
   width: number;
   height: number;
-  nodes: { id: string; name: string }[];
+  nodes: {
+    id: string;
+    name: string;
+    value?: number;
+    percentage?: number;
+    color?: string;
+  }[];
   links: Link[];
   resolved: "light" | "dark";
   stylePreset: StylePreset;
@@ -121,18 +145,22 @@ function SankeyInner({
   const nodeObjs: NodeDatum[] = uniq.map((id) => ({
     name: id,
     label: labelById.get(id) ?? id,
+    value: rawNodes.find((n) => n.id === id)?.value,
+    percentage: rawNodes.find((n) => n.id === id)?.percentage,
+    color: rawNodes.find((n) => n.id === id)?.color,
   }));
   const index = new Map(uniq.map((n, i) => [n, i]));
   const linkObjs = rawLinks.map((l) => ({
     source: index.get(l.source)!,
     target: index.get(l.target)!,
     value: Math.max(l.value, 0),
+    percentage: l.percentage,
+    color: l.color,
   }));
 
   const nodePadding = width < 420 ? 6 : width < 640 ? 8 : 10;
   const marginX = 4;
-  const hasBudgetNodes = rawNodes.some((n) => n.id.startsWith("b:"));
-  const legendH = hasBudgetNodes ? 42 : 34;
+  const legendH = 34;
   const chartW = width - marginX * 2;
   const chartH = height - legendH - marginX;
 
@@ -140,13 +168,10 @@ function SankeyInner({
 
   const labelMaxChars = width < 400 ? 14 : width < 560 ? 22 : 36;
 
-  const ariaLabel = hasBudgetNodes
-    ? "Money flow diagram: expenses may run account to category, sometimes through an account budget, " +
-      "then into category or workspace budgets when configured; income runs category to account. " +
-      "Hover a band for amounts."
-    : "Money flow diagram: expense amounts flow from accounts on the left to categories on the right; " +
-      "income flows from categories on the left into accounts on the right. " +
-      "Hover a band to read the exact amount in a tooltip.";
+  const ariaLabel =
+    "Money flow diagram centered on cash flow: income categories and subcategories flow into cash flow, " +
+    "and expense categories and subcategories flow out from cash flow. " +
+    "Hover a band to read amount and share.";
 
   return (
     <svg
@@ -158,25 +183,12 @@ function SankeyInner({
       aria-label={ariaLabel}
     >
       <g fontSize={10} className="fill-muted">
-        {hasBudgetNodes ? (
-          <>
-            <text x={marginX} y={13}>
-              Expense: account → category → budget (account budget may sit before category)
-            </text>
-            <text x={marginX} y={27}>
-              Income: category → account
-            </text>
-          </>
-        ) : (
-          <>
-            <text x={marginX} y={14}>
-              Expense: account → category
-            </text>
-            <text x={marginX} y={28}>
-              Income: category → account
-            </text>
-          </>
-        )}
+        <text x={marginX} y={14}>
+          Income: subcategory/category → category → Cash Flow
+        </text>
+        <text x={marginX} y={28}>
+          Expense: Cash Flow → category → subcategory/category
+        </text>
       </g>
       <Group top={legendH} left={marginX}>
         <Sankey<NodeDatum, LinkDatum>
@@ -218,7 +230,10 @@ function SankeyInner({
                     const strokeW = Math.max(0.75, link.width ?? 0.75);
                     const amount = Number(link.value ?? 0);
                     const tipLabel = `${sourceNode.label} → ${targetNode.label}`;
-                    const tipValue = formatMinor(amount, currency);
+                    const percent = link.percentage;
+                    const tipValue = `${formatMinor(amount, currency)}${
+                      typeof percent === "number" ? ` (${percent.toFixed(1)}%)` : ""
+                    }`;
                     const hitW = Math.max(14, strokeW * 2.5);
                     const linkKey = `${sourceNode.name}→${targetNode.name}:${String(link.value ?? 0)}:${i}`;
 
@@ -280,7 +295,10 @@ function SankeyInner({
                       nodeOutgoingByRef.get(node) ?? 0,
                     );
                     const tipLabel = nd.label;
-                    const tipValue = `Total through: ${formatMinor(nodeThrough, currency)}`;
+                    const pct = nd.percentage;
+                    const tipValue = `Total through: ${formatMinor(nodeThrough, currency)}${
+                      typeof pct === "number" ? ` (${pct.toFixed(1)}%)` : ""
+                    }`;
                     const nodeW = x1 - x0;
                     const nodeH = y1 - y0;
                     const labelOnLeft = x0 < chartW / 2;

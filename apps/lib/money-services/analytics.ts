@@ -1,7 +1,6 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  moneyAccount,
   moneyCategory,
   moneyMerchant,
   moneyRecurrentTemplate,
@@ -59,24 +58,6 @@ async function loadWorkspaceCategories(
     .select()
     .from(moneyCategory)
     .where(eq(moneyCategory.workspaceId, workspaceId));
-}
-
-async function loadWorkspaceAccounts(
-  workspaceId: string,
-  loaders?: MoneyServiceLoaders,
-) {
-  if (loaders) {
-    return getOrCreate(loaders, `accounts:${workspaceId}`, () =>
-      db
-        .select({ id: moneyAccount.id, name: moneyAccount.name })
-        .from(moneyAccount)
-        .where(eq(moneyAccount.workspaceId, workspaceId)),
-    );
-  }
-  return db
-    .select({ id: moneyAccount.id, name: moneyAccount.name })
-    .from(moneyAccount)
-    .where(eq(moneyAccount.workspaceId, workspaceId));
 }
 
 async function loadWorkspaceBudgets(
@@ -169,9 +150,20 @@ export type MoneyAnalyticsBudgetPayload = {
 
 export type MoneyAnalyticsSankeyPayload = {
   sankey: {
-    /** Graph ids: `a:` account, `c:` category, `b:` budget (when budgets apply). */
-    nodes: { id: string; name: string }[];
-    links: { source: string; target: string; value: number }[];
+    nodes: {
+      id: string;
+      name: string;
+      value?: number;
+      percentage?: number;
+      color?: string;
+    }[];
+    links: {
+      source: string;
+      target: string;
+      value: number;
+      percentage?: number;
+      color?: string;
+    }[];
   };
 };
 
@@ -181,7 +173,13 @@ export type MoneyAnalyticsLeadersPayload = {
   recurringSpend: RecurringSpendRow[];
 };
 
-type SankeyLink = { source: string; target: string; value: number };
+type SankeyNode = {
+  id: string;
+  name: string;
+  value?: number;
+  percentage?: number;
+  color?: string;
+};
 
 type CategoryRow = {
   id: string;
@@ -214,155 +212,258 @@ function sankeyNodeLabel(
   return categoryLabels.get(catId) ?? sqlLabel;
 }
 
-function budgetNodeLabel(
-  b: BudgetListRowEnriched,
-  catName: Map<string, string>,
-  accountName: Map<string, string>,
-): string {
-  switch (b.scopeType) {
-    case "workspace":
-      return "Budget · Whole workspace";
-    case "category":
-      return `Budget · ${b.scopeId ? (catName.get(b.scopeId) ?? "Category") : "Category"}`;
-    case "account":
-      return `Budget · ${b.scopeId ? (accountName.get(b.scopeId) ?? "Account") : "Account"}`;
-    case "tag":
-      return "Budget · Tag scope";
-    default:
-      return "Budget";
-  }
-}
+type SankeyCategoryNet = {
+  id: string;
+  parentId: string | null;
+  name: string;
+  color: string | null;
+  incomeMinor: number;
+  expenseMinor: number;
+  netMinor: number;
+};
 
-/** Expense links only: every source is `a:…` (account). */
-function applyAccountBudgetSplits(
-  links: SankeyLink[],
-  accountUuidToBudgetId: Map<string, string>,
-): SankeyLink[] {
-  const outgoingByAccount = new Map<string, SankeyLink[]>();
-  for (const l of links) {
-    const arr = outgoingByAccount.get(l.source) ?? [];
-    arr.push(l);
-    outgoingByAccount.set(l.source, arr);
-  }
-  const result: SankeyLink[] = [];
-  for (const [accKey, group] of outgoingByAccount) {
-    const accUuid = accKey.slice(2);
-    const budgetId = accountUuidToBudgetId.get(accUuid);
-    if (!budgetId) {
-      result.push(...group);
-      continue;
-    }
-    const total = group.reduce((s, x) => s + x.value, 0);
-    if (total <= 0) {
-      result.push(...group);
-      continue;
-    }
-    result.push({ source: accKey, target: `b:${budgetId}`, value: total });
-    for (const x of group) {
-      result.push({ source: `b:${budgetId}`, target: x.target, value: x.value });
-    }
-  }
-  return result;
-}
-
-/**
- * After account→category (or account→budget→category) flows, send each category's
- * inflow to the nearest category-scoped budget on the ancestor chain, else the
- * workspace budget if present. Tag-scoped budgets are omitted (no tag axis in this graph).
- */
-function appendCategoryBudgetSinks(
-  links: SankeyLink[],
-  budgets: BudgetListRowEnriched[],
-  categories: CategoryRow[],
-): SankeyLink[] {
-  const inflow = new Map<string, number>();
-  for (const l of links) {
-    if (!l.target.startsWith("c:")) continue;
-    inflow.set(l.target, (inflow.get(l.target) ?? 0) + l.value);
-  }
-
-  const categoryScopeToBudgetId = new Map<string, string>();
-  let workspaceBudget: BudgetListRowEnriched | undefined;
-  for (const b of budgets) {
-    if (b.scopeType === "category" && b.scopeId) {
-      categoryScopeToBudgetId.set(b.scopeId, b.id);
-    }
-    if (b.scopeType === "workspace") {
-      workspaceBudget = b;
-    }
-  }
-
-  const parentByChild = new Map<string, string>();
+function buildSankeyCategoryNet(
+  categories: {
+    id: string;
+    parentId: string | null;
+    name: string;
+    color: string | null;
+  }[],
+  totalsByCategory: Map<string, { incomeMinor: number; expenseMinor: number }>,
+): SankeyCategoryNet[] {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  const out: SankeyCategoryNet[] = [];
   for (const c of categories) {
-    if (c.parentId) parentByChild.set(c.id, c.parentId);
+    const t = totalsByCategory.get(c.id);
+    const incomeMinor = t?.incomeMinor ?? 0;
+    const expenseMinor = t?.expenseMinor ?? 0;
+    out.push({
+      id: c.id,
+      parentId: c.parentId,
+      name: c.name,
+      color: c.color ?? null,
+      incomeMinor,
+      expenseMinor,
+      netMinor: incomeMinor - expenseMinor,
+    });
   }
-
-  function nearestCategoryBudgetId(leafPart: string): string | null {
-    if (leafPart === "uncategorized") return null;
-    let cur: string | undefined = leafPart;
-    const seen = new Set<string>();
-    while (cur && !seen.has(cur)) {
-      seen.add(cur);
-      const bid = categoryScopeToBudgetId.get(cur);
-      if (bid) return bid;
-      cur = parentByChild.get(cur);
-    }
-    return null;
+  if (!byId.has("uncategorized") && totalsByCategory.has("uncategorized")) {
+    const uncategorized = totalsByCategory.get("uncategorized");
+    out.push({
+      id: "uncategorized",
+      parentId: null,
+      name: "Uncategorized",
+      color: null,
+      incomeMinor: uncategorized?.incomeMinor ?? 0,
+      expenseMinor: uncategorized?.expenseMinor ?? 0,
+      netMinor:
+        (uncategorized?.incomeMinor ?? 0) - (uncategorized?.expenseMinor ?? 0),
+    });
   }
-
-  const extra: SankeyLink[] = [];
-  for (const [catKey, amount] of inflow) {
-    if (amount <= 0) continue;
-    const idPart = catKey.slice(2);
-    const catBudgetId = nearestCategoryBudgetId(idPart);
-    if (catBudgetId) {
-      extra.push({ source: catKey, target: `b:${catBudgetId}`, value: amount });
-    } else if (workspaceBudget) {
-      extra.push({
-        source: catKey,
-        target: `b:${workspaceBudget.id}`,
-        value: amount,
-      });
-    }
-  }
-
-  return [...links, ...extra];
+  return out;
 }
 
-function augmentExpenseSankeyWithBudgets(
-  expenseLinks: SankeyLink[],
-  budgets: BudgetListRowEnriched[],
-  categories: CategoryRow[],
-  accountNameById: Map<string, string>,
-  catName: Map<string, string>,
-): { links: SankeyLink[]; labelById: Map<string, string> } {
-  const labelById = new Map<string, string>();
+export type MoneyAnalyticsSankeyInputRow = {
+  kind: "income" | "expense";
+  categoryId: string | null;
+  valueMinor: number;
+};
 
-  const accountUuidToBudgetId = new Map<string, string>();
-  for (const b of budgets) {
-    if (b.scopeType === "account" && b.scopeId) {
-      accountUuidToBudgetId.set(b.scopeId, b.id);
+export function buildNetCashflowSankeyData(
+  categories: {
+    id: string;
+    parentId: string | null;
+    name: string;
+    color: string | null;
+  }[],
+  rows: MoneyAnalyticsSankeyInputRow[],
+): MoneyAnalyticsSankeyPayload {
+  const categoryRowsForSankey: CategoryRow[] = categories.map((category) => ({
+    id: category.id,
+    parentId: category.parentId ?? null,
+    name: category.name,
+  }));
+  const categoryLabels = buildCategoryLabelMap(categoryRowsForSankey);
+  const totalsByCategory = new Map<
+    string,
+    { incomeMinor: number; expenseMinor: number }
+  >();
+  let totalIncomeMinor = 0;
+  let totalExpenseMinor = 0;
+
+  for (const row of rows) {
+    const categoryKey = String(row.categoryId ?? "uncategorized");
+    const value = Number(row.valueMinor ?? 0);
+    if (value <= 0) continue;
+    const bucket = totalsByCategory.get(categoryKey) ?? {
+      incomeMinor: 0,
+      expenseMinor: 0,
+    };
+    if (row.kind === "income") {
+      bucket.incomeMinor += value;
+      totalIncomeMinor += value;
+    } else {
+      bucket.expenseMinor += value;
+      totalExpenseMinor += value;
+    }
+    totalsByCategory.set(categoryKey, bucket);
+  }
+
+  const netCategories = buildSankeyCategoryNet(categories, totalsByCategory);
+  const netById = new Map(netCategories.map((c) => [c.id, c] as const));
+  const nodes: SankeyNode[] = [];
+  const links: MoneyAnalyticsSankeyPayload["sankey"]["links"] = [];
+  const nodeIds = new Set<string>();
+
+  function sidePercentage(value: number, direction: "income" | "expense"): number {
+    const denom = direction === "income" ? totalIncomeMinor : totalExpenseMinor;
+    if (denom <= 0 || value <= 0) return 0;
+    return Math.round((value / denom) * 1000) / 10;
+  }
+
+  function addNode(
+    id: string,
+    name: string,
+    value: number,
+    direction: "income" | "expense",
+    color?: string | null,
+  ) {
+    if (nodeIds.has(id)) return;
+    nodeIds.add(id);
+    nodes.push({
+      id,
+      name,
+      value,
+      percentage: sidePercentage(value, direction),
+      color: color ?? undefined,
+    });
+  }
+
+  function addLink(
+    source: string,
+    target: string,
+    value: number,
+    direction: "income" | "expense",
+    color?: string | null,
+  ) {
+    links.push({
+      source,
+      target,
+      value,
+      percentage: sidePercentage(value, direction),
+      color: color ?? undefined,
+    });
+  }
+
+  const cashFlowNodeId = "cash_flow_node";
+  const cashFlowValue = Math.max(totalIncomeMinor, totalExpenseMinor);
+  nodes.push({
+    id: cashFlowNodeId,
+    name: "Cash Flow",
+    value: cashFlowValue,
+    percentage: 100,
+    color: "var(--chart-income)",
+  });
+  nodeIds.add(cashFlowNodeId);
+
+  for (const category of netCategories) {
+    if (category.netMinor <= 0) continue;
+    const value = category.netMinor;
+    const parent = category.parentId ? netById.get(category.parentId) : null;
+    const categoryLabel = sankeyNodeLabel(
+      `c:${category.id}`,
+      category.name,
+      categoryLabels,
+    );
+    const categoryNodeId = `income_${category.id}`;
+    addNode(categoryNodeId, categoryLabel, value, "income", category.color);
+
+    if (parent && parent.netMinor > 0) {
+      const parentValue = parent.netMinor;
+      const parentLabel = sankeyNodeLabel(
+        `c:${parent.id}`,
+        parent.name,
+        categoryLabels,
+      );
+      const parentNodeId = `income_${parent.id}`;
+      addNode(parentNodeId, parentLabel, parentValue, "income", parent.color);
+      addLink(
+        categoryNodeId,
+        parentNodeId,
+        value,
+        "income",
+        category.color ?? parent.color,
+      );
+    } else {
+      addLink(
+        categoryNodeId,
+        cashFlowNodeId,
+        value,
+        "income",
+        category.color,
+      );
     }
   }
 
-  let links = expenseLinks;
-  if (accountUuidToBudgetId.size > 0) {
-    links = applyAccountBudgetSplits(links, accountUuidToBudgetId);
-  }
-  if (
-    budgets.some(
-      (b) => b.scopeType === "category" || b.scopeType === "workspace",
-    )
-  ) {
-    links = appendCategoryBudgetSinks(links, budgets, categories);
+  for (const category of netCategories) {
+    if (category.netMinor >= 0) continue;
+    const value = Math.abs(category.netMinor);
+    const parent = category.parentId ? netById.get(category.parentId) : null;
+    const categoryLabel = sankeyNodeLabel(
+      `c:${category.id}`,
+      category.name,
+      categoryLabels,
+    );
+    const categoryNodeId = `expense_${category.id}`;
+    addNode(categoryNodeId, categoryLabel, value, "expense", category.color);
+
+    if (parent && parent.netMinor < 0) {
+      const parentValue = Math.abs(parent.netMinor);
+      const parentLabel = sankeyNodeLabel(
+        `c:${parent.id}`,
+        parent.name,
+        categoryLabels,
+      );
+      const parentNodeId = `expense_${parent.id}`;
+      addNode(parentNodeId, parentLabel, parentValue, "expense", parent.color);
+      addLink(
+        parentNodeId,
+        categoryNodeId,
+        value,
+        "expense",
+        category.color ?? parent.color,
+      );
+    } else {
+      addLink(
+        cashFlowNodeId,
+        categoryNodeId,
+        value,
+        "expense",
+        category.color,
+      );
+    }
   }
 
-  for (const b of budgets) {
-    if (b.scopeType === "tag") continue;
-    labelById.set(`b:${b.id}`, budgetNodeLabel(b, catName, accountNameById));
+  const surplus = totalIncomeMinor - totalExpenseMinor;
+  if (surplus > 0) {
+    const surplusId = "surplus_node";
+    nodes.push({
+      id: surplusId,
+      name: "Surplus",
+      value: surplus,
+      percentage: sidePercentage(surplus, "income"),
+      color: "var(--chart-income)",
+    });
+    links.push({
+      source: cashFlowNodeId,
+      target: surplusId,
+      value: surplus,
+      percentage: sidePercentage(surplus, "income"),
+      color: "var(--chart-income)",
+    });
   }
 
-  return { links, labelById };
+  return { sankey: { nodes, links } };
 }
 
 async function fetchCumulativeLine(
@@ -668,7 +769,6 @@ export async function computeMoneyAnalyticsSankey(
   filters: AnalyticsFiltersData,
   loaders?: MoneyServiceLoaders,
 ): Promise<MoneyAnalyticsSankeyPayload> {
-  const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
   const conditions = moneyTransactionConditionsForAnalytics(
     workspaceId,
     filters,
@@ -677,106 +777,39 @@ export async function computeMoneyAnalyticsSankey(
   const sankeySql = sql`
       SELECT
         ${moneyTransaction.kind} as kind,
-        ${moneyTransaction.accountId} as account_id,
         ${moneyTransaction.categoryId} as category_id,
-        coalesce(${moneyAccount.name}, 'Account') as account_name,
-        coalesce(${moneyCategory.name}, 'Uncategorized') as category_name,
         coalesce(sum(${moneyTransaction.amountMinor}), 0) as value_minor
       FROM ${moneyTransaction}
-      INNER JOIN ${moneyAccount} ON ${moneyTransaction.accountId} = ${moneyAccount.id}
       LEFT JOIN ${moneyCategory} ON ${moneyTransaction.categoryId} = ${moneyCategory.id}
       WHERE ${whereClause}
         AND ${moneyTransaction.kind} IN ('expense', 'income')
       GROUP BY
         ${moneyTransaction.kind},
-        ${moneyTransaction.accountId},
-        ${moneyAccount.name},
-        ${moneyTransaction.categoryId},
-        ${moneyCategory.name}
+        ${moneyTransaction.categoryId}
     `;
 
-  const [categories, accountRows, budgetRowsResolved, sankeyExec] =
-    await Promise.all([
-      loadWorkspaceCategories(workspaceId, loaders),
-      loadWorkspaceAccounts(workspaceId, loaders),
-      loadWorkspaceBudgets(workspaceId, from, to, loaders),
-      db.execute(sankeySql),
-    ]);
-
-  const budgetRows = budgetRowsResolved as BudgetListRowEnriched[];
-  const accountNameById = new Map(accountRows.map((account) => [account.id, account.name]));
-  const categoryRowsForSankey: CategoryRow[] = categories.map((category) => ({
-    id: category.id,
-    parentId: category.parentId ?? null,
-    name: category.name,
-  }));
-  const categoryLabels = buildCategoryLabelMap(categoryRowsForSankey);
-
+  const [categories, sankeyExec] = await Promise.all([
+    loadWorkspaceCategories(workspaceId, loaders),
+    db.execute(sankeySql),
+  ]);
   const sankeyRowsRaw = sankeyExec as unknown as Iterable<{
     kind: string;
-    account_id: string;
     category_id: string | null;
-    account_name: string;
-    category_name: string;
     value_minor: string | number | bigint | null;
   }>;
-  const labelById = new Map<string, string>();
-  const expenseLinks: SankeyLink[] = [];
-  const incomeLinks: SankeyLink[] = [];
-
-  for (const row of sankeyRowsRaw) {
-    const accountKey = `a:${String(row.account_id)}`;
-    const categoryKey = `c:${row.category_id ?? "uncategorized"}`;
-    const value = Number(row.value_minor ?? 0);
-    if (value <= 0) continue;
-
-    const accountLabel = String(row.account_name);
-    const categoryLabel = String(row.category_name);
-    labelById.set(accountKey, accountLabel);
-    labelById.set(
-      categoryKey,
-      sankeyNodeLabel(categoryKey, categoryLabel, categoryLabels),
-    );
-
-    if (row.kind === "expense") {
-      expenseLinks.push({
-        source: accountKey,
-        target: categoryKey,
-        value,
-      });
-    } else if (row.kind === "income") {
-      incomeLinks.push({
-        source: categoryKey,
-        target: accountKey,
-        value,
-      });
-    }
-  }
-
-  const augmented = augmentExpenseSankeyWithBudgets(
-    expenseLinks,
-    budgetRows,
-    categoryRowsForSankey,
-    accountNameById,
-    categoryLabels,
+  return buildNetCashflowSankeyData(
+    categories.map((category) => ({
+      id: category.id,
+      parentId: category.parentId ?? null,
+      name: category.name,
+      color: category.color ?? null,
+    })),
+    Array.from(sankeyRowsRaw).map((row) => ({
+      kind: row.kind === "income" ? "income" : "expense",
+      categoryId: row.category_id,
+      valueMinor: Number(row.value_minor ?? 0),
+    })),
   );
-  for (const [id, name] of augmented.labelById) {
-    labelById.set(id, name);
-  }
-
-  const allSankeyLinks: SankeyLink[] = [...augmented.links, ...incomeLinks];
-  const nodeIds = new Set<string>();
-  for (const link of allSankeyLinks) {
-    nodeIds.add(link.source);
-    nodeIds.add(link.target);
-  }
-
-  return {
-    sankey: {
-      nodes: [...nodeIds].map((id) => ({ id, name: labelById.get(id) ?? id })),
-      links: allSankeyLinks,
-    },
-  };
 }
 
 export async function computeMoneyAnalyticsLeaders(

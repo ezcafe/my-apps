@@ -749,9 +749,9 @@ export const MoneyFlowSankeyCard = memo(function MoneyFlowSankeyCard({
     >
       <h2 className="mb-1 font-display text-lg font-medium">Money flow</h2>
       <p className="mb-2 text-xs text-muted">
-        Expenses run from accounts to categories (through account budgets when set), then into
-        category or whole-workspace budgets when applicable. Income runs from categories into
-        accounts. Tag budgets appear on the flow when applicable.
+        Net income categories flow toward Cash Flow; net expense categories flow out from Cash
+        Flow. When parent and subcategory directions match, the flow chains through parent and
+        child levels.
       </p>
       <AnalyticsChartContainer className="text-foreground">
         {!inView ? (

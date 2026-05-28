@@ -300,19 +300,20 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
     }
     setSaving(true);
     try {
+      const payload = {
+        accountId,
+        kind,
+        amountMinor: minor,
+        occurredAt: new Date(occurredAt).toISOString(),
+        toAccountId: kind === "transfer" ? effectiveToAccountId : null,
+        categoryId: kind === "transfer" ? null : categoryId || null,
+        merchantId: kind === "transfer" ? null : merchantId || null,
+        notes: notes.trim() ? notes.trim() : null,
+        tagIds: selectedTagIds,
+      };
       await moneyGraphQLRequest(MONEY_TRANSACTION_UPDATE_MUTATION, {
         id: transactionId,
-        input: {
-          accountId,
-          kind,
-          amountMinor: minor,
-          occurredAt: new Date(occurredAt).toISOString(),
-          toAccountId: kind === "transfer" ? effectiveToAccountId : null,
-          categoryId: kind === "transfer" ? null : categoryId || null,
-          merchantId: kind === "transfer" ? null : merchantId || null,
-          notes: notes.trim() ? notes.trim() : null,
-          tagIds: selectedTagIds,
-        },
+        input: payload,
       });
       router.push("/money/analytics");
       router.refresh();
@@ -367,7 +368,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
 
   if (!loaded && err) {
     return (
-      <div className="flex min-w-0 max-w-4xl flex-col gap-3 fx-fade-in">
+      <div className="flex min-w-0 max-w-4xl flex-col gap-3">
         <TransactionEditBreadcrumbs />
         <Alert variant="error" title="Couldn’t load transaction" description={err} />
       </div>
@@ -375,14 +376,14 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
   }
 
   return (
-    <div className="min-w-0 max-w-4xl space-y-6 fx-fade-in">
+    <div className="min-w-0 max-w-4xl space-y-6">
       <TransactionEditBreadcrumbs />
       {err ? <Alert variant="error" title={err} /> : null}
       <Card className="p-5">
         <header className="mb-4 flex items-baseline justify-between gap-3">
-          <h1 className="font-display text-lg font-medium tracking-tight">
+          <h2 className="font-display text-lg font-medium tracking-tight">
             Edit transaction
-          </h1>
+          </h2>
           <span className="text-xs text-muted">{defaultCurrency}</span>
         </header>
         <form
@@ -393,35 +394,33 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
           }}
           onSubmit={onSubmit}
         >
-          <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
+          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
             <legend className="text-muted">Kind</legend>
             <div
-              className="grid min-w-0 gap-2"
-              style={{
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(min(100%, 9rem), 1fr))",
-              }}
+              role="radiogroup"
+              aria-label="Transaction kind"
+              className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
             >
               {KIND_OPTIONS.map(({ value, label, description }) => (
-                <label key={value} className="cursor-pointer">
-                  <input
-                    type="radio"
-                    name="transaction-kind"
-                    value={value}
-                    checked={kind === value}
-                    onChange={() => {
-                      setKind(value);
-                      if (value !== "transfer") setToAccountId("");
-                    }}
-                    className="peer sr-only"
-                  />
-                  <span className="flex min-h-14 flex-col rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-left transition-[border-color,box-shadow,transform] duration-200 hover:border-foreground/40 peer-checked:border-foreground peer-checked:bg-muted-surface peer-checked:shadow-[var(--shadow-sm)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring fx-press">
-                    <span className="text-sm font-medium text-foreground">
-                      {label}
-                    </span>
-                    <span className="text-xs text-muted">{description}</span>
-                  </span>
-                </label>
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={kind === value}
+                  title={description}
+                  onClick={() => {
+                    setKind(value);
+                    if (value !== "transfer") setToAccountId("");
+                  }}
+                  className={cn(
+                    "min-w-20 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
+                    kind === value
+                      ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
+                      : "text-muted hover:bg-muted-surface hover:text-foreground",
+                  )}
+                >
+                  {label}
+                </button>
               ))}
             </div>
           </fieldset>
@@ -565,7 +564,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
             />
           </Field>
 
-          <div className="flex flex-wrap gap-2 [grid-column:1/-1]">
+          <div className="flex flex-wrap items-center gap-3 [grid-column:1/-1]">
             <Button
               type="submit"
               size="lg"
@@ -586,6 +585,9 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
             >
               {deleting ? "Deleting…" : "Delete"}
             </Button>
+            <span aria-live="polite" className="text-xs text-muted">
+              Changes update balances and analytics immediately.
+            </span>
           </div>
         </form>
       </Card>

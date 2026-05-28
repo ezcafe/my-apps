@@ -7,7 +7,7 @@ export type CategoryKind = z.infer<typeof categoryKindSchema>;
 
 const transactionBaseSchema = z.object({
   accountId: z.string().uuid(),
-  toAccountId: z.string().uuid().optional(),
+  toAccountId: z.string().uuid().optional().nullable(),
   kind: transactionKindSchema.optional().default("expense"),
   amountMinor: z.number().int().positive(),
   occurredAt: z.string().datetime({ offset: true }).optional(),
