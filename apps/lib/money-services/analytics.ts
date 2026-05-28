@@ -797,14 +797,15 @@ export async function computeMoneyAnalyticsSankey(
     category_id: string | null;
     value_minor: string | number | bigint | null;
   }>;
+  const sankeyRows = Array.from(sankeyRowsRaw);
   return buildNetCashflowSankeyData(
     categories.map((category) => ({
       id: category.id,
       parentId: category.parentId ?? null,
       name: category.name,
-      color: category.color ?? null,
+      color: null,
     })),
-    Array.from(sankeyRowsRaw).map((row) => ({
+    sankeyRows.map((row) => ({
       kind: row.kind === "income" ? "income" : "expense",
       categoryId: row.category_id,
       valueMinor: Number(row.value_minor ?? 0),
