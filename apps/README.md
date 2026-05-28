@@ -75,7 +75,6 @@ What Compose does:
 - Starts `pgbouncer` on port `6432` (transaction pool mode)
 - Runs a one-shot `migrate` service with checked-in Drizzle migrations
 - Starts the production Next.js container on port `3000` only after migrations succeed
-- Runs daily logical backups into the `money_pg_backups` volume
 
 Docker-specific notes:
 

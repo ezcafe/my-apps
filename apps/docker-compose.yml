@@ -45,25 +45,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  db-backup:
-    image: prodrigestivill/postgres-backup-local:16
-    environment:
-      POSTGRES_HOST: db
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      SCHEDULE: "@daily"
-      BACKUP_KEEP_DAYS: "7"
-      BACKUP_KEEP_WEEKS: "4"
-      BACKUP_KEEP_MONTHS: "6"
-      BACKUP_DIR: /backups
-    volumes:
-      - money_pg_backups:/backups
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
   migrate:
     build:
       context: .
@@ -111,4 +92,3 @@ services:
 
 volumes:
   money_pg_data:
-  money_pg_backups:
