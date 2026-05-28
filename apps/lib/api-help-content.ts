@@ -516,7 +516,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
       "name is required.",
       "type can be checking, savings, cash, credit, loan, investment, or other.",
     ],
-    query: `mutation($input: JSONObject!) {
+    query: `mutation($input: MoneyAccountCreateInput!) {
   moneyAccountCreate(input: $input)
 }`,
     variables: {
@@ -540,7 +540,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     inputNotes: [
       "id must be an existing account UUID in the current workspace.",
     ],
-    query: `mutation($id: ID!, $input: JSONObject!) {
+    query: `mutation($id: ID!, $input: MoneyAccountUpdateInput!) {
   moneyAccountUpdate(id: $id, input: $input)
 }`,
     variables: {
@@ -588,7 +588,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
       "name and kind are required.",
       "kind must be expense or income.",
     ],
-    query: `mutation($input: JSONObject!) {
+    query: `mutation($input: MoneyCategoryCreateInput!) {
   moneyCategoryCreate(input: $input)
 }`,
     variables: {
@@ -612,7 +612,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     inputNotes: [
       "id must be an existing category UUID in the current workspace.",
     ],
-    query: `mutation($id: ID!, $input: JSONObject!) {
+    query: `mutation($id: ID!, $input: MoneyCategoryUpdateInput!) {
   moneyCategoryUpdate(id: $id, input: $input)
 }`,
     variables: {
@@ -653,7 +653,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     whenToUse:
       "Use this when normalizing imported merchant names or preparing rule inputs.",
     returns: "The created merchant record as JSON.",
-    query: `mutation($input: JSONObject!) {
+    query: `mutation($input: MoneyMerchantCreateInput!) {
   moneyMerchantCreate(input: $input)
 }`,
     variables: {
@@ -673,7 +673,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     whenToUse:
       "Use this when cleaning up import results or improving merchant matching.",
     returns: "The updated merchant record as JSON.",
-    query: `mutation($id: ID!, $input: JSONObject!) {
+    query: `mutation($id: ID!, $input: MoneyMerchantUpdateInput!) {
   moneyMerchantUpdate(id: $id, input: $input)
 }`,
     variables: {
@@ -714,7 +714,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     whenToUse:
       "Use this when categories are not enough and you need an extra labeling dimension.",
     returns: "The created tag record as JSON.",
-    query: `mutation($input: JSONObject!) {
+    query: `mutation($input: MoneyTagCreateInput!) {
   moneyTagCreate(input: $input)
 }`,
     variables: {
@@ -735,7 +735,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     whenToUse:
       "Use this when refining your tagging taxonomy.",
     returns: "The updated tag record as JSON.",
-    query: `mutation($id: ID!, $input: JSONObject!) {
+    query: `mutation($id: ID!, $input: MoneyTagUpdateInput!) {
   moneyTagUpdate(id: $id, input: $input)
 }`,
     variables: {
@@ -780,7 +780,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
       "scopeType can be workspace, category, account, or tag.",
       "limitAmountMinor uses minor currency units (for USD, 5000 means $50.00).",
     ],
-    query: `mutation($input: JSONObject!) {
+    query: `mutation($input: MoneyBudgetCreateInput!) {
   moneyBudgetCreate(input: $input)
 }`,
     variables: {
@@ -801,7 +801,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     whenToUse:
       "Use this when revising a budget limit or target scope.",
     returns: "The updated budget record as JSON.",
-    query: `mutation($id: ID!, $input: JSONObject!) {
+    query: `mutation($id: ID!, $input: MoneyBudgetUpdateInput!) {
   moneyBudgetUpdate(id: $id, input: $input)
 }`,
     variables: {
@@ -846,7 +846,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
       "match must include at least accountId or merchantId.",
       "action can set a category and/or tag ids.",
     ],
-    query: `mutation($input: JSONObject!) {
+    query: `mutation($input: MoneyRuleCreateInput!) {
   moneyRuleCreate(input: $input)
 }`,
     variables: {
@@ -873,7 +873,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     whenToUse:
       "Use this when rule priority, match criteria, or actions need to change.",
     returns: "The updated rule record as JSON.",
-    query: `mutation($id: ID!, $input: JSONObject!) {
+    query: `mutation($id: ID!, $input: MoneyRuleUpdateInput!) {
   moneyRuleUpdate(id: $id, input: $input)
 }`,
     variables: {
@@ -918,7 +918,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
       "nextRunAt must be an ISO datetime with timezone offset.",
       "template.accountId, template.kind, and template.amountMinor are required.",
     ],
-    query: `mutation($input: JSONObject!) {
+    query: `mutation($input: MoneyRecurrenceCreateInput!) {
   moneyRecurrenceCreate(input: $input)
 }`,
     variables: {
@@ -945,7 +945,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     whenToUse:
       "Use this when a subscription amount changes or a schedule shifts.",
     returns: "The updated recurrence template as JSON.",
-    query: `mutation($id: ID!, $input: JSONObject!) {
+    query: `mutation($id: ID!, $input: MoneyRecurrenceUpdateInput!) {
   moneyRecurrenceUpdate(id: $id, input: $input)
 }`,
     variables: {
@@ -1011,7 +1011,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
       "accountId and amountMinor are required.",
       "occurredAt should be an ISO datetime with timezone offset when provided.",
     ],
-    query: `mutation($input: JSONObject!) {
+    query: `mutation($input: MoneyTransactionCreateInput!) {
   moneyTransactionCreate(input: $input)
 }`,
     variables: {
@@ -1035,7 +1035,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     whenToUse:
       "Use this to change notes, merchant, category, tags, or amounts.",
     returns: "The updated transaction as JSON.",
-    query: `mutation($id: ID!, $input: JSONObject!) {
+    query: `mutation($id: ID!, $input: MoneyTransactionUpdateInput!) {
   moneyTransactionUpdate(id: $id, input: $input)
 }`,
     variables: {

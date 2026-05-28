@@ -232,13 +232,13 @@ export const MONEY_BUDGETS_FOR_RANGE_QUERY = /* GraphQL */ `
 `;
 
 export const MONEY_ACCOUNT_CREATE_MUTATION = /* GraphQL */ `
-  mutation MoneyAccountCreate($input: JSONObject!) {
+  mutation MoneyAccountCreate($input: MoneyAccountCreateInput!) {
     moneyAccountCreate(input: $input)
   }
 `;
 
 export const MONEY_ACCOUNT_UPDATE_MUTATION = /* GraphQL */ `
-  mutation MoneyAccountUpdate($id: ID!, $input: JSONObject!) {
+  mutation MoneyAccountUpdate($id: ID!, $input: MoneyAccountUpdateInput!) {
     moneyAccountUpdate(id: $id, input: $input)
   }
 `;
@@ -252,13 +252,13 @@ export const MONEY_ACCOUNT_ARCHIVE_MUTATION = /* GraphQL */ `
 `;
 
 export const MONEY_CATEGORY_CREATE_MUTATION = /* GraphQL */ `
-  mutation MoneyCategoryCreate($input: JSONObject!) {
+  mutation MoneyCategoryCreate($input: MoneyCategoryCreateInput!) {
     moneyCategoryCreate(input: $input)
   }
 `;
 
 export const MONEY_CATEGORY_UPDATE_MUTATION = /* GraphQL */ `
-  mutation MoneyCategoryUpdate($id: ID!, $input: JSONObject!) {
+  mutation MoneyCategoryUpdate($id: ID!, $input: MoneyCategoryUpdateInput!) {
     moneyCategoryUpdate(id: $id, input: $input)
   }
 `;
@@ -272,13 +272,13 @@ export const MONEY_CATEGORY_ARCHIVE_MUTATION = /* GraphQL */ `
 `;
 
 export const MONEY_MERCHANT_CREATE_MUTATION = /* GraphQL */ `
-  mutation MoneyMerchantCreate($input: JSONObject!) {
+  mutation MoneyMerchantCreate($input: MoneyMerchantCreateInput!) {
     moneyMerchantCreate(input: $input)
   }
 `;
 
 export const MONEY_MERCHANT_UPDATE_MUTATION = /* GraphQL */ `
-  mutation MoneyMerchantUpdate($id: ID!, $input: JSONObject!) {
+  mutation MoneyMerchantUpdate($id: ID!, $input: MoneyMerchantUpdateInput!) {
     moneyMerchantUpdate(id: $id, input: $input)
   }
 `;
@@ -292,13 +292,13 @@ export const MONEY_MERCHANT_DELETE_MUTATION = /* GraphQL */ `
 `;
 
 export const MONEY_TAG_CREATE_MUTATION = /* GraphQL */ `
-  mutation MoneyTagCreate($input: JSONObject!) {
+  mutation MoneyTagCreate($input: MoneyTagCreateInput!) {
     moneyTagCreate(input: $input)
   }
 `;
 
 export const MONEY_TAG_UPDATE_MUTATION = /* GraphQL */ `
-  mutation MoneyTagUpdate($id: ID!, $input: JSONObject!) {
+  mutation MoneyTagUpdate($id: ID!, $input: MoneyTagUpdateInput!) {
     moneyTagUpdate(id: $id, input: $input)
   }
 `;
@@ -312,13 +312,13 @@ export const MONEY_TAG_DELETE_MUTATION = /* GraphQL */ `
 `;
 
 export const MONEY_BUDGET_CREATE_MUTATION = /* GraphQL */ `
-  mutation MoneyBudgetCreate($input: JSONObject!) {
+  mutation MoneyBudgetCreate($input: MoneyBudgetCreateInput!) {
     moneyBudgetCreate(input: $input)
   }
 `;
 
 export const MONEY_BUDGET_UPDATE_MUTATION = /* GraphQL */ `
-  mutation MoneyBudgetUpdate($id: ID!, $input: JSONObject!) {
+  mutation MoneyBudgetUpdate($id: ID!, $input: MoneyBudgetUpdateInput!) {
     moneyBudgetUpdate(id: $id, input: $input)
   }
 `;
@@ -332,13 +332,13 @@ export const MONEY_BUDGET_DELETE_MUTATION = /* GraphQL */ `
 `;
 
 export const MONEY_RULE_CREATE_MUTATION = /* GraphQL */ `
-  mutation MoneyRuleCreate($input: JSONObject!) {
+  mutation MoneyRuleCreate($input: MoneyRuleCreateInput!) {
     moneyRuleCreate(input: $input)
   }
 `;
 
 export const MONEY_RULE_UPDATE_MUTATION = /* GraphQL */ `
-  mutation MoneyRuleUpdate($id: ID!, $input: JSONObject!) {
+  mutation MoneyRuleUpdate($id: ID!, $input: MoneyRuleUpdateInput!) {
     moneyRuleUpdate(id: $id, input: $input)
   }
 `;
@@ -352,13 +352,13 @@ export const MONEY_RULE_DELETE_MUTATION = /* GraphQL */ `
 `;
 
 export const MONEY_RECURRENCE_CREATE_MUTATION = /* GraphQL */ `
-  mutation MoneyRecurrenceCreate($input: JSONObject!) {
+  mutation MoneyRecurrenceCreate($input: MoneyRecurrenceCreateInput!) {
     moneyRecurrenceCreate(input: $input)
   }
 `;
 
 export const MONEY_RECURRENCE_UPDATE_MUTATION = /* GraphQL */ `
-  mutation MoneyRecurrenceUpdate($id: ID!, $input: JSONObject!) {
+  mutation MoneyRecurrenceUpdate($id: ID!, $input: MoneyRecurrenceUpdateInput!) {
     moneyRecurrenceUpdate(id: $id, input: $input)
   }
 `;

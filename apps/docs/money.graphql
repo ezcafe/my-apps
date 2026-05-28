@@ -82,36 +82,36 @@ scalar JSONObject
     moneyWorkspaceClone(targetWorkspaceId: ID!): MoneyWorkspaceCloneResult!
     moneyWorkspaceReset: MoneyWorkspaceResetResult!
 
-    moneyAccountCreate(input: JSONObject!): JSONObject!
-    moneyAccountUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyAccountCreate(input: MoneyAccountCreateInput!): JSONObject!
+    moneyAccountUpdate(id: ID!, input: MoneyAccountUpdateInput!): JSONObject!
     moneyAccountArchive(id: ID!): MoneyOk!
 
-    moneyCategoryCreate(input: JSONObject!): JSONObject!
-    moneyCategoryUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyCategoryCreate(input: MoneyCategoryCreateInput!): JSONObject!
+    moneyCategoryUpdate(id: ID!, input: MoneyCategoryUpdateInput!): JSONObject!
     moneyCategoryArchive(id: ID!): MoneyOk!
 
-    moneyMerchantCreate(input: JSONObject!): JSONObject!
-    moneyMerchantUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyMerchantCreate(input: MoneyMerchantCreateInput!): JSONObject!
+    moneyMerchantUpdate(id: ID!, input: MoneyMerchantUpdateInput!): JSONObject!
     moneyMerchantDelete(id: ID!): MoneyOk!
 
-    moneyTagCreate(input: JSONObject!): JSONObject!
-    moneyTagUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyTagCreate(input: MoneyTagCreateInput!): JSONObject!
+    moneyTagUpdate(id: ID!, input: MoneyTagUpdateInput!): JSONObject!
     moneyTagDelete(id: ID!): MoneyOk!
 
-    moneyBudgetCreate(input: JSONObject!): JSONObject!
-    moneyBudgetUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyBudgetCreate(input: MoneyBudgetCreateInput!): JSONObject!
+    moneyBudgetUpdate(id: ID!, input: MoneyBudgetUpdateInput!): JSONObject!
     moneyBudgetDelete(id: ID!): MoneyOk!
 
-    moneyRuleCreate(input: JSONObject!): JSONObject!
-    moneyRuleUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyRuleCreate(input: MoneyRuleCreateInput!): JSONObject!
+    moneyRuleUpdate(id: ID!, input: MoneyRuleUpdateInput!): JSONObject!
     moneyRuleDelete(id: ID!): MoneyOk!
 
-    moneyRecurrenceCreate(input: JSONObject!): JSONObject!
-    moneyRecurrenceUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyRecurrenceCreate(input: MoneyRecurrenceCreateInput!): JSONObject!
+    moneyRecurrenceUpdate(id: ID!, input: MoneyRecurrenceUpdateInput!): JSONObject!
     moneyRecurrenceDelete(id: ID!): MoneyOk!
     moneyRecurrenceGenerate(id: ID!): MoneyRecurrenceGenerateResult!
 
-    moneyTransactionCreate(input: JSONObject!): JSONObject!
-    moneyTransactionUpdate(id: ID!, input: JSONObject!): JSONObject!
+    moneyTransactionCreate(input: MoneyTransactionCreateInput!): JSONObject!
+    moneyTransactionUpdate(id: ID!, input: MoneyTransactionUpdateInput!): JSONObject!
     moneyTransactionDelete(id: ID!): MoneyOk!
   }
