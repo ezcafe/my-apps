@@ -732,8 +732,7 @@ dialog::backdrop {
     container-name: chart;
   }
 
-  /* Legend now sits to the left of the chart; width is driven by the grid
-     template column (20% of the chart container). */
+  /* Legend: below the chart on narrow viewports; left column on md+. */
   .analytics-chart-legend-slot {
     inline-size: 100%;
   }
@@ -744,6 +743,19 @@ dialog::backdrop {
     gap: clamp(0.0625rem, 0.35cqh, 0.1875rem);
     font-size: clamp(0.625rem, 2.75cqh, 0.75rem);
     line-height: 1.25;
+  }
+
+  @media (max-width: 47.9375rem) {
+    .analytics-chart-legend-slot .analytics-chart-legend {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.25rem 0.75rem;
+    }
+
+    .analytics-chart-legend-slot .analytics-chart-legend button {
+      width: auto;
+    }
   }
 
   .analytics-chart-legend-slot .analytics-chart-legend button {

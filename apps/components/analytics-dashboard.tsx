@@ -409,7 +409,7 @@ function AnalyticsChartsView({
         defaultCurrency={defaultCurrency}
       />
 
-      <div className="col-span-2 grid min-w-0 grid-cols-3 gap-2 md:col-span-6 md:gap-3 lg:col-span-12 lg:gap-3">
+      <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:gap-3 lg:col-span-12 lg:grid-cols-3 lg:gap-3">
         <SpendByCategoryCard
           cardRef={spendByCategoryRef}
           inView={spendByCategoryInView}

@@ -95,25 +95,47 @@ export function AnalyticsChartContainer({
   legend?: ReactNode;
   children: ReactNode;
 }) {
+  const chartSlot = (
+    <div
+      className={[
+        "relative h-full min-h-0 min-w-0 place-self-center overflow-hidden w-full",
+        legend ? "order-1 md:order-2" : null,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <div className="absolute inset-0 min-h-0 min-w-0">{children}</div>
+    </div>
+  );
+
+  if (!legend) {
+    return (
+      <div
+        className={[
+          "analytics-chart-container grid min-h-0 w-full flex-1 overflow-hidden grid-cols-[minmax(0,1fr)]",
+          className,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {chartSlot}
+      </div>
+    );
+  }
+
   return (
     <div
       className={[
         "analytics-chart-container grid min-h-0 w-full flex-1 overflow-hidden",
-        legend
-          ? "[grid-template-columns:minmax(0,20%)_minmax(0,80%)]"
-          : "grid-cols-[minmax(0,1fr)]",
+        "grid-cols-1 grid-rows-[minmax(0,1fr)_auto] md:grid-rows-1 md:[grid-template-columns:minmax(0,20%)_minmax(0,80%)]",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
     >
-      {legend ? (
-        <div className="analytics-chart-legend-slot min-h-0 min-w-0 overflow-y-auto overscroll-contain border-r border-border/60 pr-2">
-          {legend}
-        </div>
-      ) : null}
-      <div className="relative min-h-0 min-w-0 place-self-center overflow-hidden h-full w-full">
-        <div className="absolute inset-0 min-h-0 min-w-0">{children}</div>
+      {chartSlot}
+      <div className="analytics-chart-legend-slot order-2 min-h-0 min-w-0 max-md:overflow-x-auto max-md:overscroll-x-contain border-t border-border/60 pt-2 md:order-1 md:overflow-y-auto md:overscroll-contain md:border-t-0 md:border-r md:pt-0 md:pr-2">
+        {legend}
       </div>
     </div>
   );

@@ -41,9 +41,17 @@ function AnalyticsChartCardSkeleton({
     <Card className={`${className} flex min-w-0 flex-col p-4`}>
       <Skeleton className={`mb-2 h-6 ${titleWidthClass}`} />
       <Skeleton className={`mb-3 h-3 ${descriptionWidthClass}`} />
-      <div className={`min-h-0 flex-1 ${showLegend ? "grid grid-cols-[minmax(0,20%)_minmax(0,80%)] gap-3" : ""}`}>
-        {showLegend ? <Skeleton className={`${chartHeightClass} w-full`} /> : null}
+      <div
+        className={
+          showLegend
+            ? "grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] gap-2 md:grid-rows-1 md:[grid-template-columns:minmax(0,20%)_minmax(0,80%)] md:gap-3"
+            : "min-h-0 flex-1"
+        }
+      >
         <Skeleton className={`${chartHeightClass} w-full`} />
+        {showLegend ? (
+          <Skeleton className="h-12 w-full md:h-full md:min-h-0" />
+        ) : null}
       </div>
     </Card>
   );
