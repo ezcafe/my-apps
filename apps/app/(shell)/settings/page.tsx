@@ -5,7 +5,6 @@ import { fetchWorkspacesForUser } from "@/lib/money-workspace-bootstrap-data";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import { ApiTokenSettings } from "@/components/api-token-settings";
 import { DateFormatSettings } from "@/components/date-format-settings";
-import { StyleSettings } from "@/components/style-settings";
 import { ThemeSettings } from "@/components/theme-settings";
 
 export default async function SettingsPage() {
@@ -51,14 +50,6 @@ export default async function SettingsPage() {
                 </dd>
               </div>
             </dl>
-          </SettingsSection>
-
-          <SettingsSection
-            id="settings-style"
-            title="Visual style"
-            description="Minimal presets for typography, radius, and surfaces."
-          >
-            <StyleSettings embedded />
           </SettingsSection>
 
           <SettingsSection

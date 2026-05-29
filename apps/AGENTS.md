@@ -15,7 +15,7 @@ Money client bootstrap: [`components/money-workspace-provider.tsx`](components/m
 
 ## UI / design system (mandatory)
 
-Any user-facing change — new pages, components, micro-tweaks — must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md). The shell renders 4 visual presets × light/dark via CSS tokens; if your change does not survive switching presets in `/settings`, it is wrong.
+Any user-facing change — new pages, components, micro-tweaks — must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md). The shell uses Apple/iOS structure with GitHub light and Nord dark palettes; if your change does not survive switching light/dark in `/settings`, it is wrong.
 
 Hard rules:
 
@@ -28,6 +28,6 @@ Hard rules:
 - **Globally provided** by `globals.css` (don't repeat per element): `tabular-nums` on body, `text-wrap: balance` on `h1-h3`, `text-wrap: pretty` on body copy, `outline` on `<img>`, `-webkit-font-smoothing: antialiased` on `<html>`.
 - Layout uses `repeat(auto-fit, minmax(...))` and container queries; no hardcoded breakpoints for content.
 - Charts read `colorByIndex(resolved, i, style)` from [`lib/theme-chart-palette.ts`](lib/theme-chart-palette.ts).
-- Verify in all 4 presets × light/dark before merging.
+- Verify in light and dark modes before merging.
 
 Polish principles applied automatically by tokens/primitives are documented in DESIGN_GUIDE → "Interface-polish principles" (concentric, optical, shadows-over-borders, interruptible, stagger, exits, icons, tabular, text-wrap, image outlines, scale on press, hit area, transition specificity, will-change). Read that table before adding any new interactive element.

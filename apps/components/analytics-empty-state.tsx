@@ -6,6 +6,7 @@ export function AnalyticsEmptyState({
   description,
   minHeightClass = "min-h-[180px]",
   action,
+  secondaryAction,
   icon = "chart",
   className = "",
   descriptionClassName = "",
@@ -14,6 +15,7 @@ export function AnalyticsEmptyState({
   description: string;
   minHeightClass?: string;
   action?: { href: string; label: string };
+  secondaryAction?: { href: string; label: string };
   icon?: "chart" | "table" | "flow";
   className?: string;
   /** Merged onto the description paragraph (e.g. line-clamp-1). */
@@ -37,14 +39,29 @@ export function AnalyticsEmptyState({
         >
           {description}
         </p>
-        {action ? (
-          <p className="mt-5">
-            <Link
-              href={action.href}
-              className="text-sm font-semibold text-foreground underline-offset-2 transition-colors duration-150 hover:underline"
-            >
-              {action.label}
-            </Link>
+        {action || secondaryAction ? (
+          <p className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+            {action ? (
+              <Link
+                href={action.href}
+                className="text-sm font-semibold text-foreground underline-offset-2 transition-colors duration-150 hover:underline"
+              >
+                {action.label}
+              </Link>
+            ) : null}
+            {action && secondaryAction ? (
+              <span className="text-sm text-muted" aria-hidden>
+                ·
+              </span>
+            ) : null}
+            {secondaryAction ? (
+              <Link
+                href={secondaryAction.href}
+                className="text-sm font-semibold text-foreground underline-offset-2 transition-colors duration-150 hover:underline"
+              >
+                {secondaryAction.label}
+              </Link>
+            ) : null}
           </p>
         ) : null}
       </div>

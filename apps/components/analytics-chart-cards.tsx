@@ -31,6 +31,11 @@ import type {
   AnalyticsLookupTag,
 } from "@/components/analytics-filters";
 
+const CHART_EMPTY_TRANSACTION_ACTIONS = {
+  action: { href: "/money/transactions", label: "View transactions" },
+  secondaryAction: { href: "/money", label: "Add transaction" },
+} as const;
+
 const LineChart = dynamic(
   () =>
     import("@/components/charts/line-chart").then((m) => ({
@@ -300,7 +305,7 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
               descriptionClassName="line-clamp-1"
               minHeightClass="min-h-0"
               className={CHART_SLOT_CLASS}
-              action={{ href: "/money", label: "Add or view transactions" }}
+              {...CHART_EMPTY_TRANSACTION_ACTIONS}
             />
           )
         ) : (
@@ -343,7 +348,7 @@ export const IncomeVsExpenseCard = memo(function IncomeVsExpenseCard({
             description="Add transactions or widen the date range."
             minHeightClass="min-h-0"
             className={CHART_SLOT_CLASS}
-            action={{ href: "/money", label: "Add or view transactions" }}
+            {...CHART_EMPTY_TRANSACTION_ACTIONS}
           />
         )}
       </AnalyticsChartContainer>
@@ -424,7 +429,7 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
               description="Add expenses or adjust filters for this range."
               minHeightClass="min-h-0"
               className={CHART_SLOT_CLASS}
-              action={{ href: "/money", label: "Add or view transactions" }}
+              {...CHART_EMPTY_TRANSACTION_ACTIONS}
             />
           )
         ) : (
@@ -504,7 +509,7 @@ export const IncomeByCategoryCard = memo(function IncomeByCategoryCard({
             description="Add income or adjust filters for this range."
             minHeightClass="min-h-0"
             className={CHART_SLOT_CLASS}
-            action={{ href: "/money", label: "Add or view transactions" }}
+            {...CHART_EMPTY_TRANSACTION_ACTIONS}
           />
         )}
       </AnalyticsChartContainer>
@@ -599,7 +604,7 @@ export const MonthlyColumnsCard = memo(function MonthlyColumnsCard({
               description="Add transactions or widen the range to see bars."
               minHeightClass="min-h-0"
               className={CHART_SLOT_CLASS}
-              action={{ href: "/money", label: "Add or view transactions" }}
+              {...CHART_EMPTY_TRANSACTION_ACTIONS}
             />
           )
         ) : (
@@ -686,7 +691,7 @@ export const CategorySpendTrendCard = memo(function CategorySpendTrendCard({
               description="Add categorized expenses across months."
               minHeightClass="min-h-0"
               className={CHART_SLOT_CLASS}
-              action={{ href: "/money", label: "Add or view transactions" }}
+              {...CHART_EMPTY_TRANSACTION_ACTIONS}
             />
           )
         ) : (
@@ -794,7 +799,7 @@ export const MoneyFlowSankeyCard = memo(function MoneyFlowSankeyCard({
             description="Add categorized expenses or income, or widen the date range."
             minHeightClass="min-h-0"
             className={CHART_SLOT_CLASS}
-            action={{ href: "/money", label: "Add or view transactions" }}
+            {...CHART_EMPTY_TRANSACTION_ACTIONS}
           />
         )}
       </AnalyticsChartContainer>
@@ -841,7 +846,7 @@ export const SpendByTagCard = memo(function SpendByTagCard({
               description="Tag expenses or adjust filters for this range."
               minHeightClass="min-h-0"
               className={CHART_SLOT_CLASS}
-              action={{ href: "/money", label: "Add or view transactions" }}
+              {...CHART_EMPTY_TRANSACTION_ACTIONS}
             />
           )
         ) : (
@@ -891,7 +896,7 @@ export const TopMerchantsCard = memo(function TopMerchantsCard({
               description="Add expenses with merchants or widen the range."
               minHeightClass="min-h-0"
               className={CHART_SLOT_CLASS}
-              action={{ href: "/money", label: "Add or view transactions" }}
+              {...CHART_EMPTY_TRANSACTION_ACTIONS}
             />
           )
         ) : (

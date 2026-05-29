@@ -4,8 +4,6 @@ import { useEffect, useState, type ReactNode, type SVGProps } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import type { StylePreset } from "@/components/theme-provider";
-import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Popover } from "@/components/ui/popover";
 import {
@@ -15,7 +13,6 @@ import {
   shellNavItems,
 } from "@/lib/features/registry";
 import { cn } from "@/lib/cn";
-import { withViewTransition } from "@/lib/microinteractions";
 
 function IconHome(props: SVGProps<SVGSVGElement>) {
   return (
@@ -135,23 +132,15 @@ const shellNavIcons: Record<
   settings: IconSettings,
 };
 
-const STYLE_IDS: StylePreset[] = ["linear", "apple", "swiss", "notion"];
-
 function ShellMobileMenu() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const { style, setStyle } = useTheme();
 
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
   const close = () => setOpen(false);
-
-  const pickStyle = (next: StylePreset) => {
-    if (next === style) return;
-    withViewTransition(() => setStyle(next));
-  };
 
   return (
     <Popover
@@ -174,37 +163,13 @@ function ShellMobileMenu() {
             <NavLinkMenu key={item.id} item={item} onNavigate={close} />
           ))}
         </nav>
-        <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-            Visual style
-          </p>
-          <div
-            className="grid gap-2"
-            style={{
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            }}
-          >
-            {STYLE_IDS.map((id) => (
-              <Button
-                key={id}
-                type="button"
-                variant={style === id ? "primary" : "ghost"}
-                size="sm"
-                className="capitalize"
-                onClick={() => pickStyle(id)}
-              >
-                {id}
-              </Button>
-            ))}
-          </div>
-          <Link
-            href="/settings"
-            onClick={close}
-            className="mt-3 inline-block text-sm font-medium text-accent underline-offset-4 hover:underline"
-          >
-            All settings
-          </Link>
-        </div>
+        <Link
+          href="/settings"
+          onClick={close}
+          className="inline-block text-sm font-medium text-accent underline-offset-4 hover:underline"
+        >
+          All settings
+        </Link>
         <ShellPopoverAuth onNavigate={close} />
       </div>
     </Popover>

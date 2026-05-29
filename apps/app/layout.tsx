@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import "./globals.css";
 import { RootProviders } from "@/components/root-providers";
+import { themeInitInlineScript } from "@/lib/theme-init-script";
 
 export const metadata: Metadata = {
   title: "Workspace",
@@ -18,11 +18,15 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      data-style="linear"
+      data-style="apple"
       className="h-full"
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: themeInitInlineScript() }}
+        />
+      </head>
       <body className="min-h-dvh bg-background text-foreground antialiased">
-        <Script src="/theme-init.js" strategy="beforeInteractive" />
         <RootProviders>{children}</RootProviders>
       </body>
     </html>

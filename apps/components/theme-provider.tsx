@@ -8,27 +8,27 @@ import {
   useMemo,
   useState,
 } from "react";
+import {
+  LEGACY_THEME_STORAGE_KEY,
+  resolveThemePreference,
+  THEME_STORAGE_KEY,
+  type ResolvedTheme,
+  type ThemePreference,
+} from "@/lib/theme-init-script";
 
-export type Theme = "system" | "light" | "dark";
-
-export type StylePreset = "linear" | "apple" | "swiss" | "notion";
-
-const STORAGE_KEY = "workspace_theme";
-const LEGACY_STORAGE_KEY = "money_theme";
-const STORAGE_STYLE_KEY = "workspace_style";
-
-const STYLE_ORDER: StylePreset[] = ["linear", "apple", "swiss", "notion"];
+export type Theme = ThemePreference;
+export type StylePreset = "apple";
 
 function readStoredTheme(): Theme {
   if (typeof window === "undefined") return "system";
   try {
-    let s = localStorage.getItem(STORAGE_KEY);
+    let s = localStorage.getItem(THEME_STORAGE_KEY);
     if (s == null || s === "") {
-      const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+      const legacy = localStorage.getItem(LEGACY_THEME_STORAGE_KEY);
       if (legacy === "light" || legacy === "dark" || legacy === "system") {
-        localStorage.setItem(STORAGE_KEY, legacy);
+        localStorage.setItem(THEME_STORAGE_KEY, legacy);
         try {
-          localStorage.removeItem(LEGACY_STORAGE_KEY);
+          localStorage.removeItem(LEGACY_THEME_STORAGE_KEY);
         } catch {
           /* ignore */
         }
@@ -42,31 +42,26 @@ function readStoredTheme(): Theme {
   return "system";
 }
 
-function readStoredStyle(): StylePreset {
-  if (typeof window === "undefined") return "linear";
-  try {
-    const s = localStorage.getItem(STORAGE_STYLE_KEY);
-    if (s != null && STYLE_ORDER.includes(s as StylePreset)) return s as StylePreset;
-  } catch {
-    /* ignore */
-  }
-  return "linear";
+function resolveStoredTheme(): ResolvedTheme {
+  const theme = readStoredTheme();
+  if (typeof window === "undefined") return "light";
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return resolveThemePreference(theme, prefersDark);
 }
 
-function applyThemeClass(resolved: "light" | "dark") {
+function applyThemeClass(resolved: ResolvedTheme) {
   document.documentElement.classList.toggle("dark", resolved === "dark");
 }
 
-function applyStyleDataset(style: StylePreset) {
-  document.documentElement.dataset.style = style;
+function applyStyleDataset() {
+  document.documentElement.dataset.style = "apple";
 }
 
 type ThemeContextValue = {
   theme: Theme;
   setTheme: (t: Theme) => void;
-  resolved: "light" | "dark";
+  resolved: ResolvedTheme;
   style: StylePreset;
-  setStyle: (s: StylePreset) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -75,20 +70,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() =>
     typeof window !== "undefined" ? readStoredTheme() : "system",
   );
-  const [style, setStyleState] = useState<StylePreset>(() =>
-    typeof window !== "undefined" ? readStoredStyle() : "linear",
+  const [resolved, setResolved] = useState<ResolvedTheme>(() =>
+    typeof window !== "undefined" ? resolveStoredTheme() : "light",
   );
-  const [resolved, setResolved] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const compute = () => {
-      const r =
-        theme === "system" ? (mq.matches ? "dark" : "light") : theme;
-      queueMicrotask(() => {
-        setResolved(r);
-        applyThemeClass(r);
-      });
+      const r = resolveThemePreference(theme, mq.matches);
+      setResolved(r);
+      applyThemeClass(r);
     };
     compute();
     mq.addEventListener("change", compute);
@@ -96,31 +87,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   useEffect(() => {
-    applyStyleDataset(style);
-  }, [style]);
+    applyStyleDataset();
+  }, []);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
     try {
-      localStorage.setItem(STORAGE_KEY, t);
+      localStorage.setItem(THEME_STORAGE_KEY, t);
     } catch {
       /* ignore */
     }
-  }, []);
-
-  const setStyle = useCallback((s: StylePreset) => {
-    setStyleState(s);
-    try {
-      localStorage.setItem(STORAGE_STYLE_KEY, s);
-    } catch {
-      /* ignore */
-    }
-    applyStyleDataset(s);
   }, []);
 
   const value = useMemo(
-    () => ({ theme, setTheme, resolved, style, setStyle }),
-    [theme, setTheme, resolved, style, setStyle],
+    () => ({ theme, setTheme, resolved, style: "apple" as const }),
+    [theme, setTheme, resolved],
   );
 
   return (

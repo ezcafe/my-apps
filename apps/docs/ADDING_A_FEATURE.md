@@ -40,7 +40,7 @@ Removing a feature: delete its registry row and its route/API folders; avoid edi
 - Microinteractions: CSS-only utilities (`fx-press`, `fx-fade-in`, `fx-shimmer`, `fx-field`) plus [`withViewTransition`](../lib/microinteractions.ts) for state-driven transitions. No JS animation libs.
 - Layout: `shell-main` wrapper + `grid-template-columns: repeat(auto-fit, minmax(min(100%, …), 1fr))` and container queries; do not hardcode breakpoints.
 - Charts: visx only (Lightweight Charts allowed for price charts), and always color via `colorByIndex(resolved, i, style)` from [`lib/theme-chart-palette.ts`](../lib/theme-chart-palette.ts) so it tracks the active style preset.
-- Verify the feature in all 4 presets (Linear / Apple / Swiss / Notion) × light/dark via `/settings` before merging.
+- Verify the feature in light and dark modes via `/settings` before merging.
 
 ## 6. Documentation
 

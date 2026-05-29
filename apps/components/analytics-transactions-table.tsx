@@ -43,6 +43,7 @@ export function AnalyticsTransactionsTable({
   categories,
   currency,
   deferFetchUntilVisible = true,
+  variant = "analytics",
 }: {
   filterQuery: string;
   activeWorkspaceId: string;
@@ -51,6 +52,7 @@ export function AnalyticsTransactionsTable({
   currency: string;
   /** When true, the transactions API runs only after this section intersects the viewport. */
   deferFetchUntilVisible?: boolean;
+  variant?: "analytics" | "standalone";
 }) {
   const { ref: viewportRef, isInView } = useInViewOnce();
   const { formatDate } = useFormatDate();
@@ -147,7 +149,9 @@ export function AnalyticsTransactionsTable({
         Transactions
       </h2>
       <p className="mb-3 text-xs text-muted">
-        Rows match the applied analytics filters. Sort columns or change page below.
+        {variant === "standalone"
+          ? "Filter by date, account, category, and more. Sort columns or change page below."
+          : "Rows match the applied analytics filters. Sort columns or change page below."}
       </p>
 
       {localError ? (
@@ -160,7 +164,11 @@ export function AnalyticsTransactionsTable({
           title="No transactions for this view"
           description="Adjust filters or add transactions on the ledger."
           minHeightClass="min-h-[220px]"
-          action={{ href: "/money", label: "Go to transactions" }}
+          action={
+            variant === "standalone"
+              ? { href: "/money", label: "Add transaction" }
+              : { href: "/money/transactions", label: "View transactions" }
+          }
         />
       ) : (
       <div className="overflow-x-auto rounded-[var(--radius-md)] border border-border">

@@ -1,6 +1,6 @@
 # Workspace app
 
-Multi-feature Next.js workspace built around a small **shell** and a **Money** feature module. Pocket ID OIDC handles auth; Drizzle + PostgreSQL 18 hold the data. The UI is a token-driven minimalist design system with 4 visual presets (Linear / Apple / Swiss / Notion) × light/dark, all CSS-only motion.
+Multi-feature Next.js workspace built around a small **shell** and a **Money** feature module. Pocket ID OIDC handles auth; Drizzle + PostgreSQL 18 hold the data. The UI is a token-driven minimalist design system with Apple/iOS structure, GitHub-inspired light palette, Nord dark palette, and CSS-only motion.
 
 > **All UI work must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md).** No hard-coded colors, fonts, radii, shadows, or motion libraries.
 
@@ -106,9 +106,9 @@ Docker-specific notes:
 app/
   (shell)/             Authenticated chrome (rail + header). Routes here inherit ShellLayout.
     money/             Money feature pages — own layout + provider tree.
-    settings/          Global settings: visual style + appearance.
+    settings/          Global settings: appearance, date format, API tokens.
   api/                 Thin Next.js route entrypoints; logic lives in features/<x>/server or lib/.
-  globals.css          The 4 × 2 token sets + microinteraction utilities.
+  globals.css          Light/dark token sets + microinteraction utilities.
   layout.tsx           Root layout, fonts, FOUC pre-paint script.
   page.tsx             Public landing.
 components/
@@ -116,15 +116,14 @@ components/
                        Modal, Popover, Tabs, MultiSelect, Tag, Badge, Skeleton, Alert).
   app-shell.tsx        Desktop rail + mobile header (registry-driven nav).
   notification-provider.tsx  Toasts.
-  theme-provider.tsx   {style, mode} provider; persists to localStorage.
-  style-settings.tsx   Style picker on /settings (4 live preview cards).
+  theme-provider.tsx   Appearance provider; persists to localStorage.
   theme-settings.tsx   Light/dark/system segmented control.
   money-*              Money-specific surfaces (dashboard, edit form, settings panels…).
 features/
   money/               Domain server code, barrel re-exports, feature README.
 lib/
   features/registry.ts Single source of truth for shell nav.
-  theme-chart-palette.ts  Per-preset chart palettes; chart components read via colorByIndex.
+  theme-chart-palette.ts  Chart palettes; chart components read via colorByIndex.
   microinteractions.ts withViewTransition + prefersReducedMotion helpers.
 db/                    Drizzle schema and migrations.
 docs/                  Architecture, design guide, feature checklist.
@@ -132,16 +131,16 @@ docs/                  Architecture, design guide, feature checklist.
 
 ## Design system (mandatory)
 
-- Two orthogonal axes drive every visual decision:
-  - `style` → `<html data-style="linear|apple|swiss|notion">` (default `linear`).
-  - `mode` → `<html class="dark">` toggled for dark; otherwise light.
-- 4 styles × 2 modes = **8 token sets** declared in [`app/globals.css`](app/globals.css). Every preset defines the same semantic names so components never branch on `style`.
+- Fixed Apple/iOS structure with two color palettes:
+  - `style` → `<html data-style="apple">` (always).
+  - `mode` → `<html class="dark">` toggled for Nord dark; otherwise GitHub-inspired light.
+- **2 token sets** declared in [`app/globals.css`](app/globals.css). Components never branch on `style`.
 - Compose UI from [`components/ui/`](components/ui/) primitives. They already consume tokens (`rounded-[var(--radius-md)]`, `shadow-[var(--shadow-sm)]`, `bg-surface`, etc.).
 - Microinteractions are CSS-only (`fx-press`, `fx-fade-in`, `fx-shimmer`, `fx-field` + `fx-field-underline`). For state-driven transitions, use [`withViewTransition`](lib/microinteractions.ts).
 - Charts: visx + `colorByIndex(resolved, i, style)` from [`lib/theme-chart-palette.ts`](lib/theme-chart-palette.ts). Never hand-pick chart colors.
 - Layout: `shell-main` wrapper + `repeat(auto-fit, minmax(min(100%, …), 1fr))` and container queries. No hard-coded breakpoints for content.
 - Status colors: `--accent` for positive, `--destructive` for negative, `--muted` for flat. No `text-emerald-*` / `text-rose-*`.
-- Verify every change in all 4 presets × light/dark via `/settings` before merging.
+- Verify every change in light and dark modes via `/settings` before merging.
 
 Forbidden: `rounded-md`/`rounded-lg`/`rounded-xl`/`rounded-2xl`, `shadow-sm`/`shadow-md`/`shadow-lg`, hand-picked hex colors or font families, JS animation libraries (Framer Motion / Motion One / GSAP), manual portals for dialogs (use `Modal`).
 
@@ -326,4 +325,4 @@ See also [`docs/API.md`](docs/API.md) for the REST table entry.
 
 - `npm run lint`
 - `npm run build`
-- Walk the changed surface in `/settings` across **all four presets × light/dark**. Swiss is the canary — any leftover hardcoded `shadow-*` or `rounded-*` will visibly break there because Swiss sets `--radius: 0` and disables shadows.
+- Walk the changed surface in `/settings` across **light and dark modes**.

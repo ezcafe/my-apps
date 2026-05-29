@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MoneyTransactionForm } from "@/components/money-transaction-form";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
@@ -22,6 +22,7 @@ import {
   primaryBtnCls,
   secondaryBtnCls,
   SettingsSection,
+  SettingsSubsectionHeading,
 } from "@/components/money-settings/money-settings-shared";
 import { cadenceLabel, type MoneyCadence } from "@/lib/recurrence";
 
@@ -224,19 +225,51 @@ export function MoneySettingsRecurrenceSection() {
           className="mb-8"
         />
       ) : null}
-      <SettingsSection id="money-settings-recurrence-page" title="Recurrence">
-        <MoneyTransactionForm mode="recurrence" onSuccess={loadRecurrent} />
+      <SettingsSection
+        id="money-settings-recurrence-page"
+        title="Recurrence"
+        description="Manage existing recurring schedules. New ones are created from the Money page."
+      >
+        <div className="rounded-[var(--radius-md)] border border-border bg-background px-4 py-4 text-sm leading-6 text-muted">
+          <p>
+            To add a recurring transaction, open the{" "}
+            <Link
+              href="/money"
+              className="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors duration-150 hover:decoration-foreground"
+            >
+              Money
+            </Link>{" "}
+            page and:
+          </p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            <li>Fill in the transaction details (amount, account, category, and so on).</li>
+            <li>Check <span className="text-foreground">Repeat this transaction</span>.</li>
+            <li>Choose how often it repeats (daily, monthly, or yearly).</li>
+            <li>Save — the first entry is recorded and future runs are scheduled automatically.</li>
+          </ol>
+          <Link href="/money" className={`${primaryBtnCls} mt-4`}>
+            Go to Money
+          </Link>
+        </div>
 
-        <div className="mt-8 border-t border-border pt-8">
-          <h3 className="text-sm font-medium text-foreground">
-            Recurring transactions
-          </h3>
+        <div className="mt-8">
+          <SettingsSubsectionHeading
+            title="Recurring transactions"
+            description="Edit, pause, or remove schedules. Use Generate now to create the next entry immediately."
+          />
           {recurrent.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">
-              No recurring schedules yet. Add one above.
+            <p className="mt-5 text-sm text-muted">
+              No recurring schedules yet.{" "}
+              <Link
+                href="/money"
+                className="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors duration-150 hover:decoration-foreground"
+              >
+                Add one on the Money page
+              </Link>
+              .
             </p>
           ) : (
-            <ul className="mt-3 space-y-2 text-sm">
+            <ul className="mt-5 space-y-2 text-sm">
               {recurrent.map((r) => (
                 <li
                   key={r.id}

@@ -8,26 +8,26 @@ The non-negotiables:
 2. Compose from [`components/ui/*`](../components/ui/) primitives; do not reinvent buttons, inputs, modals, popovers, etc.
 3. Microinteractions are **CSS-only** (Tailwind transitions, `@starting-style`, View Transitions API, `:has()`, scroll-driven animations) and respect `prefers-reduced-motion`.
 4. Layout uses modern CSS (`grid-template-columns: repeat(auto-fit, minmax(...))`, container queries, `clamp()`); no hardcoded breakpoints for content.
-5. Charts use **visx** and read colors via [`colorByIndex(resolved, i, style)`](../lib/theme-chart-palette.ts) so they recolor when the user switches presets.
+5. Charts use **visx** and read colors via [`colorByIndex(resolved, i, style)`](../lib/theme-chart-palette.ts) so they recolor when the user switches light/dark mode.
 6. Apply the **interface-polish principles** below by default. They turn token-correct UI into an interface that feels right.
 
 If a need is not covered here, propose an extension to this doc + a primitive — do **not** ship a one-off.
 
 ## Style architecture
 
-Two orthogonal axes drive every visual decision:
+The app uses a fixed **Apple/iOS** structural preset (typography, radius, shadows) with two color palettes keyed on appearance mode:
 
 | Axis    | Where it lives                                           | Values                              |
 |---------|-----------------------------------------------------------|-------------------------------------|
-| `style` | `<html data-style="…">` (set by [`ThemeProvider`](../components/theme-provider.tsx)) | `linear` (default), `apple`, `swiss`, `notion` |
-| `mode`  | `<html class="dark">` toggled by `ThemeProvider`         | light (no class) or `dark`          |
+| `style` | `<html data-style="apple">` (always set by [`ThemeProvider`](../components/theme-provider.tsx)) | `apple` only |
+| `mode`  | `<html class="dark">` toggled by `ThemeProvider`         | light (GitHub-inspired) or dark (Nord) |
 
-The user picks both in **`/settings`** ([`StyleSettings`](../components/style-settings.tsx) + [`ThemeSettings`](../components/theme-settings.tsx)). `4 styles × 2 modes = 8 token sets` keyed on `:root[data-style="…"]` and `:root[data-style="…"].dark` in [`app/globals.css`](../app/globals.css). FOUC is prevented by an inline pre-paint script in [`app/layout.tsx`](../app/layout.tsx).
+The user picks appearance in **`/settings`** ([`ThemeSettings`](../components/theme-settings.tsx)). Light and dark token sets are keyed on `:root[data-style="apple"]` and `:root[data-style="apple"].dark` in [`app/globals.css`](../app/globals.css). FOUC is prevented by a pre-paint script in [`app/layout.tsx`](../app/layout.tsx).
 
 ```mermaid
 flowchart LR
   Settings["/settings"] --> ThemeProvider
-  ThemeProvider -- "data-style + class=dark" --> HtmlRoot["<html>"]
+  ThemeProvider -- "data-style=apple + class=dark" --> HtmlRoot["<html>"]
   HtmlRoot --> Tokens["globals.css token sets"]
   Tokens --> Primitives["components/ui/*"]
   Tokens --> Charts["chartPaletteFor(style, mode)"]
@@ -36,7 +36,7 @@ flowchart LR
 
 ## Tokens you must use
 
-Defined per preset in [`app/globals.css`](../app/globals.css). All available as Tailwind utilities via the `@theme inline` block.
+Defined in [`app/globals.css`](../app/globals.css). All available as Tailwind utilities via the `@theme inline` block.
 
 ### Color
 - Surface stack: `bg-background`, `bg-surface`, `bg-muted-surface`
@@ -50,7 +50,7 @@ Defined per preset in [`app/globals.css`](../app/globals.css). All available as 
 - Headings/branding: add `font-display` (resolves to `--font-heading`)
 - Mono: `font-mono`
 
-> Swiss preset swaps `--font-heading` to a serif. Use `font-display` on titles so the change applies — do not hard-code font stacks.
+> Apple preset uses the SF/system font stack for headings via `font-display`. Use `font-display` on titles — do not hard-code font stacks.
 
 Body sets `font-variant-numeric: tabular-nums` globally so dynamic counters, prices, and timers never cause layout shift. You don't need to add `tabular-nums` per usage.
 
@@ -65,26 +65,20 @@ Two radius tokens drive **concentric border-radius** (skill rule: outer = inner 
 
 If the inner padding around a child exceeds 24px, treat it as its own surface and pick a radius independently — concentric math only matters when surfaces sit close.
 
-> **Never** use Tailwind's `rounded-md`, `rounded-lg`, `rounded-2xl`, or `rounded-[calc(var(--radius-md)-2px)]`. The `calc()` form is now redundant — use `--radius-sm`. Hardcoded radii break the Swiss preset (`--radius: 0`) and the previewed-style scope cards.
+> **Never** use Tailwind's `rounded-md`, `rounded-lg`, `rounded-2xl`, or `rounded-[calc(var(--radius-md)-2px)]`. The `calc()` form is now redundant — use `--radius-sm`.
 
-Shadows: `shadow-[var(--shadow-sm)]` and `shadow-[var(--shadow-md)]`. Never `shadow-md`/`shadow-lg`. The Swiss preset disables shadows; the Linear preset replaces them with a 1px border-as-shadow; presets choose their own elevation language.
-
-The skill recommends shadows over borders for elevation. Each preset already encodes its take on this:
-- **Linear**: `--shadow-sm = 0 1px 0 var(--border)` — shadow doubles as a hairline.
-- **Apple**: layered shadow gives natural depth.
-- **Notion**: inset top-light shadow simulates the surface lifting.
-- **Swiss**: no shadow; borders carry the structure.
+Shadows: `shadow-[var(--shadow-sm)]` and `shadow-[var(--shadow-md)]`. Never `shadow-md`/`shadow-lg`. Apple uses layered soft shadows for elevation.
 
 Do **not** add a hard `border-2` for elevation; rely on `shadow-[var(--shadow-sm)]` plus a 1px `border-border` for boundaries when needed.
 
 ### Status colors
-- **Positive / desirable change** (positive net flow, lower spending vs prior month, success metric increasing): `text-accent` / `bg-accent`. Pulls the active preset's brand accent so positivity stays on-brand across all 4 styles.
+- **Positive / desirable change** (positive net flow, lower spending vs prior month, success metric increasing): `text-accent` / `bg-accent`.
 - **Negative / undesirable change** (overspend, budget exceeded, drop in income): `text-destructive` / `bg-destructive` (or `--destructive-*` derivatives for muted backgrounds).
 - **Flat / neutral**: `text-muted`.
-- Do **not** introduce a new green token; reuse `--accent`. Do **not** hand-pick `text-emerald-*`/`text-rose-*` — those break in non-default presets.
+- Do **not** introduce a new green token; reuse `--accent`. Do **not** hand-pick `text-emerald-*`/`text-rose-*` — those break token-driven theming.
 
 ### Charts
-Per-preset palettes in [`lib/theme-chart-palette.ts`](../lib/theme-chart-palette.ts). Always:
+Chart palettes in [`lib/theme-chart-palette.ts`](../lib/theme-chart-palette.ts). Always:
 
 ```tsx
 const { resolved, style } = useTheme();
@@ -128,14 +122,13 @@ All defined in [`app/globals.css`](../app/globals.css) under `@layer utilities`.
 | `fx-field` + `fx-field-underline` | Animated underline on focus (via `:has()`). |
 | `fx-vt-shell-nav-active` | `view-transition-name` for shell active nav. |
 | `fx-vt-money-tab-active` | `view-transition-name` for the active link in `MoneySectionTabs`. |
-| `fx-vt-style-card` | `view-transition-name` for the active style card on `/settings`. |
 | `toast-progress-bar` | Per-toast countdown bar (uses `--toast-ms`). |
 
-For style switches and modal transitions, wrap state changes with [`withViewTransition`](../lib/microinteractions.ts):
+For appearance changes and modal transitions, wrap state changes with [`withViewTransition`](../lib/microinteractions.ts):
 
 ```ts
 import { withViewTransition } from "@/lib/microinteractions";
-withViewTransition(() => setStyle("apple"));
+withViewTransition(() => setTheme("dark"));
 ```
 
 `withViewTransition` is a no-op when the API or motion preference is unavailable, so it's always safe to call. Pair JS-driven motion with `prefersReducedMotion()` if you need an early bail-out.
@@ -146,9 +139,9 @@ These principles come from the [make-interfaces-feel-better](https://github.com/
 
 | # | Principle | Where it lives in this codebase |
 |---|-----------|---------------------------------|
-| 1 | **Concentric radius** — outer = inner + padding. | `--radius-md` outer / `--radius-sm` inner. Never use Tailwind's preset radius classes; `--radius-sm` already encodes the right child radius for each preset. |
+| 1 | **Concentric radius** — outer = inner + padding. | `--radius-md` outer / `--radius-sm` inner. Never use Tailwind's preset radius classes; `--radius-sm` already encodes the right child radius. |
 | 2 | **Optical alignment** — icon-side padding ≈ text-side − 2px. | `Button` auto-derives padding from `leading`/`trailing`/`iconOnly`. For non-Button anchors, mirror the rule manually (e.g. `pl-3 pr-3.5`). For asymmetric icons (play triangles, stars) adjust in the SVG itself. |
-| 3 | **Shadows over borders** for elevation. | Each preset's `--shadow-sm`/`--shadow-md` is already tuned. Don't reach for `shadow-md` or stack a thicker `border-2`. Borders are still correct for **dividers** (`border-b`, table separators). |
+| 3 | **Shadows over borders** for elevation. | `--shadow-sm`/`--shadow-md` are already tuned. Don't reach for `shadow-md` or stack a thicker `border-2`. Borders are still correct for **dividers** (`border-b`, table separators). |
 | 4 | **Interruptible animations** — CSS transitions (not keyframes) for interactive state. | `fx-press`, hover/focus styles, `Popover` open/close all use transitions. Reserve keyframes for one-shot stagger entries (`fx-stagger-children`) and the toast progress bar. |
 | 5 | **Split & stagger** entrance animations. | Use `fx-stagger-children` on the parent of a hero, empty state, modal body, or any sequence of 2-6 entering items. Don't over-use — staggering a long list is noise. |
 | 6 | **Subtle exits** — small fixed translate + fade. | `Modal` (`fx-overlay`) and `Popover` exits ship with `~ -8px` translate + fade out. Don't add full-distance exits unless spatial context is essential. |
@@ -168,13 +161,13 @@ These principles come from the [make-interfaces-feel-better](https://github.com/
 - **Container**: wrap top-level page content in `shell-main` (declared in `globals.css`) for the standard padding/max width.
 - **Multi-column grids**: prefer `grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr))` (see `.auto-fit-2`). Reach for breakpoint utilities (`sm:`, `md:`, `lg:`) only for shell chrome.
 - **Container queries**: use `cqi`/`container-type: inline-size` instead of viewport units for component-level adaptive layouts.
-- **Density**: depends on the active preset's `--space-step`. Use `gap-2`/`gap-4` etc. — they read normally, and presets adjust feel via radii/shadows/typography rather than per-component rewrites.
+- **Density**: depends on `--space-step`. Use `gap-2`/`gap-4` etc. — they read normally; radii/shadows/typography carry the Apple feel.
 
 ## Shell & navigation
 
 - Source of truth: [`lib/features/registry.ts`](../lib/features/registry.ts) (`shellNavItems`).
 - Active item carries `fx-vt-shell-nav-active`; do not animate manually.
-- Mobile: no sticky shell header — a fixed top-end **Menu** button opens a [`Popover`](../components/ui/popover.tsx) with Workspace branding, primary nav, visual style presets, link to `/settings`, and auth. Desktop keeps the icon rail in [`app-shell.tsx`](../components/app-shell.tsx).
+- Mobile: no sticky shell header — a fixed top-end **Menu** button opens a [`Popover`](../components/ui/popover.tsx) with Workspace branding, primary nav, link to `/settings`, and auth. Desktop keeps the icon rail in [`app-shell.tsx`](../components/app-shell.tsx).
 - Route changes use `<main key={pathname}>` + `fx-fade-in`. Page-level animations should rely on this; do not add per-page route-change wrappers.
 
 ## Accessibility & motion
@@ -195,7 +188,7 @@ These principles come from the [make-interfaces-feel-better](https://github.com/
 
 - General visualizations: visx (already pinned in `package.json`).
 - Price charts only: TradingView Lightweight Charts (per user rules).
-- Always read theme via `useTheme()`; pass `style` to `colorByIndex` so the new preset changes propagate.
+- Always read theme via `useTheme()`; pass `style` to `colorByIndex` so light/dark palette changes propagate.
 - Empty states: use [`AnalyticsEmptyState`](../components/analytics-empty-state.tsx) or compose with `Skeleton` while loading.
 
 ## What is forbidden
@@ -204,7 +197,7 @@ These principles come from the [make-interfaces-feel-better](https://github.com/
 - New CSS animation libraries / Framer-Motion / Motion-One. CSS-only.
 - Manual portals for dialogs — use `Modal`.
 - New shell-level overlays for theme/style/auth — use the existing `Popover` in the shell.
-- Per-style component branching (`if (style === "swiss") …`). All differences must be expressed via tokens/utilities.
+- Per-style component branching. All differences must be expressed via tokens/utilities.
 - Hardcoded breakpoints for layout decisions when an `auto-fit` / container-query solution exists.
 - `transition` shorthand or `transition-property: all`. Always list the specific properties.
 - Tinted image outlines (slate/zinc/neutral). Use the global rule; never override with a tinted color.
@@ -213,14 +206,12 @@ These principles come from the [make-interfaces-feel-better](https://github.com/
 
 ## When changing the design system itself
 
-If you must extend the design system (new token, new preset, new primitive):
+If you must extend the design system (new token, new primitive):
 
-1. Add the token to **all** preset blocks in [`app/globals.css`](../app/globals.css) — no preset can be missing a token.
-   - **Both** `--radius` and `--radius-inner` must be defined per preset (and per `.style-preview-scope[data-preview-style="…"]`).
+1. Add the token to **both** light and dark blocks in [`app/globals.css`](../app/globals.css).
+   - **Both** `--radius` and `--radius-inner` must be defined.
 2. Update or add an entry in [`lib/theme-chart-palette.ts`](../lib/theme-chart-palette.ts) if it's a chart color.
-3. Register the new style in `StylePreset` ([`components/theme-provider.tsx`](../components/theme-provider.tsx)) and in the FOUC script in [`app/layout.tsx`](../app/layout.tsx).
-4. Add a preview card to [`components/style-settings.tsx`](../components/style-settings.tsx).
-5. Update this doc.
+3. Update this doc.
 
 ## Quick checklist for any UI change
 
@@ -234,5 +225,5 @@ If you must extend the design system (new token, new preset, new primitive):
 - [ ] Icon-only buttons use `iconOnly` (Button) or `fx-hit-40` (raw element).
 - [ ] Stateful icon swaps go through `IconSwap`, not hidden/visible toggles.
 - [ ] `transition-*` lists explicit properties; no `transition` shorthand and no `transition-property: all`.
-- [ ] Verified in all four presets × light/dark in `/settings`.
+- [ ] Verified in light and dark modes via `/settings`.
 - [ ] `npm run lint` and `npm run build` pass.
