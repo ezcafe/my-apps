@@ -115,10 +115,10 @@
       "breakpoints": true
     },
     {
-      "idx": 16,
+      "idx": 18,
       "version": "7",
-      "when": 1779833400000,
-      "tag": "0016_money_balance_trigger",
+      "when": 1779833600000,
+      "tag": "0018_money_recurrence_dev_cadence",
       "breakpoints": true
     }
   ]

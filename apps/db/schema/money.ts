@@ -38,6 +38,8 @@ export const moneyCategoryKindEnum = pgEnum("money_category_kind", [
 ]);
 
 export const moneyCadenceEnum = pgEnum("money_cadence", [
+  "every_5_minutes",
+  "daily",
   "weekly",
   "biweekly",
   "monthly",
@@ -154,7 +156,10 @@ export const moneyRecurrentTemplate = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (t) => [index("money_recurrent_workspace_idx").on(t.workspaceId)],
+  (t) => [
+    index("money_recurrent_workspace_idx").on(t.workspaceId),
+    index("money_recurrent_active_next_run_idx").on(t.active, t.nextRunAt),
+  ],
 );
 
 export const moneyTransaction = pgTable(

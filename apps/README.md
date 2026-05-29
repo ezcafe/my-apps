@@ -163,6 +163,165 @@ next-auth v5 with the Pocket ID OIDC provider. Configure `AUTH_POCKET_ID_*` and 
 
 Personal Bearer tokens (`mny_…`) for GraphQL and REST without a browser session. Create tokens under **Settings → API tokens**. See [`docs/API.md`](docs/API.md), [`docs/openapi.yaml`](docs/openapi.yaml), and `npm run api:export-schema` for Postman.
 
+## Recurring transactions (cron)
+
+Money can auto-post due recurrence templates via a scheduled HTTP job. Each run creates **at most one transaction per template**, then advances the schedule to the next future slot (missed slots are fast-forwarded without posting extra rows).
+
+**Endpoint:** `POST /api/cron/money-recurrence`
+
+**Response:**
+
+```json
+{ "processed": 1, "generated": 1, "errors": [] }
+```
+
+| Field | Meaning |
+|-------|---------|
+| `processed` | Templates checked this run |
+| `generated` | Transactions created |
+| `errors` | Per-template failures (empty when all succeed) |
+
+### 1. Generate a secret
+
+Add `CRON_SECRET` to your environment (see [`.env.example`](.env.example)):
+
+```bash
+openssl rand -base64 32
+```
+
+```bash
+# .env or production env
+CRON_SECRET=your-generated-secret
+```
+
+In **production**, the route returns `401` if `CRON_SECRET` is unset. In **local dev**, the route accepts unauthenticated requests when `CRON_SECRET` is empty so you can test with plain `curl`.
+
+### 2. Verify manually
+
+Replace the URL and secret for your deployment:
+
+```bash
+curl -sS -X POST \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  https://your-app.example/api/cron/money-recurrence
+```
+
+Local dev (no secret required):
+
+```bash
+curl -sS -X POST http://localhost:3000/api/cron/money-recurrence
+```
+
+Create a recurring transaction under **Money → Settings → Recurrence** (or toggle **Repeat this transaction** on `/money`) before testing.
+
+### 3. Linux cron
+
+Run every day at 00:05 (server local time). Adjust the schedule to match your timezone needs.
+
+```bash
+crontab -e
+```
+
+```cron
+CRON_SECRET=your-generated-secret
+APP_URL=https://your-app.example
+
+5 0 * * * curl -sS -f -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/money-recurrence" >> /var/log/money-recurrence-cron.log 2>&1
+```
+
+Notes:
+
+- Store `CRON_SECRET` in a root-only file (e.g. `/etc/money-cron.env`) and `source` it from the crontab line if you prefer not to inline secrets.
+- Use `-f` so cron mails you on non-2xx responses (when `curl` is built with failure on HTTP errors).
+
+### 4. systemd timer
+
+Useful when you want journald logging and explicit service units.
+
+`/etc/systemd/system/money-recurrence-cron.service`:
+
+```ini
+[Unit]
+Description=Money recurrence cron
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/money-cron.env
+ExecStart=/usr/bin/curl -sS -f -X POST -H "Authorization: Bearer ${CRON_SECRET}" "${APP_URL}/api/cron/money-recurrence"
+```
+
+`/etc/systemd/system/money-recurrence-cron.timer`:
+
+```ini
+[Unit]
+Description=Run Money recurrence cron daily
+
+[Timer]
+OnCalendar=*-*-* 00:05:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+`/etc/money-cron.env`:
+
+```bash
+CRON_SECRET=your-generated-secret
+APP_URL=https://your-app.example
+```
+
+Enable:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now money-recurrence-cron.timer
+sudo systemctl list-timers | grep money-recurrence
+```
+
+### 5. Docker Compose
+
+If the app runs in Compose, run curl from the host (or a sidecar) against the published port — the Next.js container does not need a separate cron process inside the image.
+
+Example host crontab when the app is on `localhost:3000`:
+
+```cron
+5 0 * * * curl -sS -f -X POST -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/cron/money-recurrence"
+```
+
+Ensure `CRON_SECRET` is set in the app container environment (e.g. in `.env` consumed by `docker compose`).
+
+### 6. Local dev: 5-minute recurrence
+
+The create form shows **Every 5 minutes (dev)** only when `NODE_ENV=development`. Production builds hide it and the API rejects that cadence if sent directly.
+
+To test short intervals locally:
+
+1. Create a recurring transaction with **Every 5 minutes (dev)**.
+2. Trigger the cron on a short interval, for example every minute:
+
+```bash
+while true; do
+  curl -sS -X POST http://localhost:3000/api/cron/money-recurrence
+  echo
+  sleep 60
+done
+```
+
+Each successful call posts at most one transaction and moves `nextRunAt` forward.
+
+### Troubleshooting
+
+| Symptom | Likely cause |
+|---------|----------------|
+| `401 Unauthorized` | Wrong or missing `CRON_SECRET` in production |
+| `503 db_unavailable` | Postgres not reachable (`DATABASE_URL`) |
+| `"generated": 0` | No active templates with `nextRunAt <= now` |
+| `"errors": [...]` | Invalid template data (account archived, bad category, etc.) |
+
+See also [`docs/API.md`](docs/API.md) for the REST table entry.
+
 ## Verification before merging
 
 - `npm run lint`

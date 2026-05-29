@@ -71,6 +71,7 @@ In Postman: **New → GraphQL**, import `docs/money.graphql`, set Authorization 
 | `POST` | `/api/money/import/commit` | Bearer + write | Commit import |
 | `POST` | `/api/money/import/abandon` | Bearer + write | Discard preview |
 | `POST` | `/api/money/import/{kind}` | Bearer + write | Direct CSV row import |
+| `POST` | `/api/cron/money-recurrence` | `Bearer $CRON_SECRET` | Process due recurrence templates (scheduled job) |
 | `GET` | `/api/tokens` | Session only | List your tokens |
 | `POST` | `/api/tokens` | Session only | Create token |
 | `DELETE` | `/api/tokens/{id}` | Session only | Revoke token |

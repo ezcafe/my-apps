@@ -5,6 +5,7 @@ import { db } from "@/db";
 import {
   moneyAccount,
   moneyCategory,
+  moneyRecurrentTemplate,
   moneyRule,
   moneyTag,
   moneyTransaction,
@@ -22,6 +23,8 @@ import {
   moneyTransactionConditionsForAnalytics,
 } from "@/lib/money-transaction-analytics-conditions";
 import { applyRulesToTransaction } from "@/lib/rules";
+import { addCadence } from "@/lib/recurrence";
+import type { RecurrenceFormCadence } from "@/lib/recurrence";
 import {
   transactionCreateSchema,
   transactionListQuerySchema,
@@ -360,6 +363,38 @@ export async function createMoneyTransaction(
 
       const uniqueTags = [...new Set([...baseTagIds, ...fromNames])];
 
+      let recurrenceSourceId: string | null = null;
+      if (parsed.data.recurrence && kind !== "transfer") {
+        const recurrenceName =
+          parsed.data.recurrence.name?.trim() ||
+          parsed.data.notes?.trim()?.slice(0, 200) ||
+          "Recurrence";
+        const nextRunAt = addCadence(
+          occurredAt,
+          parsed.data.recurrence.cadence as RecurrenceFormCadence,
+        );
+        const [tpl] = await tx
+          .insert(moneyRecurrentTemplate)
+          .values({
+            workspaceId: ctx.workspaceId,
+            name: recurrenceName,
+            cadence: parsed.data.recurrence.cadence,
+            nextRunAt,
+            template: {
+              accountId: parsed.data.accountId,
+              kind,
+              amountMinor: parsed.data.amountMinor,
+              categoryId: afterRules.categoryId ?? null,
+              merchantId: afterRules.merchantId ?? parsed.data.merchantId ?? null,
+              notes: parsed.data.notes ?? null,
+              tagIds: uniqueTags,
+            },
+            active: true,
+          })
+          .returning({ id: moneyRecurrentTemplate.id });
+        recurrenceSourceId = tpl.id;
+      }
+
       if (kind !== "transfer") {
         const [row] = await tx
           .insert(moneyTransaction)
@@ -373,6 +408,7 @@ export async function createMoneyTransaction(
             merchantId: afterRules.merchantId ?? parsed.data.merchantId ?? null,
             notes: parsed.data.notes ?? null,
             createdBySub: ctx.userSub,
+            recurrenceSourceId,
           })
           .returning();
 

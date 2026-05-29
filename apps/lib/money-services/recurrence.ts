@@ -1,5 +1,5 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
-import { db } from "@/db";
+import { and, asc, eq, inArray, lte } from "drizzle-orm";
+import { db, runInWorkspace } from "@/db";
 import {
   moneyAccount,
   moneyRecurrentTemplate,
@@ -12,8 +12,11 @@ import {
   type TxRowForBalance,
 } from "@/lib/money-account-balance";
 import { assertCategoryKindMatches } from "@/lib/money-category-kind-check";
-import { addCadence } from "@/lib/recurrence";
-import type { MoneyCadence } from "@/lib/recurrence";
+import {
+  addCadence,
+  recurrenceCadenceAllowedInCurrentEnv,
+  type MoneyCadence,
+} from "@/lib/recurrence";
 import {
   recurrentCreateSchema,
   recurrentTemplateBodySchema,
@@ -43,6 +46,10 @@ export async function createMoneyRecurrenceTemplate(
     throw new Error(
       parsed.error.issues.map((i) => i.message).join("; ") || "Validation failed",
     );
+  }
+
+  if (!recurrenceCadenceAllowedInCurrentEnv(parsed.data.cadence)) {
+    throw new Error("Recurrence cadence is not available in production");
   }
 
   const tplKind = parsed.data.template.kind;
@@ -83,6 +90,13 @@ export async function updateMoneyRecurrenceTemplate(
     throw new Error(
       parsed.error.issues.map((i) => i.message).join("; ") || "Validation failed",
     );
+  }
+
+  if (
+    parsed.data.cadence &&
+    !recurrenceCadenceAllowedInCurrentEnv(parsed.data.cadence)
+  ) {
+    throw new Error("Recurrence cadence is not available in production");
   }
 
   if (parsed.data.template) {
@@ -264,4 +278,106 @@ export async function generateMoneyRecurrenceOccurrence(
     },
     nextRunAt: next.toISOString(),
   };
+}
+
+const MAX_TEMPLATES_PER_RUN = 500;
+/** Safety cap when fast-forwarding nextRunAt without posting transactions. */
+const MAX_FAST_FORWARD_STEPS = 10_000;
+
+export type ProcessDueRecurrenceResult = {
+  processed: number;
+  generated: number;
+  errors: Array<{ templateId: string; message: string }>;
+};
+
+export async function processDueMoneyRecurrenceTemplates(): Promise<ProcessDueRecurrenceResult> {
+  const now = new Date();
+  const dueRows = await db
+    .select({
+      id: moneyRecurrentTemplate.id,
+      workspaceId: moneyRecurrentTemplate.workspaceId,
+      cadence: moneyRecurrentTemplate.cadence,
+      nextRunAt: moneyRecurrentTemplate.nextRunAt,
+    })
+    .from(moneyRecurrentTemplate)
+    .where(
+      and(
+        eq(moneyRecurrentTemplate.active, true),
+        lte(moneyRecurrentTemplate.nextRunAt, now),
+      ),
+    )
+    .orderBy(asc(moneyRecurrentTemplate.nextRunAt))
+    .limit(MAX_TEMPLATES_PER_RUN);
+
+  const result: ProcessDueRecurrenceResult = {
+    processed: 0,
+    generated: 0,
+    errors: [],
+  };
+
+  for (const due of dueRows) {
+    result.processed += 1;
+    try {
+      await runInWorkspace(due.workspaceId, async () => {
+        const ctx: MoneyWorkspaceCtx = {
+          workspaceId: due.workspaceId,
+          userSub: "system:recurrence-cron",
+        };
+
+        const beforeRow = await db
+          .select({
+            active: moneyRecurrentTemplate.active,
+            nextRunAt: moneyRecurrentTemplate.nextRunAt,
+            cadence: moneyRecurrentTemplate.cadence,
+          })
+          .from(moneyRecurrentTemplate)
+          .where(
+            and(
+              eq(moneyRecurrentTemplate.id, due.id),
+              eq(moneyRecurrentTemplate.workspaceId, due.workspaceId),
+            ),
+          )
+          .limit(1);
+        const before = beforeRow[0];
+        if (!before?.active || before.nextRunAt > now) {
+          return;
+        }
+
+        const genResult = await generateMoneyRecurrenceOccurrence(ctx, due.id);
+        result.generated += 1;
+
+        let fastForwardSteps = 0;
+        let nextRunAtAfterGenerate = new Date(genResult.nextRunAt);
+        while (
+          fastForwardSteps < MAX_FAST_FORWARD_STEPS &&
+          nextRunAtAfterGenerate <= now
+        ) {
+          nextRunAtAfterGenerate = addCadence(
+            nextRunAtAfterGenerate,
+            before.cadence as MoneyCadence,
+          );
+          fastForwardSteps += 1;
+        }
+
+        if (fastForwardSteps > 0) {
+          await db
+            .update(moneyRecurrentTemplate)
+            .set({ nextRunAt: nextRunAtAfterGenerate })
+            .where(
+              and(
+                eq(moneyRecurrentTemplate.id, due.id),
+                eq(moneyRecurrentTemplate.workspaceId, due.workspaceId),
+              ),
+            );
+        }
+      });
+    } catch (e: unknown) {
+      result.errors.push({
+        templateId: due.id,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  return result;
 }

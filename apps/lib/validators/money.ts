@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  DEV_RECURRENCE_FORM_CADENCES,
+  RECURRENCE_FORM_CADENCES,
+  recurrenceCadenceAllowedInCurrentEnv,
+} from "@/lib/recurrence";
 
 export const transactionKindSchema = z.enum(["expense", "income", "transfer"]);
 
@@ -17,9 +22,35 @@ const transactionBaseSchema = z.object({
   tagIds: z.array(z.string().uuid()).optional(),
   /** Resolved to existing tags or created when the transaction is created. */
   tagNames: z.array(z.string().max(120)).max(50).optional(),
+  recurrence: z
+    .object({
+      cadence: z.enum([
+        ...RECURRENCE_FORM_CADENCES,
+        ...DEV_RECURRENCE_FORM_CADENCES,
+      ]),
+      name: z.string().min(1).max(200).optional(),
+    })
+    .optional(),
 });
 
 export const transactionCreateSchema = transactionBaseSchema.superRefine((data, ctx) => {
+  if (data.recurrence && data.kind === "transfer") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["recurrence"],
+      message: "Recurring transfers are not supported",
+    });
+  }
+  if (
+    data.recurrence &&
+    !recurrenceCadenceAllowedInCurrentEnv(data.recurrence.cadence)
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["recurrence", "cadence"],
+      message: "Recurrence cadence is not available in production",
+    });
+  }
   if (data.kind !== "transfer") return;
   if (!data.toAccountId) {
     ctx.addIssue({
@@ -40,7 +71,7 @@ export const transactionCreateSchema = transactionBaseSchema.superRefine((data, 
 
 export const transactionUpdateSchema = transactionBaseSchema
   .partial()
-  .omit({ tagNames: true })
+  .omit({ tagNames: true, recurrence: true })
   .superRefine((data, ctx) => {
     if (data.kind !== "transfer") return;
     if (!data.toAccountId) {
@@ -147,13 +178,31 @@ export const recurrentTemplateBodySchema = z.object({
   tagIds: z.array(z.string().uuid()).optional(),
 });
 
-export const recurrentCreateSchema = z.object({
-  name: z.string().min(1).max(200),
-  cadence: z.enum(["weekly", "biweekly", "monthly", "quarterly", "yearly"]),
-  nextRunAt: z.string().datetime({ offset: true }),
-  template: recurrentTemplateBodySchema,
-  active: z.boolean().optional(),
-});
+export const recurrentCreateSchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    cadence: z.enum([
+      "every_5_minutes",
+      "daily",
+      "weekly",
+      "biweekly",
+      "monthly",
+      "quarterly",
+      "yearly",
+    ]),
+    nextRunAt: z.string().datetime({ offset: true }),
+    template: recurrentTemplateBodySchema,
+    active: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!recurrenceCadenceAllowedInCurrentEnv(data.cadence)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["cadence"],
+        message: "Recurrence cadence is not available in production",
+      });
+    }
+  });
 
 export const moneyBudgetScopeTypeSchema = z.enum([
   "workspace",

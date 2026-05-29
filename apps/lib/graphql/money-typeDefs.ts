@@ -165,6 +165,11 @@ export const moneyTypeDefs = /* GraphQL */ `
     active: Boolean
   }
 
+  input MoneyTransactionRecurrenceInput {
+    cadence: String!
+    name: String
+  }
+
   input MoneyTransactionCreateInput {
     accountId: ID!
     toAccountId: ID
@@ -176,6 +181,7 @@ export const moneyTypeDefs = /* GraphQL */ `
     notes: String
     tagIds: [ID!]
     tagNames: [String!]
+    recurrence: MoneyTransactionRecurrenceInput
   }
 
   input MoneyTransactionUpdateInput {

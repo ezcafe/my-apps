@@ -1,16 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MoneyTransactionForm } from "@/components/money-transaction-form";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
-import { minorToMajorInput, parseMajorToMinor } from "@/lib/format-money";
+import { Badge } from "@/components/ui/badge";
+import { formatMinor, minorToMajorInput, parseMajorToMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
   MONEY_LIST_ACCOUNTS_QUERY,
   MONEY_LIST_RECURRENCE_QUERY,
-  MONEY_RECURRENCE_CREATE_MUTATION,
   MONEY_RECURRENCE_DELETE_MUTATION,
   MONEY_RECURRENCE_GENERATE_MUTATION,
   MONEY_RECURRENCE_UPDATE_MUTATION,
@@ -22,6 +23,7 @@ import {
   secondaryBtnCls,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
+import { cadenceLabel, type MoneyCadence } from "@/lib/recurrence";
 
 type Account = { id: string; name: string; archived?: boolean };
 
@@ -35,12 +37,10 @@ type RecTemplate = {
   tagIds?: string[];
 };
 
-type Cadence = "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
-
 type RecurrenceRow = {
   id: string;
   name: string;
-  cadence: Cadence;
+  cadence: MoneyCadence;
   nextRunAt: string;
   active: boolean;
   template: RecTemplate;
@@ -58,22 +58,11 @@ export function MoneySettingsRecurrenceSection() {
   const { defaultCurrency } = useWorkspaceCurrency();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [recurrent, setRecurrent] = useState<RecurrenceRow[]>([]);
-
-  const [recName, setRecName] = useState("");
-  const [recCadence, setRecCadence] = useState<Cadence>("monthly");
-  const [recNext, setRecNext] = useState(() =>
-    new Date().toISOString().slice(0, 16),
-  );
-  const [recAmount, setRecAmount] = useState("");
-  const [recAccountId, setRecAccountId] = useState("");
-  const [recKind, setRecKind] = useState<"expense" | "income" | "transfer">(
-    "expense",
-  );
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
-  const [editCadence, setEditCadence] = useState<Cadence>("monthly");
+  const [editCadence, setEditCadence] = useState<MoneyCadence>("monthly");
   const [editNext, setEditNext] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editAccountId, setEditAccountId] = useState("");
@@ -88,6 +77,24 @@ export function MoneySettingsRecurrenceSection() {
   const visibleAccounts = useMemo(
     () => accounts.filter((a) => !a.archived),
     [accounts],
+  );
+  const editCadenceOptions = useMemo(() => {
+    const standard: MoneyCadence[] = [
+      "daily",
+      "weekly",
+      "biweekly",
+      "monthly",
+      "quarterly",
+      "yearly",
+    ];
+    if (process.env.NODE_ENV === "development") {
+      return ["every_5_minutes", ...standard] satisfies MoneyCadence[];
+    }
+    return standard;
+  }, []);
+  const accountNameById = useMemo(
+    () => new Map(visibleAccounts.map((a) => [a.id, a.name] as const)),
+    [visibleAccounts],
   );
 
   const loadAccounts = useCallback(async () => {
@@ -193,41 +200,6 @@ export function MoneySettingsRecurrenceSection() {
     }
   }
 
-  async function saveRecurrence(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const minor = parseMajorToMinor(recAmount, defaultCurrency);
-      if (!recAccountId) throw new Error("Template account required");
-      if (minor == null || minor <= 0) throw new Error("Invalid template amount");
-      await moneyGraphQLRequest(MONEY_RECURRENCE_CREATE_MUTATION, {
-        input: {
-          name: recName || "Recurrence",
-          cadence: recCadence,
-          nextRunAt: new Date(recNext).toISOString(),
-          template: {
-            accountId: recAccountId,
-            kind: recKind,
-            amountMinor: minor,
-            categoryId: null,
-            merchantId: null,
-            notes: null,
-            tagIds: [],
-          },
-          active: true,
-        },
-      });
-      setRecName("");
-      setRecAmount("");
-      await loadRecurrent();
-      notify.success("Settings updated", "Recurrence template saved.");
-    } catch (e: unknown) {
-      notify.error(
-        "Couldn’t save recurrence",
-        e instanceof Error ? e.message : "Something went wrong",
-      );
-    }
-  }
-
   async function generateRec(id: string) {
     try {
       await moneyGraphQLRequest(MONEY_RECURRENCE_GENERATE_MUTATION, { id });
@@ -253,174 +225,147 @@ export function MoneySettingsRecurrenceSection() {
         />
       ) : null}
       <SettingsSection id="money-settings-recurrence-page" title="Recurrence">
-        <form className="auto-fit-2 max-w-4xl" onSubmit={saveRecurrence}>
-          <input
-            className={inputCls}
-            placeholder="Name"
-            value={recName}
-            onChange={(e) => setRecName(e.target.value)}
-          />
-          <select
-            className={inputCls}
-            value={recCadence}
-            onChange={(e) => setRecCadence(e.target.value as Cadence)}
-          >
-            <option value="weekly">weekly</option>
-            <option value="biweekly">biweekly</option>
-            <option value="monthly">monthly</option>
-            <option value="quarterly">quarterly</option>
-            <option value="yearly">yearly</option>
-          </select>
-          <input
-            type="datetime-local"
-            className={inputCls}
-            value={recNext}
-            onChange={(e) => setRecNext(e.target.value)}
-          />
-          <select
-            className={inputCls}
-            value={recAccountId}
-            onChange={(e) => setRecAccountId(e.target.value)}
-          >
-            <option value="">Template account</option>
-            {visibleAccounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={inputCls}
-            value={recKind}
-            onChange={(e) => setRecKind(e.target.value as typeof recKind)}
-          >
-            <option value="expense">expense</option>
-            <option value="income">income</option>
-            <option value="transfer">transfer</option>
-          </select>
-          <input
-            className={inputCls}
-            placeholder="Amount"
-            value={recAmount}
-            onChange={(e) => setRecAmount(e.target.value)}
-          />
-          <button type="submit" className={`${primaryBtnCls} self-start`}>
-            Save template
-          </button>
-        </form>
+        <MoneyTransactionForm mode="recurrence" onSuccess={loadRecurrent} />
+
         <div className="mt-8 border-t border-border pt-8">
-          <h3 className="text-sm font-medium text-foreground">Templates</h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            {recurrent.map((r) => (
-              <li
-                key={r.id}
-                className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30"
-              >
-                {editingId === r.id ? (
-                  <form className="auto-fit-2 max-w-4xl" onSubmit={saveEdit}>
-                    <input
-                      className={inputCls}
-                      placeholder="Name"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                    />
-                    <select
-                      className={inputCls}
-                      value={editCadence}
-                      onChange={(e) => setEditCadence(e.target.value as Cadence)}
-                    >
-                      <option value="weekly">weekly</option>
-                      <option value="biweekly">biweekly</option>
-                      <option value="monthly">monthly</option>
-                      <option value="quarterly">quarterly</option>
-                      <option value="yearly">yearly</option>
-                    </select>
-                    <input
-                      type="datetime-local"
-                      className={inputCls}
-                      value={editNext}
-                      onChange={(e) => setEditNext(e.target.value)}
-                    />
-                    <select
-                      className={inputCls}
-                      value={editAccountId}
-                      onChange={(e) => setEditAccountId(e.target.value)}
-                    >
-                      <option value="">Template account</option>
-                      {visibleAccounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className={inputCls}
-                      value={editKind}
-                      onChange={(e) =>
-                        setEditKind(e.target.value as typeof editKind)
-                      }
-                    >
-                      <option value="expense">expense</option>
-                      <option value="income">income</option>
-                      <option value="transfer">transfer</option>
-                    </select>
-                    <input
-                      className={inputCls}
-                      placeholder="Amount"
-                      value={editAmount}
-                      onChange={(e) => setEditAmount(e.target.value)}
-                    />
-                    <label className="flex items-center gap-2 text-sm text-muted">
+          <h3 className="text-sm font-medium text-foreground">
+            Recurring transactions
+          </h3>
+          {recurrent.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">
+              No recurring schedules yet. Add one above.
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-2 text-sm">
+              {recurrent.map((r) => (
+                <li
+                  key={r.id}
+                  className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-3 transition-colors duration-150 hover:border-foreground/30"
+                >
+                  {editingId === r.id ? (
+                    <form className="auto-fit-2 max-w-4xl" onSubmit={saveEdit}>
                       <input
-                        type="checkbox"
-                        checked={editActive}
-                        onChange={(e) => setEditActive(e.target.checked)}
+                        className={inputCls}
+                        placeholder="Name"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
                       />
-                      Active
-                    </label>
-                    <div className="col-span-full flex flex-wrap gap-2">
-                      <button type="submit" className={primaryBtnCls}>
-                        Save changes
-                      </button>
-                      <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
-                        Cancel
-                      </button>
+                      <select
+                        className={inputCls}
+                        value={editCadence}
+                        onChange={(e) =>
+                          setEditCadence(e.target.value as MoneyCadence)
+                        }
+                      >
+                        {editCadenceOptions.map((cadence) => (
+                          <option key={cadence} value={cadence}>
+                            {cadenceLabel(cadence)}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="datetime-local"
+                        className={inputCls}
+                        value={editNext}
+                        onChange={(e) => setEditNext(e.target.value)}
+                      />
+                      <select
+                        className={inputCls}
+                        value={editAccountId}
+                        onChange={(e) => setEditAccountId(e.target.value)}
+                      >
+                        <option value="">Template account</option>
+                        {visibleAccounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className={inputCls}
+                        value={editKind}
+                        onChange={(e) =>
+                          setEditKind(e.target.value as typeof editKind)
+                        }
+                      >
+                        <option value="expense">expense</option>
+                        <option value="income">income</option>
+                        <option value="transfer">transfer</option>
+                      </select>
+                      <input
+                        className={inputCls}
+                        placeholder="Amount"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                      />
+                      <label className="flex items-center gap-2 text-sm text-muted">
+                        <input
+                          type="checkbox"
+                          checked={editActive}
+                          onChange={(e) => setEditActive(e.target.checked)}
+                        />
+                        Active
+                      </label>
+                      <div className="col-span-full flex flex-wrap gap-2">
+                        <button type="submit" className={primaryBtnCls}>
+                          Save changes
+                        </button>
+                        <button
+                          type="button"
+                          className={secondaryBtnCls}
+                          onClick={cancelEdit}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-foreground">
+                            {r.name}
+                          </span>
+                          <Badge tone={r.active ? "accent" : "muted"}>
+                            {r.active ? "Active" : "Paused"}
+                          </Badge>
+                        </div>
+                        <p className="text-muted">
+                          {formatMinor(r.template.amountMinor, defaultCurrency)} ·{" "}
+                          {accountNameById.get(r.template.accountId) ?? "Unknown account"} ·{" "}
+                          {cadenceLabel(r.cadence)} · next{" "}
+                          {formatDateTime(r.nextRunAt)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                          onClick={() => startEdit(r)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                          onClick={() => void deleteRec(r.id, r.name)}
+                        >
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                          onClick={() => generateRec(r.id)}
+                        >
+                          Generate now
+                        </button>
+                      </div>
                     </div>
-                  </form>
-                ) : (
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-muted">
-                      {r.name} · {r.cadence} · next {formatDateTime(r.nextRunAt)} ·{" "}
-                      {r.active ? "active" : "off"}
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
-                        onClick={() => startEdit(r)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
-                        onClick={() => void deleteRec(r.id, r.name)}
-                      >
-                        Delete
-                      </button>
-                      <button
-                        type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
-                        onClick={() => generateRec(r.id)}
-                      >
-                        Generate now
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </SettingsSection>
     </>
