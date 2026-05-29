@@ -227,7 +227,7 @@ function ShellPopoverAuth({ onNavigate }: { onNavigate?: () => void }) {
           leading={<IconSignOut className="size-4" />}
           onClick={() => {
             onNavigate?.();
-            signOut({ redirectTo: "/" });
+            signOut({ redirectTo: "/login" });
           }}
         >
           Sign out
@@ -327,7 +327,7 @@ function AuthActionsRail() {
           title={
             session?.user?.email ? `Sign out (${session.user.email})` : "Sign out"
           }
-          onClick={() => signOut({ redirectTo: "/" })}
+          onClick={() => signOut({ redirectTo: "/login" })}
         >
           <IconSignOut className="size-5" />
         </Button>

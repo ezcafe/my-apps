@@ -3,5 +3,5 @@
 import { signIn } from "@/auth";
 
 export async function signInWithPocketId() {
-  await signIn("pocket-id", { redirectTo: "/" });
+  await signIn("pocket-id", { redirectTo: "/money" });
 }
