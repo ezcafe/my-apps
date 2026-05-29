@@ -47,12 +47,14 @@ export type MoneyAccountLookup = {
 };
 
 export type MoneyMerchantLookup = { id: string; name: string; usageCount?: number };
+export type MoneyTopAmountLookup = { amountMinor: number; usageCount?: number };
 export type MoneyTagLookup = { id: string; name: string };
 export type MoneyCategoryLookup = MoneyCategoryRow;
 export type MoneyFormLookups = {
   moneyAccounts: MoneyAccountLookup[];
   moneyCategories: MoneyCategoryLookup[];
   moneyMerchants: MoneyMerchantLookup[];
+  moneyTopAmounts: MoneyTopAmountLookup[];
 };
 export type MoneyAnalyticsChartLookups = {
   moneyAccounts: MoneyAccountLookup[];

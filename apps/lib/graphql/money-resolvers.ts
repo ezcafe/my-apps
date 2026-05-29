@@ -61,6 +61,7 @@ import {
   createMoneyTransaction,
   deleteMoneyTransaction,
   getMoneyTransaction,
+  listMoneyTopAmounts,
   listMoneyTransactions,
   updateMoneyTransaction,
 } from "@/lib/money-services/transactions";
@@ -742,6 +743,15 @@ export const moneyResolvers = {
       try {
         const { workspaceId } = requireMoneyWorkspace(ctx);
         return await listMoneyMerchants(workspaceId);
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyTopAmounts: async (_: unknown, __: unknown, ctx: MoneyGraphQLContext) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        return await listMoneyTopAmounts(workspaceId);
       } catch (e) {
         mapServiceError(e);
       }

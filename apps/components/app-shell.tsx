@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode, SVGProps } from "react";
+import { useEffect, useState, type ReactNode, type SVGProps } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -137,8 +137,16 @@ const shellNavIcons: Record<
 
 const STYLE_IDS: StylePreset[] = ["linear", "apple", "swiss", "notion"];
 
-function ShellMobileOverflow() {
+function ShellMobileMenu() {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
   const { style, setStyle } = useTheme();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  const close = () => setOpen(false);
 
   const pickStyle = (next: StylePreset) => {
     if (next === style) return;
@@ -149,10 +157,23 @@ function ShellMobileOverflow() {
     <Popover
       align="end"
       aria-label="Open menu"
+      open={open}
+      onOpenChange={setOpen}
       trigger={<IconMenu className="size-5" />}
-      className="pointer-events-auto min-w-[min(100vw-2rem,20rem)] p-4"
+      className="pointer-events-auto min-w-[min(100vw-2rem,22rem)] p-4"
     >
       <div className="pointer-events-auto flex flex-col gap-4">
+        <p className="truncate font-display text-base font-semibold tracking-tight">
+          Workspace
+        </p>
+        <nav className="flex flex-col gap-1" aria-label="Primary">
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">
+            Navigation
+          </p>
+          {shellNavItems.map((item) => (
+            <NavLinkMenu key={item.id} item={item} onNavigate={close} />
+          ))}
+        </nav>
         <div>
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
             Visual style
@@ -178,18 +199,19 @@ function ShellMobileOverflow() {
           </div>
           <Link
             href="/settings"
+            onClick={close}
             className="mt-3 inline-block text-sm font-medium text-accent underline-offset-4 hover:underline"
           >
             All settings
           </Link>
         </div>
-        <ShellPopoverAuth />
+        <ShellPopoverAuth onNavigate={close} />
       </div>
     </Popover>
   );
 }
 
-function ShellPopoverAuth() {
+function ShellPopoverAuth({ onNavigate }: { onNavigate?: () => void }) {
   const { data: session, status } = useSession();
   if (status === "authenticated") {
     return (
@@ -203,7 +225,10 @@ function ShellPopoverAuth() {
           size="sm"
           className="w-full justify-center"
           leading={<IconSignOut className="size-4" />}
-          onClick={() => signOut({ redirectTo: "/" })}
+          onClick={() => {
+            onNavigate?.();
+            signOut({ redirectTo: "/" });
+          }}
         >
           Sign out
         </Button>
@@ -213,6 +238,7 @@ function ShellPopoverAuth() {
   return (
     <Link
       href="/login"
+      onClick={onNavigate}
       className={cn(
         "inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-accent px-3 py-2 text-sm font-medium text-accent-foreground shadow-[var(--shadow-sm)] transition-[opacity,transform] duration-200 hover:opacity-95 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
       )}
@@ -252,27 +278,32 @@ function NavLinkRail({
   );
 }
 
-function NavLinkBar({
+function NavLinkMenu({
   item,
+  onNavigate,
 }: {
   item: ShellNavItem;
+  onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const active = isShellNavActive(item, pathname);
+  const Icon = shellNavIcons[item.icon];
   const href = item.href;
   const label = item.label;
 
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "whitespace-nowrap rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-3.5",
+        "flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
-          ? "bg-muted-surface text-foreground ring-1 ring-border"
+          ? "fx-vt-shell-nav-active bg-muted-surface text-foreground ring-1 ring-border"
           : "text-muted hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] hover:text-foreground",
       )}
     >
+      <Icon className="size-5 shrink-0" />
       {label}
     </Link>
   );
@@ -325,25 +356,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="grid min-h-dvh grid-cols-1 grid-rows-[auto_minmax(0,1fr)] bg-background text-foreground lg:h-dvh lg:max-h-dvh lg:overflow-hidden lg:grid-cols-[4.5rem_minmax(0,1fr)] lg:grid-rows-1">
-      <header className="sticky top-0 z-20 border-b border-border bg-surface/90 backdrop-blur-md lg:hidden">
-        <div className="shell-main flex flex-col gap-3 py-3">
-          <div className="flex min-w-0 items-center justify-between gap-3">
-            <span className="truncate font-display text-base font-semibold tracking-tight sm:text-lg">
-              Workspace
-            </span>
-            <ShellMobileOverflow />
-          </div>
-          <nav
-            className="flex min-w-0 gap-1 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-x-visible sm:pb-0 [&::-webkit-scrollbar]:hidden"
-            aria-label="Primary"
-          >
-            {shellNavItems.map((item) => (
-              <NavLinkBar key={item.id} item={item} />
-            ))}
-          </nav>
+    <div className="grid min-h-dvh grid-cols-1 grid-rows-1 bg-background text-foreground lg:h-dvh lg:max-h-dvh lg:overflow-hidden lg:grid-cols-[4.5rem_minmax(0,1fr)] lg:grid-rows-1">
+      <div
+        className="pointer-events-none fixed z-30 lg:hidden"
+        style={{
+          top: "max(0.75rem, env(safe-area-inset-top))",
+          right: "max(0.75rem, env(safe-area-inset-right))",
+        }}
+      >
+        <div className="pointer-events-auto">
+          <ShellMobileMenu />
         </div>
-      </header>
+      </div>
 
       <aside className="hidden border-border bg-surface/80 backdrop-blur-sm lg:flex lg:h-full lg:min-h-0 lg:w-full lg:max-w-full lg:flex-col lg:items-center lg:border-e lg:px-0 lg:py-4">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] font-display text-sm font-bold tracking-tight text-foreground ring-1 ring-border">

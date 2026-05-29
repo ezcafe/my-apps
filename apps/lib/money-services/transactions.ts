@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
@@ -29,12 +29,33 @@ import {
 } from "@/lib/validators/money";
 import type { MoneyWorkspaceCtx } from "@/lib/money-services/types";
 
+const TOP_AMOUNTS_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+
 const sortColumnMap = {
   occurredAt: moneyTransaction.occurredAt,
   amountMinor: moneyTransaction.amountMinor,
   kind: moneyTransaction.kind,
   createdAt: moneyTransaction.createdAt,
 } as const;
+
+export async function listMoneyTopAmounts(workspaceId: string, limit = 3) {
+  const since = new Date(Date.now() - TOP_AMOUNTS_WINDOW_MS);
+  return db
+    .select({
+      amountMinor: moneyTransaction.amountMinor,
+      usageCount: sql<number>`count(*)::int`.as("usage_count"),
+    })
+    .from(moneyTransaction)
+    .where(
+      and(
+        eq(moneyTransaction.workspaceId, workspaceId),
+        gte(moneyTransaction.occurredAt, since),
+      ),
+    )
+    .groupBy(moneyTransaction.amountMinor)
+    .orderBy(desc(sql`usage_count`), asc(moneyTransaction.amountMinor))
+    .limit(limit);
+}
 
 export type SerializedMoneyTransaction = {
   id: string;

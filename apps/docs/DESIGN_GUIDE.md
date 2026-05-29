@@ -174,7 +174,7 @@ These principles come from the [make-interfaces-feel-better](https://github.com/
 
 - Source of truth: [`lib/features/registry.ts`](../lib/features/registry.ts) (`shellNavItems`).
 - Active item carries `fx-vt-shell-nav-active`; do not animate manually.
-- Mobile: theme + style + auth go inside the [`Popover`](../components/ui/popover.tsx) inside [`app-shell.tsx`](../components/app-shell.tsx).
+- Mobile: no sticky shell header — a fixed top-end **Menu** button opens a [`Popover`](../components/ui/popover.tsx) with Workspace branding, primary nav, visual style presets, link to `/settings`, and auth. Desktop keeps the icon rail in [`app-shell.tsx`](../components/app-shell.tsx).
 - Route changes use `<main key={pathname}>` + `fx-fade-in`. Page-level animations should rely on this; do not add per-page route-change wrappers.
 
 ## Accessibility & motion

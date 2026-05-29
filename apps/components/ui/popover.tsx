@@ -16,6 +16,8 @@ export function Popover({
   align = "end",
   className,
   "aria-label": ariaLabel,
+  open: openProp,
+  onOpenChange,
   children,
 }: {
   trigger: ReactNode;
@@ -23,9 +25,20 @@ export function Popover({
   align?: "start" | "end";
   className?: string;
   "aria-label"?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = onOpenChange !== undefined;
+  const open = isControlled ? (openProp ?? false) : uncontrolledOpen;
+
+  const setOpen = (next: boolean | ((prev: boolean) => boolean)) => {
+    const resolved = typeof next === "function" ? next(open) : next;
+    if (isControlled) onOpenChange(resolved);
+    else setUncontrolledOpen(resolved);
+  };
+
   const rootRef = useRef<HTMLDivElement>(null);
   const id = useId();
 

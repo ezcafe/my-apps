@@ -48,6 +48,7 @@ export const MONEY_FORM_LOOKUPS_QUERY = /* GraphQL */ `
     moneyAccounts
     moneyCategories
     moneyMerchants
+    moneyTopAmounts
   }
 `;
 

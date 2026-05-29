@@ -204,6 +204,7 @@ export const moneyTypeDefs = /* GraphQL */ `
     moneyAccounts: [JSONObject!]!
     moneyCategories: [JSONObject!]!
     moneyMerchants: [JSONObject!]!
+    moneyTopAmounts: [JSONObject!]!
     moneyTags: [JSONObject!]!
     moneyRules: [JSONObject!]!
     moneyRecurrenceTemplates: [JSONObject!]!

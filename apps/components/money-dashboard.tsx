@@ -27,6 +27,7 @@ import { cn } from "@/lib/cn";
 import {
   formatMinor,
   getCurrencySymbol,
+  minorToMajorInput,
   parseMajorToMinor,
 } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
@@ -171,6 +172,10 @@ export function MoneyDashboard() {
   const loadedMerchants = useMemo(
     () => formLookupsQuery.data?.moneyMerchants ?? [],
     [formLookupsQuery.data?.moneyMerchants],
+  );
+  const topAmounts = useMemo(
+    () => formLookupsQuery.data?.moneyTopAmounts ?? [],
+    [formLookupsQuery.data?.moneyTopAmounts],
   );
 
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(null);
@@ -651,6 +656,39 @@ export function MoneyDashboard() {
                 {defaultCurrency}
               </InputGroupAddon>
             </InputGroup>
+            {topAmounts.length > 0 ? (
+              <>
+                <p className="text-xs text-muted">
+                  Tap a recent amount to fill · last 90 days
+                </p>
+                <div
+                  role="group"
+                  aria-label="Recent amounts"
+                  className="flex min-w-0 flex-wrap gap-1.5"
+                >
+                {topAmounts.map((a) => {
+                  const major = minorToMajorInput(
+                    a.amountMinor,
+                    defaultCurrency,
+                  );
+                  const formatted = formatMinor(a.amountMinor, defaultCurrency);
+                  return (
+                    <button
+                      key={a.amountMinor}
+                      type="button"
+                      onClick={() => setAmountMajor(major)}
+                      title={`Use ${formatted}`}
+                      className={cn(
+                        "cursor-pointer rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-xs font-medium tabular-nums text-foreground underline decoration-transparent underline-offset-2 transition-[background-color,border-color,color,text-decoration-color] duration-200 hover:border-foreground/25 hover:bg-muted-surface hover:decoration-foreground/40 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
+                      )}
+                    >
+                      {formatted}
+                    </button>
+                  );
+                })}
+                </div>
+              </>
+            ) : null}
           </Field>
 
           {lookupSkeletonVisible ? (
