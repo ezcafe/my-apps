@@ -256,9 +256,15 @@ export type AccountBudgetStatusRow = {
   progressPct: number;
 };
 
+export type TagBudgetStatusRow = {
+  tagId: string;
+  progressPct: number;
+};
+
 export type FormBudgetStatusPayload = {
   categories: CategoryBudgetStatusRow[];
   accounts: AccountBudgetStatusRow[];
+  tags: TagBudgetStatusRow[];
 };
 
 export async function listMoneyFormBudgetStatus(
@@ -274,11 +280,14 @@ export async function listMoneyFormBudgetStatus(
 
   const directPctByCategoryId = new Map<string, number>();
   const accounts: AccountBudgetStatusRow[] = [];
+  const tags: TagBudgetStatusRow[] = [];
   for (const b of budgets) {
     if (b.scopeType === "category" && b.scopeId) {
       directPctByCategoryId.set(b.scopeId, b.progressPct);
     } else if (b.scopeType === "account" && b.scopeId) {
       accounts.push({ accountId: b.scopeId, progressPct: b.progressPct });
+    } else if (b.scopeType === "tag" && b.scopeId) {
+      tags.push({ tagId: b.scopeId, progressPct: b.progressPct });
     }
   }
 
@@ -302,7 +311,7 @@ export async function listMoneyFormBudgetStatus(
     );
   }
 
-  return { categories, accounts };
+  return { categories, accounts, tags };
 }
 
 /** @deprecated Use listMoneyFormBudgetStatus — kept for narrow callers. */

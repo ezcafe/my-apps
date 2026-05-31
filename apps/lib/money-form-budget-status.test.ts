@@ -32,4 +32,24 @@ describe("form budget status shape", () => {
       [{ categoryId: "cat-1", progressPct: 55 }],
     );
   });
+
+  it("maps tag budgets as direct tagId → progressPct rows", () => {
+    const budgets = [
+      { scopeType: "tag" as const, scopeId: "tag-1", progressPct: 67 },
+      { scopeType: "tag" as const, scopeId: "tag-2", progressPct: 12 },
+      { scopeType: "account" as const, scopeId: "acc-1", progressPct: 40 },
+    ];
+
+    const tags: { tagId: string; progressPct: number }[] = [];
+    for (const b of budgets) {
+      if (b.scopeType === "tag" && b.scopeId) {
+        tags.push({ tagId: b.scopeId, progressPct: b.progressPct });
+      }
+    }
+
+    assert.deepEqual(tags, [
+      { tagId: "tag-1", progressPct: 67 },
+      { tagId: "tag-2", progressPct: 12 },
+    ]);
+  });
 });

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  budgetUtilizationAnalyticsFill,
   budgetUtilizationChipFill,
   budgetUtilizationFillColor,
+  budgetUtilizationPctTextClassName,
   budgetUtilizationTone,
   clampBudgetUtilizationWidthPct,
 } from "@/lib/budget-utilization-chart-colors";
@@ -53,5 +55,22 @@ describe("budgetUtilizationChipFill", () => {
     assert.equal(fill.widthPct, 100);
     assert.equal(fill.progressPct, 120);
     assert.equal(budgetUtilizationTone(fill.progressPct), "danger");
+  });
+});
+
+describe("budgetUtilizationAnalyticsFill", () => {
+  it("uses accent fill under budget and destructive when over", () => {
+    const ok = budgetUtilizationAnalyticsFill(50);
+    assert.ok(ok);
+    assert.equal(ok.fillColor, "var(--accent)");
+
+    const over = budgetUtilizationAnalyticsFill(120);
+    assert.ok(over);
+    assert.equal(over.fillColor, "var(--destructive)");
+  });
+
+  it("maps pct label class to muted or destructive", () => {
+    assert.match(budgetUtilizationPctTextClassName(50), /text-muted/);
+    assert.match(budgetUtilizationPctTextClassName(120), /text-destructive/);
   });
 });

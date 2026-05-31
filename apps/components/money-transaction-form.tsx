@@ -1,13 +1,17 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   MoneyLookupQuickPickSkeleton,
   MoneyTagsFieldSkeleton,
 } from "@/components/money-dashboard-skeleton";
-import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
+import {
+  BudgetUtilizationFillLayer,
+  budgetFillTitle,
+  MoneyUsageQuickPick,
+} from "@/components/money-usage-quick-pick";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
@@ -41,6 +45,11 @@ import {
   utcCalendarMonthRangeIso,
 } from "@/lib/budget-utc-month-range";
 import {
+  budgetUtilizationAnalyticsFill,
+  budgetUtilizationChipFill,
+  budgetUtilizationPctTextClassName,
+} from "@/lib/budget-utilization-chart-colors";
+import {
   categoriesOfKind,
   moneyCategoryById,
   moneyCategoryLabel,
@@ -53,8 +62,9 @@ import {
   refetchMoneyFormBudgetStatus,
   type MoneyAccountLookup,
   type MoneyCategoryLookup,
+  type MoneyTagLookup,
 } from "@/lib/money-query-options";
-import { mostUsedPickId } from "@/lib/money-usage-quick-pick";
+import { mostUsedPickId, topUsageItems, usageOrZero } from "@/lib/money-usage-quick-pick";
 import {
   getRecurrenceFormCadences,
   cadenceLabel,
@@ -151,6 +161,58 @@ function queryErrorMessage(error: unknown): string | null {
   return error instanceof Error ? error.message : null;
 }
 
+function tagsInputTokens(input: string): string[] {
+  return input.trim().split(/\s+/).filter(Boolean);
+}
+
+function tagInputParts(input: string): { committed: string[]; current: string } {
+  if (/\s$/.test(input)) {
+    return { committed: tagsInputTokens(input), current: "" };
+  }
+  const tokens = input.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return { committed: [], current: "" };
+  return {
+    committed: tokens.slice(0, -1),
+    current: tokens[tokens.length - 1] ?? "",
+  };
+}
+
+function appendTagName(input: string, name: string): string {
+  const tokens = tagsInputTokens(input);
+  if (tokens.includes(name)) return input;
+  return tokens.length === 0 ? name : `${input.trim()} ${name}`;
+}
+
+function completeTagToken(input: string, tagName: string): string {
+  const { committed } = tagInputParts(input);
+  const prefix = committed.length > 0 ? `${committed.join(" ")} ` : "";
+  return `${prefix}${tagName} `;
+}
+
+function formatTagBudgetPct(progressPct: number): string {
+  return progressPct >= 100 ? progressPct.toFixed(0) : progressPct.toFixed(1);
+}
+
+function tagAutocompleteMatches(
+  input: string,
+  tags: readonly MoneyTagLookup[],
+): MoneyTagLookup[] {
+  const { committed, current } = tagInputParts(input);
+  const q = current.toLowerCase();
+  if (!q) return [];
+  const committedSet = new Set(committed);
+  return tags
+    .filter(
+      (t) =>
+        !committedSet.has(t.name) && t.name.toLowerCase().startsWith(q),
+    )
+    .sort(
+      (a, b) =>
+        usageOrZero(b) - usageOrZero(a) || a.name.localeCompare(b.name),
+    )
+    .slice(0, 8);
+}
+
 function deriveRecurrenceName(opts: {
   notes: string;
   merchantName: string | undefined;
@@ -210,6 +272,10 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     () => formLookupsQuery.data?.moneyTopAmounts ?? [],
     [formLookupsQuery.data?.moneyTopAmounts],
   );
+  const loadedTags = useMemo(
+    () => formLookupsQuery.data?.moneyTags ?? [],
+    [formLookupsQuery.data?.moneyTags],
+  );
 
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(null);
 
@@ -228,6 +294,9 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
   const [selectedMerchantId, setSelectedMerchantId] = useState("");
   const [notes, setNotes] = useState("");
   const [tagsInput, setTagsInput] = useState("");
+  const [tagSuggestFocused, setTagSuggestFocused] = useState(false);
+  const [tagSuggestHighlight, setTagSuggestHighlight] = useState(-1);
+  const tagSuggestListId = useId();
   const [recurrenceEnabled, setRecurrenceEnabled] = useState(isRecurrenceMode);
   const [recurrenceCadence, setRecurrenceCadence] =
     useState<RecurrenceFormCadence>("monthly");
@@ -296,6 +365,14 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
       return formBudgetPctById.accounts.get(id);
     },
     [formBudgetPctById],
+  );
+
+  const tagChipBudgetProgressPct = useCallback(
+    (id: string) => {
+      if (kind !== "expense" || !id || !formBudgetPctById) return undefined;
+      return formBudgetPctById.tags.get(id);
+    },
+    [formBudgetPctById, kind],
   );
 
   const accountsReady = lookupsReady;
@@ -452,6 +529,26 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
       })),
     [merchants],
   );
+  const topTagSuggestions = useMemo(
+    () =>
+      topUsageItems(
+        loadedTags
+          .filter((t) => usageOrZero(t) > 0)
+          .map((t) => ({
+            id: t.id,
+            label: t.name,
+            usageCount: t.usageCount,
+          })),
+        3,
+      ),
+    [loadedTags],
+  );
+  const tagAutocompleteOptions = useMemo(
+    () => tagAutocompleteMatches(tagsInput, loadedTags),
+    [tagsInput, loadedTags],
+  );
+  const showTagSuggest =
+    tagSuggestFocused && tagAutocompleteOptions.length > 0;
   const toAccountOptions = useMemo(
     () => accounts.filter((a) => a.id !== accountId),
     [accounts, accountId],
@@ -467,6 +564,44 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     }
     return toAccountOptions[0]?.id ?? "";
   }, [kind, toAccountId, accountId, toAccountOptions]);
+
+  const pickTagSuggestion = useCallback((name: string) => {
+    setTagsInput((prev) => completeTagToken(prev, name));
+    setTagSuggestHighlight(-1);
+  }, []);
+
+  useEffect(() => {
+    setTagSuggestHighlight(tagAutocompleteOptions.length > 0 ? 0 : -1);
+  }, [tagAutocompleteOptions]);
+
+  function handleTagsInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!showTagSuggest) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setTagSuggestHighlight((i) =>
+        Math.min(i + 1, tagAutocompleteOptions.length - 1),
+      );
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setTagSuggestHighlight((i) => Math.max(i - 1, 0));
+      return;
+    }
+    if (e.key === "Enter" && tagSuggestHighlight >= 0) {
+      const picked = tagAutocompleteOptions[tagSuggestHighlight];
+      if (picked) {
+        e.preventDefault();
+        pickTagSuggestion(picked.name);
+      }
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setTagSuggestHighlight(-1);
+      setTagSuggestFocused(false);
+    }
+  }
 
   const recurrenceCadenceOptions = useMemo(
     () => getRecurrenceFormCadences(),
@@ -989,12 +1124,114 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
               hint="Separate tags with spaces. Tags are created and linked when you save."
               className="[grid-column:1/-1]"
             >
-              <Input
-                type="text"
-                placeholder="groceries travel"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-              />
+              <div className="relative min-w-0">
+                <Input
+                  type="text"
+                  placeholder="groceries travel"
+                  value={tagsInput}
+                  role="combobox"
+                  aria-expanded={showTagSuggest}
+                  aria-controls={showTagSuggest ? tagSuggestListId : undefined}
+                  aria-autocomplete="list"
+                  aria-activedescendant={
+                    showTagSuggest && tagSuggestHighlight >= 0
+                      ? `${tagSuggestListId}-opt-${tagSuggestHighlight}`
+                      : undefined
+                  }
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  onFocus={() => setTagSuggestFocused(true)}
+                  onBlur={() => setTagSuggestFocused(false)}
+                  onKeyDown={handleTagsInputKeyDown}
+                />
+                {showTagSuggest ? (
+                  <ul
+                    id={tagSuggestListId}
+                    role="listbox"
+                    aria-label="Matching tags"
+                    className="absolute start-0 top-[calc(100%+0.25rem)] z-50 max-h-48 w-full min-w-0 overflow-auto rounded-[var(--radius-md)] border border-border bg-surface p-1 shadow-[var(--shadow-md)]"
+                  >
+                    {tagAutocompleteOptions.map((tag, index) => {
+                      const selected = index === tagSuggestHighlight;
+                      const fill = budgetUtilizationAnalyticsFill(
+                        tagChipBudgetProgressPct(tag.id),
+                      );
+                      return (
+                        <li key={tag.id} role="presentation">
+                          <button
+                            id={`${tagSuggestListId}-opt-${index}`}
+                            type="button"
+                            role="option"
+                            aria-selected={selected}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => pickTagSuggestion(tag.name)}
+                            title={fill ? budgetFillTitle(fill) : undefined}
+                            className={cn(
+                              "relative isolate flex w-full items-center justify-between gap-2 overflow-hidden rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm transition-[background-color,color] duration-150",
+                              selected
+                                ? "bg-accent text-accent-foreground"
+                                : "text-foreground hover:bg-muted-surface",
+                            )}
+                          >
+                            {fill ? <BudgetUtilizationFillLayer fill={fill} /> : null}
+                            <span className="relative z-[1] min-w-0 truncate">
+                              {tag.name}
+                            </span>
+                            {fill ? (
+                              <span
+                                className={cn(
+                                  "relative z-[1] shrink-0 text-xs tabular-nums",
+                                  budgetUtilizationPctTextClassName(
+                                    fill.progressPct,
+                                    { selected },
+                                  ),
+                                )}
+                              >
+                                {formatTagBudgetPct(fill.progressPct)}%
+                              </span>
+                            ) : null}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+              </div>
+              {topTagSuggestions.length > 0 ? (
+                <>
+                  <p className="text-xs text-muted">
+                    Tap a tag to add · last 90 days
+                  </p>
+                  <div
+                    role="group"
+                    aria-label="Frequent tags"
+                    className="flex min-w-0 flex-wrap gap-1.5"
+                  >
+                    {topTagSuggestions.map((tag) => {
+                      const fill = budgetUtilizationChipFill(
+                        tagChipBudgetProgressPct(tag.id),
+                      );
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() =>
+                            setTagsInput((prev) => appendTagName(prev, tag.label))
+                          }
+                          title={
+                            fill ? budgetFillTitle(fill) : `Add ${tag.label}`
+                          }
+                          className={cn(
+                            "relative isolate cursor-pointer overflow-hidden rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-xs font-medium text-foreground underline decoration-transparent underline-offset-2 transition-[background-color,border-color,color,text-decoration-color] duration-200 hover:border-foreground/25 hover:bg-muted-surface hover:decoration-foreground/40 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
+                          )}
+                        >
+                          {fill ? <BudgetUtilizationFillLayer fill={fill} /> : null}
+                          <span className="relative z-[1]">{tag.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : null}
             </Field>
           )}
 

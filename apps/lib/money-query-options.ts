@@ -51,13 +51,14 @@ export type MoneyAccountLookup = {
 
 export type MoneyMerchantLookup = { id: string; name: string; usageCount?: number };
 export type MoneyTopAmountLookup = { amountMinor: number; usageCount?: number };
-export type MoneyTagLookup = { id: string; name: string };
+export type MoneyTagLookup = { id: string; name: string; usageCount?: number };
 export type MoneyCategoryLookup = MoneyCategoryRow;
 export type MoneyFormLookups = {
   moneyAccounts: MoneyAccountLookup[];
   moneyCategories: MoneyCategoryLookup[];
   moneyMerchants: MoneyMerchantLookup[];
   moneyTopAmounts: MoneyTopAmountLookup[];
+  moneyTags: MoneyTagLookup[];
 };
 export type MoneyAnalyticsChartLookups = {
   moneyAccounts: MoneyAccountLookup[];
@@ -104,6 +105,7 @@ export const moneyFormBudgetStatusQueryKey = ["money", "formBudgetStatus"] as co
 export type MoneyFormBudgetStatusMaps = {
   categories: Map<string, number>;
   accounts: Map<string, number>;
+  tags: Map<string, number>;
 };
 
 export async function invalidateMoneyWorkspaceQueries(queryClient: QueryClient) {
@@ -179,6 +181,9 @@ export function moneyFormBudgetStatusQueryOptions(
       ),
       accounts: new Map(
         payload.accounts.map((r) => [r.accountId, r.progressPct] as const),
+      ),
+      tags: new Map(
+        payload.tags.map((r) => [r.tagId, r.progressPct] as const),
       ),
     }),
     staleTime: 60_000,

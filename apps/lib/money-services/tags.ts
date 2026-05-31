@@ -1,15 +1,36 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { moneyTag } from "@/db/schema/money";
+import { moneyTag, moneyTransaction, moneyTransactionTag } from "@/db/schema/money";
 import { tagCreateSchema } from "@/lib/validators/money";
 import type { MoneyWorkspaceCtx } from "@/lib/money-services/types";
 
+const USAGE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+
 export async function listMoneyTags(workspaceId: string) {
+  const since = new Date(Date.now() - USAGE_WINDOW_MS);
   const rows = await db
-    .select()
+    .select({
+      ...getTableColumns(moneyTag),
+      usageCount: sql<number>`count(${moneyTransaction.id})::int`.as(
+        "usage_count",
+      ),
+    })
     .from(moneyTag)
+    .leftJoin(
+      moneyTransactionTag,
+      eq(moneyTransactionTag.tagId, moneyTag.id),
+    )
+    .leftJoin(
+      moneyTransaction,
+      and(
+        eq(moneyTransaction.id, moneyTransactionTag.transactionId),
+        eq(moneyTransaction.workspaceId, workspaceId),
+        gte(moneyTransaction.occurredAt, since),
+      ),
+    )
     .where(eq(moneyTag.workspaceId, workspaceId))
-    .orderBy(asc(moneyTag.name));
+    .groupBy(moneyTag.id)
+    .orderBy(desc(sql`usage_count`), asc(moneyTag.name));
 
   return rows.map((r) => ({
     ...r,

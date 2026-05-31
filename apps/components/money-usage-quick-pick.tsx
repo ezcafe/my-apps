@@ -31,7 +31,7 @@ const chipCls = (active: boolean) =>
     active ? "text-foreground" : "text-muted hover:text-foreground",
   );
 
-function BudgetUtilizationFillLayer({ fill }: { fill: BudgetUtilizationChipFill }) {
+export function BudgetUtilizationFillLayer({ fill }: { fill: BudgetUtilizationChipFill }) {
   return (
     <span
       aria-hidden
@@ -44,7 +44,7 @@ function BudgetUtilizationFillLayer({ fill }: { fill: BudgetUtilizationChipFill 
   );
 }
 
-function budgetFillTitle(fill: BudgetUtilizationChipFill): string {
+export function budgetFillTitle(fill: BudgetUtilizationChipFill): string {
   const pct =
     fill.progressPct >= 100
       ? fill.progressPct.toFixed(0)

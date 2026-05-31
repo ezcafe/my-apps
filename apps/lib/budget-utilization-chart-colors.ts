@@ -49,3 +49,33 @@ export function budgetUtilizationChipFill(
     progressPct,
   };
 }
+
+/** Matches analytics-budgets-section: spent above limit. */
+export function budgetUtilizationOverBudget(
+  progressPct: number | undefined | null,
+): boolean {
+  return progressPct != null && Number.isFinite(progressPct) && progressPct > 100;
+}
+
+/** Fill aligned with /money/analytics budget bars (accent / destructive). */
+export function budgetUtilizationAnalyticsFill(
+  progressPct: number | undefined | null,
+): BudgetUtilizationChipFill | null {
+  if (progressPct == null || !Number.isFinite(progressPct)) return null;
+  return {
+    widthPct: clampBudgetUtilizationWidthPct(progressPct),
+    fillColor: budgetUtilizationOverBudget(progressPct)
+      ? "var(--destructive)"
+      : "var(--accent)",
+    progressPct,
+  };
+}
+
+export function budgetUtilizationPctTextClassName(
+  progressPct: number,
+  opts?: { selected?: boolean },
+): string {
+  if (budgetUtilizationOverBudget(progressPct)) return "text-destructive";
+  if (opts?.selected) return "text-accent-foreground/80";
+  return "text-muted";
+}
