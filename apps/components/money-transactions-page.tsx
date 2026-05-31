@@ -312,6 +312,7 @@ export function MoneyTransactionsPage({
             activeWorkspaceId={activeWorkspaceId}
             accounts={accounts}
             categories={categories}
+            tags={tags}
             currency={defaultCurrency}
             deferFetchUntilVisible={false}
             variant="standalone"

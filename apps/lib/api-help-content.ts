@@ -997,19 +997,21 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     },
   },
   {
-    id: "mutation-moneyTransactionCreate",
+    id: "mutation-moneyTransactionCreate-expense",
     field: "moneyTransactionCreate",
-    tabLabel: "Transaction create",
+    tabLabel: "Transaction create (expense)",
     operationKind: "mutation",
-    summary: "Create a transaction in the active workspace.",
+    summary: "Create an expense transaction in the active workspace.",
     purpose:
-      "Insert a new transaction manually or from an automation script.",
+      "Insert a new expense manually or from an automation script.",
     whenToUse:
-      "Use this when recording a single expense, income event, or transfer.",
+      "Use this when money leaves an account (purchases, bills, fees).",
     returns: "The created transaction as JSON.",
     inputNotes: [
       "accountId and amountMinor are required.",
+      "kind defaults to expense when omitted.",
       "occurredAt should be an ISO datetime with timezone offset when provided.",
+      "categoryId, merchantId, tagIds, and tagNames are optional.",
     ],
     query: `mutation($input: MoneyTransactionCreateInput!) {
   moneyTransactionCreate(input: $input)
@@ -1021,6 +1023,74 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
         amountMinor: 2599,
         occurredAt: "2025-01-15T12:00:00.000Z",
         notes: "Coffee",
+      },
+    },
+  },
+  {
+    id: "mutation-moneyTransactionCreate-income",
+    field: "moneyTransactionCreate",
+    tabLabel: "Transaction create (income)",
+    operationKind: "mutation",
+    summary: "Create an income transaction in the active workspace.",
+    purpose:
+      "Insert a new income event manually or from an automation script.",
+    whenToUse:
+      "Use this when money enters an account (salary, refunds, interest).",
+    returns: "The created transaction as JSON.",
+    inputNotes: [
+      "accountId and amountMinor are required.",
+      "Set kind to income.",
+      "occurredAt should be an ISO datetime with timezone offset when provided.",
+      "categoryId, merchantId, tagIds, and tagNames are optional.",
+    ],
+    query: `mutation($input: MoneyTransactionCreateInput!) {
+  moneyTransactionCreate(input: $input)
+}`,
+    variables: {
+      input: {
+        accountId: "00000000-0000-0000-0000-000000000101",
+        kind: "income",
+        amountMinor: 350000,
+        occurredAt: "2025-01-31T09:00:00.000Z",
+        notes: "Paycheck",
+      },
+    },
+  },
+  {
+    id: "mutation-moneyTransactionCreate-transfer",
+    field: "moneyTransactionCreate",
+    tabLabel: "Transaction create (transfer)",
+    operationKind: "mutation",
+    summary:
+      "Move money between two accounts in the active workspace (paired out/in legs).",
+    purpose:
+      "Record a transfer from one account to another without treating it as expense or income.",
+    whenToUse:
+      "Use this when moving funds between your own accounts (e.g. checking to savings).",
+    returns:
+      "The created out-leg transaction as JSON (a matching in-leg is created automatically).",
+    inputNotes: [
+      "accountId is the source account; toAccountId is the destination (both required).",
+      "toAccountId must be a different account in the same workspace.",
+      "Set kind to transfer.",
+      "amountMinor is the amount moved (positive integer in minor units).",
+      "occurredAt should be an ISO datetime with timezone offset when provided.",
+      "Transfers do not use categoryId or merchantId; recurrence is not supported.",
+    ],
+    usageNotes: [
+      "Call moneyAccounts first to obtain valid accountId and toAccountId values.",
+    ],
+    query: `mutation($input: MoneyTransactionCreateInput!) {
+  moneyTransactionCreate(input: $input)
+}`,
+    variables: {
+      input: {
+        accountId: "00000000-0000-0000-0000-000000000101",
+        toAccountId: "00000000-0000-0000-0000-000000000102",
+        kind: "transfer",
+        amountMinor: 50000,
+        occurredAt: "2025-01-15T12:00:00.000Z",
+        notes: "Move to savings",
       },
     },
   },

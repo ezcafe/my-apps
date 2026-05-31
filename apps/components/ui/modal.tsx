@@ -73,34 +73,43 @@ export function Modal({
     <dialog
       ref={ref}
       className={cn(
-        "fixed inset-0 z-50 m-auto max-h-[min(90dvh,52rem)] w-[min(100%-2rem,56rem)] max-w-[calc(100%-2rem)] overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface p-0 text-foreground shadow-[var(--shadow-md)] backdrop:bg-black/45 open:flex open:flex-col fx-overlay",
+        "fixed inset-0 z-50 m-auto max-h-[min(90dvh,52rem)] w-[min(100%-2rem,56rem)] max-w-[calc(100%-2rem)] overflow-visible rounded-[var(--radius-md)] border border-border bg-surface p-0 text-foreground shadow-[var(--shadow-md)] backdrop:bg-black/45 open:flex open:flex-col fx-overlay",
         className,
       )}
       aria-labelledby={ariaLabelledBy}
       aria-modal="true"
     >
-      {!bare && title ? (
-        <>
-          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3">
-            <h2 id="modal-dialog-title" className="text-lg font-medium tracking-tight">
-              {title}
-            </h2>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              aria-label="Close"
-              iconOnly
-            >
-              ✕
-            </Button>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[inherit]">
+        {!bare && title ? (
+          <>
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3">
+              <h2
+                id="modal-dialog-title"
+                className="text-lg font-medium tracking-tight"
+              >
+                {title}
+              </h2>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                aria-label="Close"
+                iconOnly
+              >
+                ✕
+              </Button>
+            </div>
+            <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
+              {children}
+            </div>
+          </>
+        ) : (
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
+            {children}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
-        </>
-      ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
-      )}
+        )}
+      </div>
     </dialog>,
     document.body,
   );

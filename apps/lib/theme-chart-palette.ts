@@ -3,14 +3,14 @@ import type { StylePreset } from "@/components/theme-provider";
 /** Chart series colors — mirror CSS `--chart-0` … `--chart-7` in app/globals.css */
 
 export const CHART_PALETTE_APPLE_LIGHT = [
-  "#0969da",
-  "#8250df",
-  "#bc4c00",
-  "#1a7f37",
-  "#0550ae",
-  "#a40e26",
-  "#6639ba",
-  "#bf8700",
+  "#4078f2",
+  "#a626a4",
+  "#c18401",
+  "#50a14f",
+  "#0184bc",
+  "#e45649",
+  "#986801",
+  "#696c77",
 ] as const;
 
 export const CHART_PALETTE_APPLE_DARK = [
@@ -58,7 +58,7 @@ const EXPENSE_HOT_PASTEL: Record<
   StylePreset,
   { light: string; dark: string }
 > = {
-  apple: { light: "#cf222e", dark: "#bf616a" },
+  apple: { light: "#e45649", dark: "#bf616a" },
 };
 
 export function chartExpenseHotPastel(

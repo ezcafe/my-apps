@@ -6,14 +6,30 @@ import { SettingsSection } from "@/components/money-settings/money-settings-shar
 import { ApiTokenSettings } from "@/components/api-token-settings";
 import { DateFormatSettings } from "@/components/date-format-settings";
 import { ThemeSettings } from "@/components/theme-settings";
+import { Alert } from "@/components/ui/alert";
+import { isDbUnreachable } from "@/lib/db-errors";
+
+async function loadSettingsDbData(userSub: string) {
+  try {
+    const [{ workspaces }, apiTokens] = await Promise.all([
+      fetchWorkspacesForUser(userSub, "money"),
+      listApiTokensForUser(userSub),
+    ]);
+    return { workspaces, apiTokens, dbUnavailable: false as const };
+  } catch (e) {
+    if (isDbUnreachable(e)) {
+      return { workspaces: [], apiTokens: [], dbUnavailable: true as const };
+    }
+    throw e;
+  }
+}
 
 export default async function SettingsPage() {
   const session = await auth();
   const userSub = session?.user?.id;
-  const { workspaces } = userSub
-    ? await fetchWorkspacesForUser(userSub, "money")
-    : { workspaces: [] as { id: string; name: string; kind: string; isDefault: boolean }[] };
-  const apiTokens = userSub ? await listApiTokensForUser(userSub) : [];
+  const { workspaces, apiTokens, dbUnavailable } = userSub
+    ? await loadSettingsDbData(userSub)
+    : { workspaces: [], apiTokens: [], dbUnavailable: false as const };
 
   return (
     <div className="shell-main grid grid-cols-2 gap-x-2 gap-y-6 py-8 md:grid-cols-6 md:gap-x-4 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-8">
@@ -25,6 +41,14 @@ export default async function SettingsPage() {
 
       <div className="col-span-2 min-w-0 md:col-span-6 lg:col-span-12">
         <div className="space-y-6">
+          {dbUnavailable ? (
+            <Alert
+              variant="warning"
+              title="Database unavailable"
+              description="Cannot reach PostgreSQL. Start the database (from the apps folder: docker compose -f docker-compose-db.yml up -d) or fix DATABASE_URL."
+            />
+          ) : null}
+
           <SettingsSection
             id="settings-account"
             title="Account"

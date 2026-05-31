@@ -3,7 +3,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
-  Design tokens: Apple/iOS structure × GitHub light / Nord dark palettes.
+  Design tokens: Apple/iOS structure × Atom One Light / Nord dark palettes.
   Chart hexes mirror lib/theme-chart-palette.ts (chartPaletteFor).
   Default (SSR / no JS): data-style="apple" — matches FOUC script + ThemeProvider.
 */
@@ -12,7 +12,7 @@
   --font-geist-sans: ui-sans-serif;
 }
 
-/* ---- Apple structure + GitHub light palette ---- */
+/* ---- Apple structure + Atom One Light palette ---- */
 :root[data-style="apple"],
 :root:not([data-style]) {
   color-scheme: light;
@@ -26,49 +26,49 @@
     sans-serif;
   --space-step: 0.5rem;
 
-  --background: #ffffff;
-  --foreground: #1f2328;
-  --muted: #656d76;
+  --background: #fafafa;
+  --foreground: #383a42;
+  --muted: #a0a1a7;
   --surface: #ffffff;
-  --border: #d0d7de;
-  --muted-surface: #f6f8fa;
+  --border: #e5e5e6;
+  --muted-surface: #ededed;
 
-  --accent: #0969da;
-  --accent-hover: #0550ae;
+  --accent: #4078f2;
+  --accent-hover: #3366d6;
   --accent-foreground: #ffffff;
-  --ring: #0969da;
+  --ring: #4078f2;
 
-  --destructive: #cf222e;
+  --destructive: #e45649;
   --danger: var(--destructive);
   --destructive-foreground: #ffffff;
-  --destructive-muted-bg: color-mix(in oklab, #cf222e 10%, var(--surface));
-  --destructive-muted-border: color-mix(in oklab, #cf222e 28%, var(--border));
-  --destructive-muted-text: #a40e26;
-  --destructive-icon-bg: color-mix(in oklab, #cf222e 14%, transparent);
+  --destructive-muted-bg: color-mix(in oklab, #e45649 10%, var(--surface));
+  --destructive-muted-border: color-mix(in oklab, #e45649 28%, var(--border));
+  --destructive-muted-text: #ca1243;
+  --destructive-icon-bg: color-mix(in oklab, #e45649 14%, transparent);
 
-  --alert-error-bg: color-mix(in oklab, #cf222e 8%, var(--surface));
-  --alert-error-border: color-mix(in oklab, #cf222e 28%, var(--border));
-  --alert-error-accent: #cf222e;
-  --alert-error-title: #a40e26;
-  --alert-error-body: #82071e;
+  --alert-error-bg: color-mix(in oklab, #e45649 8%, var(--surface));
+  --alert-error-border: color-mix(in oklab, #e45649 28%, var(--border));
+  --alert-error-accent: #e45649;
+  --alert-error-title: #ca1243;
+  --alert-error-body: #696c77;
 
-  --alert-warning-bg: #fff8c5;
-  --alert-warning-border: color-mix(in oklab, #9a6700 35%, var(--border));
-  --alert-warning-accent: #9a6700;
-  --alert-warning-title: #7d4e00;
-  --alert-warning-body: #633c01;
+  --alert-warning-bg: color-mix(in oklab, #c18401 14%, var(--surface));
+  --alert-warning-border: color-mix(in oklab, #986801 35%, var(--border));
+  --alert-warning-accent: #c18401;
+  --alert-warning-title: #986801;
+  --alert-warning-body: #696c77;
 
   --toast-success-bg: var(--surface);
   --toast-success-border: var(--border);
-  --toast-success-accent: #1a7f37;
-  --toast-success-icon-bg: color-mix(in oklab, #1a7f37 14%, transparent);
+  --toast-success-accent: #50a14f;
+  --toast-success-icon-bg: color-mix(in oklab, #50a14f 14%, transparent);
   --toast-success-title: var(--foreground);
   --toast-success-body: var(--muted);
 
   --toast-warning-bg: var(--alert-warning-bg);
   --toast-warning-border: var(--border);
   --toast-warning-accent: var(--alert-warning-accent);
-  --toast-warning-icon-bg: color-mix(in oklab, #9a6700 14%, transparent);
+  --toast-warning-icon-bg: color-mix(in oklab, #c18401 14%, transparent);
   --toast-warning-title: var(--alert-warning-title);
   --toast-warning-body: var(--alert-warning-body);
 
@@ -79,14 +79,14 @@
   --toast-error-title: var(--alert-error-title);
   --toast-error-body: var(--alert-error-body);
 
-  --chart-0: #0969da;
-  --chart-1: #8250df;
-  --chart-2: #bc4c00;
-  --chart-3: #1a7f37;
-  --chart-4: #0550ae;
-  --chart-5: #a40e26;
-  --chart-6: #6639ba;
-  --chart-7: #bf8700;
+  --chart-0: #4078f2;
+  --chart-1: #a626a4;
+  --chart-2: #c18401;
+  --chart-3: #50a14f;
+  --chart-4: #0184bc;
+  --chart-5: #e45649;
+  --chart-6: #986801;
+  --chart-7: #696c77;
 }
 
 :root[data-style="apple"].dark,
