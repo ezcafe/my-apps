@@ -235,6 +235,8 @@ export const budgetCreateSchema = z
     }
   });
 
+export const analyticsRecurrenceFilterSchema = z.enum(["recurring", "one-time"]);
+
 export const analyticsFiltersSchema = z.object({
   from: z.string().datetime({ offset: true }).optional(),
   to: z.string().datetime({ offset: true }).optional(),
@@ -243,6 +245,8 @@ export const analyticsFiltersSchema = z.object({
   merchantIds: z.array(z.string().uuid()).optional(),
   tagIds: z.array(z.string().uuid()).optional(),
   kinds: z.array(transactionKindSchema).optional(),
+  recurrence: analyticsRecurrenceFilterSchema.optional(),
+  recurrenceSourceIds: z.array(z.string().uuid()).optional(),
 });
 
 export const transactionListSortSchema = z.enum([

@@ -1,4 +1,4 @@
-import { eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { moneyTransaction, moneyTransactionTag } from "@/db/schema/money";
 import { analyticsFiltersSchema } from "@/lib/validators/money";
@@ -19,6 +19,8 @@ export function analyticsFilterFieldsFromUrl(url: URL) {
     merchantIds: getAll("merchantIds"),
     tagIds: getAll("tagIds"),
     kinds: getAll("kinds"),
+    recurrence: url.searchParams.get("recurrence") ?? undefined,
+    recurrenceSourceIds: getAll("recurrenceSourceIds"),
   };
 }
 
@@ -74,6 +76,15 @@ export function moneyTransactionConditionsForAnalytics(
         SELECT transaction_id FROM matched_transactions
       )`,
     );
+  }
+  if (filters.recurrenceSourceIds && filters.recurrenceSourceIds.length > 0) {
+    conditions.push(
+      inArray(moneyTransaction.recurrenceSourceId, filters.recurrenceSourceIds),
+    );
+  } else if (filters.recurrence === "recurring") {
+    conditions.push(isNotNull(moneyTransaction.recurrenceSourceId));
+  } else if (filters.recurrence === "one-time") {
+    conditions.push(isNull(moneyTransaction.recurrenceSourceId));
   }
 
   return conditions;

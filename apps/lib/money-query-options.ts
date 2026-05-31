@@ -20,6 +20,7 @@ import {
   MONEY_BOOTSTRAP_QUERY,
   MONEY_CATEGORY_BUDGET_STATUS_QUERY,
   MONEY_FORM_LOOKUPS_QUERY,
+  MONEY_LIST_RECURRENCE_QUERY,
   MONEY_TRANSACTIONS_QUERY,
   MONEY_WORKSPACE_STATE_QUERY,
 } from "@/lib/money-gql-documents";
@@ -65,6 +66,14 @@ export type MoneyAnalyticsChartLookups = {
 };
 export type MoneyAnalyticsMerchantLookups = {
   moneyMerchants: MoneyMerchantLookup[];
+};
+export type MoneyAnalyticsRecurrenceLookups = {
+  moneyRecurrenceTemplates: MoneyRecurrenceLookup[];
+};
+
+export type MoneyRecurrenceLookup = {
+  id: string;
+  name: string;
 };
 
 export type MoneyTransactionListRow = {
@@ -190,6 +199,18 @@ export function moneyAnalyticsMerchantLookupsQueryOptions(workspaceKey: string) 
     queryFn: async () => {
       return await moneyGraphQLRequest<MoneyAnalyticsMerchantLookups>(
         MONEY_ANALYTICS_MERCHANT_LOOKUPS_QUERY,
+      );
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function moneyAnalyticsRecurrenceLookupsQueryOptions(workspaceKey: string) {
+  return queryOptions({
+    queryKey: ["money", "analyticsRecurrenceLookups", workspaceKey] as const,
+    queryFn: async () => {
+      return await moneyGraphQLRequest<MoneyAnalyticsRecurrenceLookups>(
+        MONEY_LIST_RECURRENCE_QUERY,
       );
     },
     staleTime: 5 * 60_000,
@@ -424,9 +445,14 @@ function analyticsTransactionsQueryObject(
     "merchantIds",
     "tagIds",
     "kinds",
+    "recurrenceSourceIds",
   ] as const) {
     const all = params.getAll(key);
     if (all.length > 0) query[key] = all;
+  }
+  const recurrence = params.get("recurrence");
+  if (recurrence === "recurring" || recurrence === "one-time") {
+    query.recurrence = recurrence;
   }
   return query;
 }

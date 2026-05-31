@@ -21,7 +21,9 @@ export function analyticsFiltersEqual(
     stringArraysEqual(a.categoryIds, b.categoryIds) &&
     stringArraysEqual(a.merchantIds, b.merchantIds) &&
     stringArraysEqual(a.tagIds, b.tagIds) &&
-    stringArraysEqual(a.kinds, b.kinds)
+    stringArraysEqual(a.kinds, b.kinds) &&
+    a.recurrence === b.recurrence &&
+    stringArraysEqual(a.recurrenceSourceIds, b.recurrenceSourceIds)
   );
 }
 
@@ -35,6 +37,8 @@ export function analyticsFiltersQueryKey(applied: AnalyticsFiltersValue) {
     applied.merchantIds,
     applied.tagIds,
     applied.kinds,
+    applied.recurrence,
+    applied.recurrenceSourceIds,
   ] as const;
 }
 
@@ -65,6 +69,14 @@ export function analyticsFiltersToGraphQLInput(
 
   const kinds = u.getAll("kinds");
   if (kinds.length) out.kinds = kinds;
+
+  const recurrence = u.get("recurrence");
+  if (recurrence === "recurring" || recurrence === "one-time") {
+    out.recurrence = recurrence;
+  }
+
+  const recurrenceSourceIds = u.getAll("recurrenceSourceIds");
+  if (recurrenceSourceIds.length) out.recurrenceSourceIds = recurrenceSourceIds;
 
   return out;
 }

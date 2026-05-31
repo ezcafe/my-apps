@@ -149,6 +149,8 @@ export async function listMoneyTransactions(
       merchantIds: q.merchantIds,
       tagIds: q.tagIds,
       kinds: q.kinds,
+      recurrence: q.recurrence,
+      recurrenceSourceIds: q.recurrenceSourceIds,
     };
 
   const conditions = moneyTransactionConditionsForAnalytics(

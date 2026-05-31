@@ -43,6 +43,7 @@ import {
   type AnalyticsFiltersValue,
   type AnalyticsLookupAccount,
   type AnalyticsLookupMerchant,
+  type AnalyticsLookupRecurrence,
   type AnalyticsLookupTag,
   type AnalyticsWorkspaceRow,
 } from "@/components/analytics-filters";
@@ -60,6 +61,7 @@ import {
   moneyAnalyticsLeadersQueryOptions,
   moneyAnalyticsDashboardQueryOptions,
   moneyAnalyticsMerchantLookupsQueryOptions,
+  moneyAnalyticsRecurrenceLookupsQueryOptions,
   moneyAnalyticsSankeyQueryOptions,
   moneyWorkspaceStateQueryOptions,
 } from "@/lib/money-query-options";
@@ -591,6 +593,15 @@ function AnalyticsDashboardLoaded({
       !workspaceSyncPending &&
       Boolean(activeWorkspaceId),
   });
+  const recurrenceLookupsQuery = useQuery({
+    ...moneyAnalyticsRecurrenceLookupsQueryOptions(activeWorkspaceId),
+    enabled:
+      canRunMoneyQueries &&
+      filtersOpen &&
+      workspaceReady &&
+      !workspaceSyncPending &&
+      Boolean(activeWorkspaceId),
+  });
 
   const accounts = useMemo(
     () =>
@@ -619,6 +630,13 @@ function AnalyticsDashboardLoaded({
         ? []
         : (merchantLookupsQuery.data?.moneyMerchants ?? [])) as AnalyticsLookupMerchant[],
     [workspaceSyncPending, merchantLookupsQuery.data?.moneyMerchants],
+  );
+  const recurrenceTemplates = useMemo(
+    () =>
+      (workspaceSyncPending
+        ? []
+        : (recurrenceLookupsQuery.data?.moneyRecurrenceTemplates ?? [])) as AnalyticsLookupRecurrence[],
+    [workspaceSyncPending, recurrenceLookupsQuery.data?.moneyRecurrenceTemplates],
   );
   const lookupsReady = !workspaceSyncPending && chartLookupsQuery.isSuccess;
 
@@ -706,6 +724,9 @@ function AnalyticsDashboardLoaded({
       : null) ??
     (filtersOpen && merchantLookupsQuery.error instanceof Error
       ? merchantLookupsQuery.error.message
+      : null) ??
+    (filtersOpen && recurrenceLookupsQuery.error instanceof Error
+      ? recurrenceLookupsQuery.error.message
       : null);
 
   if (!workspaceReady && !workspaceStateQuery.data && !workspaceStateQuery.error) {
@@ -757,6 +778,7 @@ function AnalyticsDashboardLoaded({
             categories={categories}
             merchants={merchants}
             tags={tags}
+            recurrenceTemplates={recurrenceTemplates}
             workspaces={workspaces}
             activeWorkspaceId={activeWorkspaceId}
             onWorkspaceChange={handleWorkspaceChange}

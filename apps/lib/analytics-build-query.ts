@@ -33,5 +33,7 @@ export function buildQuery(f: AnalyticsFiltersValue): string {
   for (const id of f.merchantIds) sp.append("merchantIds", id);
   for (const id of f.tagIds) sp.append("tagIds", id);
   for (const k of f.kinds) sp.append("kinds", k);
+  if (f.recurrence !== "all") sp.set("recurrence", f.recurrence);
+  for (const id of f.recurrenceSourceIds) sp.append("recurrenceSourceIds", id);
   return sp.toString();
 }

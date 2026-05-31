@@ -15,6 +15,7 @@ import {
   type AnalyticsFiltersValue,
   type AnalyticsLookupAccount,
   type AnalyticsLookupMerchant,
+  type AnalyticsLookupRecurrence,
   type AnalyticsLookupTag,
   type AnalyticsWorkspaceRow,
 } from "@/components/analytics-filters";
@@ -31,6 +32,7 @@ import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import {
   moneyAnalyticsChartLookupsQueryOptions,
   moneyAnalyticsMerchantLookupsQueryOptions,
+  moneyAnalyticsRecurrenceLookupsQueryOptions,
   moneyWorkspaceStateQueryOptions,
 } from "@/lib/money-query-options";
 
@@ -121,6 +123,15 @@ export function MoneyTransactionsPage({
       !workspaceSyncPending &&
       Boolean(activeWorkspaceId),
   });
+  const recurrenceLookupsQuery = useQuery({
+    ...moneyAnalyticsRecurrenceLookupsQueryOptions(activeWorkspaceId),
+    enabled:
+      canRunMoneyQueries &&
+      filtersOpen &&
+      workspaceReady &&
+      !workspaceSyncPending &&
+      Boolean(activeWorkspaceId),
+  });
 
   const accounts = useMemo(
     () =>
@@ -149,6 +160,13 @@ export function MoneyTransactionsPage({
         ? []
         : (merchantLookupsQuery.data?.moneyMerchants ?? [])) as AnalyticsLookupMerchant[],
     [workspaceSyncPending, merchantLookupsQuery.data?.moneyMerchants],
+  );
+  const recurrenceTemplates = useMemo(
+    () =>
+      (workspaceSyncPending
+        ? []
+        : (recurrenceLookupsQuery.data?.moneyRecurrenceTemplates ?? [])) as AnalyticsLookupRecurrence[],
+    [workspaceSyncPending, recurrenceLookupsQuery.data?.moneyRecurrenceTemplates],
   );
   const lookupsReady = !workspaceSyncPending && chartLookupsQuery.isSuccess;
 
@@ -236,6 +254,9 @@ export function MoneyTransactionsPage({
       : null) ??
     (filtersOpen && merchantLookupsQuery.error instanceof Error
       ? merchantLookupsQuery.error.message
+      : null) ??
+    (filtersOpen && recurrenceLookupsQuery.error instanceof Error
+      ? recurrenceLookupsQuery.error.message
       : null);
 
   if (!workspaceReady && !workspaceStateQuery.data && !workspaceStateQuery.error) {
@@ -286,6 +307,7 @@ export function MoneyTransactionsPage({
             categories={categories}
             merchants={merchants}
             tags={tags}
+            recurrenceTemplates={recurrenceTemplates}
             workspaces={workspaces}
             activeWorkspaceId={activeWorkspaceId}
             onWorkspaceChange={handleWorkspaceChange}

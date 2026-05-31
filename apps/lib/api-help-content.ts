@@ -169,7 +169,7 @@ export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
       "A JSON analytics payload used by the Money analytics UI.",
     inputNotes: [
       "filters.from and filters.to must be ISO datetimes with timezone offsets.",
-      "accountIds, categoryIds, merchantIds, tagIds, and kinds are optional filters.",
+      "accountIds, categoryIds, merchantIds, tagIds, kinds, recurrence, and recurrenceSourceIds are optional filters.",
     ],
     usageNotes: [
       "Start with only from/to, then add optional filters as needed.",
@@ -227,7 +227,7 @@ export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
     inputNotes: [
       "query.from and query.to must be ISO datetimes with timezone offsets.",
       "query.page, query.pageSize, query.sort, and query.dir control pagination and ordering.",
-      "query.accountIds, categoryIds, merchantIds, tagIds, and kinds are optional filters.",
+      "query.accountIds, categoryIds, merchantIds, tagIds, kinds, recurrence, and recurrenceSourceIds are optional filters.",
     ],
     usageNotes: [
       "A good pattern is to call moneyTransactions after moneyBootstrap so you can filter using known ids.",
@@ -906,17 +906,23 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
   {
     id: "mutation-moneyRecurrenceCreate",
     field: "moneyRecurrenceCreate",
-    tabLabel: "Recurrence create",
+    tabLabel: "Recurrence template create",
     operationKind: "mutation",
-    summary: "Create a recurring transaction template.",
+    summary:
+      "Create a recurrence template only (no transaction is posted immediately).",
     purpose:
-      "Define a scheduled transaction that can generate future entries.",
+      "Define a scheduled template that future cron or moneyRecurrenceGenerate runs can materialize.",
     whenToUse:
-      "Use this for rent, salary, subscriptions, or other repeating money events.",
+      "Use this when you want a schedule without posting the first entry yet, or when importing templates in bulk.",
     returns: "The created recurrence template as JSON.",
     inputNotes: [
       "nextRunAt must be an ISO datetime with timezone offset.",
       "template.accountId, template.kind, and template.amountMinor are required.",
+      "cadence accepts daily, weekly, biweekly, monthly, quarterly, or yearly (every_5_minutes in development only).",
+      "template.categoryId, template.merchantId, template.notes, and template.tagIds are optional.",
+    ],
+    usageNotes: [
+      "To post the first transaction and create the schedule in one call, use moneyTransactionCreate with a recurrence object instead.",
     ],
     query: `mutation($input: MoneyRecurrenceCreateInput!) {
   moneyRecurrenceCreate(input: $input)
@@ -925,11 +931,13 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
       input: {
         name: "Monthly rent",
         cadence: "monthly",
-        nextRunAt: "2025-02-01T00:00:00.000Z",
+        nextRunAt: "2025-03-01T00:00:00.000Z",
         template: {
           accountId: "00000000-0000-0000-0000-000000000101",
           kind: "expense",
           amountMinor: 120000,
+          categoryId: "00000000-0000-0000-0000-000000000201",
+          notes: "Apartment rent",
         },
       },
     },
@@ -1091,6 +1099,50 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
         amountMinor: 50000,
         occurredAt: "2025-01-15T12:00:00.000Z",
         notes: "Move to savings",
+      },
+    },
+  },
+  {
+    id: "mutation-moneyTransactionCreate-recurring",
+    field: "moneyTransactionCreate",
+    tabLabel: "Transaction create (recurring)",
+    operationKind: "mutation",
+    summary:
+      "Create a transaction and attach a recurrence schedule in one request.",
+    purpose:
+      "Post the first entry immediately and save a template for future scheduled runs.",
+    whenToUse:
+      "Use this for rent, salary, subscriptions, or other repeating expenses and income — the same flow as Add recurring transaction in the web app.",
+    returns:
+      "The created transaction as JSON, linked to a new recurrence template via recurrenceSourceId.",
+    inputNotes: [
+      "accountId and amountMinor are required.",
+      "recurrence.cadence is required when recurrence is set; use daily, monthly, or yearly (every_5_minutes in development only).",
+      "recurrence.name is optional; when omitted, notes or a default label is used.",
+      "occurredAt should be an ISO datetime with timezone offset; it becomes the first posted entry and the anchor for the next run.",
+      "categoryId, merchantId, tagIds, and tagNames are optional on the transaction.",
+      "Recurrence is not supported on transfers.",
+    ],
+    usageNotes: [
+      "Call moneyAccounts (and moneyCategories if needed) first to obtain valid ids.",
+      "Use moneyRecurrenceCreate instead when you only need a template without posting the first transaction.",
+      "Future entries are generated by the scheduled job (POST /api/cron/money-recurrence) or moneyRecurrenceGenerate.",
+    ],
+    query: `mutation($input: MoneyTransactionCreateInput!) {
+  moneyTransactionCreate(input: $input)
+}`,
+    variables: {
+      input: {
+        accountId: "00000000-0000-0000-0000-000000000101",
+        kind: "expense",
+        amountMinor: 120000,
+        occurredAt: "2025-02-01T00:00:00.000Z",
+        categoryId: "00000000-0000-0000-0000-000000000201",
+        notes: "Apartment rent",
+        recurrence: {
+          cadence: "monthly",
+          name: "Monthly rent",
+        },
       },
     },
   },
@@ -1268,6 +1320,34 @@ export const apiHelpRestApiExamples: ApiHelpRestExample[] = [
     },
   },
   {
+    id: "rest-import-direct-recurrence",
+    tabLabel: "Direct recurrence import",
+    method: "POST",
+    path: "/api/money/import/recurrence",
+    auth: "Bearer + write",
+    summary:
+      "Create recurrence templates from a JSON rows array (template-only; no first transaction is posted).",
+    purpose:
+      "Bulk-import recurring schedules when you already have validated JSON data.",
+    whenToUse:
+      "Use this for migrations or automation that need many templates without the preview workflow.",
+    returns: "JSON { data: { created } } with the number of created templates.",
+    inputNotes: [
+      "Each row needs name, cadence, nextRunAt, and template fields (accountId, kind, amountMinor).",
+      "Same shape as moneyRecurrenceCreate input; see the Recurrence template create mutation tab for field details.",
+      "To post the first transaction and schedule together, use the Transaction create (recurring) GraphQL mutation instead.",
+    ],
+    codeSample: {
+      id: "rest-import-direct-recurrence-sample",
+      label: "Direct recurrence import",
+      language: "bash",
+      body: `curl -sS -X POST "${API_HELP_BASE_URL_PLACEHOLDER}/api/money/import/recurrence" \\
+  -H "Authorization: Bearer mny_YOUR_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"rows":[{"name":"Monthly rent","cadence":"monthly","nextRunAt":"2025-03-01T00:00:00.000Z","template":{"accountId":"00000000-0000-0000-0000-000000000101","kind":"expense","amountMinor":120000,"notes":"Apartment rent"}}]}'`,
+    },
+  },
+  {
     id: "rest-tokens-list",
     tabLabel: "Tokens list",
     method: "GET",
@@ -1428,6 +1508,7 @@ export const apiHelpSections: ApiHelpSection[] = [
       "Browse mutation tabs to see which mutations work with API tokens, which are session-only, and what example payload each one expects.",
     graphqlMutations: apiHelpGraphqlMutationExamples,
     bullets: [
+      "Recurring transactions: use Transaction create (recurring) to post the first entry and schedule future runs; use Recurrence template create for template-only imports",
       "Some workspace-admin mutations (clone, reset) require a browser session only — API tokens are blocked",
       "All mutations require write scope; tokens without write receive 403",
     ],

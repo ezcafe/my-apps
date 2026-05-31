@@ -15,6 +15,8 @@ import {
 
 export type AnalyticsKind = "expense" | "income" | "transfer";
 
+export type AnalyticsRecurrence = "all" | "recurring" | "one-time";
+
 export type AnalyticsFiltersValue = {
   /** YYYY-MM-DD (HTML date input format), or "" when unset. */
   fromDate: string;
@@ -24,6 +26,8 @@ export type AnalyticsFiltersValue = {
   merchantIds: string[];
   tagIds: string[];
   kinds: AnalyticsKind[];
+  recurrence: AnalyticsRecurrence;
+  recurrenceSourceIds: string[];
 };
 
 function pad2(n: number): string {
@@ -46,6 +50,8 @@ export function defaultAnalyticsFilters(): AnalyticsFiltersValue {
     merchantIds: [],
     tagIds: [],
     kinds: [],
+    recurrence: "all",
+    recurrenceSourceIds: [],
   };
 }
 
@@ -56,6 +62,7 @@ export type AnalyticsLookupAccount = {
 };
 export type AnalyticsLookupMerchant = { id: string; name: string };
 export type AnalyticsLookupTag = { id: string; name: string };
+export type AnalyticsLookupRecurrence = { id: string; name: string };
 
 export type AnalyticsWorkspaceRow = {
   id: string;
@@ -75,6 +82,12 @@ const DIRECTION_OPTIONS: { value: DirectionKey; label: string }[] = [
   { value: "transfer", label: "Transfers" },
 ];
 
+const RECURRENCE_OPTIONS: { value: AnalyticsRecurrence; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "recurring", label: "Recurring" },
+  { value: "one-time", label: "One-time" },
+];
+
 function deriveDirection(kinds: AnalyticsKind[]): DirectionKey {
   if (kinds.length !== 1) return "all";
   return kinds[0]!;
@@ -91,6 +104,7 @@ export function AnalyticsFilters({
   categories,
   merchants,
   tags,
+  recurrenceTemplates,
   workspaces,
   activeWorkspaceId,
   onWorkspaceChange,
@@ -108,6 +122,7 @@ export function AnalyticsFilters({
   categories: MoneyCategoryRow[];
   merchants: AnalyticsLookupMerchant[];
   tags: AnalyticsLookupTag[];
+  recurrenceTemplates: AnalyticsLookupRecurrence[];
   workspaces: AnalyticsWorkspaceRow[];
   activeWorkspaceId: string;
   onWorkspaceChange: (workspaceId: string) => void;
@@ -135,6 +150,11 @@ export function AnalyticsFilters({
   const tagItems = useMemo<MultiSelectItem[]>(
     () => tags.map((t) => ({ id: t.id, label: t.name })),
     [tags],
+  );
+
+  const recurrenceItems = useMemo<MultiSelectItem[]>(
+    () => recurrenceTemplates.map((r) => ({ id: r.id, label: r.name })),
+    [recurrenceTemplates],
   );
 
   const categoryItems = useMemo<MultiSelectItem[]>(() => {
@@ -165,21 +185,34 @@ export function AnalyticsFilters({
   const setDirection = (next: DirectionKey) => {
     if (next === "all") {
       onChange({ ...value, kinds: [] });
+    } else if (next === "transfer") {
+      onChange({
+        ...value,
+        kinds: [next],
+        categoryIds: [],
+        recurrence: "all",
+        recurrenceSourceIds: [],
+      });
     } else {
-      const filteredCategories =
-        next === "transfer"
-          ? []
-          : value.categoryIds.filter((id) => {
-              const cat = categoryById.get(id);
-              if (!cat) return false;
-              return cat.kind === next;
-            });
+      const filteredCategories = value.categoryIds.filter((id) => {
+        const cat = categoryById.get(id);
+        if (!cat) return false;
+        return cat.kind === next;
+      });
       onChange({
         ...value,
         kinds: [next],
         categoryIds: filteredCategories,
       });
     }
+  };
+
+  const setRecurrence = (next: AnalyticsRecurrence) => {
+    onChange({
+      ...value,
+      recurrence: next,
+      recurrenceSourceIds: next === "one-time" ? [] : value.recurrenceSourceIds,
+    });
   };
 
   return (
@@ -334,6 +367,63 @@ export function AnalyticsFilters({
             aria-label="Filter by tags"
           />
         </Field>
+
+        {direction === "transfer" ? null : (
+          <>
+            <fieldset className="grid gap-1.5 text-sm">
+              <legend className="text-muted">Recurrence</legend>
+              <div
+                role="radiogroup"
+                aria-label="Recurrence"
+                className="flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+              >
+                {RECURRENCE_OPTIONS.map((opt) => {
+                  const selected = value.recurrence === opt.value;
+                  return (
+                    <label
+                      key={opt.value}
+                      className={`cursor-pointer rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-colors duration-200 fx-press ${
+                        selected
+                          ? "bg-muted-surface text-foreground"
+                          : "text-muted hover:bg-muted-surface hover:text-foreground"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="analytics-recurrence"
+                        className="peer sr-only"
+                        checked={selected}
+                        onChange={() => setRecurrence(opt.value)}
+                      />
+                      {opt.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            {value.recurrence !== "one-time" ? (
+              <Field label="Recurrence templates">
+                <MultiSelect
+                  items={recurrenceItems}
+                  value={value.recurrenceSourceIds}
+                  onChange={(next) =>
+                    onChange({
+                      ...value,
+                      recurrenceSourceIds: next,
+                      recurrence:
+                        next.length > 0 && value.recurrence === "all"
+                          ? "recurring"
+                          : value.recurrence,
+                    })
+                  }
+                  placeholder="All recurring"
+                  aria-label="Filter by recurrence templates"
+                />
+              </Field>
+            ) : null}
+          </>
+        )}
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">

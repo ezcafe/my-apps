@@ -113,6 +113,8 @@ function filtersFromInput(raw: Record<string, unknown> | null | undefined) {
     merchantIds: raw?.merchantIds ?? undefined,
     tagIds: raw?.tagIds ?? undefined,
     kinds: raw?.kinds ?? undefined,
+    recurrence: raw?.recurrence ?? undefined,
+    recurrenceSourceIds: raw?.recurrenceSourceIds ?? undefined,
   });
   if (!parsed.success) {
     gqlErr(

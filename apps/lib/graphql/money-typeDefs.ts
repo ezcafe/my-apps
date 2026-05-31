@@ -9,6 +9,8 @@ export const moneyTypeDefs = /* GraphQL */ `
     merchantIds: [String!]
     tagIds: [String!]
     kinds: [String!]
+    recurrence: String
+    recurrenceSourceIds: [String!]
   }
 
   type MoneyBootstrapWorkspace {
