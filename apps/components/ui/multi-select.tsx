@@ -448,7 +448,9 @@ export function MultiSelect({
         />
       </button>
 
-      {mounted && panel ? createPortal(panel, panelHost) : null}
+      {mounted && panel && panelHost
+        ? createPortal(panel, panelHost)
+        : null}
     </div>
   );
 }
