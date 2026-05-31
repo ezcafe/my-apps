@@ -18,10 +18,12 @@ import {
   MONEY_ANALYTICS_SUMMARY_QUERY,
   MONEY_ANALYTICS_SANKEY_QUERY,
   MONEY_BOOTSTRAP_QUERY,
+  MONEY_CATEGORY_BUDGET_STATUS_QUERY,
   MONEY_FORM_LOOKUPS_QUERY,
   MONEY_TRANSACTIONS_QUERY,
   MONEY_WORKSPACE_STATE_QUERY,
 } from "@/lib/money-gql-documents";
+import type { CategoryBudgetStatusRow } from "@/lib/money-category-budget-status";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import type {
   MoneyAnalyticsBudgetPayload,
@@ -88,9 +90,26 @@ export const moneyRootQueryKey = ["money"] as const;
 export const moneyBootstrapQueryKey = ["money", "bootstrap"] as const;
 export const moneyWorkspaceStateQueryKey = ["money", "workspaceState"] as const;
 export const moneyFormLookupsQueryKey = ["money", "formLookups"] as const;
+export const moneyCategoryBudgetStatusQueryKey = [
+  "money",
+  "categoryBudgetStatus",
+] as const;
 
 export async function invalidateMoneyWorkspaceQueries(queryClient: QueryClient) {
   await queryClient.invalidateQueries({ queryKey: moneyRootQueryKey });
+}
+
+/** Refetch category budget utilization after posting an expense (bypasses stale client cache). */
+export async function refetchMoneyCategoryBudgetStatus(
+  queryClient: QueryClient,
+  workspaceKey?: string,
+) {
+  await queryClient.refetchQueries({
+    queryKey: workspaceKey
+      ? ([...moneyCategoryBudgetStatusQueryKey, workspaceKey] as const)
+      : moneyCategoryBudgetStatusQueryKey,
+    type: "active",
+  });
 }
 
 export function moneyBootstrapQueryOptions() {
@@ -126,6 +145,30 @@ export function moneyFormLookupsQueryOptions() {
       return await moneyGraphQLRequest<MoneyFormLookups>(MONEY_FORM_LOOKUPS_QUERY);
     },
     staleTime: 5 * 60_000,
+  });
+}
+
+export function moneyCategoryBudgetStatusQueryOptions(
+  workspaceKey: string,
+  monthKey: string,
+  from: string,
+  to: string,
+) {
+  return queryOptions({
+    queryKey: [
+      ...moneyCategoryBudgetStatusQueryKey,
+      workspaceKey,
+      monthKey,
+    ] as const,
+    queryFn: async () => {
+      const res = await moneyGraphQLRequest<{
+        moneyCategoryBudgetStatus: CategoryBudgetStatusRow[];
+      }>(MONEY_CATEGORY_BUDGET_STATUS_QUERY, { from, to });
+      return res.moneyCategoryBudgetStatus;
+    },
+    select: (rows) =>
+      new Map(rows.map((r) => [r.categoryId, r.progressPct] as const)),
+    staleTime: 60_000,
   });
 }
 

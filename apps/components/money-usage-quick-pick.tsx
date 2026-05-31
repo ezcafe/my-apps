@@ -11,6 +11,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
 import {
+  budgetUtilizationTextClass,
+  type BudgetUtilizationTone,
+} from "@/lib/budget-utilization-chart-colors";
+import {
   isOtherSelection,
   otherChipLabel,
   quickPickIds,
@@ -20,12 +24,15 @@ import {
 
 const QUICK_PICK_N = 5;
 
-const chipCls = (active: boolean) =>
+const chipCls = (active: boolean, textTone?: BudgetUtilizationTone) =>
   cn(
     "min-w-20 max-w-full truncate rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
-    active
-      ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-      : "text-muted hover:bg-muted-surface hover:text-foreground",
+    active ? "bg-surface shadow-[var(--shadow-sm)]" : "hover:bg-muted-surface",
+    textTone
+      ? budgetUtilizationTextClass(textTone)
+      : active
+        ? "text-foreground"
+        : "text-muted hover:text-foreground",
   );
 
 export function MoneyUsageQuickPick({
@@ -42,6 +49,7 @@ export function MoneyUsageQuickPick({
   emptySelectedOnOther = false,
   emptyMessage = "No options yet.",
   renderPickerRow,
+  chipTextTone,
   className,
 }: {
   legend: ReactNode;
@@ -62,6 +70,8 @@ export function MoneyUsageQuickPick({
   emptyMessage?: string;
   /** Optional extra content per picker row (e.g. account balance). */
   renderPickerRow?: (item: UsageRankedItem) => ReactNode;
+  /** Category budget utilization text tone per item id (expense form). */
+  chipTextTone?: (id: string) => BudgetUtilizationTone | undefined;
   className?: string;
 }) {
   const listboxId = useId();
@@ -192,6 +202,7 @@ export function MoneyUsageQuickPick({
       >
         {chipItems.map((item) => {
           const active = selectedId === item.id && !otherActive;
+          const textTone = item.id ? chipTextTone?.(item.id) : undefined;
           return (
             <button
               key={item.id || "__none"}
@@ -199,7 +210,7 @@ export function MoneyUsageQuickPick({
               role="radio"
               aria-checked={active}
               onClick={() => pick(item.id)}
-              className={chipCls(active)}
+              className={chipCls(active, textTone)}
             >
               {item.label}
             </button>
@@ -244,22 +255,30 @@ export function MoneyUsageQuickPick({
                 {pickerItems.length === 0 ? (
                   <li className="px-3 py-2 text-sm text-muted">No matches</li>
                 ) : (
-                  pickerItems.map((item) => (
+                  pickerItems.map((item) => {
+                    const pickerTextTone = item.id
+                      ? chipTextTone?.(item.id)
+                      : undefined;
+                    const selected = selectedId === item.id;
+                    return (
                     <li
                       key={item.id === "" ? "__none" : item.id}
                       role="option"
-                      aria-selected={selectedId === item.id}
+                      aria-selected={selected}
                     >
                       <button
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => pick(item.id)}
                         className={cn(
-                          "flex w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] py-2 pr-3 text-left text-sm transition-colors duration-150",
+                          "flex w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] py-2 pr-3 text-left text-sm transition-[background-color,color] duration-150",
                           item.isChild ? "pl-8" : "pl-3",
-                          selectedId === item.id
-                            ? "bg-accent text-accent-foreground"
-                            : "text-foreground hover:bg-muted-surface",
+                          selected ? "bg-accent" : "hover:bg-muted-surface",
+                          pickerTextTone
+                            ? budgetUtilizationTextClass(pickerTextTone)
+                            : selected
+                              ? "text-accent-foreground"
+                              : "text-foreground",
                         )}
                       >
                         <span className="min-w-0 truncate">{item.label}</span>
@@ -270,7 +289,8 @@ export function MoneyUsageQuickPick({
                         ) : null}
                       </button>
                     </li>
-                  ))
+                    );
+                  })
                 )}
               </ul>
             </div>

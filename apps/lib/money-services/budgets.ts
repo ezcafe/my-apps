@@ -7,6 +7,10 @@ import {
   moneyTransactionTag,
 } from "@/db/schema/money";
 import {
+  buildCategoryBudgetStatusRows,
+  type CategoryBudgetStatusRow,
+} from "@/lib/money-category-budget-status";
+import {
   assertBudgetTargetInWorkspace,
   type BudgetScope,
 } from "@/lib/money-budget-target";
@@ -243,6 +247,42 @@ export async function listMoneyBudgets(
   });
 
   return enriched;
+}
+
+export type { CategoryBudgetStatusRow };
+
+export async function listMoneyCategoryBudgetStatus(
+  workspaceId: string,
+  from: string,
+  to: string,
+): Promise<CategoryBudgetStatusRow[]> {
+  const budgets = (await listMoneyBudgets(workspaceId, {
+    includeSpent: true,
+    from,
+    to,
+  })) as BudgetListRowEnriched[];
+
+  const directPctByCategoryId = new Map<string, number>();
+  for (const b of budgets) {
+    if (b.scopeType !== "category" || !b.scopeId) continue;
+    directPctByCategoryId.set(b.scopeId, b.progressPct);
+  }
+
+  if (directPctByCategoryId.size === 0) return [];
+
+  const categoryRows = await db
+    .select({
+      id: moneyCategory.id,
+      parentId: moneyCategory.parentId,
+    })
+    .from(moneyCategory)
+    .where(eq(moneyCategory.workspaceId, workspaceId));
+
+  const parentIdByCategoryId = new Map(
+    categoryRows.map((c) => [c.id, c.parentId]),
+  );
+
+  return buildCategoryBudgetStatusRows(directPctByCategoryId, parentIdByCategoryId);
 }
 
 export async function createMoneyBudget(

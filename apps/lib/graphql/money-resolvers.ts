@@ -18,6 +18,7 @@ import {
   createMoneyBudget,
   deleteMoneyBudget,
   listMoneyBudgets,
+  listMoneyCategoryBudgetStatus,
   updateMoneyBudget,
 } from "@/lib/money-services/budgets";
 import {
@@ -703,6 +704,23 @@ export const moneyResolvers = {
           from: args.from ?? null,
           to: args.to ?? null,
         });
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyCategoryBudgetStatus: async (
+      _: unknown,
+      args: { from: string; to: string },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        return await listMoneyCategoryBudgetStatus(
+          workspaceId,
+          args.from,
+          args.to,
+        );
       } catch (e) {
         mapServiceError(e);
       }

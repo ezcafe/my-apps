@@ -144,6 +144,7 @@ const yoga = createYoga({
         "Query.moneyAnalyticsSummary": 45_000,
         "Query.moneyAnalyticsOverview": 30_000,
         "Query.moneyAnalyticsBudgets": 30_000,
+        "Query.moneyCategoryBudgetStatus": 0,
         "Query.moneyAnalyticsSankey": 30_000,
         "Query.moneyAnalyticsDistribution": 30_000,
         "Query.moneyAnalyticsLeaders": 30_000,

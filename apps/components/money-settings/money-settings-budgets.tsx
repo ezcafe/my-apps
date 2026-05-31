@@ -25,6 +25,7 @@ import {
   moneyCategorySelectGroups,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
+import { utcCalendarMonthRangeIso } from "@/lib/budget-utc-month-range";
 import { moneyBudgetScopeTypeSchema } from "@/lib/validators/money";
 import type { z } from "zod";
 import {
@@ -93,17 +94,6 @@ function budgetRowLabel(
   return b.scopeType;
 }
 
-function currentUtcMonthRangeIso(): { from: string; to: string } {
-  const now = new Date();
-  const from = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
-  );
-  const to = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999),
-  );
-  return { from: from.toISOString(), to: to.toISOString() };
-}
-
 export function MoneySettingsBudgetsSection() {
   const notify = useNotify();
   const { defaultCurrency } = useWorkspaceCurrency();
@@ -165,7 +155,7 @@ export function MoneySettingsBudgetsSection() {
     setTags(res.moneyTags);
   }, []);
   const loadBudgets = useCallback(async () => {
-    const { from, to } = currentUtcMonthRangeIso();
+    const { from, to } = utcCalendarMonthRangeIso();
     const res = await moneyGraphQLRequest<{ moneyBudgets: BudgetRow[] }>(
       MONEY_BUDGETS_FOR_RANGE_QUERY,
       {

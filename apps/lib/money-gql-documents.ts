@@ -232,6 +232,12 @@ export const MONEY_BUDGETS_FOR_RANGE_QUERY = /* GraphQL */ `
   }
 `;
 
+export const MONEY_CATEGORY_BUDGET_STATUS_QUERY = /* GraphQL */ `
+  query MoneyCategoryBudgetStatus($from: String!, $to: String!) {
+    moneyCategoryBudgetStatus(from: $from, to: $to)
+  }
+`;
+
 export const MONEY_ACCOUNT_CREATE_MUTATION = /* GraphQL */ `
   mutation MoneyAccountCreate($input: MoneyAccountCreateInput!) {
     moneyAccountCreate(input: $input)

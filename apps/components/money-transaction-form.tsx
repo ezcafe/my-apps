@@ -1,8 +1,8 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   MoneyLookupQuickPickSkeleton,
   MoneyTagsFieldSkeleton,
@@ -36,6 +36,11 @@ import {
   MONEY_SET_ACTIVE_WORKSPACE_MUTATION,
   MONEY_TRANSACTION_CREATE_MUTATION,
 } from "@/lib/money-gql-documents";
+import { budgetUtilizationTone } from "@/lib/budget-utilization-chart-colors";
+import {
+  utcCalendarMonthKey,
+  utcCalendarMonthRangeIso,
+} from "@/lib/budget-utc-month-range";
 import {
   categoriesOfKind,
   moneyCategoryById,
@@ -43,8 +48,10 @@ import {
   moneyCategorySelectGroups,
 } from "@/lib/money-category-ui";
 import {
+  moneyCategoryBudgetStatusQueryOptions,
   moneyFormLookupsQueryOptions,
   moneyWorkspaceStateQueryOptions,
+  refetchMoneyCategoryBudgetStatus,
   type MoneyAccountLookup,
   type MoneyCategoryLookup,
 } from "@/lib/money-query-options";
@@ -163,6 +170,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
   const { data: session, status } = useSession();
   const userSub = session?.user?.id;
   const notify = useNotify();
+  const queryClient = useQueryClient();
   const { formatDate } = useFormatDate();
   const {
     defaultCurrency,
@@ -247,6 +255,43 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     (resolvedWorkspaceId !== "" && resolvedWorkspaceId !== coreWorkspaceId);
   const lookupsReady =
     workspaceReady && !workspaceSyncPending && formLookupsQuery.isSuccess;
+
+  const budgetMonthInstant = useMemo(
+    () => new Date(occurredAt),
+    [occurredAt],
+  );
+  const budgetMonthKey = useMemo(
+    () => utcCalendarMonthKey(budgetMonthInstant),
+    [budgetMonthInstant],
+  );
+  const budgetMonthRange = useMemo(
+    () => utcCalendarMonthRangeIso(budgetMonthInstant),
+    [budgetMonthInstant],
+  );
+  const categoryBudgetStatusQuery = useQuery({
+    ...moneyCategoryBudgetStatusQueryOptions(
+      activeWorkspaceId,
+      budgetMonthKey,
+      budgetMonthRange.from,
+      budgetMonthRange.to,
+    ),
+    enabled:
+      canRunMoneyQueries &&
+      lookupsReady &&
+      kind === "expense" &&
+      Boolean(activeWorkspaceId),
+  });
+  const categoryBudgetPctById = categoryBudgetStatusQuery.data;
+
+  const categoryChipTextTone = useCallback(
+    (id: string) => {
+      if (!id || !categoryBudgetPctById) return undefined;
+      const tone = budgetUtilizationTone(categoryBudgetPctById.get(id));
+      return tone ?? undefined;
+    },
+    [categoryBudgetPctById],
+  );
+
   const accountsReady = lookupsReady;
   const merchantPickerReady = lookupsReady;
   const accountEmptyMessage =
@@ -534,6 +579,10 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
       await moneyGraphQLRequest(MONEY_TRANSACTION_CREATE_MUTATION, {
         input: body,
       });
+
+      if (kind === "expense") {
+        await refetchMoneyCategoryBudgetStatus(queryClient, activeWorkspaceId);
+      }
 
       if (isRecurrenceMode) {
         notify.success(
@@ -861,6 +910,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                 emptyCountsAsOther
                 emptySelectedOnOther={categoryOtherSelected}
                 emptyMessage={categoryEmptyMessage}
+                chipTextTone={categoryChipTextTone}
               />
             )
           ) : null}
