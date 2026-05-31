@@ -16,6 +16,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/cn";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_TRANSACTION_DELETE_MUTATION } from "@/lib/money-gql-documents";
@@ -109,6 +110,10 @@ export function AnalyticsTransactionsTable({
     [accounts],
   );
   const categoryById = useMemo(() => moneyCategoryById(categories), [categories]);
+  const tagById = useMemo(
+    () => new Map(tags.map((t) => [t.id, t])),
+    [tags],
+  );
 
   const transactionsQuery = useQuery({
     ...moneyTransactionsQueryOptions(
@@ -152,7 +157,7 @@ export function AnalyticsTransactionsTable({
   const somePageSelected =
     !allPageSelected && pageIds.some((id) => selectedIds.has(id));
 
-  const columnCount = selectable ? 6 : 6;
+  const columnCount = 7;
 
   const toggleRow = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -288,6 +293,19 @@ export function AnalyticsTransactionsTable({
         <td className="whitespace-nowrap px-3 py-2 text-muted">{dateLabel}</td>
         <td className="max-w-[10rem] truncate px-3 py-2">{acc?.name ?? "—"}</td>
         <td className="max-w-[10rem] truncate px-3 py-2">{categoryLabel}</td>
+        <td className="max-w-[12rem] px-3 py-2">
+          {tx.tagIds.length === 0 ? (
+            <span className="text-muted">—</span>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {tx.tagIds.map((tagId) => {
+                const tag = tagById.get(tagId);
+                if (!tag) return null;
+                return <Tag key={tagId}>{tag.name}</Tag>;
+              })}
+            </div>
+          )}
+        </td>
         <td
           className="whitespace-nowrap px-3 py-2 text-right tabular-nums"
           style={
@@ -398,6 +416,9 @@ export function AnalyticsTransactionsTable({
                     </th>
                     <th scope="col" className="px-3 py-2 font-medium">
                       Category
+                    </th>
+                    <th scope="col" className="px-3 py-2 font-medium">
+                      Tags
                     </th>
                     <th
                       scope="col"

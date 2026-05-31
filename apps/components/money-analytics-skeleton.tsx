@@ -63,8 +63,8 @@ export function MoneyAnalyticsTransactionsTableSkeleton() {
       <Skeleton className="mb-3 h-6 w-32" />
       <Skeleton className="mb-4 h-3 w-80 max-w-full" />
       <div className="overflow-hidden rounded-[var(--radius-md)] border border-border">
-        <div className="grid grid-cols-[minmax(6rem,1fr)_minmax(8rem,1.2fr)_minmax(8rem,1.2fr)_minmax(6rem,0.8fr)_minmax(10rem,1.5fr)_4rem] gap-3 bg-muted-surface px-3 py-2">
-          {Array.from({ length: 6 }, (_, index) => (
+        <div className="grid grid-cols-[minmax(6rem,1fr)_minmax(8rem,1.2fr)_minmax(8rem,1.2fr)_minmax(8rem,1fr)_minmax(6rem,0.8fr)_minmax(10rem,1.5fr)_4rem] gap-3 bg-muted-surface px-3 py-2">
+          {Array.from({ length: 7 }, (_, index) => (
             <Skeleton key={`analytics-table-head-${index}`} className="h-4 w-full" />
           ))}
         </div>
@@ -72,9 +72,9 @@ export function MoneyAnalyticsTransactionsTableSkeleton() {
           {Array.from({ length: 5 }, (_, rowIndex) => (
             <div
               key={`analytics-table-row-${rowIndex}`}
-              className="grid grid-cols-[minmax(6rem,1fr)_minmax(8rem,1.2fr)_minmax(8rem,1.2fr)_minmax(6rem,0.8fr)_minmax(10rem,1.5fr)_4rem] gap-3 py-3"
+              className="grid grid-cols-[minmax(6rem,1fr)_minmax(8rem,1.2fr)_minmax(8rem,1.2fr)_minmax(8rem,1fr)_minmax(6rem,0.8fr)_minmax(10rem,1.5fr)_4rem] gap-3 py-3"
             >
-              {Array.from({ length: 6 }, (_, colIndex) => (
+              {Array.from({ length: 7 }, (_, colIndex) => (
                 <Skeleton
                   key={`analytics-table-row-${rowIndex}-col-${colIndex}`}
                   className="h-4 w-full"
