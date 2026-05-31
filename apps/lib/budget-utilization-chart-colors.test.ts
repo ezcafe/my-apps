@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  budgetUtilizationTextClass,
+  budgetUtilizationChipFill,
+  budgetUtilizationFillColor,
   budgetUtilizationTone,
+  clampBudgetUtilizationWidthPct,
 } from "@/lib/budget-utilization-chart-colors";
 
 describe("budgetUtilizationTone", () => {
@@ -22,16 +24,34 @@ describe("budgetUtilizationTone", () => {
   });
 });
 
-describe("budgetUtilizationTextClass", () => {
-  it("maps tones to --chart-* text classes", () => {
-    assert.match(budgetUtilizationTextClass("ok")!, /--chart-3/);
-    assert.match(budgetUtilizationTextClass("warn")!, /--chart-2/);
-    assert.match(budgetUtilizationTextClass("danger")!, /--chart-5/);
-    assert.match(budgetUtilizationTextClass("ok")!, /^text-/);
+describe("clampBudgetUtilizationWidthPct", () => {
+  it("clamps fill width to 0–100", () => {
+    assert.equal(clampBudgetUtilizationWidthPct(-1), 0);
+    assert.equal(clampBudgetUtilizationWidthPct(50), 50);
+    assert.equal(clampBudgetUtilizationWidthPct(100), 100);
+    assert.equal(clampBudgetUtilizationWidthPct(150), 100);
+  });
+});
+
+describe("budgetUtilizationChipFill", () => {
+  it("returns null without budget data", () => {
+    assert.equal(budgetUtilizationChipFill(undefined), null);
+    assert.equal(budgetUtilizationChipFill(Number.NaN), null);
   });
 
-  it("returns undefined when tone is absent", () => {
-    assert.equal(budgetUtilizationTextClass(null), undefined);
-    assert.equal(budgetUtilizationTextClass(undefined), undefined);
+  it("maps 50% utilization to warn tone and half-width fill", () => {
+    const fill = budgetUtilizationChipFill(50);
+    assert.ok(fill);
+    assert.equal(fill.widthPct, 50);
+    assert.equal(fill.fillColor, budgetUtilizationFillColor("warn"));
+    assert.match(fill.fillColor, /--chart-2/);
+  });
+
+  it("caps bar width at 100% while keeping raw progressPct", () => {
+    const fill = budgetUtilizationChipFill(120);
+    assert.ok(fill);
+    assert.equal(fill.widthPct, 100);
+    assert.equal(fill.progressPct, 120);
+    assert.equal(budgetUtilizationTone(fill.progressPct), "danger");
   });
 });

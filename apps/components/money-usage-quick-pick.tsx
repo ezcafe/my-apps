@@ -11,8 +11,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
 import {
-  budgetUtilizationTextClass,
-  type BudgetUtilizationTone,
+  budgetUtilizationChipFill,
+  type BudgetUtilizationChipFill,
 } from "@/lib/budget-utilization-chart-colors";
 import {
   isOtherSelection,
@@ -24,16 +24,33 @@ import {
 
 const QUICK_PICK_N = 5;
 
-const chipCls = (active: boolean, textTone?: BudgetUtilizationTone) =>
+const chipCls = (active: boolean) =>
   cn(
-    "min-w-20 max-w-full truncate rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
+    "relative isolate min-w-20 max-w-full overflow-hidden rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
     active ? "bg-surface shadow-[var(--shadow-sm)]" : "hover:bg-muted-surface",
-    textTone
-      ? budgetUtilizationTextClass(textTone)
-      : active
-        ? "text-foreground"
-        : "text-muted hover:text-foreground",
+    active ? "text-foreground" : "text-muted hover:text-foreground",
   );
+
+function BudgetUtilizationFillLayer({ fill }: { fill: BudgetUtilizationChipFill }) {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-y-0 start-0 rounded-[inherit]"
+      style={{
+        width: `${fill.widthPct}%`,
+        backgroundColor: `color-mix(in oklab, ${fill.fillColor} 42%, transparent)`,
+      }}
+    />
+  );
+}
+
+function budgetFillTitle(fill: BudgetUtilizationChipFill): string {
+  const pct =
+    fill.progressPct >= 100
+      ? fill.progressPct.toFixed(0)
+      : fill.progressPct.toFixed(1);
+  return `${pct}% of budget used`;
+}
 
 export function MoneyUsageQuickPick({
   legend,
@@ -49,7 +66,7 @@ export function MoneyUsageQuickPick({
   emptySelectedOnOther = false,
   emptyMessage = "No options yet.",
   renderPickerRow,
-  chipTextTone,
+  chipBudgetProgressPct,
   className,
 }: {
   legend: ReactNode;
@@ -70,8 +87,8 @@ export function MoneyUsageQuickPick({
   emptyMessage?: string;
   /** Optional extra content per picker row (e.g. account balance). */
   renderPickerRow?: (item: UsageRankedItem) => ReactNode;
-  /** Category budget utilization text tone per item id (expense form). */
-  chipTextTone?: (id: string) => BudgetUtilizationTone | undefined;
+  /** Budget utilization % per item id (fills chip from the left). */
+  chipBudgetProgressPct?: (id: string) => number | undefined;
   className?: string;
 }) {
   const listboxId = useId();
@@ -202,7 +219,9 @@ export function MoneyUsageQuickPick({
       >
         {chipItems.map((item) => {
           const active = selectedId === item.id && !otherActive;
-          const textTone = item.id ? chipTextTone?.(item.id) : undefined;
+          const fill = item.id
+            ? budgetUtilizationChipFill(chipBudgetProgressPct?.(item.id))
+            : null;
           return (
             <button
               key={item.id || "__none"}
@@ -210,9 +229,11 @@ export function MoneyUsageQuickPick({
               role="radio"
               aria-checked={active}
               onClick={() => pick(item.id)}
-              className={chipCls(active, textTone)}
+              className={chipCls(active)}
+              title={fill ? budgetFillTitle(fill) : undefined}
             >
-              {item.label}
+              {fill ? <BudgetUtilizationFillLayer fill={fill} /> : null}
+              <span className="relative z-[1] block truncate">{item.label}</span>
             </button>
           );
         })}
@@ -256,9 +277,11 @@ export function MoneyUsageQuickPick({
                   <li className="px-3 py-2 text-sm text-muted">No matches</li>
                 ) : (
                   pickerItems.map((item) => {
-                    const pickerTextTone = item.id
-                      ? chipTextTone?.(item.id)
-                      : undefined;
+                    const fill = item.id
+                      ? budgetUtilizationChipFill(
+                          chipBudgetProgressPct?.(item.id),
+                        )
+                      : null;
                     const selected = selectedId === item.id;
                     return (
                     <li
@@ -271,17 +294,17 @@ export function MoneyUsageQuickPick({
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => pick(item.id)}
                         className={cn(
-                          "flex w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] py-2 pr-3 text-left text-sm transition-[background-color,color] duration-150",
+                          "relative isolate flex w-full items-center justify-between gap-2 overflow-hidden rounded-[var(--radius-sm)] py-2 pr-3 text-left text-sm transition-[background-color,color] duration-150",
                           item.isChild ? "pl-8" : "pl-3",
                           selected ? "bg-accent" : "hover:bg-muted-surface",
-                          pickerTextTone
-                            ? budgetUtilizationTextClass(pickerTextTone)
-                            : selected
-                              ? "text-accent-foreground"
-                              : "text-foreground",
+                          selected ? "text-accent-foreground" : "text-foreground",
                         )}
+                        title={fill ? budgetFillTitle(fill) : undefined}
                       >
-                        <span className="min-w-0 truncate">{item.label}</span>
+                        {fill ? <BudgetUtilizationFillLayer fill={fill} /> : null}
+                        <span className="relative z-[1] min-w-0 truncate">
+                          {item.label}
+                        </span>
                         {renderPickerRow ? (
                           <span className="shrink-0 text-xs text-muted">
                             {renderPickerRow(item)}

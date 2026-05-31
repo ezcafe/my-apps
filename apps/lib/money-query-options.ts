@@ -18,13 +18,13 @@ import {
   MONEY_ANALYTICS_SUMMARY_QUERY,
   MONEY_ANALYTICS_SANKEY_QUERY,
   MONEY_BOOTSTRAP_QUERY,
-  MONEY_CATEGORY_BUDGET_STATUS_QUERY,
+  MONEY_FORM_BUDGET_STATUS_QUERY,
   MONEY_FORM_LOOKUPS_QUERY,
   MONEY_LIST_RECURRENCE_QUERY,
   MONEY_TRANSACTIONS_QUERY,
   MONEY_WORKSPACE_STATE_QUERY,
 } from "@/lib/money-gql-documents";
-import type { CategoryBudgetStatusRow } from "@/lib/money-category-budget-status";
+import type { FormBudgetStatusPayload } from "@/lib/money-services/budgets";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import type {
   MoneyAnalyticsBudgetPayload,
@@ -99,24 +99,26 @@ export const moneyRootQueryKey = ["money"] as const;
 export const moneyBootstrapQueryKey = ["money", "bootstrap"] as const;
 export const moneyWorkspaceStateQueryKey = ["money", "workspaceState"] as const;
 export const moneyFormLookupsQueryKey = ["money", "formLookups"] as const;
-export const moneyCategoryBudgetStatusQueryKey = [
-  "money",
-  "categoryBudgetStatus",
-] as const;
+export const moneyFormBudgetStatusQueryKey = ["money", "formBudgetStatus"] as const;
+
+export type MoneyFormBudgetStatusMaps = {
+  categories: Map<string, number>;
+  accounts: Map<string, number>;
+};
 
 export async function invalidateMoneyWorkspaceQueries(queryClient: QueryClient) {
   await queryClient.invalidateQueries({ queryKey: moneyRootQueryKey });
 }
 
-/** Refetch category budget utilization after posting an expense (bypasses stale client cache). */
-export async function refetchMoneyCategoryBudgetStatus(
+/** Refetch form chip budget utilization after posting an expense. */
+export async function refetchMoneyFormBudgetStatus(
   queryClient: QueryClient,
   workspaceKey?: string,
 ) {
   await queryClient.refetchQueries({
     queryKey: workspaceKey
-      ? ([...moneyCategoryBudgetStatusQueryKey, workspaceKey] as const)
-      : moneyCategoryBudgetStatusQueryKey,
+      ? ([...moneyFormBudgetStatusQueryKey, workspaceKey] as const)
+      : moneyFormBudgetStatusQueryKey,
     type: "active",
   });
 }
@@ -157,26 +159,28 @@ export function moneyFormLookupsQueryOptions() {
   });
 }
 
-export function moneyCategoryBudgetStatusQueryOptions(
+export function moneyFormBudgetStatusQueryOptions(
   workspaceKey: string,
   monthKey: string,
   from: string,
   to: string,
 ) {
   return queryOptions({
-    queryKey: [
-      ...moneyCategoryBudgetStatusQueryKey,
-      workspaceKey,
-      monthKey,
-    ] as const,
+    queryKey: [...moneyFormBudgetStatusQueryKey, workspaceKey, monthKey] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<{
-        moneyCategoryBudgetStatus: CategoryBudgetStatusRow[];
-      }>(MONEY_CATEGORY_BUDGET_STATUS_QUERY, { from, to });
-      return res.moneyCategoryBudgetStatus;
+        moneyFormBudgetStatus: FormBudgetStatusPayload;
+      }>(MONEY_FORM_BUDGET_STATUS_QUERY, { from, to });
+      return res.moneyFormBudgetStatus;
     },
-    select: (rows) =>
-      new Map(rows.map((r) => [r.categoryId, r.progressPct] as const)),
+    select: (payload): MoneyFormBudgetStatusMaps => ({
+      categories: new Map(
+        payload.categories.map((r) => [r.categoryId, r.progressPct] as const),
+      ),
+      accounts: new Map(
+        payload.accounts.map((r) => [r.accountId, r.progressPct] as const),
+      ),
+    }),
     staleTime: 60_000,
   });
 }

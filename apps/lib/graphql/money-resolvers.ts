@@ -18,7 +18,7 @@ import {
   createMoneyBudget,
   deleteMoneyBudget,
   listMoneyBudgets,
-  listMoneyCategoryBudgetStatus,
+  listMoneyFormBudgetStatus,
   updateMoneyBudget,
 } from "@/lib/money-services/budgets";
 import {
@@ -711,14 +711,14 @@ export const moneyResolvers = {
       }
     },
 
-    moneyCategoryBudgetStatus: async (
+    moneyFormBudgetStatus: async (
       _: unknown,
       args: { from: string; to: string },
       ctx: MoneyGraphQLContext,
     ) => {
       try {
         const { workspaceId } = requireMoneyWorkspace(ctx);
-        return await listMoneyCategoryBudgetStatus(
+        return await listMoneyFormBudgetStatus(
           workspaceId,
           args.from,
           args.to,

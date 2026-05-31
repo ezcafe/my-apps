@@ -36,7 +36,6 @@ import {
   MONEY_SET_ACTIVE_WORKSPACE_MUTATION,
   MONEY_TRANSACTION_CREATE_MUTATION,
 } from "@/lib/money-gql-documents";
-import { budgetUtilizationTone } from "@/lib/budget-utilization-chart-colors";
 import {
   utcCalendarMonthKey,
   utcCalendarMonthRangeIso,
@@ -48,10 +47,10 @@ import {
   moneyCategorySelectGroups,
 } from "@/lib/money-category-ui";
 import {
-  moneyCategoryBudgetStatusQueryOptions,
+  moneyFormBudgetStatusQueryOptions,
   moneyFormLookupsQueryOptions,
   moneyWorkspaceStateQueryOptions,
-  refetchMoneyCategoryBudgetStatus,
+  refetchMoneyFormBudgetStatus,
   type MoneyAccountLookup,
   type MoneyCategoryLookup,
 } from "@/lib/money-query-options";
@@ -268,8 +267,8 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     () => utcCalendarMonthRangeIso(budgetMonthInstant),
     [budgetMonthInstant],
   );
-  const categoryBudgetStatusQuery = useQuery({
-    ...moneyCategoryBudgetStatusQueryOptions(
+  const formBudgetStatusQuery = useQuery({
+    ...moneyFormBudgetStatusQueryOptions(
       activeWorkspaceId,
       budgetMonthKey,
       budgetMonthRange.from,
@@ -278,18 +277,25 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     enabled:
       canRunMoneyQueries &&
       lookupsReady &&
-      kind === "expense" &&
+      (kind === "expense" || kind === "transfer") &&
       Boolean(activeWorkspaceId),
   });
-  const categoryBudgetPctById = categoryBudgetStatusQuery.data;
+  const formBudgetPctById = formBudgetStatusQuery.data;
 
-  const categoryChipTextTone = useCallback(
+  const categoryChipBudgetProgressPct = useCallback(
     (id: string) => {
-      if (!id || !categoryBudgetPctById) return undefined;
-      const tone = budgetUtilizationTone(categoryBudgetPctById.get(id));
-      return tone ?? undefined;
+      if (kind !== "expense" || !id || !formBudgetPctById) return undefined;
+      return formBudgetPctById.categories.get(id);
     },
-    [categoryBudgetPctById],
+    [formBudgetPctById, kind],
+  );
+
+  const accountChipBudgetProgressPct = useCallback(
+    (id: string) => {
+      if (!id || !formBudgetPctById) return undefined;
+      return formBudgetPctById.accounts.get(id);
+    },
+    [formBudgetPctById],
   );
 
   const accountsReady = lookupsReady;
@@ -581,7 +587,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
       });
 
       if (kind === "expense") {
-        await refetchMoneyCategoryBudgetStatus(queryClient, activeWorkspaceId);
+        await refetchMoneyFormBudgetStatus(queryClient, activeWorkspaceId);
       }
 
       if (isRecurrenceMode) {
@@ -857,6 +863,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                   defaultCurrency,
                 )
               }
+              chipBudgetProgressPct={accountChipBudgetProgressPct}
             />
           )}
 
@@ -910,7 +917,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                 emptyCountsAsOther
                 emptySelectedOnOther={categoryOtherSelected}
                 emptyMessage={categoryEmptyMessage}
-                chipTextTone={categoryChipTextTone}
+                chipBudgetProgressPct={categoryChipBudgetProgressPct}
               />
             )
           ) : null}

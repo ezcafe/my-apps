@@ -251,11 +251,21 @@ export async function listMoneyBudgets(
 
 export type { CategoryBudgetStatusRow };
 
-export async function listMoneyCategoryBudgetStatus(
+export type AccountBudgetStatusRow = {
+  accountId: string;
+  progressPct: number;
+};
+
+export type FormBudgetStatusPayload = {
+  categories: CategoryBudgetStatusRow[];
+  accounts: AccountBudgetStatusRow[];
+};
+
+export async function listMoneyFormBudgetStatus(
   workspaceId: string,
   from: string,
   to: string,
-): Promise<CategoryBudgetStatusRow[]> {
+): Promise<FormBudgetStatusPayload> {
   const budgets = (await listMoneyBudgets(workspaceId, {
     includeSpent: true,
     from,
@@ -263,26 +273,46 @@ export async function listMoneyCategoryBudgetStatus(
   })) as BudgetListRowEnriched[];
 
   const directPctByCategoryId = new Map<string, number>();
+  const accounts: AccountBudgetStatusRow[] = [];
   for (const b of budgets) {
-    if (b.scopeType !== "category" || !b.scopeId) continue;
-    directPctByCategoryId.set(b.scopeId, b.progressPct);
+    if (b.scopeType === "category" && b.scopeId) {
+      directPctByCategoryId.set(b.scopeId, b.progressPct);
+    } else if (b.scopeType === "account" && b.scopeId) {
+      accounts.push({ accountId: b.scopeId, progressPct: b.progressPct });
+    }
   }
 
-  if (directPctByCategoryId.size === 0) return [];
+  let categories: CategoryBudgetStatusRow[] = [];
+  if (directPctByCategoryId.size > 0) {
+    const categoryRows = await db
+      .select({
+        id: moneyCategory.id,
+        parentId: moneyCategory.parentId,
+      })
+      .from(moneyCategory)
+      .where(eq(moneyCategory.workspaceId, workspaceId));
 
-  const categoryRows = await db
-    .select({
-      id: moneyCategory.id,
-      parentId: moneyCategory.parentId,
-    })
-    .from(moneyCategory)
-    .where(eq(moneyCategory.workspaceId, workspaceId));
+    const parentIdByCategoryId = new Map(
+      categoryRows.map((c) => [c.id, c.parentId]),
+    );
 
-  const parentIdByCategoryId = new Map(
-    categoryRows.map((c) => [c.id, c.parentId]),
-  );
+    categories = buildCategoryBudgetStatusRows(
+      directPctByCategoryId,
+      parentIdByCategoryId,
+    );
+  }
 
-  return buildCategoryBudgetStatusRows(directPctByCategoryId, parentIdByCategoryId);
+  return { categories, accounts };
+}
+
+/** @deprecated Use listMoneyFormBudgetStatus — kept for narrow callers. */
+export async function listMoneyCategoryBudgetStatus(
+  workspaceId: string,
+  from: string,
+  to: string,
+): Promise<CategoryBudgetStatusRow[]> {
+  const { categories } = await listMoneyFormBudgetStatus(workspaceId, from, to);
+  return categories;
 }
 
 export async function createMoneyBudget(

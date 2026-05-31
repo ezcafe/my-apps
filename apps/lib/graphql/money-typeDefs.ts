@@ -208,7 +208,7 @@ export const moneyTypeDefs = /* GraphQL */ `
     moneyAnalyticsSankey(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsLeaders(filters: AnalyticsFiltersInput!): JSONObject!
     moneyBudgets(includeSpent: Boolean!, from: String, to: String): [JSONObject!]!
-    moneyCategoryBudgetStatus(from: String!, to: String!): [JSONObject!]!
+    moneyFormBudgetStatus(from: String!, to: String!): JSONObject!
     moneyTransactions(query: JSONObject!): MoneyTransactionConnection!
     moneyAccounts: [JSONObject!]!
     moneyCategories: [JSONObject!]!

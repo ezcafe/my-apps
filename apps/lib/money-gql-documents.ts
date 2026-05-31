@@ -232,9 +232,9 @@ export const MONEY_BUDGETS_FOR_RANGE_QUERY = /* GraphQL */ `
   }
 `;
 
-export const MONEY_CATEGORY_BUDGET_STATUS_QUERY = /* GraphQL */ `
-  query MoneyCategoryBudgetStatus($from: String!, $to: String!) {
-    moneyCategoryBudgetStatus(from: $from, to: $to)
+export const MONEY_FORM_BUDGET_STATUS_QUERY = /* GraphQL */ `
+  query MoneyFormBudgetStatus($from: String!, $to: String!) {
+    moneyFormBudgetStatus(from: $from, to: $to)
   }
 `;
 
