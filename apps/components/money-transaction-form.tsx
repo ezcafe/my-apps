@@ -346,7 +346,6 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     enabled:
       canRunMoneyQueries &&
       lookupsReady &&
-      (kind === "expense" || kind === "transfer") &&
       Boolean(activeWorkspaceId),
   });
   const formBudgetPctById = formBudgetStatusQuery.data;
@@ -369,10 +368,10 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
 
   const tagChipBudgetProgressPct = useCallback(
     (id: string) => {
-      if (kind !== "expense" || !id || !formBudgetPctById) return undefined;
+      if (!id || !formBudgetPctById) return undefined;
       return formBudgetPctById.tags.get(id);
     },
-    [formBudgetPctById, kind],
+    [formBudgetPctById],
   );
 
   const accountsReady = lookupsReady;
