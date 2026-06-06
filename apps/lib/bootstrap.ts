@@ -124,11 +124,18 @@ export async function ensureUserBootstrap(userSub: string) {
       role: "owner",
     }).onConflictDoNothing();
 
-    await tx.insert(userWorkspaceDefault).values({
-      userSub,
-      appKey: "money",
-      defaultWorkspaceId: ws.id,
-    }).onConflictDoUpdate({
+    await tx.insert(userWorkspaceDefault).values([
+      {
+        userSub,
+        appKey: "money",
+        defaultWorkspaceId: ws.id,
+      },
+      {
+        userSub,
+        appKey: "loans",
+        defaultWorkspaceId: ws.id,
+      },
+    ]).onConflictDoUpdate({
       target: [userWorkspaceDefault.userSub, userWorkspaceDefault.appKey],
       set: { defaultWorkspaceId: ws.id },
     });

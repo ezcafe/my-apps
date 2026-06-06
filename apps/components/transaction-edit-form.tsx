@@ -73,10 +73,19 @@ function isoToDatetimeLocal(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function TransactionEditBreadcrumbs() {
+function resolveTransactionEditReturnTo(raw: string | null): string {
+  if (raw === "/money/transactions" || raw === "/money/analytics") {
+    return raw;
+  }
+  return "/money/analytics";
+}
+
+function TransactionEditBreadcrumbs({ returnTo }: { returnTo: string }) {
   const itemCls =
     "text-sm font-medium text-muted transition-colors duration-150 hover:text-foreground";
   const currentCls = "text-sm font-medium text-foreground";
+  const parentLabel =
+    returnTo === "/money/transactions" ? "Transactions" : "Analytics";
 
   return (
     <nav aria-label="Breadcrumb">
@@ -90,8 +99,8 @@ function TransactionEditBreadcrumbs() {
           /
         </li>
         <li>
-          <Link href="/money/analytics" className={itemCls}>
-            Analytics
+          <Link href={returnTo} className={itemCls}>
+            {parentLabel}
           </Link>
         </li>
         <li aria-hidden className="text-muted">
@@ -105,8 +114,15 @@ function TransactionEditBreadcrumbs() {
   );
 }
 
-export function TransactionEditForm({ transactionId }: { transactionId: string }) {
+export function TransactionEditForm({
+  transactionId,
+  returnTo: returnToProp,
+}: {
+  transactionId: string;
+  returnTo?: string | null;
+}) {
   const router = useRouter();
+  const returnTo = resolveTransactionEditReturnTo(returnToProp ?? null);
   const { defaultCurrency } = useWorkspaceCurrency();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<MoneyCategoryRow[]>([]);
@@ -315,7 +331,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
         id: transactionId,
         input: payload,
       });
-      router.push("/money/analytics");
+      router.push(returnTo);
       router.refresh();
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Error");
@@ -338,7 +354,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
       await moneyGraphQLRequest(MONEY_TRANSACTION_DELETE_MUTATION, {
         id: transactionId,
       });
-      router.push("/money/analytics");
+      router.push(returnTo);
       router.refresh();
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Error");
@@ -353,7 +369,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
   if (loading) {
     return (
       <div className="min-w-0 max-w-4xl space-y-6">
-        <TransactionEditBreadcrumbs />
+        <TransactionEditBreadcrumbs returnTo={returnTo} />
         <Card className="p-5">
           <div className="grid gap-3">
             <Skeleton className="h-6 w-32" />
@@ -369,7 +385,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
   if (!loaded && err) {
     return (
       <div className="flex min-w-0 max-w-4xl flex-col gap-3">
-        <TransactionEditBreadcrumbs />
+        <TransactionEditBreadcrumbs returnTo={returnTo} />
         <Alert variant="error" title="Couldn’t load transaction" description={err} />
       </div>
     );
@@ -377,7 +393,7 @@ export function TransactionEditForm({ transactionId }: { transactionId: string }
 
   return (
     <div className="min-w-0 max-w-4xl space-y-6">
-      <TransactionEditBreadcrumbs />
+      <TransactionEditBreadcrumbs returnTo={returnTo} />
       {err ? <Alert variant="error" title={err} /> : null}
       <Card className="p-5">
         <header className="mb-4 flex items-baseline justify-between gap-3">

@@ -19,11 +19,9 @@ import {
   type AnalyticsLookupTag,
   type AnalyticsWorkspaceRow,
 } from "@/components/analytics-filters";
-import { MoneyAnalyticsTransactionsTableSkeleton } from "@/components/money-analytics-skeleton";
+import { MoneyAnalyticsFiltersBarSkeleton, MoneyAnalyticsTransactionsTableSkeleton } from "@/components/money-analytics-skeleton";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
 import { buildQuery } from "@/lib/analytics-build-query";
 import { analyticsFiltersEqual } from "@/lib/analytics-graphql-filters";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
@@ -36,10 +34,10 @@ import {
   moneyWorkspaceStateQueryOptions,
 } from "@/lib/money-query-options";
 
-const AnalyticsFilters = dynamic(
+const AnalyticsFiltersBar = dynamic(
   () =>
     import("@/components/analytics-filters").then((m) => ({
-      default: m.AnalyticsFilters,
+      default: m.AnalyticsFiltersBar,
     })),
   { ssr: false },
 );
@@ -77,7 +75,6 @@ export function MoneyTransactionsPage({
   const [applied, setApplied] = useState<AnalyticsFiltersValue>(() =>
     defaultAnalyticsFilters(),
   );
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [isFilterPending, startFilterTransition] = useTransition();
 
   const workspaceStateQuery = useQuery({
@@ -118,7 +115,6 @@ export function MoneyTransactionsPage({
     ...moneyAnalyticsMerchantLookupsQueryOptions(activeWorkspaceId),
     enabled:
       canRunMoneyQueries &&
-      filtersOpen &&
       workspaceReady &&
       !workspaceSyncPending &&
       Boolean(activeWorkspaceId),
@@ -127,7 +123,6 @@ export function MoneyTransactionsPage({
     ...moneyAnalyticsRecurrenceLookupsQueryOptions(activeWorkspaceId),
     enabled:
       canRunMoneyQueries &&
-      filtersOpen &&
       workspaceReady &&
       !workspaceSyncPending &&
       Boolean(activeWorkspaceId),
@@ -234,7 +229,6 @@ export function MoneyTransactionsPage({
   const handleApply = useCallback(() => {
     startFilterTransition(() => {
       setApplied(draft);
-      setFiltersOpen(false);
     });
   }, [draft]);
 
@@ -252,71 +246,48 @@ export function MoneyTransactionsPage({
     (chartLookupsQuery.error instanceof Error
       ? chartLookupsQuery.error.message
       : null) ??
-    (filtersOpen && merchantLookupsQuery.error instanceof Error
+    (merchantLookupsQuery.error instanceof Error
       ? merchantLookupsQuery.error.message
       : null) ??
-    (filtersOpen && recurrenceLookupsQuery.error instanceof Error
+    (recurrenceLookupsQuery.error instanceof Error
       ? recurrenceLookupsQuery.error.message
       : null);
 
   if (!workspaceReady && !workspaceStateQuery.data && !workspaceStateQuery.error) {
-    return <MoneyAnalyticsTransactionsTableSkeleton />;
+    return (
+      <>
+        <MoneyAnalyticsFiltersBarSkeleton />
+        <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3">
+          <div className="col-span-2 md:col-span-6 lg:col-span-12">
+            <MoneyAnalyticsTransactionsTableSkeleton />
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 md:mb-4 fx-fade-in">
-        <p className="max-w-prose text-sm text-muted">
-          Browse and edit workspace transactions. Default range is the current
-          calendar month — open Filter to change it.
-        </p>
-        <Button
-          type="button"
-          variant="secondary"
-          size="md"
-          onClick={() => setFiltersOpen(true)}
-          trailing={
-            dirty ? (
-              <span
-                className="size-1.5 rounded-full bg-accent/70"
-                aria-hidden
-              />
-            ) : null
-          }
-        >
-          Filter
-          {dirty ? <span className="sr-only">Unapplied filter changes</span> : null}
-        </Button>
-      </div>
-
-      {filtersOpen ? (
-        <Modal
-          open
-          onClose={() => setFiltersOpen(false)}
-          bare
-          labelledBy="analytics-filters-heading"
-        >
-          <AnalyticsFilters
-            value={draft}
-            onChange={setDraft}
-            onApply={handleApply}
-            onReset={handleReset}
-            applying={isFilterPending}
-            dirty={dirty}
-            accounts={accounts}
-            categories={categories}
-            merchants={merchants}
-            tags={tags}
-            recurrenceTemplates={recurrenceTemplates}
-            workspaces={workspaces}
-            activeWorkspaceId={activeWorkspaceId}
-            onWorkspaceChange={handleWorkspaceChange}
-            switchingWorkspace={workspaceSyncPending}
-            userSub={userSub}
-            onClose={() => setFiltersOpen(false)}
-          />
-        </Modal>
-      ) : null}
+      <AnalyticsFiltersBar
+        title="Transactions"
+        description="Browse and edit workspace transactions. Default range is the current calendar month — apply to refresh."
+        value={draft}
+        onChange={setDraft}
+        onApply={handleApply}
+        onReset={handleReset}
+        applying={isFilterPending}
+        dirty={dirty}
+        accounts={accounts}
+        categories={categories}
+        merchants={merchants}
+        tags={tags}
+        recurrenceTemplates={recurrenceTemplates}
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId}
+        onWorkspaceChange={handleWorkspaceChange}
+        switchingWorkspace={workspaceSyncPending}
+        userSub={userSub}
+      />
 
       {loadError ? (
         <Alert

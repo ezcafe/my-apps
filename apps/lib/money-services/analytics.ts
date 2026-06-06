@@ -14,10 +14,11 @@ import {
   type StackedMonthSeries,
 } from "@/lib/analytics-category-rollup";
 import { dateRangeParams } from "@/lib/analytics-build-query";
-import type { AnalyticsFiltersData } from "@/lib/money-transaction-analytics-conditions";
 import {
   moneyTransactionConditionsForAnalytics,
   resolveAnalyticsDateBounds,
+  resolveAnalyticsFiltersForQuery,
+  type AnalyticsFiltersData,
 } from "@/lib/money-transaction-analytics-conditions";
 import {
   calendarMonthDateRange,
@@ -58,6 +59,15 @@ async function loadWorkspaceCategories(
     .select()
     .from(moneyCategory)
     .where(eq(moneyCategory.workspaceId, workspaceId));
+}
+
+async function resolveFiltersForQuery(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+  loaders?: MoneyServiceLoaders,
+) {
+  const categories = await loadWorkspaceCategories(workspaceId, loaders);
+  return resolveAnalyticsFiltersForQuery(workspaceId, filters, categories);
 }
 
 async function loadWorkspaceBudgets(
@@ -524,9 +534,10 @@ async function buildNetLineSeries(
 }> {
   const { fromDate, toDate } = isoBoundsToLocalDates(fromISO, toISO);
 
+  const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
   const conditions = moneyTransactionConditionsForAnalytics(
     workspaceId,
-    filters,
+    resolvedFilters,
   );
   const whereClause = and(...conditions);
 
@@ -541,9 +552,13 @@ async function buildNetLineSeries(
       from: prevFrom,
       to: prevTo,
     };
-    const prevConditions = moneyTransactionConditionsForAnalytics(
+    const resolvedPrevFilters = await resolveFiltersForQuery(
       workspaceId,
       prevFilters,
+    );
+    const prevConditions = moneyTransactionConditionsForAnalytics(
+      workspaceId,
+      resolvedPrevFilters,
     );
 
     const [raw, prevRaw] = await Promise.all([
@@ -582,9 +597,10 @@ export async function computeMoneyAnalyticsSummary(
 ): Promise<MoneyAnalyticsSummaryPayload> {
   const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
 
+  const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
   const conditions = moneyTransactionConditionsForAnalytics(
     workspaceId,
-    filters,
+    resolvedFilters,
   );
   const whereClause = and(...conditions);
 
@@ -627,9 +643,10 @@ export async function computeMoneyAnalyticsOverview(
   const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
   const timezone = await loadWorkspaceTimezone(workspaceId);
 
+  const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
   const conditions = moneyTransactionConditionsForAnalytics(
     workspaceId,
-    filters,
+    resolvedFilters,
   );
   const whereClause = and(...conditions);
 
@@ -666,9 +683,14 @@ export async function computeMoneyAnalyticsDistribution(
   loaders?: MoneyServiceLoaders,
 ): Promise<MoneyAnalyticsDistributionPayload> {
   const timezone = await loadWorkspaceTimezone(workspaceId, loaders);
-  const conditions = moneyTransactionConditionsForAnalytics(
+  const resolvedFilters = await resolveFiltersForQuery(
     workspaceId,
     filters,
+    loaders,
+  );
+  const conditions = moneyTransactionConditionsForAnalytics(
+    workspaceId,
+    resolvedFilters,
   );
   const whereClause = and(...conditions);
   const monthExpr = sql<string>`to_char((${moneyTransaction.occurredAt} at time zone ${timezone}), 'YYYY-MM')`;
@@ -769,9 +791,14 @@ export async function computeMoneyAnalyticsSankey(
   filters: AnalyticsFiltersData,
   loaders?: MoneyServiceLoaders,
 ): Promise<MoneyAnalyticsSankeyPayload> {
-  const conditions = moneyTransactionConditionsForAnalytics(
+  const resolvedFilters = await resolveFiltersForQuery(
     workspaceId,
     filters,
+    loaders,
+  );
+  const conditions = moneyTransactionConditionsForAnalytics(
+    workspaceId,
+    resolvedFilters,
   );
   const whereClause = and(...conditions);
   const sankeySql = sql`
@@ -817,9 +844,10 @@ export async function computeMoneyAnalyticsLeaders(
   workspaceId: string,
   filters: AnalyticsFiltersData,
 ): Promise<MoneyAnalyticsLeadersPayload> {
+  const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
   const conditions = moneyTransactionConditionsForAnalytics(
     workspaceId,
-    filters,
+    resolvedFilters,
   );
   const whereClause = and(...conditions);
   const expenseWhere = and(whereClause, eq(moneyTransaction.kind, "expense"));

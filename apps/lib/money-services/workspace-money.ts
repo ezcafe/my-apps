@@ -11,7 +11,10 @@ import {
   assertWorkspaceOwner,
   isWorkspaceIdCookieSafe,
 } from "@/lib/workspace-context";
-import { workspaceCurrencyPatchSchema } from "@/lib/validators/workspace";
+import {
+  workspaceCurrencyPatchSchema,
+  workspaceTimezonePatchSchema,
+} from "@/lib/validators/workspace";
 import type { WorkspaceAppKey } from "@/db/schema/workspace";
 
 const cloneBodySchema = z.object({
@@ -48,6 +51,52 @@ export async function patchWorkspaceCurrency(userSub: string, body: unknown) {
     });
 
   return updated!;
+}
+
+export async function patchWorkspaceTimezone(userSub: string, body: unknown) {
+  const parsed = workspaceTimezonePatchSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new Error(
+      parsed.error.issues.map((i) => i.message).join("; ") || "Validation failed",
+    );
+  }
+
+  const member = await db
+    .select({ workspaceId: workspaceMember.workspaceId })
+    .from(workspaceMember)
+    .where(
+      and(
+        eq(workspaceMember.userSub, userSub),
+        eq(workspaceMember.workspaceId, parsed.data.workspaceId),
+      ),
+    )
+    .limit(1);
+  if (member.length === 0) throw new Error("FORBIDDEN");
+
+  const [existing] = await db
+    .select({ tzName: workspace.tzName })
+    .from(workspace)
+    .where(eq(workspace.id, parsed.data.workspaceId))
+    .limit(1);
+  if (!existing) throw new Error("NOT_FOUND");
+  if (existing.tzName === parsed.data.tzName) {
+    return {
+      workspaceId: parsed.data.workspaceId,
+      tzName: existing.tzName,
+      unchanged: true as const,
+    };
+  }
+
+  const [updated] = await db
+    .update(workspace)
+    .set({ tzName: parsed.data.tzName })
+    .where(eq(workspace.id, parsed.data.workspaceId))
+    .returning({
+      workspaceId: workspace.id,
+      tzName: workspace.tzName,
+    });
+
+  return { ...updated!, unchanged: false as const };
 }
 
 export async function cloneMoneyWorkspaceApi(

@@ -1,6 +1,39 @@
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const FILTER_PILL_COUNT = 7;
+
+export function MoneyAnalyticsFiltersBarSkeleton() {
+  return (
+    <section
+      className="@container mb-4 min-w-0"
+      aria-hidden
+    >
+      <Skeleton className="h-6 w-32" />
+      <Skeleton className="mt-1 h-4 w-full max-w-prose" />
+
+      <div className="mt-4 flex justify-end @md:hidden">
+        <Skeleton className="h-10 w-24 shrink-0" />
+      </div>
+
+      <div className="mt-4 hidden border-b border-border pb-px @md:block">
+        <div className="flex flex-nowrap items-center justify-center gap-0 overflow-x-auto pb-px">
+          {Array.from({ length: FILTER_PILL_COUNT }, (_, index) => (
+            <Skeleton
+              key={`analytics-filter-pill-${index}`}
+              className="mx-1 h-9 w-24 shrink-0 rounded-[var(--radius-sm)]"
+            />
+          ))}
+          <div className="ms-2 flex shrink-0 items-center gap-2 border-s border-border ps-3">
+            <Skeleton className="h-8 w-16" />
+            <Skeleton className="h-8 w-16" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const ANALYTICS_GRID_CLASS =
   "grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3";
 
@@ -193,13 +226,7 @@ export function MoneyAnalyticsPageSkeleton() {
       aria-live="polite"
       aria-label="Loading analytics page"
     >
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 md:mb-4">
-        <div className="min-w-0 flex-1 space-y-2">
-          <Skeleton className="h-4 w-full max-w-[42rem]" />
-          <Skeleton className="h-4 w-full max-w-[28rem]" />
-        </div>
-        <Skeleton className="h-10 w-24 shrink-0" />
-      </div>
+      <MoneyAnalyticsFiltersBarSkeleton />
 
       <div className={ANALYTICS_GRID_CLASS}>
         <AnalyticsGridContent includeTable />

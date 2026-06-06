@@ -29,7 +29,7 @@ export function MoneySettingsResetSection({ onResetComplete }: Props) {
     <SettingsSection
       id="money-settings-reset"
       title="Reset Money data"
-      description="Permanently remove every account, transaction, category, tag, merchant, budget, rule, and recurrence template in this workspace. Your workspace and members are kept; this cannot be undone."
+      description="Permanently remove every account, transaction, category, tag, merchant, budget, rule, and recurrence template in this workspace. Default currency is cleared too—you will be asked to choose it again. Your workspace and members are kept; this cannot be undone."
     >
       <div className="rounded-[var(--radius-md)] border border-[color-mix(in_oklab,var(--destructive)_32%,var(--border))] bg-[var(--destructive-muted-bg)] p-4 shadow-[var(--shadow-sm)]">
         <p className="text-sm leading-6 text-foreground">
@@ -51,7 +51,7 @@ export function MoneySettingsResetSection({ onResetComplete }: Props) {
               await onResetComplete();
               notify.success(
                 "Money data cleared",
-                "All ledger data was removed from this workspace.",
+                "All ledger data was removed. Choose your default currency to continue.",
               );
             } catch (err: unknown) {
               notify.error(

@@ -49,6 +49,20 @@ function IconMoney(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+function IconLoans(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M4 19V5M4 5h16M20 19H4M8 15h8M8 11h5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function IconHelp(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
@@ -133,6 +147,7 @@ const shellNavIcons: Record<
 > = {
   home: IconHome,
   money: IconMoney,
+  loans: IconLoans,
   help: IconHelp,
   settings: IconSettings,
 };

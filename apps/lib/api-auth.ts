@@ -9,6 +9,7 @@ import {
 } from "@/db/schema/api-token";
 import { assertWorkspaceMember } from "@/lib/workspace-context";
 import { getWorkspaceIdForUser } from "@/lib/workspace";
+import { getLoansWorkspaceIdForUser } from "@/lib/workspace-loans";
 import { isDbUnreachable } from "@/lib/db-errors";
 
 const scryptAsync = promisify(scrypt);
@@ -224,6 +225,29 @@ export async function resolveMoneyWorkspaceId(
   } catch {
     return null;
   }
+}
+
+export async function resolveLoansWorkspaceId(
+  auth: ResolvedRequestAuth,
+): Promise<string | null> {
+  if (!auth.userSub) return null;
+
+  if (auth.method === "api_key" && auth.workspaceId) {
+    return auth.workspaceId;
+  }
+
+  try {
+    return await getLoansWorkspaceIdForUser(auth.userSub);
+  } catch {
+    return null;
+  }
+}
+
+export async function verifyLoansWorkspaceAccess(
+  auth: ResolvedRequestAuth,
+  workspaceId: string,
+): Promise<boolean> {
+  return verifyMoneyWorkspaceAccess(auth, workspaceId);
 }
 
 export async function verifyMoneyWorkspaceAccess(

@@ -1,6 +1,8 @@
 import { eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
-import { moneyTransaction, moneyTransactionTag } from "@/db/schema/money";
+import { db } from "@/db";
+import { moneyCategory, moneyTransaction, moneyTransactionTag } from "@/db/schema/money";
+import { expandCategoryFilterIds } from "@/lib/money-category-ui";
 import { analyticsFiltersSchema } from "@/lib/validators/money";
 import type { z } from "zod";
 
@@ -37,6 +39,23 @@ export function resolveAnalyticsDateBounds(filters: AnalyticsFiltersData): {
     filters.from ?? new Date(Date.now() - 90 * 86400000).toISOString();
   const toISO = filters.to ?? new Date().toISOString();
   return { fromISO, toISO };
+}
+
+/** Expands parent category filters to include descendant categories before querying. */
+export async function resolveAnalyticsFiltersForQuery(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+  categoryRows?: ReadonlyArray<{ id: string; parentId: string | null }>,
+): Promise<AnalyticsFiltersData> {
+  if (!filters.categoryIds?.length) return filters;
+  const rows =
+    categoryRows ??
+    (await db
+      .select({ id: moneyCategory.id, parentId: moneyCategory.parentId })
+      .from(moneyCategory)
+      .where(eq(moneyCategory.workspaceId, workspaceId)));
+  const expanded = expandCategoryFilterIds(filters.categoryIds, rows);
+  return { ...filters, categoryIds: expanded };
 }
 
 export function moneyTransactionConditionsForAnalytics(

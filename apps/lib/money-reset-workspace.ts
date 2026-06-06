@@ -10,8 +10,9 @@ import {
   moneyTag,
   moneyTransaction,
 } from "@/db/schema/money";
+import { workspace } from "@/db/schema/workspace";
 
-/** Deletes all Money ledger rows for a workspace. Workspace membership row is unchanged. */
+/** Deletes all Money ledger rows for a workspace and clears its default currency. */
 export async function resetMoneyWorkspaceData(workspaceId: string) {
   await db.transaction(async (tx) => {
     await tx
@@ -32,5 +33,9 @@ export async function resetMoneyWorkspaceData(workspaceId: string) {
     await tx
       .delete(moneyAccount)
       .where(eq(moneyAccount.workspaceId, workspaceId));
+    await tx
+      .update(workspace)
+      .set({ defaultCurrency: null })
+      .where(eq(workspace.id, workspaceId));
   });
 }

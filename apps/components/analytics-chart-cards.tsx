@@ -91,13 +91,21 @@ export const CHART_CARD_MIN_HEIGHT_HALF_PX = 280;
 export const CHART_CARD_LAYOUT = "flex flex-col";
 export const CHART_SLOT_CLASS = "h-full min-h-0 overflow-hidden";
 
+const LEGEND_GRID_DEFAULT =
+  "grid-cols-1 grid-rows-[minmax(0,1fr)_auto] md:grid-rows-1 md:[grid-template-columns:minmax(0,20%)_minmax(0,80%)]";
+const LEGEND_GRID_COMPACT =
+  "grid-cols-1 grid-rows-[minmax(0,1fr)_auto] md:grid-rows-1 md:[grid-template-columns:minmax(0,5.5rem)_minmax(0,1fr)]";
+
 export function AnalyticsChartContainer({
   className,
   legend,
+  legendLayout = "default",
   children,
 }: {
   className?: string;
   legend?: ReactNode;
+  /** `compact` uses a fixed narrow legend column for short labels. */
+  legendLayout?: "default" | "compact";
   children: ReactNode;
 }) {
   const chartSlot = (
@@ -132,7 +140,7 @@ export function AnalyticsChartContainer({
     <div
       className={[
         "analytics-chart-container grid min-h-0 w-full flex-1 overflow-hidden",
-        "grid-cols-1 grid-rows-[minmax(0,1fr)_auto] md:grid-rows-1 md:[grid-template-columns:minmax(0,20%)_minmax(0,80%)]",
+        legendLayout === "compact" ? LEGEND_GRID_COMPACT : LEGEND_GRID_DEFAULT,
         className,
       ]
         .filter(Boolean)

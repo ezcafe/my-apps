@@ -120,6 +120,27 @@
       "when": 1779833600000,
       "tag": "0018_money_recurrence_dev_cadence",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1779833700000,
+      "tag": "0019_loans",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1779833800000,
+      "tag": "0020_loans_pay_status_enum",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1779833900000,
+      "tag": "0021_loans_calculation_method",
+      "breakpoints": true
     }
   ]
 }

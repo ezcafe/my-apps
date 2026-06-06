@@ -21,6 +21,7 @@ import {
 import { assertCategoryKindMatches } from "@/lib/money-category-kind-check";
 import {
   moneyTransactionConditionsForAnalytics,
+  resolveAnalyticsFiltersForQuery,
 } from "@/lib/money-transaction-analytics-conditions";
 import { applyRulesToTransaction } from "@/lib/rules";
 import { addCadence } from "@/lib/recurrence";
@@ -153,9 +154,13 @@ export async function listMoneyTransactions(
       recurrenceSourceIds: q.recurrenceSourceIds,
     };
 
-  const conditions = moneyTransactionConditionsForAnalytics(
+  const resolvedFilters = await resolveAnalyticsFiltersForQuery(
     workspaceId,
     filterSlice,
+  );
+  const conditions = moneyTransactionConditionsForAnalytics(
+    workspaceId,
+    resolvedFilters,
   );
 
   const legacyAccountId = legacy?.accountId ?? undefined;

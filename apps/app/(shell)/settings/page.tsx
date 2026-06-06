@@ -6,6 +6,7 @@ import { SettingsSection } from "@/components/money-settings/money-settings-shar
 import { ApiTokenSettings } from "@/components/api-token-settings";
 import { DateFormatSettings } from "@/components/date-format-settings";
 import { ThemeSettings } from "@/components/theme-settings";
+import { WorkspaceSettings } from "@/components/workspace-settings";
 import { Alert } from "@/components/ui/alert";
 import { isDbUnreachable } from "@/lib/db-errors";
 
@@ -91,6 +92,8 @@ export default async function SettingsPage() {
           >
             <DateFormatSettings embedded />
           </SettingsSection>
+
+          <WorkspaceSettings />
 
           <SettingsSection
             id="settings-api-tokens"

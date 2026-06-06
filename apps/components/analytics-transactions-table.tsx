@@ -46,6 +46,11 @@ function truncateNote(s: string | null, max = 72): string {
   return `${t.slice(0, max - 1)}…`;
 }
 
+function transactionEditHref(id: string, returnToPath: string) {
+  const params = new URLSearchParams({ returnTo: returnToPath });
+  return `/money/transactions/${id}?${params}`;
+}
+
 export function AnalyticsTransactionsTable({
   filterQuery,
   activeWorkspaceId,
@@ -66,6 +71,9 @@ export function AnalyticsTransactionsTable({
   deferFetchUntilVisible?: boolean;
   variant?: "analytics" | "standalone";
 }) {
+  const returnToPath =
+    variant === "standalone" ? "/money/transactions" : "/money/analytics";
+
   const router = useRouter();
   const queryClient = useQueryClient();
   const selectable = variant === "standalone";
@@ -185,13 +193,13 @@ export function AnalyticsTransactionsTable({
   const handleEdit = useCallback(() => {
     if (selectedIds.size === 1) {
       const id = [...selectedIds][0];
-      router.push(`/money/transactions/${id}`);
+      router.push(transactionEditHref(id, returnToPath));
       return;
     }
     if (selectedIds.size > 1) {
       setBulkEditOpen(true);
     }
-  }, [router, selectedIds]);
+  }, [router, selectedIds, returnToPath]);
 
   const handleDelete = useCallback(async () => {
     const count = selectedIds.size;
@@ -320,7 +328,7 @@ export function AnalyticsTransactionsTable({
         {!selectable ? (
           <td className="whitespace-nowrap px-3 py-2">
             <Link
-              href={`/money/transactions/${tx.id}`}
+              href={transactionEditHref(tx.id, returnToPath)}
               className="font-medium text-foreground underline-offset-2 transition-colors duration-150 hover:underline"
             >
               Edit

@@ -24,3 +24,13 @@ export const workspaceCurrencyPatchSchema = z.object({
   workspaceId: z.string().uuid(),
   defaultCurrency: z.string().length(3),
 });
+
+/** IANA timezone name for analytics date bucketing (e.g. Asia/Ho_Chi_Minh). */
+export const workspaceTimezonePatchSchema = z.object({
+  workspaceId: z.string().uuid(),
+  tzName: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[A-Za-z0-9_+\/-]+$/, "Invalid timezone name"),
+});

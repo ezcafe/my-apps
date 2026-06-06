@@ -17,8 +17,10 @@ const TransactionEditForm = dynamic(
 
 export function TransactionEditFormLazy({
   transactionId,
+  returnTo,
 }: {
   transactionId: string;
+  returnTo?: string | null;
 }) {
-  return <TransactionEditForm transactionId={transactionId} />;
+  return <TransactionEditForm transactionId={transactionId} returnTo={returnTo} />;
 }

@@ -126,3 +126,54 @@ export function moneyCategorySelectGroups(
   }
   return groups;
 }
+
+export type MoneyCategoryTreeRow = { id: string; parentId: string | null };
+
+/** Each category id maps to itself plus all descendant category ids. */
+export function moneyCategoryDescendantsById(
+  rows: ReadonlyArray<MoneyCategoryTreeRow>,
+): Map<string, string[]> {
+  const childrenByParent = new Map<string, string[]>();
+  for (const c of rows) {
+    if (!c.parentId) continue;
+    const arr = childrenByParent.get(c.parentId) ?? [];
+    arr.push(c.id);
+    childrenByParent.set(c.parentId, arr);
+  }
+
+  const descendantsByCategory = new Map<string, string[]>();
+  for (const c of rows) {
+    const visited = new Set<string>([c.id]);
+    const queue = [c.id];
+    while (queue.length > 0) {
+      const cur = queue.shift();
+      if (!cur) continue;
+      for (const child of childrenByParent.get(cur) ?? []) {
+        if (visited.has(child)) continue;
+        visited.add(child);
+        queue.push(child);
+      }
+    }
+    descendantsByCategory.set(c.id, [...visited]);
+  }
+  return descendantsByCategory;
+}
+
+/** Expands selected category ids to include all descendants (parent → children). */
+export function expandCategoryFilterIds(
+  selectedIds: readonly string[],
+  rows: ReadonlyArray<MoneyCategoryTreeRow>,
+): string[] {
+  if (selectedIds.length === 0) return [];
+  const byDescendants = moneyCategoryDescendantsById(rows);
+  const out = new Set<string>();
+  for (const id of selectedIds) {
+    const desc = byDescendants.get(id);
+    if (desc) {
+      for (const d of desc) out.add(d);
+    } else {
+      out.add(id);
+    }
+  }
+  return [...out];
+}

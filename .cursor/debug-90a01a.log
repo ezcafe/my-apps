@@ -1,0 +1,1 @@
+{"sessionId":"90a01a","runId":"post-fix","hypothesisId":"A","location":"loans-resolvers.ts:loanCreate","message":"loanCreate succeeded","data":{"loanId":"dd96ef40-30f0-45a9-8084-96f24642bc02","principalMinor":2300000000},"timestamp":1780217229382}

@@ -1,0 +1,543 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useNotify } from "@/components/notification-provider";
+import { useLoansWorkspace } from "@/components/loans-workspace-provider";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { formatMinor, parseMajorToMinor } from "@/lib/format-money";
+import { useFormatDate } from "@/lib/format-date";
+import {
+  buildAmortizationSchedule,
+  computeFirstMonthInterestMinor,
+  computeMonthlyPaymentMinor,
+  LOAN_CALCULATION_METHOD_LABELS,
+  type LoanCalculationMethod,
+} from "@/lib/loans-amortization";
+import { loansGraphQLRequest } from "@/lib/loans-gql-client";
+import { LOAN_CREATE_MUTATION } from "@/lib/loans-gql-documents";
+import { moneyBootstrapQueryOptions } from "@/lib/money-query-options";
+
+const CALCULATION_METHODS: LoanCalculationMethod[] = [
+  "nominal_monthly",
+  "sc_vn_calculator",
+  "sc_vn_actual_365",
+];
+
+const METHOD_DESCRIPTIONS: Record<LoanCalculationMethod, string> = {
+  nominal_monthly: "Standard APR ÷ 12 with rounded monthly interest.",
+  sc_vn_calculator:
+    "Matches Standard Chartered VN web calculator (nominal monthly EMI).",
+  sc_vn_actual_365:
+    "Matches SC contract terms: actual/365 day-count between due dates.",
+};
+
+function localDateString(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function formatLtvPercent(principalMinor: number, collateralMinor: number): string {
+  const pct = (principalMinor / collateralMinor) * 100;
+  if (Number.isNaN(pct)) return "—";
+  const rounded = pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(2);
+  return `${rounded}%`;
+}
+
+export function LoanCreateForm() {
+  const router = useRouter();
+  const notify = useNotify();
+  const { formatDate } = useFormatDate();
+  const { defaultCurrency, workspaceReady } = useLoansWorkspace();
+  const moneyBootstrap = useQuery({
+    ...moneyBootstrapQueryOptions(),
+    enabled: workspaceReady,
+  });
+
+  const [name, setName] = useState("");
+  const [principal, setPrincipal] = useState("");
+  const [collateral, setCollateral] = useState("");
+  const [ratePercent, setRatePercent] = useState("5.25");
+  const [termMonths, setTermMonths] = useState("360");
+  const [startDate, setStartDate] = useState(localDateString());
+  const [dueDay, setDueDay] = useState("1");
+  const [calculationMethod, setCalculationMethod] =
+    useState<LoanCalculationMethod>("nominal_monthly");
+  const [useCustomPayment, setUseCustomPayment] = useState(false);
+  const [customPayment, setCustomPayment] = useState("");
+  const [showSchedulePreview, setShowSchedulePreview] = useState(false);
+  const [moneyAccountId, setMoneyAccountId] = useState("");
+  const [moneyCategoryId, setMoneyCategoryId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const accounts = moneyBootstrap.data?.accounts ?? [];
+  const categories =
+    moneyBootstrap.data?.categories.filter((c) => c.kind === "expense") ?? [];
+
+  const isScMode =
+    calculationMethod === "sc_vn_calculator" ||
+    calculationMethod === "sc_vn_actual_365";
+
+  const parsedInputs = useMemo(() => {
+    const principalMinor = parseMajorToMinor(principal, defaultCurrency);
+    const collateralMinor = parseMajorToMinor(collateral, defaultCurrency);
+    const term = Number(termMonths);
+    const rateBps = Math.round(parseFloat(ratePercent) * 100);
+    const dueDayNum = Number(dueDay);
+    if (
+      principalMinor == null ||
+      principalMinor <= 0 ||
+      !Number.isFinite(term) ||
+      term <= 0 ||
+      !Number.isFinite(rateBps) ||
+      rateBps < 0 ||
+      !Number.isFinite(dueDayNum) ||
+      dueDayNum < 1 ||
+      dueDayNum > 28
+    ) {
+      return null;
+    }
+    return {
+      principalMinor,
+      collateralMinor,
+      term,
+      rateBps,
+      dueDayNum,
+    };
+  }, [principal, collateral, ratePercent, termMonths, dueDay, defaultCurrency]);
+
+  const computedPaymentMinor = useMemo(() => {
+    if (!parsedInputs) return null;
+    try {
+      return computeMonthlyPaymentMinor(
+        parsedInputs.principalMinor,
+        parsedInputs.rateBps,
+        parsedInputs.term,
+        calculationMethod,
+      );
+    } catch {
+      return null;
+    }
+  }, [parsedInputs, calculationMethod]);
+
+  const firstMonthInterestMinor = useMemo(() => {
+    if (!parsedInputs) return null;
+    try {
+      return computeFirstMonthInterestMinor(
+        parsedInputs.principalMinor,
+        parsedInputs.rateBps,
+        calculationMethod,
+        startDate,
+        parsedInputs.dueDayNum,
+      );
+    } catch {
+      return null;
+    }
+  }, [parsedInputs, calculationMethod, startDate]);
+
+  const schedulePreview = useMemo(() => {
+    if (!parsedInputs || computedPaymentMinor == null) return null;
+    try {
+      const customMinor = useCustomPayment
+        ? parseMajorToMinor(customPayment, defaultCurrency)
+        : null;
+      return buildAmortizationSchedule({
+        principalMinor: parsedInputs.principalMinor,
+        annualRateBps: parsedInputs.rateBps,
+        termMonths: parsedInputs.term,
+        startDate,
+        dueDayOfMonth: parsedInputs.dueDayNum,
+        calculationMethod,
+        ...(useCustomPayment && customMinor != null && customMinor > 0
+          ? { paymentMinor: customMinor }
+          : {}),
+      });
+    } catch {
+      return null;
+    }
+  }, [
+    parsedInputs,
+    computedPaymentMinor,
+    startDate,
+    calculationMethod,
+    useCustomPayment,
+    customPayment,
+    defaultCurrency,
+  ]);
+
+  const ltvLabel = useMemo(() => {
+    if (
+      !parsedInputs?.collateralMinor ||
+      parsedInputs.collateralMinor <= 0
+    ) {
+      return null;
+    }
+    return formatLtvPercent(
+      parsedInputs.principalMinor,
+      parsedInputs.collateralMinor,
+    );
+  }, [parsedInputs]);
+
+  const downPaymentMinor = useMemo(() => {
+    if (
+      !parsedInputs?.collateralMinor ||
+      parsedInputs.collateralMinor <= 0
+    ) {
+      return null;
+    }
+    return Math.max(0, parsedInputs.collateralMinor - parsedInputs.principalMinor);
+  }, [parsedInputs]);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const principalMinor = parseMajorToMinor(principal, defaultCurrency);
+      if (principalMinor == null || principalMinor <= 0) {
+        throw new Error("Enter a valid principal amount");
+      }
+      const annualRateBps = Math.round(parseFloat(ratePercent) * 100);
+      let paymentMinor: number | undefined;
+      if (useCustomPayment) {
+        paymentMinor = parseMajorToMinor(customPayment, defaultCurrency) ?? undefined;
+        if (paymentMinor == null || paymentMinor <= 0) {
+          throw new Error("Enter a valid custom monthly payment");
+        }
+      }
+      const collateralMinor = parseMajorToMinor(collateral, defaultCurrency);
+      const result = await loansGraphQLRequest<{
+        loanCreate: { id: string };
+      }>(LOAN_CREATE_MUTATION, {
+        input: {
+          name: name.trim(),
+          principalMinor,
+          annualRateBps,
+          termMonths: Number(termMonths),
+          startDate,
+          dueDayOfMonth: Number(dueDay),
+          calculationMethod,
+          ...(paymentMinor != null ? { paymentMinor } : {}),
+          ...(collateralMinor != null && collateralMinor > 0
+            ? { collateralValueMinor: collateralMinor }
+            : {}),
+          moneyWorkspaceId: moneyBootstrap.data?.workspaceId ?? null,
+          moneyAccountId: moneyAccountId || null,
+          moneyCategoryId: moneyCategoryId || null,
+        },
+      });
+      notify.success("Loan created");
+      router.push(`/loans/${result.loanCreate.id}`);
+    } catch (err) {
+      notify.error(
+        "Could not create loan",
+        err instanceof Error ? err.message : undefined,
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="min-w-0 max-w-4xl">
+      <Card className="p-6">
+        <form onSubmit={onSubmit} className="space-y-5">
+          <Field label="Loan name">
+            <Input value={name} onChange={(e) => setName(e.target.value)} required />
+          </Field>
+
+          <Field label="Calculation method">
+            <select
+              className="w-full rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2 text-sm"
+              value={calculationMethod}
+              onChange={(e) =>
+                setCalculationMethod(e.target.value as LoanCalculationMethod)
+              }
+            >
+              {CALCULATION_METHODS.map((method) => (
+                <option key={method} value={method}>
+                  {LOAN_CALCULATION_METHOD_LABELS[method]}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-muted">
+              {METHOD_DESCRIPTIONS[calculationMethod]}
+            </p>
+          </Field>
+
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
+            <Field label={`Principal (${defaultCurrency})`}>
+              <Input
+                value={principal}
+                onChange={(e) => setPrincipal(e.target.value)}
+                inputMode="decimal"
+                required
+              />
+            </Field>
+            {isScMode ? (
+              <Field label={`Collateral value (${defaultCurrency})`}>
+                <Input
+                  value={collateral}
+                  onChange={(e) => setCollateral(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="Optional"
+                />
+              </Field>
+            ) : null}
+            <Field label="Annual rate (%)">
+              <Input
+                value={ratePercent}
+                onChange={(e) => setRatePercent(e.target.value)}
+                inputMode="decimal"
+                required
+              />
+            </Field>
+            <Field label="Term (months)">
+              <Input
+                value={termMonths}
+                onChange={(e) => setTermMonths(e.target.value)}
+                inputMode="numeric"
+                required
+              />
+            </Field>
+          </div>
+
+          {isScMode && ltvLabel != null ? (
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
+              <div className="rounded-[var(--radius-sm)] border border-border bg-surface-raised px-3 py-2">
+                <p className="text-xs text-muted">LTV ratio</p>
+                <p className="mt-0.5 text-sm font-medium tabular-nums">{ltvLabel}</p>
+              </div>
+              {downPaymentMinor != null ? (
+                <div className="rounded-[var(--radius-sm)] border border-border bg-surface-raised px-3 py-2">
+                  <p className="text-xs text-muted">Down payment</p>
+                  <p className="mt-0.5 text-sm font-medium tabular-nums">
+                    {formatMinor(downPaymentMinor, defaultCurrency)}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {computedPaymentMinor != null ? (
+            <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
+              <p className="text-sm font-medium text-foreground">
+                Payment estimate
+              </p>
+              <div className="mt-3 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
+                <div>
+                  <p className="text-xs text-muted">Monthly payment</p>
+                  <p className="mt-0.5 font-display text-xl font-semibold tabular-nums">
+                    {formatMinor(computedPaymentMinor, defaultCurrency)}
+                  </p>
+                </div>
+                {firstMonthInterestMinor != null ? (
+                  <div>
+                    <p className="text-xs text-muted">First-month interest</p>
+                    <p className="mt-0.5 font-display text-xl font-semibold tabular-nums">
+                      {formatMinor(firstMonthInterestMinor, defaultCurrency)}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+              {schedulePreview != null && schedulePreview.length > 0 ? (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-accent transition-colors duration-150 hover:text-foreground"
+                    onClick={() => setShowSchedulePreview((v) => !v)}
+                  >
+                    {showSchedulePreview ? "Hide" : "Show"} schedule preview
+                  </button>
+                  {showSchedulePreview ? (
+                    <div className="mt-2 overflow-x-auto rounded-[var(--radius-md)] border border-border">
+                      <table className="min-w-full divide-y divide-border text-left text-sm">
+                        <caption className="sr-only">
+                          Amortization schedule preview
+                        </caption>
+                        <thead className="bg-muted-surface">
+                          <tr>
+                            <th scope="col" className="px-3 py-2 font-medium">
+                              #
+                            </th>
+                            <th scope="col" className="px-3 py-2 font-medium">
+                              Due date
+                            </th>
+                            <th
+                              scope="col"
+                              className="px-3 py-2 font-medium text-right"
+                            >
+                              Payment
+                            </th>
+                            <th
+                              scope="col"
+                              className="px-3 py-2 font-medium text-right"
+                            >
+                              Interest
+                            </th>
+                            <th
+                              scope="col"
+                              className="px-3 py-2 font-medium text-right"
+                            >
+                              Principal
+                            </th>
+                            <th
+                              scope="col"
+                              className="px-3 py-2 font-medium text-right"
+                            >
+                              Balance after
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {schedulePreview.slice(0, 6).map((row) => (
+                            <tr
+                              key={row.installmentNumber}
+                              className="transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]"
+                            >
+                              <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                                {row.installmentNumber}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-muted">
+                                {formatDate(row.dueDate, {
+                                  omitYearIfCurrent: true,
+                                })}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                                {formatMinor(row.paymentMinor, defaultCurrency)}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted">
+                                {formatMinor(row.interestMinor, defaultCurrency)}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                                {formatMinor(row.principalMinor, defaultCurrency)}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted">
+                                {formatMinor(
+                                  row.balanceAfterMinor,
+                                  defaultCurrency,
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {schedulePreview.length > 6 ? (
+                        <p className="border-t border-border px-3 py-2 text-xs text-muted">
+                          Showing first 6 of {schedulePreview.length}{" "}
+                          installments
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
+            <div className="flex items-start gap-2">
+              <Checkbox
+                checked={useCustomPayment}
+                onChange={() => setUseCustomPayment((v) => !v)}
+                ariaLabel="Use custom monthly payment"
+                className="mt-0.5"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="text-sm font-medium text-foreground">
+                  Custom monthly payment
+                </span>
+                <p className="mt-0.5 text-xs text-muted">
+                  {computedPaymentMinor != null
+                    ? `Calculated payment: ${formatMinor(computedPaymentMinor, defaultCurrency)}`
+                    : "Enter principal, rate, and term to see the calculated payment."}
+                </p>
+                {useCustomPayment ? (
+                  <Field label={`Monthly payment (${defaultCurrency})`} className="mt-3">
+                    <Input
+                      value={customPayment}
+                      onChange={(e) => setCustomPayment(e.target.value)}
+                      inputMode="decimal"
+                      required
+                    />
+                  </Field>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
+            <Field label="Start date">
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Due day of month (1–28)">
+              <Input
+                value={dueDay}
+                onChange={(e) => setDueDay(e.target.value)}
+                inputMode="numeric"
+                min={1}
+                max={28}
+                required
+              />
+            </Field>
+          </div>
+
+          <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
+            <p className="text-sm text-muted">
+              Optional: link payments to your Money workspace (
+              {moneyBootstrap.data?.workspaceId
+                ? "connected"
+                : "open /money to set up"}
+              ).
+            </p>
+            <div className="mt-3 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
+              <Field label="Pay from account">
+                <select
+                  className="w-full rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2 text-sm"
+                  value={moneyAccountId}
+                  onChange={(e) => setMoneyAccountId(e.target.value)}
+                >
+                  <option value="">—</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Category">
+                <select
+                  className="w-full rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2 text-sm"
+                  value={moneyCategoryId}
+                  onChange={(e) => setMoneyCategoryId(e.target.value)}
+                >
+                  <option value="">—</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </div>
+
+          <Button type="submit" disabled={saving}>
+            {saving ? "Creating…" : "Create loan"}
+          </Button>
+        </form>
+      </Card>
+    </div>
+  );
+}

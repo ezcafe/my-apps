@@ -44,6 +44,8 @@ type MultiSelectProps = {
   triggerClassName?: string;
   panelClassName?: string;
   disabled?: boolean;
+  /** Render the panel inline instead of portaling to `document.body`. */
+  disablePortal?: boolean;
   "aria-label"?: string;
 };
 
@@ -122,6 +124,7 @@ export function MultiSelect({
   triggerClassName,
   panelClassName,
   disabled,
+  disablePortal = false,
   "aria-label": ariaLabel,
 }: MultiSelectProps) {
   const [open, setOpen] = useState(false);
@@ -165,7 +168,22 @@ export function MultiSelect({
     );
 
     const dialog = trigger.closest("dialog");
-    const host = dialog ?? document.body;
+    const host = disablePortal ? rootRef.current ?? document.body : dialog ?? document.body;
+
+    if (disablePortal && rootRef.current) {
+      setPanelHost(host);
+      setPanelPos({
+        top: placeBelow
+          ? trigger.offsetTop + trigger.offsetHeight + gap
+          : trigger.offsetTop - gap,
+        left: trigger.offsetLeft,
+        width: Math.max(rect.width, 16 * 16),
+        placement,
+        listMaxHeight,
+        strategy: "absolute",
+      });
+      return;
+    }
 
     if (dialog) {
       const dialogRect = dialog.getBoundingClientRect();
@@ -192,7 +210,7 @@ export function MultiSelect({
       listMaxHeight,
       strategy: "fixed",
     });
-  }, [searchable]);
+  }, [disablePortal, searchable]);
 
   const flatItems = useMemo<MultiSelectItem[]>(() => {
     if (groups) return groups.flatMap((g) => g.items);
@@ -449,7 +467,9 @@ export function MultiSelect({
       </button>
 
       {mounted && panel && panelHost
-        ? createPortal(panel, panelHost)
+        ? disablePortal
+          ? panel
+          : createPortal(panel, panelHost)
         : null}
     </div>
   );

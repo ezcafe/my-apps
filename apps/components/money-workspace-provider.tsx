@@ -19,8 +19,18 @@ import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_WORKSPACE_CURRENCY_MUTATION } from "@/lib/money-gql-documents";
 import {
   invalidateMoneyWorkspaceQueries,
+  moneyBootstrapQueryKey,
   moneyBootstrapQueryOptions,
+  moneyWorkspaceStateQueryKey,
 } from "@/lib/money-query-options";
+import {
+  browserTimezoneName,
+  syncWorkspaceTimezone,
+} from "@/lib/workspace-timezone";
+import type {
+  MoneyWorkspaceBootstrapData,
+  MoneyWorkspaceCoreData,
+} from "@/lib/money-workspace-bootstrap-data";
 
 type WorkspaceCurrencyContextValue = {
   workspaceId: string | null;
@@ -66,6 +76,33 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
       },
     );
   }, [bootstrapQuery.data, queryClient]);
+
+  useEffect(() => {
+    const boot = bootstrapQuery.data;
+    if (!boot?.workspaceId) return;
+    const tzName = browserTimezoneName();
+    if (!tzName) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await syncWorkspaceTimezone(boot.workspaceId, tzName);
+        if (cancelled || result.unchanged) return;
+        await queryClient.invalidateQueries({
+          predicate: (query) =>
+            query.queryKey[0] === "money" &&
+            typeof query.queryKey[1] === "string" &&
+            query.queryKey[1].startsWith("analytics"),
+        });
+      } catch {
+        // Non-blocking; analytics falls back to stored workspace timezone.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bootstrapQuery.data?.workspaceId, queryClient]);
   const [currencyDraft, setCurrencyDraft] = useState<{
     workspaceId: string | null;
     value: string;
@@ -85,6 +122,37 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
   const refreshWorkspaceCurrency = useCallback(async () => {
     await invalidateMoneyWorkspaceQueries(queryClient);
   }, [queryClient]);
+
+  const applySavedWorkspaceCurrency = useCallback(
+    (savedCurrency: string) => {
+      const patchCore = (old: MoneyWorkspaceCoreData | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          defaultCurrency: savedCurrency,
+          needsCurrencySetup: false,
+          workspaces: old.workspaces.map((w) =>
+            w.id === old.workspaceId
+              ? { ...w, defaultCurrency: savedCurrency }
+              : w,
+          ),
+        };
+      };
+
+      queryClient.setQueryData<MoneyWorkspaceBootstrapData | undefined>(
+        moneyBootstrapQueryKey,
+        (old) => {
+          const patched = patchCore(old);
+          return patched ? { ...old!, ...patched } : old;
+        },
+      );
+      queryClient.setQueryData<MoneyWorkspaceCoreData | undefined>(
+        moneyWorkspaceStateQueryKey,
+        patchCore,
+      );
+    },
+    [queryClient],
+  );
 
   const value = useMemo<WorkspaceCurrencyContextValue>(
     () => ({
@@ -124,12 +192,20 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
             setErr(null);
             setSaving(true);
             try {
-              await moneyGraphQLRequest(MONEY_WORKSPACE_CURRENCY_MUTATION, {
+              const res = await moneyGraphQLRequest<{
+                moneyWorkspaceCurrency: {
+                  workspaceId: string;
+                  defaultCurrency: string;
+                };
+              }>(MONEY_WORKSPACE_CURRENCY_MUTATION, {
                 workspaceId,
                 defaultCurrency: currencyPick,
               });
-              await refreshWorkspaceCurrency();
+              applySavedWorkspaceCurrency(
+                res.moneyWorkspaceCurrency.defaultCurrency,
+              );
               setCurrencyDraft(null);
+              void refreshWorkspaceCurrency();
             } catch (error: unknown) {
               setErr(error instanceof Error ? error.message : "Error");
             } finally {
