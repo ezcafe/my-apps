@@ -16,6 +16,7 @@ import {
   buildAmortizationSchedule,
   computeFirstMonthInterestMinor,
   computeMonthlyPaymentMinor,
+  LOAN_CALCULATION_METHOD_DESCRIPTIONS,
   LOAN_CALCULATION_METHOD_LABELS,
   type LoanCalculationMethod,
 } from "@/lib/loans-amortization";
@@ -28,14 +29,6 @@ const CALCULATION_METHODS: LoanCalculationMethod[] = [
   "sc_vn_calculator",
   "sc_vn_actual_365",
 ];
-
-const METHOD_DESCRIPTIONS: Record<LoanCalculationMethod, string> = {
-  nominal_monthly: "Standard APR ÷ 12 with rounded monthly interest.",
-  sc_vn_calculator:
-    "Matches Standard Chartered VN web calculator (nominal monthly EMI).",
-  sc_vn_actual_365:
-    "Matches SC contract terms: actual/365 day-count between due dates.",
-};
 
 function localDateString(d = new Date()): string {
   const y = d.getFullYear();
@@ -65,9 +58,9 @@ export function LoanCreateForm() {
   const [principal, setPrincipal] = useState("");
   const [collateral, setCollateral] = useState("");
   const [ratePercent, setRatePercent] = useState("5.25");
-  const [termMonths, setTermMonths] = useState("360");
+  const [termMonths, setTermMonths] = useState("300");
   const [startDate, setStartDate] = useState(localDateString());
-  const [dueDay, setDueDay] = useState("1");
+  const [dueDay, setDueDay] = useState("25");
   const [calculationMethod, setCalculationMethod] =
     useState<LoanCalculationMethod>("nominal_monthly");
   const [useCustomPayment, setUseCustomPayment] = useState(false);
@@ -195,6 +188,13 @@ export function LoanCreateForm() {
     return Math.max(0, parsedInputs.collateralMinor - parsedInputs.principalMinor);
   }, [parsedInputs]);
 
+  const firstMonthPrincipalMinor = useMemo(() => {
+    if (computedPaymentMinor == null || firstMonthInterestMinor == null) {
+      return null;
+    }
+    return computedPaymentMinor - firstMonthInterestMinor;
+  }, [computedPaymentMinor, firstMonthInterestMinor]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -252,7 +252,7 @@ export function LoanCreateForm() {
             <Input value={name} onChange={(e) => setName(e.target.value)} required />
           </Field>
 
-          <Field label="Calculation method">
+          <Field label="Interest calculation">
             <select
               className="w-full rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2 text-sm"
               value={calculationMethod}
@@ -267,7 +267,7 @@ export function LoanCreateForm() {
               ))}
             </select>
             <p className="mt-1 text-xs text-muted">
-              {METHOD_DESCRIPTIONS[calculationMethod]}
+              {LOAN_CALCULATION_METHOD_DESCRIPTIONS[calculationMethod]}
             </p>
           </Field>
 
@@ -280,16 +280,6 @@ export function LoanCreateForm() {
                 required
               />
             </Field>
-            {isScMode ? (
-              <Field label={`Collateral value (${defaultCurrency})`}>
-                <Input
-                  value={collateral}
-                  onChange={(e) => setCollateral(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="Optional"
-                />
-              </Field>
-            ) : null}
             <Field label="Annual rate (%)">
               <Input
                 value={ratePercent}
@@ -308,27 +298,17 @@ export function LoanCreateForm() {
             </Field>
           </div>
 
-          {isScMode && ltvLabel != null ? (
-            <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
-              <div className="rounded-[var(--radius-sm)] border border-border bg-surface-raised px-3 py-2">
-                <p className="text-xs text-muted">LTV ratio</p>
-                <p className="mt-0.5 text-sm font-medium tabular-nums">{ltvLabel}</p>
-              </div>
-              {downPaymentMinor != null ? (
-                <div className="rounded-[var(--radius-sm)] border border-border bg-surface-raised px-3 py-2">
-                  <p className="text-xs text-muted">Down payment</p>
-                  <p className="mt-0.5 text-sm font-medium tabular-nums">
-                    {formatMinor(downPaymentMinor, defaultCurrency)}
-                  </p>
-                </div>
-              ) : null}
-            </div>
+          {parsedInputs == null ? (
+            <p className="text-xs text-muted">
+              Enter principal, rate, and term to see your estimated monthly
+              payment.
+            </p>
           ) : null}
 
           {computedPaymentMinor != null ? (
             <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
               <p className="text-sm font-medium text-foreground">
-                Payment estimate
+                Estimated monthly payment
               </p>
               <div className="mt-3 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
                 <div>
@@ -342,6 +322,14 @@ export function LoanCreateForm() {
                     <p className="text-xs text-muted">First-month interest</p>
                     <p className="mt-0.5 font-display text-xl font-semibold tabular-nums">
                       {formatMinor(firstMonthInterestMinor, defaultCurrency)}
+                    </p>
+                  </div>
+                ) : null}
+                {firstMonthPrincipalMinor != null ? (
+                  <div>
+                    <p className="text-xs text-muted">First-month principal</p>
+                    <p className="mt-0.5 font-display text-xl font-semibold tabular-nums">
+                      {formatMinor(firstMonthPrincipalMinor, defaultCurrency)}
                     </p>
                   </div>
                 ) : null}
@@ -441,6 +429,55 @@ export function LoanCreateForm() {
             </div>
           ) : null}
 
+          {isScMode ? (
+            <Field label={`Collateral value (${defaultCurrency})`}>
+              <Input
+                value={collateral}
+                onChange={(e) => setCollateral(e.target.value)}
+                inputMode="decimal"
+                placeholder="Optional"
+              />
+            </Field>
+          ) : null}
+
+          {isScMode && ltvLabel != null ? (
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
+              <div className="rounded-[var(--radius-sm)] border border-border bg-surface-raised px-3 py-2">
+                <p className="text-xs text-muted">LTV ratio</p>
+                <p className="mt-0.5 text-sm font-medium tabular-nums">{ltvLabel}</p>
+              </div>
+              {downPaymentMinor != null ? (
+                <div className="rounded-[var(--radius-sm)] border border-border bg-surface-raised px-3 py-2">
+                  <p className="text-xs text-muted">Down payment</p>
+                  <p className="mt-0.5 text-sm font-medium tabular-nums">
+                    {formatMinor(downPaymentMinor, defaultCurrency)}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
+            <Field label="Start date">
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Due day of month (1–28)">
+              <Input
+                value={dueDay}
+                onChange={(e) => setDueDay(e.target.value)}
+                inputMode="numeric"
+                min={1}
+                max={28}
+                required
+              />
+            </Field>
+          </div>
+
           <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
             <div className="flex items-start gap-2">
               <Checkbox
@@ -470,27 +507,6 @@ export function LoanCreateForm() {
                 ) : null}
               </div>
             </div>
-          </div>
-
-          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
-            <Field label="Start date">
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
-            </Field>
-            <Field label="Due day of month (1–28)">
-              <Input
-                value={dueDay}
-                onChange={(e) => setDueDay(e.target.value)}
-                inputMode="numeric"
-                min={1}
-                max={28}
-                required
-              />
-            </Field>
           </div>
 
           <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">

@@ -24,11 +24,13 @@ GraphQL: `POST /api/graphql/loans` (cookie `ctx_workspace_loans`).
 
 ## Calculation methods
 
-| Method | Description |
-|--------|-------------|
-| `nominal_monthly` | Default. Standard APR ÷ 12 with rounded monthly interest. |
-| `sc_vn_calculator` | [Standard Chartered VN web calculator](https://www.sc.com/vn/loans/mortgage/) — nominal monthly EMI, SC integer rounding. |
-| `sc_vn_actual_365` | SC contract terms — actual/365 day-count between due dates. |
+| Method | Label | Description |
+|--------|-------|-------------|
+| `nominal_monthly` | Equal monthly payment (EMI) | **Recommended default.** Fixed payment every month; interest on remaining balance at annual rate ÷ 12. |
+| `sc_vn_calculator` | EMI with Standard Chartered rounding | Same equal-payment formula as standard EMI, with SC VN web-calculator rounding per row. |
+| `sc_vn_actual_365` | Daily interest (actual/365) | Interest accrues daily between due dates; monthly payment computed to amortize the loan. |
+
+The create form at `/loans/new` defaults to **300-month term** and **due day 25**.
 
 Optional `collateralValueMinor` at create is display-only (LTV / down payment); it does not change the schedule.
 

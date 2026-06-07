@@ -9,6 +9,9 @@ import {
   computeScVnEmiMinor,
   daysBetweenExclusive,
   dueDateForInstallment,
+  LOAN_CALCULATION_METHOD_DESCRIPTIONS,
+  LOAN_CALCULATION_METHOD_LABELS,
+  type LoanCalculationMethod,
 } from "./loans-amortization";
 
 describe("computeMonthlyPaymentMinor", () => {
@@ -20,6 +23,50 @@ describe("computeMonthlyPaymentMinor", () => {
     const pmt = computeMonthlyPaymentMinor(1_000_000, 600, 360);
     expect(pmt).toBeGreaterThan(5990);
     expect(pmt).toBeLessThan(6000);
+  });
+
+  it("computes standard EMI for 2.3B VND at 6.6% over 300 months", () => {
+    const principal = 2_300_000_000;
+    const rateBps = 660;
+    const term = 300;
+    expect(computeMonthlyPaymentMinor(principal, rateBps, term)).toBe(
+      15_673_789,
+    );
+    expect(
+      computeFirstMonthInterestMinor(principal, rateBps, "nominal_monthly"),
+    ).toBe(12_650_000);
+    expect(15_673_789 - 12_650_000).toBe(3_023_789);
+
+    const schedule = buildAmortizationSchedule({
+      principalMinor: principal,
+      annualRateBps: rateBps,
+      termMonths: term,
+      startDate: "2026-01-01",
+      dueDayOfMonth: 25,
+      calculationMethod: "nominal_monthly",
+    });
+    expect(schedule).toHaveLength(300);
+    expect(schedule[299]?.balanceAfterMinor).toBe(0);
+    expect(schedule[0]?.interestMinor).toBe(12_650_000);
+    expect(schedule[0]?.principalMinor).toBe(3_023_789);
+    for (let i = 0; i < schedule.length - 1; i += 1) {
+      expect(schedule[i]?.paymentMinor).toBe(15_673_789);
+    }
+  });
+});
+
+describe("LOAN_CALCULATION_METHOD_LABELS", () => {
+  const methods: LoanCalculationMethod[] = [
+    "nominal_monthly",
+    "sc_vn_calculator",
+    "sc_vn_actual_365",
+  ];
+
+  it("has a label and description for every method", () => {
+    for (const method of methods) {
+      expect(LOAN_CALCULATION_METHOD_LABELS[method]).toBeTruthy();
+      expect(LOAN_CALCULATION_METHOD_DESCRIPTIONS[method]).toBeTruthy();
+    }
   });
 });
 

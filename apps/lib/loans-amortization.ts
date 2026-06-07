@@ -103,6 +103,7 @@ export function computeMonthlyPaymentMinor(
   if (annualRateBps === 0) {
     return Math.round(principalMinor / termMonths);
   }
+  // Standard EMI: P × r × (1+r)^n / ((1+r)^n − 1), r = APR/12
   const r = monthlyRateFromBps(annualRateBps);
   const factor = (1 + r) ** termMonths;
   const payment = (principalMinor * (r * factor)) / (factor - 1);
@@ -187,6 +188,7 @@ export function minimumMonthlyPaymentMinor(
 }
 
 function buildNominalMonthlySchedule(input: ScheduleInput): AmortizationScheduleRow[] {
+  // Standard EMI schedule: fixed payment via P × r × (1+r)^n / ((1+r)^n − 1), r = APR/12
   const paymentMinor =
     input.paymentMinor ??
     computeMonthlyPaymentMinor(
@@ -581,7 +583,19 @@ export const LOAN_CALCULATION_METHOD_LABELS: Record<
   LoanCalculationMethod,
   string
 > = {
-  nominal_monthly: "Nominal monthly (APR ÷ 12)",
-  sc_vn_calculator: "SC VN web calculator",
-  sc_vn_actual_365: "SC VN contract (actual/365)",
+  nominal_monthly: "Equal monthly payment (EMI)",
+  sc_vn_calculator: "EMI with Standard Chartered rounding",
+  sc_vn_actual_365: "Daily interest (actual/365)",
+};
+
+export const LOAN_CALCULATION_METHOD_DESCRIPTIONS: Record<
+  LoanCalculationMethod,
+  string
+> = {
+  nominal_monthly:
+    "Fixed payment every month. Interest is charged on the remaining balance at annual rate ÷ 12; the principal portion grows over time.",
+  sc_vn_calculator:
+    "Same equal-payment formula as standard EMI, but each installment uses Standard Chartered VN web-calculator rounding.",
+  sc_vn_actual_365:
+    "Interest accrues daily between due dates (balance × rate × days ÷ 365). Monthly payment is computed to amortize the loan — may differ slightly from standard EMI.",
 };
