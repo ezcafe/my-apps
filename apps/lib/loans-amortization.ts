@@ -160,15 +160,35 @@ export function daysBetweenExclusive(startIso: string, endIso: string): number {
   return Math.round(ms / 86_400_000);
 }
 
-/** Due date for installment N (1-based); first payment is one calendar month after start. */
+function firstDueDateFromStart(
+  startDate: string,
+  dueDayOfMonth: number,
+): string {
+  const [y, m] = startDate.split("-").map(Number);
+  const startMonthIndex = m - 1;
+  const dayInStartMonth = clampDueDay(y, startMonthIndex, dueDayOfMonth);
+  const candidate = formatUtcDate(y, startMonthIndex, dayInStartMonth);
+  if (candidate >= startDate) return candidate;
+
+  const monthIndex = startMonthIndex + 1;
+  const year = y + Math.floor(monthIndex / 12);
+  const normalizedMonth = ((monthIndex % 12) + 12) % 12;
+  const day = clampDueDay(year, normalizedMonth, dueDayOfMonth);
+  return formatUtcDate(year, normalizedMonth, day);
+}
+
+/** Due date for installment N (1-based). First payment is the first due-day on or after start. */
 export function dueDateForInstallment(
   startDate: string,
   dueDayOfMonth: number,
   installmentNumber: number,
 ): string {
-  const [y, m] = startDate.split("-").map(Number);
-  const monthIndex = m - 1 + installmentNumber;
-  const year = y + Math.floor(monthIndex / 12);
+  const firstDue = firstDueDateFromStart(startDate, dueDayOfMonth);
+  if (installmentNumber === 1) return firstDue;
+
+  const [fy, fm] = firstDue.split("-").map(Number);
+  const monthIndex = fm - 1 + (installmentNumber - 1);
+  const year = fy + Math.floor(monthIndex / 12);
   const normalizedMonth = ((monthIndex % 12) + 12) % 12;
   const day = clampDueDay(year, normalizedMonth, dueDayOfMonth);
   return formatUtcDate(year, normalizedMonth, day);

@@ -109,6 +109,14 @@ export const LOAN_CREATE_MUTATION = /* GraphQL */ `
   }
 `;
 
+export const LOAN_CANCEL_MUTATION = /* GraphQL */ `
+  mutation LoanCancel($id: ID!) {
+    loanCancel(id: $id) {
+      ok
+    }
+  }
+`;
+
 export const LOAN_INSTALLMENT_MARK_PAID_MUTATION = /* GraphQL */ `
   mutation LoanInstallmentMarkPaid($input: LoanInstallmentMarkPaidInput!) {
     loanInstallmentMarkPaid(input: $input) {

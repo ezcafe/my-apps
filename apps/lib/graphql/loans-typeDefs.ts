@@ -123,6 +123,8 @@ export const loansTypeDefs = /* GraphQL */ `
     moneyAccountId: ID
     moneyCategoryId: ID
     moneyWorkspaceId: ID
+    autoMarkPastDuePaid: Boolean
+    autoMarkPastDueWithoutTransaction: Boolean
   }
 
   input LoanInstallmentMarkPaidInput {

@@ -8,6 +8,7 @@ import {
   CHART_CARD_HEIGHT_TALL,
   CHART_CARD_LAYOUT,
 } from "@/components/analytics-chart-cards";
+import { LoanDetailOptionsMenu } from "@/components/loan-detail-options-menu";
 import { LoanPayActions } from "@/components/loan-pay-actions";
 import {
   LoanProgressChart,
@@ -182,15 +183,24 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
   return (
     <>
       <header className="col-span-2 md:col-span-6 lg:col-span-12 fx-fade-in">
-        <LoanDetailBreadcrumb loanName={loan.name} />
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-          {loan.name}
-        </h1>
-        <p className="mt-2 max-w-prose text-sm text-muted">
-          Track payoff progress, record payments, and review your amortization
-          schedule. Payments can be posted to Money or marked paid without a
-          ledger entry.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <LoanDetailBreadcrumb loanName={loan.name} />
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+              {loan.name}
+            </h1>
+            <p className="mt-2 max-w-prose text-sm text-muted">
+              Track payoff progress, record payments, and review your amortization
+              schedule. Payments can be posted to Money or marked paid without a
+              ledger entry.
+            </p>
+          </div>
+          <LoanDetailOptionsMenu
+            loanId={loan.id}
+            loanName={loan.name}
+            status={loan.status}
+          />
+        </div>
       </header>
 
       <div className={LOAN_DETAIL_GRID_CLASS}>

@@ -1,5 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
-import { db } from "@/db";
+import { db, runInWorkspace } from "@/db";
 import {
   loan,
   loanInstallmentStatus,
@@ -16,7 +16,14 @@ import type { LoansWorkspaceCtx } from "@/lib/loans-services/types";
 import {
   loanCreateSchema,
 } from "@/lib/validators/loans";
+import { createMoneyTransaction } from "@/lib/money-services/transactions";
+import { assertWorkspaceMember } from "@/lib/workspace-context";
 import { getWorkspaceDefaultCurrency } from "@/lib/workspace-loans";
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export type SerializedLoanListItem = {
   id: string;
@@ -115,6 +122,26 @@ export async function createLoan(
     );
   }
 
+  const autoMarkPastDuePaid = parsed.data.autoMarkPastDuePaid ?? false;
+  const autoMarkPastDueWithoutTransaction =
+    parsed.data.autoMarkPastDueWithoutTransaction ?? true;
+
+  if (autoMarkPastDuePaid && !autoMarkPastDueWithoutTransaction) {
+    if (!moneyWorkspaceId) {
+      throw new Error("Money workspace required to create transactions for past-due installments");
+    }
+    if (!parsed.data.moneyAccountId) {
+      throw new Error("Money account required to create transactions for past-due installments");
+    }
+    await validateMoneyLinks(
+      moneyWorkspaceId,
+      parsed.data.moneyAccountId,
+      parsed.data.moneyCategoryId,
+    );
+    const member = await assertWorkspaceMember(ctx.userSub, moneyWorkspaceId);
+    if (!member) throw new Error("FORBIDDEN");
+  }
+
   const currency =
     (await getWorkspaceDefaultCurrency(ctx.workspaceId)) ?? "USD";
   const schedule = buildAmortizationSchedule({
@@ -131,7 +158,15 @@ export async function createLoan(
     schedule.find((row) => row.paymentMinor > 0)?.paymentMinor ??
     parsed.data.principalMinor;
 
-  return db.transaction(async (tx) => {
+  const today = todayIso();
+  type PendingMoneyTx = {
+    scheduleInstallmentId: string;
+    dueDate: string;
+    paymentMinor: number;
+  };
+  const pendingMoneyTx: PendingMoneyTx[] = [];
+
+  const { id: loanId } = await db.transaction(async (tx) => {
     const [inserted] = await tx
       .insert(loan)
       .values({
@@ -154,6 +189,8 @@ export async function createLoan(
 
     if (!inserted) throw new Error("Failed to create loan");
 
+    let autoMarkedCount = 0;
+
     for (const row of schedule) {
       const [sched] = await tx
         .insert(loanScheduleInstallment)
@@ -169,14 +206,91 @@ export async function createLoan(
         .returning({ id: loanScheduleInstallment.id });
 
       if (!sched) throw new Error("Failed to create schedule row");
-      await tx.insert(loanInstallmentStatus).values({
-        scheduleInstallmentId: sched.id,
-        status: "pending",
-      });
+
+      const isPastDue = row.dueDate <= today;
+      const autoMark =
+        autoMarkPastDuePaid && isPastDue && autoMarkPastDueWithoutTransaction;
+
+      if (autoMark) {
+        autoMarkedCount += 1;
+        await tx.insert(loanInstallmentStatus).values({
+          scheduleInstallmentId: sched.id,
+          status: "paid",
+          paidAt: new Date(),
+          paidWithoutTransaction: true,
+          moneyTransactionId: null,
+        });
+      } else {
+        await tx.insert(loanInstallmentStatus).values({
+          scheduleInstallmentId: sched.id,
+          status: "pending",
+        });
+        if (autoMarkPastDuePaid && isPastDue && !autoMarkPastDueWithoutTransaction) {
+          pendingMoneyTx.push({
+            scheduleInstallmentId: sched.id,
+            dueDate: row.dueDate,
+            paymentMinor: row.paymentMinor,
+          });
+        }
+      }
+    }
+
+    if (autoMarkedCount === schedule.length) {
+      await tx
+        .update(loan)
+        .set({ status: "paid_off", updatedAt: new Date() })
+        .where(eq(loan.id, inserted.id));
     }
 
     return { id: inserted.id };
   });
+
+  if (pendingMoneyTx.length > 0 && moneyWorkspaceId) {
+    const loanName = parsed.data.name;
+    for (const item of pendingMoneyTx) {
+      const moneyTx = await runInWorkspace(moneyWorkspaceId, () =>
+        createMoneyTransaction(
+          { userSub: ctx.userSub, workspaceId: moneyWorkspaceId },
+          {
+            accountId: parsed.data.moneyAccountId!,
+            kind: "expense",
+            amountMinor: item.paymentMinor,
+            categoryId: parsed.data.moneyCategoryId ?? undefined,
+            notes: `Loan: ${loanName}`,
+            occurredAt: `${item.dueDate}T12:00:00.000Z`,
+          },
+        ),
+      );
+
+      await runInWorkspace(ctx.workspaceId, async () => {
+        await db
+          .update(loanInstallmentStatus)
+          .set({
+            status: "paid",
+            paidAt: new Date(),
+            paidWithoutTransaction: false,
+            moneyTransactionId: moneyTx.id,
+          })
+          .where(
+            eq(
+              loanInstallmentStatus.scheduleInstallmentId,
+              item.scheduleInstallmentId,
+            ),
+          );
+      });
+    }
+
+    if (pendingMoneyTx.length === schedule.length) {
+      await runInWorkspace(ctx.workspaceId, async () => {
+        await db
+          .update(loan)
+          .set({ status: "paid_off", updatedAt: new Date() })
+          .where(eq(loan.id, loanId));
+      });
+    }
+  }
+
+  return { id: loanId };
 }
 
 async function loadLoanSchedule(loanId: string): Promise<AmortizationScheduleRow[]> {

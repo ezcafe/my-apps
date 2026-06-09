@@ -68,6 +68,9 @@ export function LoanCreateForm() {
   const [showSchedulePreview, setShowSchedulePreview] = useState(false);
   const [moneyAccountId, setMoneyAccountId] = useState("");
   const [moneyCategoryId, setMoneyCategoryId] = useState("");
+  const [autoMarkPastDuePaid, setAutoMarkPastDuePaid] = useState(false);
+  const [autoMarkPastDueWithoutTransaction, setAutoMarkPastDueWithoutTransaction] =
+    useState(true);
   const [saving, setSaving] = useState(false);
 
   const accounts = moneyBootstrap.data?.accounts ?? [];
@@ -188,6 +191,17 @@ export function LoanCreateForm() {
     return Math.max(0, parsedInputs.collateralMinor - parsedInputs.principalMinor);
   }, [parsedInputs]);
 
+  const pastDueCount = useMemo(() => {
+    if (!schedulePreview) return 0;
+    const today = localDateString();
+    return schedulePreview.filter((row) => row.dueDate <= today).length;
+  }, [schedulePreview]);
+
+  const needsMoneyAccountForAutoMark =
+    autoMarkPastDuePaid &&
+    !autoMarkPastDueWithoutTransaction &&
+    (!moneyAccountId || !moneyBootstrap.data?.workspaceId);
+
   const firstMonthPrincipalMinor = useMemo(() => {
     if (computedPaymentMinor == null || firstMonthInterestMinor == null) {
       return null;
@@ -230,6 +244,12 @@ export function LoanCreateForm() {
           moneyWorkspaceId: moneyBootstrap.data?.workspaceId ?? null,
           moneyAccountId: moneyAccountId || null,
           moneyCategoryId: moneyCategoryId || null,
+          ...(pastDueCount > 0 && autoMarkPastDuePaid
+            ? {
+                autoMarkPastDuePaid: true,
+                autoMarkPastDueWithoutTransaction,
+              }
+            : {}),
         },
       });
       notify.success("Loan created");
@@ -478,6 +498,50 @@ export function LoanCreateForm() {
             </Field>
           </div>
 
+          {pastDueCount > 0 ? (
+            <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  checked={autoMarkPastDuePaid}
+                  onChange={() => setAutoMarkPastDuePaid((v) => !v)}
+                  ariaLabel="Mark past-due installments as paid"
+                  className="mt-0.5"
+                />
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-medium text-foreground">
+                    Mark past-due installments as paid
+                  </span>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {pastDueCount} installment{pastDueCount === 1 ? "" : "s"}{" "}
+                    with a due date on or before today.
+                  </p>
+                  {autoMarkPastDuePaid ? (
+                    <div className="mt-3 flex items-start gap-2">
+                      <Checkbox
+                        checked={autoMarkPastDueWithoutTransaction}
+                        onChange={() =>
+                          setAutoMarkPastDueWithoutTransaction((v) => !v)
+                        }
+                        ariaLabel="Mark paid without Money transaction"
+                        className="mt-0.5"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-sm text-foreground">
+                          Paid without Money transaction
+                        </span>
+                        <p className="mt-0.5 text-xs text-muted">
+                          Updates loan progress only. Uncheck to create an
+                          expense in Money for each past-due installment
+                          (requires account below).
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
             <div className="flex items-start gap-2">
               <Checkbox
@@ -549,9 +613,19 @@ export function LoanCreateForm() {
             </div>
           </div>
 
-          <Button type="submit" disabled={saving}>
+          <Button
+            type="submit"
+            disabled={saving || needsMoneyAccountForAutoMark}
+          >
             {saving ? "Creating…" : "Create loan"}
           </Button>
+          {needsMoneyAccountForAutoMark ? (
+            <p className="text-xs text-muted">
+              {!moneyBootstrap.data?.workspaceId
+                ? "Open /money to set up a workspace before creating transactions for past-due installments."
+                : "Select a pay-from account to create Money transactions for past-due installments."}
+            </p>
+          ) : null}
         </form>
       </Card>
     </div>

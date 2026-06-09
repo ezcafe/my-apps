@@ -18,6 +18,8 @@ export const loanCreateSchema = z.object({
   collateralValueMinor: z.number().int().positive().optional().nullable(),
   moneyAccountId: z.string().uuid().optional().nullable(),
   moneyCategoryId: z.string().uuid().optional().nullable(),
+  autoMarkPastDuePaid: z.boolean().optional().default(false),
+  autoMarkPastDueWithoutTransaction: z.boolean().optional().default(true),
 });
 
 export const loanInstallmentMarkPaidSchema = z.object({

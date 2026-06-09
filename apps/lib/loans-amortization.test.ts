@@ -268,8 +268,18 @@ describe("computeActual365EmiMinor", () => {
 });
 
 describe("dueDateForInstallment", () => {
+  it("uses start month when due day is on or after start date", () => {
+    expect(dueDateForInstallment("2025-04-25", 25, 1)).toBe("2025-04-25");
+    expect(dueDateForInstallment("2026-01-05", 25, 1)).toBe("2026-01-25");
+  });
+
+  it("uses next month when due day in start month is before start date", () => {
+    expect(dueDateForInstallment("2026-01-28", 25, 1)).toBe("2026-02-25");
+  });
+
   it("clamps due day to month length", () => {
-    expect(dueDateForInstallment("2026-01-31", 31, 1)).toBe("2026-02-28");
+    expect(dueDateForInstallment("2026-01-01", 31, 1)).toBe("2026-01-31");
+    expect(dueDateForInstallment("2026-01-31", 31, 2)).toBe("2026-02-28");
   });
 });
 
