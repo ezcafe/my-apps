@@ -97,20 +97,6 @@ export function LoansSettingsNotifications() {
           </Button>
         </div>
       </Card>
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold">Workspaces</h2>
-        <p className="mt-2 text-sm text-muted">
-          Loans and Money each use a workspace for data isolation. Set defaults
-          or create shared workspaces in{" "}
-          <a
-            href="/settings#settings-workspaces"
-            className="text-foreground underline-offset-2 hover:underline"
-          >
-            Settings
-          </a>
-          . Payment recording still uses the active Money workspace cookie.
-        </p>
-      </Card>
     </div>
   );
 }
