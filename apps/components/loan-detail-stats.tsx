@@ -5,10 +5,6 @@ import { AnimatedNumber } from "@/components/ui/animated-number";
 import { useTheme } from "@/components/theme-provider";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
-import {
-  LOAN_CALCULATION_METHOD_LABELS,
-  type LoanCalculationMethod,
-} from "@/lib/loans-amortization";
 import { colorByIndex } from "@/lib/theme-chart-palette";
 import { cn } from "@/lib/cn";
 import type { LoanDetail } from "@/lib/loans-query-options";
@@ -43,6 +39,17 @@ function toneClass(tone: "neutral" | "positive" | "negative"): string {
   return "text-muted";
 }
 
+function rateScheduleLabel(loan: LoanDetail): string {
+  if (
+    loan.initialRateMonths != null &&
+    loan.rateAfterInitialBps != null &&
+    loan.initialRateMonths < loan.termMonths
+  ) {
+    return `${loan.initialRateMonths} months at ${formatApr(loan.annualRateBps)}, then ${formatApr(loan.rateAfterInitialBps)}`;
+  }
+  return `${loan.termMonths}-month term at ${formatApr(loan.annualRateBps)} APR`;
+}
+
 export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
   const { resolved, style } = useTheme();
   const { formatDate } = useFormatDate();
@@ -53,10 +60,7 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
   const animationKey = loan.id;
 
   const contextParts = [
-    LOAN_CALCULATION_METHOD_LABELS[
-      loan.calculationMethod as LoanCalculationMethod
-    ] ?? loan.calculationMethod,
-    `${loan.termMonths}-month term at ${formatApr(loan.annualRateBps)} APR`,
+    rateScheduleLabel(loan),
     `Started ${formatDate(loan.startDate, { omitYearIfCurrent: true })}`,
     loan.status === "paid_off" ? "Paid off" : null,
   ].filter(Boolean);

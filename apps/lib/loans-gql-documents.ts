@@ -51,6 +51,9 @@ export const LOAN_DETAIL_QUERY = /* GraphQL */ `
       status
       startDate
       dueDayOfMonth
+      initialRateMonths
+      rateAfterInitialBps
+      paymentAfterRateChangeMinor
       collateralValueMinor
       moneyAccountId
       moneyCategoryId

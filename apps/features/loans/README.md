@@ -1,6 +1,6 @@
 # Loans feature
 
-Workspace-backed loan tracking with fixed-rate amortization, progress charts, and payment reminders.
+Workspace-backed loan tracking with SC spreadsheet amortization, progress charts, and payment reminders.
 
 ## Routes
 
@@ -17,20 +17,25 @@ GraphQL: `POST /api/graphql/loans` (cookie `ctx_workspace_loans`).
 
 - Amounts are stored in **minor units** (`amountMinor` pattern from Money).
 - `annualRateBps`: basis points (525 = 5.25%).
-- `calculationMethod`: how the amortization schedule is computed (see below).
 - Schedule is generated on create and not edited (cancel loan only).
 - Pay with Money: atomic `loanInstallmentPayWithTransaction` creates a Money expense in the **Money** workspace and links `money_transaction_id`.
 - Mark paid without transaction: updates installment status only.
 
-## Calculation methods
+## Interest calculation
 
-| Method | Label | Description |
-|--------|-------|-------------|
-| `nominal_monthly` | Equal monthly payment (EMI) | **Recommended default.** Fixed payment every month; interest on remaining balance at annual rate ÷ 12. |
-| `sc_vn_calculator` | EMI with Standard Chartered rounding | Same equal-payment formula as standard EMI, with SC VN web-calculator rounding per row. |
-| `sc_vn_actual_365` | Daily interest (actual/365) | Interest accrues daily between due dates; monthly payment computed to amortize the loan. |
+All new loans use the **SC spreadsheet** engine:
 
-The create form at `/loans/new` defaults to **300-month term** and **due day 25**.
+- **EMI:** `ROUND(PMT(rate/12, term, principal))`
+- **Interest:** actual/365 daily accrual between due dates (`balance × rate × days ÷ 365`, rounded per row)
+- **Principal:** payment − interest each period; last row pays remaining balance
+
+Optional **two-tier rate schedule** at create:
+
+- `initialRateMonths` — months at the initial `annualRateBps`
+- `rateAfterInitialBps` — rate for the remainder (required when initial period < term)
+- Payment recalculates via PMT on remaining balance at the switch month; optional `paymentAfterRateChangeMinor` override
+
+The create form defaults to **300-month term** and **due day 25**.
 
 Optional `collateralValueMinor` at create is display-only (LTV / down payment); it does not change the schedule.
 

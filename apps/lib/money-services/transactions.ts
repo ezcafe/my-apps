@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { and, asc, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
@@ -73,6 +73,7 @@ export type SerializedMoneyTransaction = {
   notes: string | null;
   createdBySub: string | null;
   transferPairId: string | null;
+  excludeFromAnalyticsAndBudget: boolean;
   createdAt: string;
   updatedAt: string;
   tagIds: string[];
@@ -274,6 +275,8 @@ export async function createMoneyTransaction(
   const occurredAt = parsed.data.occurredAt
     ? new Date(parsed.data.occurredAt)
     : new Date();
+  const excludeFromAnalyticsAndBudget =
+    parsed.data.excludeFromAnalyticsAndBudget ?? false;
 
   const rules = await db
     .select({
@@ -395,6 +398,7 @@ export async function createMoneyTransaction(
               merchantId: afterRules.merchantId ?? parsed.data.merchantId ?? null,
               notes: parsed.data.notes ?? null,
               tagIds: uniqueTags,
+              excludeFromAnalyticsAndBudget,
             },
             active: true,
           })
@@ -416,6 +420,7 @@ export async function createMoneyTransaction(
             notes: parsed.data.notes ?? null,
             createdBySub: ctx.userSub,
             recurrenceSourceId,
+            excludeFromAnalyticsAndBudget,
           })
           .returning();
 
@@ -460,6 +465,7 @@ export async function createMoneyTransaction(
         merchantId: null,
         createdBySub: ctx.userSub,
         transferPairId,
+        excludeFromAnalyticsAndBudget,
       } as const;
       const [fromRow] = await tx
         .insert(moneyTransaction)
@@ -645,6 +651,12 @@ export async function updateMoneyTransaction(
         merchantId:
           mergedForRules.merchantId ?? patch.merchantId ?? existing.merchantId,
         notes: patch.notes ?? existing.notes,
+        ...(patch.excludeFromAnalyticsAndBudget !== undefined
+          ? {
+              excludeFromAnalyticsAndBudget:
+                patch.excludeFromAnalyticsAndBudget,
+            }
+          : {}),
         updatedAt: new Date(),
       })
       .where(
@@ -657,6 +669,25 @@ export async function updateMoneyTransaction(
 
     if (!row) {
       throw new Error("Transaction update returned no row");
+    }
+
+    if (
+      existing.transferPairId &&
+      patch.excludeFromAnalyticsAndBudget !== undefined
+    ) {
+      await tx
+        .update(moneyTransaction)
+        .set({
+          excludeFromAnalyticsAndBudget: patch.excludeFromAnalyticsAndBudget,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(moneyTransaction.workspaceId, ctx.workspaceId),
+            eq(moneyTransaction.transferPairId, existing.transferPairId),
+            ne(moneyTransaction.id, id),
+          ),
+        );
     }
 
     const after: TxRowForBalance = {

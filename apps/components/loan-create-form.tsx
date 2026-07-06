@@ -16,19 +16,10 @@ import {
   buildAmortizationSchedule,
   computeFirstMonthInterestMinor,
   computeMonthlyPaymentMinor,
-  LOAN_CALCULATION_METHOD_DESCRIPTIONS,
-  LOAN_CALCULATION_METHOD_LABELS,
-  type LoanCalculationMethod,
 } from "@/lib/loans-amortization";
 import { loansGraphQLRequest } from "@/lib/loans-gql-client";
 import { LOAN_CREATE_MUTATION } from "@/lib/loans-gql-documents";
 import { moneyBootstrapQueryOptions } from "@/lib/money-query-options";
-
-const CALCULATION_METHODS: LoanCalculationMethod[] = [
-  "nominal_monthly",
-  "sc_vn_calculator",
-  "sc_vn_actual_365",
-];
 
 function localDateString(d = new Date()): string {
   const y = d.getFullYear();
@@ -59,12 +50,16 @@ export function LoanCreateForm() {
   const [collateral, setCollateral] = useState("");
   const [ratePercent, setRatePercent] = useState("5.25");
   const [termMonths, setTermMonths] = useState("300");
+  const [initialRateMonths, setInitialRateMonths] = useState("");
+  const [rateAfterInitialPercent, setRateAfterInitialPercent] = useState("");
   const [startDate, setStartDate] = useState(localDateString());
   const [dueDay, setDueDay] = useState("25");
-  const [calculationMethod, setCalculationMethod] =
-    useState<LoanCalculationMethod>("nominal_monthly");
   const [useCustomPayment, setUseCustomPayment] = useState(false);
   const [customPayment, setCustomPayment] = useState("");
+  const [useCustomPaymentAfterRateChange, setUseCustomPaymentAfterRateChange] =
+    useState(false);
+  const [customPaymentAfterRateChange, setCustomPaymentAfterRateChange] =
+    useState("");
   const [showSchedulePreview, setShowSchedulePreview] = useState(false);
   const [moneyAccountId, setMoneyAccountId] = useState("");
   const [moneyCategoryId, setMoneyCategoryId] = useState("");
@@ -77,16 +72,19 @@ export function LoanCreateForm() {
   const categories =
     moneyBootstrap.data?.categories.filter((c) => c.kind === "expense") ?? [];
 
-  const isScMode =
-    calculationMethod === "sc_vn_calculator" ||
-    calculationMethod === "sc_vn_actual_365";
-
   const parsedInputs = useMemo(() => {
     const principalMinor = parseMajorToMinor(principal, defaultCurrency);
     const collateralMinor = parseMajorToMinor(collateral, defaultCurrency);
     const term = Number(termMonths);
     const rateBps = Math.round(parseFloat(ratePercent) * 100);
     const dueDayNum = Number(dueDay);
+    const initialRateMonthsNum =
+      initialRateMonths.trim() === "" ? null : Number(initialRateMonths);
+    const rateAfterInitialBps =
+      rateAfterInitialPercent.trim() === ""
+        ? null
+        : Math.round(parseFloat(rateAfterInitialPercent) * 100);
+
     if (
       principalMinor == null ||
       principalMinor <= 0 ||
@@ -96,18 +94,82 @@ export function LoanCreateForm() {
       rateBps < 0 ||
       !Number.isFinite(dueDayNum) ||
       dueDayNum < 1 ||
-      dueDayNum > 28
+      dueDayNum > 28 ||
+      (initialRateMonthsNum != null &&
+        (!Number.isFinite(initialRateMonthsNum) ||
+          initialRateMonthsNum <= 0 ||
+          initialRateMonthsNum > term)) ||
+      (rateAfterInitialPercent.trim() !== "" &&
+        (rateAfterInitialBps == null ||
+          !Number.isFinite(rateAfterInitialBps) ||
+          rateAfterInitialBps < 0))
     ) {
       return null;
     }
+
+    const hasRateChange =
+      initialRateMonthsNum != null &&
+      initialRateMonthsNum > 0 &&
+      initialRateMonthsNum < term;
+
+    if (hasRateChange && rateAfterInitialBps == null) {
+      return null;
+    }
+
     return {
       principalMinor,
       collateralMinor,
       term,
       rateBps,
       dueDayNum,
+      initialRateMonths: hasRateChange ? initialRateMonthsNum : null,
+      rateAfterInitialBps: hasRateChange ? rateAfterInitialBps : null,
     };
-  }, [principal, collateral, ratePercent, termMonths, dueDay, defaultCurrency]);
+  }, [
+    principal,
+    collateral,
+    ratePercent,
+    termMonths,
+    initialRateMonths,
+    rateAfterInitialPercent,
+    dueDay,
+    defaultCurrency,
+  ]);
+
+  const scheduleInput = useMemo(() => {
+    if (!parsedInputs) return null;
+    const customMinor = useCustomPayment
+      ? parseMajorToMinor(customPayment, defaultCurrency)
+      : null;
+    const customAfterRateChangeMinor = useCustomPaymentAfterRateChange
+      ? parseMajorToMinor(customPaymentAfterRateChange, defaultCurrency)
+      : null;
+    return {
+      principalMinor: parsedInputs.principalMinor,
+      annualRateBps: parsedInputs.rateBps,
+      termMonths: parsedInputs.term,
+      startDate,
+      dueDayOfMonth: parsedInputs.dueDayNum,
+      initialRateMonths: parsedInputs.initialRateMonths,
+      rateAfterInitialBps: parsedInputs.rateAfterInitialBps,
+      ...(useCustomPayment && customMinor != null && customMinor > 0
+        ? { paymentMinor: customMinor }
+        : {}),
+      ...(useCustomPaymentAfterRateChange &&
+      customAfterRateChangeMinor != null &&
+      customAfterRateChangeMinor > 0
+        ? { paymentAfterRateChangeMinor: customAfterRateChangeMinor }
+        : {}),
+    };
+  }, [
+    parsedInputs,
+    startDate,
+    useCustomPayment,
+    customPayment,
+    useCustomPaymentAfterRateChange,
+    customPaymentAfterRateChange,
+    defaultCurrency,
+  ]);
 
   const computedPaymentMinor = useMemo(() => {
     if (!parsedInputs) return null;
@@ -116,12 +178,11 @@ export function LoanCreateForm() {
         parsedInputs.principalMinor,
         parsedInputs.rateBps,
         parsedInputs.term,
-        calculationMethod,
       );
     } catch {
       return null;
     }
-  }, [parsedInputs, calculationMethod]);
+  }, [parsedInputs]);
 
   const firstMonthInterestMinor = useMemo(() => {
     if (!parsedInputs) return null;
@@ -129,44 +190,22 @@ export function LoanCreateForm() {
       return computeFirstMonthInterestMinor(
         parsedInputs.principalMinor,
         parsedInputs.rateBps,
-        calculationMethod,
         startDate,
         parsedInputs.dueDayNum,
       );
     } catch {
       return null;
     }
-  }, [parsedInputs, calculationMethod, startDate]);
+  }, [parsedInputs, startDate]);
 
   const schedulePreview = useMemo(() => {
-    if (!parsedInputs || computedPaymentMinor == null) return null;
+    if (!scheduleInput || computedPaymentMinor == null) return null;
     try {
-      const customMinor = useCustomPayment
-        ? parseMajorToMinor(customPayment, defaultCurrency)
-        : null;
-      return buildAmortizationSchedule({
-        principalMinor: parsedInputs.principalMinor,
-        annualRateBps: parsedInputs.rateBps,
-        termMonths: parsedInputs.term,
-        startDate,
-        dueDayOfMonth: parsedInputs.dueDayNum,
-        calculationMethod,
-        ...(useCustomPayment && customMinor != null && customMinor > 0
-          ? { paymentMinor: customMinor }
-          : {}),
-      });
+      return buildAmortizationSchedule(scheduleInput);
     } catch {
       return null;
     }
-  }, [
-    parsedInputs,
-    computedPaymentMinor,
-    startDate,
-    calculationMethod,
-    useCustomPayment,
-    customPayment,
-    defaultCurrency,
-  ]);
+  }, [scheduleInput, computedPaymentMinor]);
 
   const ltvLabel = useMemo(() => {
     if (
@@ -209,6 +248,10 @@ export function LoanCreateForm() {
     return computedPaymentMinor - firstMonthInterestMinor;
   }, [computedPaymentMinor, firstMonthInterestMinor]);
 
+  const hasRateChangeConfigured =
+    parsedInputs?.initialRateMonths != null &&
+    parsedInputs.rateAfterInitialBps != null;
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -225,7 +268,27 @@ export function LoanCreateForm() {
           throw new Error("Enter a valid custom monthly payment");
         }
       }
+      let paymentAfterRateChangeMinor: number | undefined;
+      if (useCustomPaymentAfterRateChange) {
+        paymentAfterRateChangeMinor =
+          parseMajorToMinor(customPaymentAfterRateChange, defaultCurrency) ??
+          undefined;
+        if (
+          paymentAfterRateChangeMinor == null ||
+          paymentAfterRateChangeMinor <= 0
+        ) {
+          throw new Error("Enter a valid payment after rate change");
+        }
+      }
       const collateralMinor = parseMajorToMinor(collateral, defaultCurrency);
+      const term = Number(termMonths);
+      const initialRateMonthsNum =
+        initialRateMonths.trim() === "" ? null : Number(initialRateMonths);
+      const rateAfterInitialBps =
+        rateAfterInitialPercent.trim() === ""
+          ? null
+          : Math.round(parseFloat(rateAfterInitialPercent) * 100);
+
       const result = await loansGraphQLRequest<{
         loanCreate: { id: string };
       }>(LOAN_CREATE_MUTATION, {
@@ -233,11 +296,21 @@ export function LoanCreateForm() {
           name: name.trim(),
           principalMinor,
           annualRateBps,
-          termMonths: Number(termMonths),
+          termMonths: term,
           startDate,
           dueDayOfMonth: Number(dueDay),
-          calculationMethod,
           ...(paymentMinor != null ? { paymentMinor } : {}),
+          ...(initialRateMonthsNum != null &&
+          initialRateMonthsNum > 0 &&
+          initialRateMonthsNum < term
+            ? {
+                initialRateMonths: initialRateMonthsNum,
+                rateAfterInitialBps,
+              }
+            : {}),
+          ...(paymentAfterRateChangeMinor != null
+            ? { paymentAfterRateChangeMinor }
+            : {}),
           ...(collateralMinor != null && collateralMinor > 0
             ? { collateralValueMinor: collateralMinor }
             : {}),
@@ -272,25 +345,6 @@ export function LoanCreateForm() {
             <Input value={name} onChange={(e) => setName(e.target.value)} required />
           </Field>
 
-          <Field label="Interest calculation">
-            <select
-              className="w-full rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2 text-sm"
-              value={calculationMethod}
-              onChange={(e) =>
-                setCalculationMethod(e.target.value as LoanCalculationMethod)
-              }
-            >
-              {CALCULATION_METHODS.map((method) => (
-                <option key={method} value={method}>
-                  {LOAN_CALCULATION_METHOD_LABELS[method]}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-muted">
-              {LOAN_CALCULATION_METHOD_DESCRIPTIONS[calculationMethod]}
-            </p>
-          </Field>
-
           <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
             <Field label={`Principal (${defaultCurrency})`}>
               <Input
@@ -314,6 +368,28 @@ export function LoanCreateForm() {
                 onChange={(e) => setTermMonths(e.target.value)}
                 inputMode="numeric"
                 required
+              />
+            </Field>
+          </div>
+
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
+            <Field label="Initial fixed-rate period (months)">
+              <Input
+                value={initialRateMonths}
+                onChange={(e) => setInitialRateMonths(e.target.value)}
+                inputMode="numeric"
+                placeholder="Optional — full term if empty"
+              />
+            </Field>
+            <Field label="Rate after initial period (%)">
+              <Input
+                value={rateAfterInitialPercent}
+                onChange={(e) => setRateAfterInitialPercent(e.target.value)}
+                inputMode="decimal"
+                placeholder={
+                  initialRateMonths.trim() ? "Required when period < term" : "Optional"
+                }
+                disabled={initialRateMonths.trim() === ""}
               />
             </Field>
           </div>
@@ -449,18 +525,16 @@ export function LoanCreateForm() {
             </div>
           ) : null}
 
-          {isScMode ? (
-            <Field label={`Collateral value (${defaultCurrency})`}>
-              <Input
-                value={collateral}
-                onChange={(e) => setCollateral(e.target.value)}
-                inputMode="decimal"
-                placeholder="Optional"
-              />
-            </Field>
-          ) : null}
+          <Field label={`Collateral value (${defaultCurrency})`}>
+            <Input
+              value={collateral}
+              onChange={(e) => setCollateral(e.target.value)}
+              inputMode="decimal"
+              placeholder="Optional"
+            />
+          </Field>
 
-          {isScMode && ltvLabel != null ? (
+          {ltvLabel != null ? (
             <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
               <div className="rounded-[var(--radius-sm)] border border-border bg-surface-raised px-3 py-2">
                 <p className="text-xs text-muted">LTV ratio</p>
@@ -572,6 +646,44 @@ export function LoanCreateForm() {
               </div>
             </div>
           </div>
+
+          {hasRateChangeConfigured ? (
+            <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  checked={useCustomPaymentAfterRateChange}
+                  onChange={() => setUseCustomPaymentAfterRateChange((v) => !v)}
+                  ariaLabel="Use custom payment after rate change"
+                  className="mt-0.5"
+                />
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-medium text-foreground">
+                    Custom payment after rate change
+                  </span>
+                  <p className="mt-0.5 text-xs text-muted">
+                    From month {parsedInputs!.initialRateMonths! + 1}, payment
+                    recalculates via PMT on the remaining balance unless you
+                    override it here.
+                  </p>
+                  {useCustomPaymentAfterRateChange ? (
+                    <Field
+                      label={`Payment after rate change (${defaultCurrency})`}
+                      className="mt-3"
+                    >
+                      <Input
+                        value={customPaymentAfterRateChange}
+                        onChange={(e) =>
+                          setCustomPaymentAfterRateChange(e.target.value)
+                        }
+                        inputMode="decimal"
+                        required
+                      />
+                    </Field>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
             <p className="text-sm text-muted">

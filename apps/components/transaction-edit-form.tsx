@@ -8,6 +8,7 @@ import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -59,6 +60,7 @@ type TxPayload = {
   merchantId: string | null;
   notes: string | null;
   tagIds: string[];
+  excludeFromAnalyticsAndBudget: boolean;
 };
 
 const KIND_OPTIONS = [
@@ -139,6 +141,8 @@ export function TransactionEditForm({
   const [categoryEmptyOnOther, setCategoryEmptyOnOther] = useState(false);
   const [merchantId, setMerchantId] = useState("");
   const [notes, setNotes] = useState("");
+  const [excludeFromAnalyticsAndBudget, setExcludeFromAnalyticsAndBudget] =
+    useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -273,6 +277,7 @@ export function TransactionEditForm({
         setCategoryEmptyOnOther(!tx.categoryId);
         setMerchantId(tx.merchantId ?? "");
         setNotes(tx.notes ?? "");
+        setExcludeFromAnalyticsAndBudget(tx.excludeFromAnalyticsAndBudget);
         setSelectedTagIds([...tx.tagIds]);
       } catch (e: unknown) {
         if (!cancelled) {
@@ -326,6 +331,7 @@ export function TransactionEditForm({
         merchantId: kind === "transfer" ? null : merchantId || null,
         notes: notes.trim() ? notes.trim() : null,
         tagIds: selectedTagIds,
+        excludeFromAnalyticsAndBudget,
       };
       await moneyGraphQLRequest(MONEY_TRANSACTION_UPDATE_MUTATION, {
         id: transactionId,
@@ -579,6 +585,28 @@ export function TransactionEditForm({
               onChange={(e) => setNotes(e.target.value)}
             />
           </Field>
+
+          <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4 [grid-column:1/-1]">
+            <div className="flex items-start gap-2">
+              <Checkbox
+                checked={excludeFromAnalyticsAndBudget}
+                onChange={() =>
+                  setExcludeFromAnalyticsAndBudget((v) => !v)
+                }
+                ariaLabel="Exclude from Analytics and budget"
+                className="mt-0.5"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="text-sm font-medium text-foreground">
+                  Exclude from Analytics and budget
+                </span>
+                <p className="mt-0.5 text-xs text-muted">
+                  Still updates account balance. Hidden from analytics charts and
+                  budget spend.
+                </p>
+              </div>
+            </div>
+          </div>
 
           <div className="flex flex-wrap items-center gap-3 [grid-column:1/-1]">
             <Button

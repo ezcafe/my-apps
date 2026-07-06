@@ -108,3 +108,19 @@ export function moneyTransactionConditionsForAnalytics(
 
   return conditions;
 }
+
+/** Transactions with this flag set are omitted from analytics charts and budget spend. */
+export function moneyTransactionIncludedInReportsCondition(): SQL {
+  return eq(moneyTransaction.excludeFromAnalyticsAndBudget, false);
+}
+
+/** Analytics filters plus exclusion of transactions marked out of reports. */
+export function moneyTransactionConditionsForReports(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+): SQL[] {
+  return [
+    ...moneyTransactionConditionsForAnalytics(workspaceId, filters),
+    moneyTransactionIncludedInReportsCondition(),
+  ];
+}

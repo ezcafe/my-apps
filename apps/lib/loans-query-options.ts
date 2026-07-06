@@ -41,6 +41,9 @@ export type LoanListItem = {
 export type LoanDetail = LoanListItem & {
   startDate: string;
   dueDayOfMonth: number;
+  initialRateMonths: number | null;
+  rateAfterInitialBps: number | null;
+  paymentAfterRateChangeMinor: number | null;
   collateralValueMinor: number | null;
   moneyAccountId: string | null;
   moneyCategoryId: string | null;

@@ -20,6 +20,7 @@ const transactionBaseSchema = z.object({
   merchantId: z.string().uuid().optional().nullable(),
   notes: z.string().max(4000).optional().nullable(),
   tagIds: z.array(z.string().uuid()).optional(),
+  excludeFromAnalyticsAndBudget: z.boolean().optional().default(false),
   /** Resolved to existing tags or created when the transaction is created. */
   tagNames: z.array(z.string().max(120)).max(50).optional(),
   recurrence: z
@@ -176,6 +177,7 @@ export const recurrentTemplateBodySchema = z.object({
   merchantId: z.string().uuid().optional().nullable(),
   notes: z.string().max(4000).optional().nullable(),
   tagIds: z.array(z.string().uuid()).optional(),
+  excludeFromAnalyticsAndBudget: z.boolean().optional().default(false),
 });
 
 export const recurrentCreateSchema = z

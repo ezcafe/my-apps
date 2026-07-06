@@ -43,6 +43,9 @@ export type SerializedLoanListItem = {
 export type SerializedLoanDetail = SerializedLoanListItem & {
   startDate: string;
   dueDayOfMonth: number;
+  initialRateMonths: number | null;
+  rateAfterInitialBps: number | null;
+  paymentAfterRateChangeMinor: number | null;
   collateralValueMinor: number | null;
   moneyAccountId: string | null;
   moneyCategoryId: string | null;
@@ -151,7 +154,9 @@ export async function createLoan(
     startDate: parsed.data.startDate,
     dueDayOfMonth: parsed.data.dueDayOfMonth,
     paymentMinor: parsed.data.paymentMinor,
-    calculationMethod: parsed.data.calculationMethod,
+    initialRateMonths: parsed.data.initialRateMonths,
+    rateAfterInitialBps: parsed.data.rateAfterInitialBps,
+    paymentAfterRateChangeMinor: parsed.data.paymentAfterRateChangeMinor,
   });
   const paymentMinor =
     parsed.data.paymentMinor ??
@@ -179,7 +184,11 @@ export async function createLoan(
         startDate: parsed.data.startDate,
         dueDayOfMonth: parsed.data.dueDayOfMonth,
         paymentMinor,
-        calculationMethod: parsed.data.calculationMethod,
+        calculationMethod: "sc_vn_actual_365",
+        initialRateMonths: parsed.data.initialRateMonths ?? null,
+        rateAfterInitialBps: parsed.data.rateAfterInitialBps ?? null,
+        paymentAfterRateChangeMinor:
+          parsed.data.paymentAfterRateChangeMinor ?? null,
         collateralValueMinor: parsed.data.collateralValueMinor ?? null,
         moneyAccountId: parsed.data.moneyAccountId ?? null,
         moneyCategoryId: parsed.data.moneyCategoryId ?? null,
@@ -430,6 +439,9 @@ export async function getLoanDetail(
     ...base,
     startDate: row.startDate,
     dueDayOfMonth: row.dueDayOfMonth,
+    initialRateMonths: row.initialRateMonths,
+    rateAfterInitialBps: row.rateAfterInitialBps,
+    paymentAfterRateChangeMinor: row.paymentAfterRateChangeMinor,
     collateralValueMinor: row.collateralValueMinor,
     moneyAccountId: row.moneyAccountId,
     moneyCategoryId: row.moneyCategoryId,

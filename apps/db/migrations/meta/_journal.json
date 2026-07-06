@@ -141,6 +141,20 @@
       "when": 1779833900000,
       "tag": "0021_loans_calculation_method",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1779834000000,
+      "tag": "0022_loan_rate_schedule",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1779834100000,
+      "tag": "0023_money_tx_exclude_from_reports",
+      "breakpoints": true
     }
   ]
 }

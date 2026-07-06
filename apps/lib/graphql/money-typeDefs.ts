@@ -184,6 +184,7 @@ export const moneyTypeDefs = /* GraphQL */ `
     tagIds: [ID!]
     tagNames: [String!]
     recurrence: MoneyTransactionRecurrenceInput
+    excludeFromAnalyticsAndBudget: Boolean
   }
 
   input MoneyTransactionUpdateInput {
@@ -196,6 +197,7 @@ export const moneyTypeDefs = /* GraphQL */ `
     merchantId: ID
     notes: String
     tagIds: [ID!]
+    excludeFromAnalyticsAndBudget: Boolean
   }
 
   type Query {

@@ -87,6 +87,7 @@ export type MoneyTransactionListRow = {
   merchantId: string | null;
   notes: string | null;
   tagIds: string[];
+  excludeFromAnalyticsAndBudget: boolean;
 };
 
 export type MoneyTransactionsListResponse = {

@@ -19,6 +19,9 @@ import {
   budgetCreateSchema,
   moneyBudgetScopeTypeSchema,
 } from "@/lib/validators/money";
+import {
+  moneyTransactionIncludedInReportsCondition,
+} from "@/lib/money-transaction-analytics-conditions";
 import { z } from "zod";
 
 function serializeBudgetRow(
@@ -81,6 +84,7 @@ async function loadSpentAggregates(
     eq(moneyTransaction.kind, "expense"),
     gte(moneyTransaction.occurredAt, fromDate),
     lte(moneyTransaction.occurredAt, toDate),
+    moneyTransactionIncludedInReportsCondition(),
   );
 
   const [wsRows, accountRows, categoryRows, tagRows] = await Promise.all([

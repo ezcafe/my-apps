@@ -15,7 +15,7 @@ import {
 } from "@/lib/analytics-category-rollup";
 import { dateRangeParams } from "@/lib/analytics-build-query";
 import {
-  moneyTransactionConditionsForAnalytics,
+  moneyTransactionConditionsForReports,
   resolveAnalyticsDateBounds,
   resolveAnalyticsFiltersForQuery,
   type AnalyticsFiltersData,
@@ -535,7 +535,7 @@ async function buildNetLineSeries(
   const { fromDate, toDate } = isoBoundsToLocalDates(fromISO, toISO);
 
   const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
-  const conditions = moneyTransactionConditionsForAnalytics(
+  const conditions = moneyTransactionConditionsForReports(
     workspaceId,
     resolvedFilters,
   );
@@ -556,7 +556,7 @@ async function buildNetLineSeries(
       workspaceId,
       prevFilters,
     );
-    const prevConditions = moneyTransactionConditionsForAnalytics(
+    const prevConditions = moneyTransactionConditionsForReports(
       workspaceId,
       resolvedPrevFilters,
     );
@@ -598,7 +598,7 @@ export async function computeMoneyAnalyticsSummary(
   const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
 
   const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
-  const conditions = moneyTransactionConditionsForAnalytics(
+  const conditions = moneyTransactionConditionsForReports(
     workspaceId,
     resolvedFilters,
   );
@@ -644,7 +644,7 @@ export async function computeMoneyAnalyticsOverview(
   const timezone = await loadWorkspaceTimezone(workspaceId);
 
   const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
-  const conditions = moneyTransactionConditionsForAnalytics(
+  const conditions = moneyTransactionConditionsForReports(
     workspaceId,
     resolvedFilters,
   );
@@ -688,7 +688,7 @@ export async function computeMoneyAnalyticsDistribution(
     filters,
     loaders,
   );
-  const conditions = moneyTransactionConditionsForAnalytics(
+  const conditions = moneyTransactionConditionsForReports(
     workspaceId,
     resolvedFilters,
   );
@@ -796,7 +796,7 @@ export async function computeMoneyAnalyticsSankey(
     filters,
     loaders,
   );
-  const conditions = moneyTransactionConditionsForAnalytics(
+  const conditions = moneyTransactionConditionsForReports(
     workspaceId,
     resolvedFilters,
   );
@@ -845,7 +845,7 @@ export async function computeMoneyAnalyticsLeaders(
   filters: AnalyticsFiltersData,
 ): Promise<MoneyAnalyticsLeadersPayload> {
   const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
-  const conditions = moneyTransactionConditionsForAnalytics(
+  const conditions = moneyTransactionConditionsForReports(
     workspaceId,
     resolvedFilters,
   );

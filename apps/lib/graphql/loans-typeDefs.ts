@@ -92,6 +92,9 @@ export const loansTypeDefs = /* GraphQL */ `
     nextDueDate: String
     startDate: String!
     dueDayOfMonth: Int!
+    initialRateMonths: Int
+    rateAfterInitialBps: Int
+    paymentAfterRateChangeMinor: BigInt
     collateralValueMinor: BigInt
     moneyAccountId: ID
     moneyCategoryId: ID
@@ -118,7 +121,9 @@ export const loansTypeDefs = /* GraphQL */ `
     startDate: String!
     dueDayOfMonth: Int!
     paymentMinor: BigInt
-    calculationMethod: String
+    initialRateMonths: Int
+    rateAfterInitialBps: Int
+    paymentAfterRateChangeMinor: BigInt
     collateralValueMinor: BigInt
     moneyAccountId: ID
     moneyCategoryId: ID

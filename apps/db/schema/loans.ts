@@ -49,7 +49,12 @@ export const loan = pgTable(
     paymentMinor: bigint("payment_minor", { mode: "number" }).notNull(),
     calculationMethod: loanCalculationMethodEnum("calculation_method")
       .notNull()
-      .default("nominal_monthly"),
+      .default("sc_vn_actual_365"),
+    initialRateMonths: integer("initial_rate_months"),
+    rateAfterInitialBps: integer("rate_after_initial_bps"),
+    paymentAfterRateChangeMinor: bigint("payment_after_rate_change_minor", {
+      mode: "number",
+    }),
     collateralValueMinor: bigint("collateral_value_minor", { mode: "number" }),
     moneyAccountId: uuid("money_account_id"),
     moneyCategoryId: uuid("money_category_id"),

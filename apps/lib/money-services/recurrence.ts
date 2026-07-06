@@ -233,6 +233,7 @@ export async function generateMoneyRecurrenceOccurrence(
         notes: t.notes ?? null,
         createdBySub: ctx.userSub,
         recurrenceSourceId: tplRow.id,
+        excludeFromAnalyticsAndBudget: t.excludeFromAnalyticsAndBudget ?? false,
       })
       .returning();
 

@@ -17,6 +17,7 @@ import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -293,6 +294,8 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
   const [categoryEmptyOnOther, setCategoryEmptyOnOther] = useState(false);
   const [selectedMerchantId, setSelectedMerchantId] = useState("");
   const [notes, setNotes] = useState("");
+  const [excludeFromAnalyticsAndBudget, setExcludeFromAnalyticsAndBudget] =
+    useState(false);
   const [tagsInput, setTagsInput] = useState("");
   const [tagSuggestFocused, setTagSuggestFocused] = useState(false);
   const [tagSuggestHighlight, setTagSuggestHighlight] = useState(-1);
@@ -654,6 +657,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
   function resetFormFields() {
     setAmountMajor("");
     setNotes("");
+    setExcludeFromAnalyticsAndBudget(false);
     setTagsInput("");
     if (!isRecurrenceMode) {
       setRecurrenceEnabled(false);
@@ -703,6 +707,9 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
         .filter(Boolean);
       const uniqueTagNames = [...new Set(tagNames)];
       if (uniqueTagNames.length > 0) body.tagNames = uniqueTagNames;
+      if (excludeFromAnalyticsAndBudget) {
+        body.excludeFromAnalyticsAndBudget = true;
+      }
 
       if (recurrenceActive) {
         body.recurrence = {
@@ -1242,22 +1249,57 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             />
           </Field>
 
-          {kind !== "transfer" ? (
-            <div className="grid min-w-0 gap-3 [grid-column:1/-1]">
-              {!isRecurrenceMode ? (
-                <label className="flex items-center gap-2 text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={recurrenceEnabled}
-                    onChange={(e) => setRecurrenceEnabled(e.target.checked)}
-                    className="rounded-[var(--radius-sm)] border-border"
-                  />
-                  Repeat this transaction
-                </label>
-              ) : (
-                <p className="text-sm text-muted">
-                  This transaction will repeat on the schedule below.
+          <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4 [grid-column:1/-1]">
+            <div className="flex items-start gap-2">
+              <Checkbox
+                checked={excludeFromAnalyticsAndBudget}
+                onChange={() =>
+                  setExcludeFromAnalyticsAndBudget((v) => !v)
+                }
+                ariaLabel="Exclude from Analytics and budget"
+                className="mt-0.5"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="text-sm font-medium text-foreground">
+                  Exclude from Analytics and budget
+                </span>
+                <p className="mt-0.5 text-xs text-muted">
+                  Still updates account balance. Hidden from analytics charts and
+                  budget spend.
                 </p>
+              </div>
+            </div>
+          </div>
+
+          {kind !== "transfer" ? (
+            <div className="grid min-w-0 gap-3 rounded-[var(--radius-md)] border border-border bg-surface-raised p-4 [grid-column:1/-1]">
+              {!isRecurrenceMode ? (
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    checked={recurrenceEnabled}
+                    onChange={() => setRecurrenceEnabled((v) => !v)}
+                    ariaLabel="Repeat this transaction"
+                    className="mt-0.5"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-medium text-foreground">
+                      Repeat this transaction
+                    </span>
+                    <p className="mt-0.5 text-xs text-muted">
+                      Post this entry now and generate future occurrences on a
+                      schedule.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-medium text-foreground">
+                    Repeat this transaction
+                  </span>
+                  <p className="mt-0.5 text-xs text-muted">
+                    This transaction will repeat on the schedule below.
+                  </p>
+                </div>
               )}
               {recurrenceActive ? (
                 <Field label="Repeat every">

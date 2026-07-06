@@ -33,6 +33,7 @@ type BulkPatch = {
   merchantId?: string | null;
   tagIds?: string[];
   notes?: string | null;
+  excludeFromAnalyticsAndBudget?: boolean;
 };
 
 function buildRowPatch(
@@ -63,6 +64,9 @@ function buildRowPatch(
   }
   if (patch.notes !== undefined) {
     input.notes = patch.notes;
+  }
+  if (patch.excludeFromAnalyticsAndBudget !== undefined) {
+    input.excludeFromAnalyticsAndBudget = patch.excludeFromAnalyticsAndBudget;
   }
 
   return Object.keys(input).length > 0 ? input : null;
@@ -95,6 +99,9 @@ export function TransactionBulkEditModal({
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [updateNotes, setUpdateNotes] = useState(false);
   const [notes, setNotes] = useState("");
+  const [updateExclude, setUpdateExclude] = useState(false);
+  const [excludeFromAnalyticsAndBudget, setExcludeFromAnalyticsAndBudget] =
+    useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -131,6 +138,8 @@ export function TransactionBulkEditModal({
     setSelectedTagIds([]);
     setUpdateNotes(false);
     setNotes("");
+    setUpdateExclude(false);
+    setExcludeFromAnalyticsAndBudget(false);
     setSaving(false);
     setErr(null);
   }, [open, selectedRows]);
@@ -155,6 +164,9 @@ export function TransactionBulkEditModal({
     }
     if (updateTags) bulkPatch.tagIds = selectedTagIds;
     if (updateNotes) bulkPatch.notes = notes.trim() ? notes.trim() : null;
+    if (updateExclude) {
+      bulkPatch.excludeFromAnalyticsAndBudget = excludeFromAnalyticsAndBudget;
+    }
 
     const hasChanges = Object.keys(bulkPatch).length > 0;
     if (!hasChanges) {
@@ -369,6 +381,44 @@ export function TransactionBulkEditModal({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Leave empty to clear notes"
             />
+          ) : null}
+        </fieldset>
+
+        <fieldset className="grid min-w-0 gap-2 text-sm">
+          <div className="flex items-start gap-2">
+            <Checkbox
+              checked={updateExclude}
+              onChange={() => setUpdateExclude((v) => !v)}
+              ariaLabel="Set exclude from Analytics and budget on all selected transactions"
+              className="mt-0.5"
+            />
+            <div>
+              <span className="font-medium text-foreground">
+                Exclude from Analytics and budget
+              </span>
+              <span className="mt-0.5 block text-xs text-muted">
+                Sets the same exclusion flag on every selected transaction.
+              </span>
+            </div>
+          </div>
+          {updateExclude ? (
+            <div className="flex items-start gap-2 pl-6">
+              <Checkbox
+                checked={excludeFromAnalyticsAndBudget}
+                onChange={() =>
+                  setExcludeFromAnalyticsAndBudget((v) => !v)
+                }
+                ariaLabel="Exclude from Analytics and budget"
+                className="mt-0.5"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="text-sm text-foreground">Excluded</span>
+                <p className="mt-0.5 text-xs text-muted">
+                  Uncheck to include selected transactions in analytics and
+                  budget again.
+                </p>
+              </div>
+            </div>
           ) : null}
         </fieldset>
 

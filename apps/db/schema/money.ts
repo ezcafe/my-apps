@@ -189,6 +189,9 @@ export const moneyTransaction = pgTable(
       () => moneyRecurrentTemplate.id,
       { onDelete: "set null" },
     ),
+    excludeFromAnalyticsAndBudget: boolean("exclude_from_analytics_and_budget")
+      .notNull()
+      .default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

@@ -2,16 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildAmortizationSchedule,
   buildProgressChartSeries,
-  computeActual365EmiMinor,
   computeFirstMonthInterestMinor,
   computeLoanSummary,
   computeMonthlyPaymentMinor,
-  computeScVnEmiMinor,
   daysBetweenExclusive,
   dueDateForInstallment,
-  LOAN_CALCULATION_METHOD_DESCRIPTIONS,
-  LOAN_CALCULATION_METHOD_LABELS,
-  type LoanCalculationMethod,
 } from "./loans-amortization";
 
 describe("computeMonthlyPaymentMinor", () => {
@@ -19,117 +14,91 @@ describe("computeMonthlyPaymentMinor", () => {
     expect(computeMonthlyPaymentMinor(120_000, 0, 12)).toBe(10_000);
   });
 
-  it("computes positive interest payment", () => {
-    const pmt = computeMonthlyPaymentMinor(1_000_000, 600, 360);
-    expect(pmt).toBeGreaterThan(5990);
-    expect(pmt).toBeLessThan(6000);
-  });
-
-  it("computes standard EMI for 2.3B VND at 6.6% over 300 months", () => {
+  it("computes PMT EMI for 2.3B VND at 6.6% over 300 months", () => {
     const principal = 2_300_000_000;
     const rateBps = 660;
     const term = 300;
     expect(computeMonthlyPaymentMinor(principal, rateBps, term)).toBe(
       15_673_789,
     );
-    expect(
-      computeFirstMonthInterestMinor(principal, rateBps, "nominal_monthly"),
-    ).toBe(12_650_000);
-    expect(15_673_789 - 12_650_000).toBe(3_023_789);
-
-    const schedule = buildAmortizationSchedule({
-      principalMinor: principal,
-      annualRateBps: rateBps,
-      termMonths: term,
-      startDate: "2026-01-01",
-      dueDayOfMonth: 25,
-      calculationMethod: "nominal_monthly",
-    });
-    expect(schedule).toHaveLength(300);
-    expect(schedule[299]?.balanceAfterMinor).toBe(0);
-    expect(schedule[0]?.interestMinor).toBe(12_650_000);
-    expect(schedule[0]?.principalMinor).toBe(3_023_789);
-    for (let i = 0; i < schedule.length - 1; i += 1) {
-      expect(schedule[i]?.paymentMinor).toBe(15_673_789);
-    }
-  });
-});
-
-describe("LOAN_CALCULATION_METHOD_LABELS", () => {
-  const methods: LoanCalculationMethod[] = [
-    "nominal_monthly",
-    "sc_vn_calculator",
-    "sc_vn_actual_365",
-  ];
-
-  it("has a label and description for every method", () => {
-    for (const method of methods) {
-      expect(LOAN_CALCULATION_METHOD_LABELS[method]).toBeTruthy();
-      expect(LOAN_CALCULATION_METHOD_DESCRIPTIONS[method]).toBeTruthy();
-    }
-  });
-});
-
-describe("computeScVnEmiMinor", () => {
-  it("matches SC JS formula for 2B VND at 8% over 240 months", () => {
-    const principal = 2_000_000_000;
-    const rateBps = 800;
-    const term = 240;
-    const r = rateBps / 100 / 1200;
-    const expected = principal / ((1 - (1 + r) ** -term) / r);
-    expect(computeScVnEmiMinor(principal, rateBps, term)).toBe(
-      Math.round(expected),
-    );
-  });
-
-  it("matches computeMonthlyPaymentMinor when method is sc_vn_calculator", () => {
-    const args = [2_000_000_000, 800, 240] as const;
-    expect(computeMonthlyPaymentMinor(...args, "sc_vn_calculator")).toBe(
-      computeScVnEmiMinor(...args),
-    );
   });
 });
 
 describe("computeFirstMonthInterestMinor", () => {
-  it("matches SC first-month interest preview (principal * rate / 1200)", () => {
-    const principal = 2_000_000_000;
-    const rateBps = 800;
-    expect(
-      computeFirstMonthInterestMinor(principal, rateBps, "sc_vn_calculator"),
-    ).toBe(Math.round((principal * rateBps) / 120_000));
-  });
-
-  it("uses actual days for sc_vn_actual_365", () => {
-    const principal = 1_000_000_000;
-    const rateBps = 800;
-    const startDate = "2026-01-15";
-    const dueDay = 15;
+  it("uses actual/365 days over first accrual period", () => {
+    const principal = 2_300_000_000;
+    const rateBps = 660;
+    const startDate = "2025-04-10";
+    const dueDay = 25;
     const dueDate = dueDateForInstallment(startDate, dueDay, 1);
     const days = daysBetweenExclusive(startDate, dueDate);
     expect(
       computeFirstMonthInterestMinor(
         principal,
         rateBps,
-        "sc_vn_actual_365",
         startDate,
         dueDay,
       ),
     ).toBe(Math.round((principal * rateBps * days) / (10_000 * 365)));
+    expect(
+      computeFirstMonthInterestMinor(
+        principal,
+        rateBps,
+        startDate,
+        dueDay,
+      ),
+    ).toBe(6_238_356);
   });
 });
 
 describe("daysBetweenExclusive", () => {
-  it("counts Jan 15 to Feb 15 as 31 days", () => {
-    expect(daysBetweenExclusive("2026-01-15", "2026-02-15")).toBe(31);
+  it("counts Apr 10 to Apr 25 as 15 days", () => {
+    expect(daysBetweenExclusive("2025-04-10", "2025-04-25")).toBe(15);
   });
 
-  it("counts Feb 28 to Mar 28 in non-leap year as 28 days", () => {
-    expect(daysBetweenExclusive("2026-02-28", "2026-03-28")).toBe(28);
+  it("counts Jan 15 to Feb 15 as 31 days", () => {
+    expect(daysBetweenExclusive("2026-01-15", "2026-02-15")).toBe(31);
   });
 });
 
 describe("buildAmortizationSchedule", () => {
-  it("ends with zero balance (nominal_monthly)", () => {
+  const excelFixture = {
+    principalMinor: 2_300_000_000,
+    annualRateBps: 660,
+    termMonths: 300,
+    startDate: "2025-04-10",
+    dueDayOfMonth: 25,
+  };
+
+  it("matches Excel fixture for EMI and first two periods", () => {
+    const schedule = buildAmortizationSchedule(excelFixture);
+    expect(schedule).toHaveLength(300);
+    expect(schedule[0]?.paymentMinor).toBe(15_673_789);
+    expect(schedule[0]?.interestMinor).toBe(6_238_356);
+    expect(schedule[0]?.principalMinor).toBe(9_435_433);
+    expect(schedule[0]?.balanceAfterMinor).toBe(2_290_564_567);
+    expect(schedule[1]?.interestMinor).toBe(12_425_528);
+  });
+
+  it("ends with zero balance and full principal repaid", () => {
+    const schedule = buildAmortizationSchedule(excelFixture);
+    expect(schedule[299]?.balanceAfterMinor).toBe(0);
+    const sumPrincipal = schedule.reduce((s, r) => s + r.principalMinor, 0);
+    expect(sumPrincipal).toBe(2_300_000_000);
+  });
+
+  it("recalculates payment at rate change (Excel period 25)", () => {
+    const schedule = buildAmortizationSchedule({
+      ...excelFixture,
+      initialRateMonths: 24,
+      rateAfterInitialBps: 1000,
+    });
+    expect(schedule[23]?.paymentMinor).toBe(15_673_789);
+    expect(schedule[24]?.paymentMinor).toBe(20_538_688);
+    expect(schedule[24]?.interestMinor).toBe(18_813_808);
+  });
+
+  it("ends with zero balance (12-month loan)", () => {
     const schedule = buildAmortizationSchedule({
       principalMinor: 1_000_000,
       annualRateBps: 500,
@@ -141,64 +110,6 @@ describe("buildAmortizationSchedule", () => {
     expect(schedule[11]?.balanceAfterMinor).toBe(0);
     const sumPrincipal = schedule.reduce((s, r) => s + r.principalMinor, 0);
     expect(sumPrincipal).toBe(1_000_000);
-  });
-
-  it("ends with zero balance (sc_vn_calculator)", () => {
-    const schedule = buildAmortizationSchedule({
-      principalMinor: 1_000_000,
-      annualRateBps: 500,
-      termMonths: 12,
-      startDate: "2026-01-15",
-      dueDayOfMonth: 15,
-      calculationMethod: "sc_vn_calculator",
-    });
-    expect(schedule).toHaveLength(12);
-    expect(schedule[11]?.balanceAfterMinor).toBe(0);
-    const sumPrincipal = schedule.reduce((s, r) => s + r.principalMinor, 0);
-    expect(sumPrincipal).toBe(1_000_000);
-  });
-
-  it("ends with zero balance (sc_vn_actual_365)", () => {
-    const schedule = buildAmortizationSchedule({
-      principalMinor: 1_000_000,
-      annualRateBps: 500,
-      termMonths: 12,
-      startDate: "2026-01-15",
-      dueDayOfMonth: 15,
-      calculationMethod: "sc_vn_actual_365",
-    });
-    expect(schedule).toHaveLength(12);
-    expect(schedule[11]?.balanceAfterMinor).toBe(0);
-    const sumPrincipal = schedule.reduce((s, r) => s + r.principalMinor, 0);
-    expect(sumPrincipal).toBe(1_000_000);
-  });
-
-  it("sc_vn_calculator first row matches SC JS loop", () => {
-    const principal = 1_000_000;
-    const rateBps = 500;
-    const term = 12;
-    const ratePercent = rateBps / 100;
-    const emi =
-      principal / ((1 - (1 + ratePercent / 1200) ** -term) / (ratePercent / 1200));
-    const interestFloat = (principal * ratePercent) / 100 / 12;
-    const principalFloat = emi - interestFloat;
-
-    const schedule = buildAmortizationSchedule({
-      principalMinor: principal,
-      annualRateBps: rateBps,
-      termMonths: term,
-      startDate: "2026-01-15",
-      dueDayOfMonth: 15,
-      calculationMethod: "sc_vn_calculator",
-    });
-
-    expect(schedule[0]?.interestMinor).toBe(
-      Number.parseFloat(interestFloat.toFixed(0)),
-    );
-    expect(schedule[0]?.principalMinor).toBe(
-      Number.parseFloat(principalFloat.toFixed(0)),
-    );
-    expect(schedule[0]?.paymentMinor).toBe(Number.parseFloat(emi.toFixed(0)));
   });
 
   it("handles zero-rate rounding on last row", () => {
@@ -238,32 +149,18 @@ describe("buildAmortizationSchedule", () => {
       }),
     ).toThrow(/too low/i);
   });
-});
 
-describe("computeActual365EmiMinor", () => {
-  it("zeros balance at end of term", () => {
-    const principal = 1_000_000;
-    const rateBps = 500;
-    const term = 12;
-    const startDate = "2026-01-15";
-    const dueDay = 15;
-    const emi = computeActual365EmiMinor(
-      principal,
-      rateBps,
-      term,
-      startDate,
-      dueDay,
-    );
-    const schedule = buildAmortizationSchedule({
-      principalMinor: principal,
-      annualRateBps: rateBps,
-      termMonths: term,
-      startDate,
-      dueDayOfMonth: dueDay,
-      calculationMethod: "sc_vn_actual_365",
-      paymentMinor: emi,
-    });
-    expect(schedule[schedule.length - 1]?.balanceAfterMinor).toBe(0);
+  it("requires rate after initial period when initial period is shorter than term", () => {
+    expect(() =>
+      buildAmortizationSchedule({
+        principalMinor: 1_000_000,
+        annualRateBps: 500,
+        termMonths: 12,
+        startDate: "2026-01-15",
+        dueDayOfMonth: 15,
+        initialRateMonths: 6,
+      }),
+    ).toThrow(/rate after initial period/i);
   });
 });
 
