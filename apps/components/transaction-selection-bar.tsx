@@ -1,6 +1,12 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
+
+const subscribeNoop = () => () => {};
+const getServerMounted = () => false;
+const getClientMounted = () => true;
 
 export function TransactionSelectionBar({
   selectedCount,
@@ -15,14 +21,22 @@ export function TransactionSelectionBar({
   onDelete: () => void;
   onClear: () => void;
 }) {
-  if (selectedCount <= 0) return null;
+  const mounted = useSyncExternalStore(
+    subscribeNoop,
+    getClientMounted,
+    getServerMounted,
+  );
+
+  if (selectedCount <= 0 || !mounted) return null;
 
   const label =
     selectedCount === 1
       ? "1 transaction selected"
       : `${selectedCount.toLocaleString()} transactions selected`;
 
-  return (
+  // Portal past shell `<main className="fx-fade-in">` — its transform makes
+  // `position: fixed` relative to the scroll container instead of the viewport.
+  return createPortal(
     <div
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6"
       aria-live="polite"
@@ -63,6 +77,7 @@ export function TransactionSelectionBar({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
