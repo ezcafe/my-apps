@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import {
   createContext,
   useCallback,
@@ -207,7 +208,7 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
               setCurrencyDraft(null);
               void refreshWorkspaceCurrency();
             } catch (error: unknown) {
-              setErr(error instanceof Error ? error.message : "Error");
+              setErr(presentClientError("money-workspace-provider", error));
             } finally {
               setSaving(false);
             }

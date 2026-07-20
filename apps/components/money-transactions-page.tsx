@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import {
@@ -195,7 +196,7 @@ export function MoneyTransactionsPage({
       } catch (e: unknown) {
         if (cancelled) return;
         autoSyncedWorkspaceRef.current = null;
-        setError(e instanceof Error ? e.message : "Error");
+        setError(presentClientError("money-transactions-page", e));
       }
     })();
 
@@ -218,7 +219,7 @@ export function MoneyTransactionsPage({
         setDraft(fresh);
         setApplied(fresh);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "Error");
+        setError(presentClientError("money-transactions-page", e));
       } finally {
         setPendingWorkspaceId(null);
       }
@@ -240,18 +241,10 @@ export function MoneyTransactionsPage({
 
   const loadError =
     error ??
-    (workspaceStateQuery.error instanceof Error
-      ? workspaceStateQuery.error.message
-      : null) ??
-    (chartLookupsQuery.error instanceof Error
-      ? chartLookupsQuery.error.message
-      : null) ??
-    (merchantLookupsQuery.error instanceof Error
-      ? merchantLookupsQuery.error.message
-      : null) ??
-    (recurrenceLookupsQuery.error instanceof Error
-      ? recurrenceLookupsQuery.error.message
-      : null);
+    (queryErrorMessage(workspaceStateQuery.error)) ??
+    (queryErrorMessage(chartLookupsQuery.error)) ??
+    (queryErrorMessage(merchantLookupsQuery.error)) ??
+    (queryErrorMessage(recurrenceLookupsQuery.error));
 
   if (!workspaceReady && !workspaceStateQuery.data && !workspaceStateQuery.error) {
     return (

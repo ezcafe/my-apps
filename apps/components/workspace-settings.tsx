@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
@@ -104,7 +105,7 @@ function DefaultWorkspaceForm({
             } catch (err: unknown) {
               notify.error(
                 "Couldn’t save default workspace",
-                err instanceof Error ? err.message : "Something went wrong",
+                toUserFacingMessage(err, "Something went wrong"),
               );
             }
           }}
@@ -165,7 +166,7 @@ export function WorkspaceSettings() {
           await refreshWorkspaceContext();
         } catch (e: unknown) {
           if (!cancelled) {
-            setLoadErr(e instanceof Error ? e.message : "Error");
+            setLoadErr(presentClientError("workspace-settings", e));
           }
         }
       })();
@@ -232,7 +233,7 @@ export function WorkspaceSettings() {
                 } catch (err: unknown) {
                   notify.error(
                     "Couldn’t create workspace",
-                    err instanceof Error ? err.message : "Something went wrong",
+                    toUserFacingMessage(err, "Something went wrong"),
                   );
                 }
               }}

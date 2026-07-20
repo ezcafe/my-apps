@@ -9,14 +9,44 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
+import { moneyQuickPickOtherChipCls } from "@/lib/money-quick-pick-chip-cls";
 
 function StaticChip({
   label,
   active = false,
+  variant = "default",
 }: {
   label: string;
   active?: boolean;
+  variant?: "default" | "other";
 }) {
+  const isOther = variant === "other";
+  if (isOther) {
+    return (
+      <button
+        type="button"
+        disabled
+        className={moneyQuickPickOtherChipCls(active)}
+      >
+        <span className="relative z-[1] inline-flex min-w-0 max-w-full items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-muted-surface text-muted"
+          >
+            <svg viewBox="0 0 16 16" fill="none" className="size-3.5">
+              <path
+                d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
+          <span className="min-w-0 truncate">{label}</span>
+        </span>
+      </button>
+    );
+  }
   return (
     <button
       type="button"
@@ -38,11 +68,14 @@ export function MoneyLookupQuickPickSkeleton({
   required,
   className,
   chips = 4,
+  otherChipLabel,
 }: {
   legend: string;
   required?: boolean;
   className?: string;
   chips?: number;
+  /** “Open picker” chip shown after the skeleton placeholders. */
+  otherChipLabel?: string;
 }) {
   return (
     <fieldset className={cn("grid min-w-0 gap-1.5 text-sm", className)}>
@@ -65,6 +98,9 @@ export function MoneyLookupQuickPickSkeleton({
             className="h-9 w-24 rounded-[var(--radius-sm)]"
           />
         ))}
+        {otherChipLabel ? (
+          <StaticChip label={otherChipLabel} variant="other" />
+        ) : null}
       </div>
     </fieldset>
   );
@@ -149,14 +185,18 @@ export function MoneyDashboardSkeleton() {
             className="[grid-column:1/-1]"
           />
 
-          <MoneyLookupQuickPickSkeleton legend="Merchant" chips={3} />
+          <MoneyLookupQuickPickSkeleton
+            legend="Merchant"
+            chips={2}
+            otherChipLabel="Select other merchant"
+          />
 
           <fieldset className="grid min-w-0 gap-1.5 text-sm">
             <legend className="text-muted">When</legend>
             <div className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1">
               <StaticChip label="Today" active />
               <StaticChip label="Yesterday" />
-              <StaticChip label="Custom" />
+              <StaticChip label="Select custom date" variant="other" />
             </div>
           </fieldset>
 

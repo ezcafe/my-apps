@@ -1,4 +1,5 @@
 import type { AnalyticsFiltersValue } from "@/components/analytics-filters";
+import { CATEGORY_FILTER_NONE } from "@/lib/analytics-category-filter";
 
 /** Map `<input type="date">` values (local calendar days) to UTC ISO bounds for the API. */
 export function dateRangeParams(
@@ -37,3 +38,51 @@ export function buildQuery(f: AnalyticsFiltersValue): string {
   for (const id of f.recurrenceSourceIds) sp.append("recurrenceSourceIds", id);
   return sp.toString();
 }
+
+export type DrilldownFilterExtra = Partial<{
+  categoryIds: string[];
+  merchantIds: string[];
+  tagIds: string[];
+  recurrenceSourceIds: string[];
+  kinds: ("expense" | "income" | "transfer")[];
+}>;
+
+/** Merge analytics dashboard filters with chart drill-down dimensions. */
+export function mergeDrilldownQuery(
+  baseFilterQuery: string,
+  extra: DrilldownFilterExtra,
+): string {
+  const sp = new URLSearchParams(baseFilterQuery);
+  if (extra.categoryIds?.length) {
+    sp.delete("categoryIds");
+    for (const id of extra.categoryIds) sp.append("categoryIds", id);
+  }
+  if (extra.merchantIds?.length) {
+    sp.delete("merchantIds");
+    for (const id of extra.merchantIds) sp.append("merchantIds", id);
+  }
+  if (extra.tagIds?.length) {
+    sp.delete("tagIds");
+    for (const id of extra.tagIds) sp.append("tagIds", id);
+  }
+  if (extra.recurrenceSourceIds?.length) {
+    sp.delete("recurrenceSourceIds");
+    for (const id of extra.recurrenceSourceIds) {
+      sp.append("recurrenceSourceIds", id);
+    }
+  }
+  if (extra.kinds?.length) {
+    sp.delete("kinds");
+    for (const k of extra.kinds) sp.append("kinds", k);
+  }
+  return sp.toString();
+}
+
+export function categoryIdForDrilldown(categoryId: string | null): string {
+  return categoryId ?? CATEGORY_FILTER_NONE;
+}
+
+export type AnalyticsChartDrilldownPayload = {
+  title: string;
+  filterQuery: string;
+};

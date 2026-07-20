@@ -1,13 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AnalyticsLookupAccount } from "@/components/analytics-filters";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { useTheme } from "@/components/theme-provider";
 import { TransactionBulkEditModal } from "@/components/transaction-bulk-edit-modal";
+import { TransactionEditModal } from "@/components/transaction-edit-modal";
 import { TransactionSelectionBar } from "@/components/transaction-selection-bar";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
@@ -46,11 +46,6 @@ function truncateNote(s: string | null, max = 72): string {
   return `${t.slice(0, max - 1)}…`;
 }
 
-function transactionEditHref(id: string, returnToPath: string) {
-  const params = new URLSearchParams({ returnTo: returnToPath });
-  return `/money/transactions/${id}?${params}`;
-}
-
 export function AnalyticsTransactionsTable({
   filterQuery,
   activeWorkspaceId,
@@ -71,10 +66,6 @@ export function AnalyticsTransactionsTable({
   deferFetchUntilVisible?: boolean;
   variant?: "analytics" | "standalone";
 }) {
-  const returnToPath =
-    variant === "standalone" ? "/money/transactions" : "/money/analytics";
-
-  const router = useRouter();
   const queryClient = useQueryClient();
   const selectable = variant === "standalone";
   const { ref: viewportRef, isInView } = useInViewOnce();
@@ -88,6 +79,9 @@ export function AnalyticsTransactionsTable({
   }>({ sort: "occurredAt", dir: "desc" });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [editTransactionId, setEditTransactionId] = useState<string | null>(
+    null,
+  );
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -139,10 +133,7 @@ export function AnalyticsTransactionsTable({
   const payload = transactionsQuery.data ?? null;
   const loading = transactionsQuery.isLoading;
   const fetching = transactionsQuery.isFetching;
-  const localError =
-    transactionsQuery.error instanceof Error
-      ? transactionsQuery.error.message
-      : null;
+  const localError = queryErrorMessage(transactionsQuery.error);
 
   const totalPages = useMemo(() => {
     if (!payload) return 1;
@@ -193,13 +184,13 @@ export function AnalyticsTransactionsTable({
   const handleEdit = useCallback(() => {
     if (selectedIds.size === 1) {
       const id = [...selectedIds][0];
-      router.push(transactionEditHref(id, returnToPath));
+      setEditTransactionId(id);
       return;
     }
     if (selectedIds.size > 1) {
       setBulkEditOpen(true);
     }
-  }, [router, selectedIds, returnToPath]);
+  }, [selectedIds]);
 
   const handleDelete = useCallback(async () => {
     const count = selectedIds.size;
@@ -233,7 +224,7 @@ export function AnalyticsTransactionsTable({
         );
       }
     } catch (e: unknown) {
-      setActionError(e instanceof Error ? e.message : "Error");
+      setActionError(presentClientError("analytics-transactions-table", e));
     } finally {
       setActionBusy(false);
     }
@@ -334,12 +325,15 @@ export function AnalyticsTransactionsTable({
         </td>
         {!selectable ? (
           <td className="whitespace-nowrap px-3 py-2">
-            <Link
-              href={transactionEditHref(tx.id, returnToPath)}
-              className="font-medium text-foreground underline-offset-2 transition-colors duration-150 hover:underline"
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="font-medium text-foreground underline-offset-2 hover:underline"
+              onClick={() => setEditTransactionId(tx.id)}
             >
               Edit
-            </Link>
+            </Button>
           </td>
         ) : null}
       </tr>
@@ -538,6 +532,15 @@ export function AnalyticsTransactionsTable({
           />
         </>
       ) : null}
+
+      <TransactionEditModal
+        open={editTransactionId != null}
+        transactionId={editTransactionId}
+        onClose={() => setEditTransactionId(null)}
+        onSaved={() => {
+          clearSelection();
+        }}
+      />
     </>
   );
 }

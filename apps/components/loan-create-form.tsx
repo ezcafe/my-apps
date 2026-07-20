@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -330,7 +331,7 @@ export function LoanCreateForm() {
     } catch (err) {
       notify.error(
         "Could not create loan",
-        err instanceof Error ? err.message : undefined,
+        toUserFacingMessage(err),
       );
     } finally {
       setSaving(false);
@@ -338,7 +339,7 @@ export function LoanCreateForm() {
   }
 
   return (
-    <div className="min-w-0 max-w-4xl">
+    <div className="col-span-2 min-w-0 md:col-span-6 lg:col-span-12">
       <Card className="p-6">
         <form onSubmit={onSubmit} className="space-y-5">
           <Field label="Loan name">

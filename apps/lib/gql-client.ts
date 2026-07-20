@@ -1,4 +1,5 @@
-import { ClientError, GraphQLClient } from "graphql-request";
+import { GraphQLClient } from "graphql-request";
+import { toUserFacingError } from "@/lib/user-facing-error";
 
 /** graphql-request resolves the endpoint with `new URL()`; relative paths throw in the browser without a base. */
 function resolveMoneyGraphQLEndpoint(): string {
@@ -35,10 +36,6 @@ export async function moneyGraphQLRequest<T extends Record<string, unknown>>(
       variables as Record<string, unknown> | undefined,
     );
   } catch (e) {
-    if (e instanceof ClientError) {
-      const first = e.response.errors?.[0];
-      throw new Error(first?.message ?? e.message);
-    }
-    throw e;
+    throw toUserFacingError("moneyGraphQLRequest", e);
   }
 }

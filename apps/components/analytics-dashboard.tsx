@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import type { Ref } from "react";
@@ -47,6 +48,9 @@ import {
 } from "@/components/analytics-filters";
 import { budgetRowsForChart } from "@/lib/analytics-budget-label";
 import { buildQuery } from "@/lib/analytics-build-query";
+import type { AnalyticsChartDrilldownPayload } from "@/lib/analytics-build-query";
+import { AnalyticsChartDrilldownModal } from "@/components/analytics-chart-drilldown-modal";
+import { TransactionEditModal } from "@/components/transaction-edit-modal";
 import { analyticsFiltersEqual } from "@/lib/analytics-graphql-filters";
 import { formatMinor } from "@/lib/format-money";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
@@ -166,6 +170,7 @@ type AnalyticsStagesProps = {
   categories: MoneyCategoryRow[];
   accounts: AnalyticsLookupAccount[];
   tags: AnalyticsLookupTag[];
+  onChartDrilldown: (payload: AnalyticsChartDrilldownPayload) => void;
 };
 
 function AnalyticsSummaryShell(props: AnalyticsStagesProps) {
@@ -229,6 +234,7 @@ function AnalyticsChartsView({
     accounts,
     tags,
     defaultCurrency,
+    onChartDrilldown,
   } = rest;
 
   const overviewReady = true;
@@ -419,6 +425,8 @@ function AnalyticsChartsView({
           formatChartValue={formatChartValue}
           theme={theme}
           defaultCurrency={defaultCurrency}
+          baseFilterQuery={filterQuery}
+          onDrilldown={onChartDrilldown}
         />
         <IncomeByCategoryCard
           inView={incomeByCategoryInView}
@@ -428,6 +436,8 @@ function AnalyticsChartsView({
           formatChartValue={formatChartValue}
           theme={theme}
           defaultCurrency={defaultCurrency}
+          baseFilterQuery={filterQuery}
+          onDrilldown={onChartDrilldown}
         />
         <MonthlyColumnsCard
           cardRef={monthlyColumnsRef}
@@ -455,6 +465,8 @@ function AnalyticsChartsView({
           leaders={leaders}
           tagsHasData={tagsHasData}
           formatChartValue={formatChartValue}
+          baseFilterQuery={filterQuery}
+          onDrilldown={onChartDrilldown}
         />
         <TopMerchantsCard
           cardRef={merchantsRef}
@@ -462,6 +474,8 @@ function AnalyticsChartsView({
           leaders={leaders}
           merchantsHasData={merchantsHasData}
           formatChartValue={formatChartValue}
+          baseFilterQuery={filterQuery}
+          onDrilldown={onChartDrilldown}
         />
       </div>
 
@@ -471,6 +485,8 @@ function AnalyticsChartsView({
         leaders={leaders}
         recurringHasData={recurringHasData}
         formatChartValue={formatChartValue}
+        baseFilterQuery={filterQuery}
+        onDrilldown={onChartDrilldown}
       />
 
       <div
@@ -539,6 +555,19 @@ function AnalyticsDashboardLoaded({
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  const [chartDrilldown, setChartDrilldown] =
+    useState<AnalyticsChartDrilldownPayload | null>(null);
+  const [editTransactionId, setEditTransactionId] = useState<string | null>(
+    null,
+  );
+  const handleChartDrilldown = useCallback(
+    (payload: AnalyticsChartDrilldownPayload) => setChartDrilldown(payload),
+    [],
+  );
+  const handleEditTransaction = useCallback(
+    (transactionId: string) => setEditTransactionId(transactionId),
+    [],
+  );
   const [draft, setDraft] = useState<AnalyticsFiltersValue>(() =>
     defaultAnalyticsFilters(),
   );
@@ -665,7 +694,7 @@ function AnalyticsDashboardLoaded({
       } catch (e: unknown) {
         if (cancelled) return;
         autoSyncedWorkspaceRef.current = null;
-        setError(e instanceof Error ? e.message : "Error");
+        setError(presentClientError("analytics-dashboard", e));
       }
     })();
 
@@ -688,7 +717,7 @@ function AnalyticsDashboardLoaded({
         setDraft(fresh);
         setApplied(fresh);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "Error");
+        setError(presentClientError("analytics-dashboard", e));
       } finally {
         setPendingWorkspaceId(null);
       }
@@ -710,18 +739,10 @@ function AnalyticsDashboardLoaded({
 
   const loadError =
     error ??
-    (workspaceStateQuery.error instanceof Error
-      ? workspaceStateQuery.error.message
-      : null) ??
-    (chartLookupsQuery.error instanceof Error
-      ? chartLookupsQuery.error.message
-      : null) ??
-    (merchantLookupsQuery.error instanceof Error
-      ? merchantLookupsQuery.error.message
-      : null) ??
-    (recurrenceLookupsQuery.error instanceof Error
-      ? recurrenceLookupsQuery.error.message
-      : null);
+    (queryErrorMessage(workspaceStateQuery.error)) ??
+    (queryErrorMessage(chartLookupsQuery.error)) ??
+    (queryErrorMessage(merchantLookupsQuery.error)) ??
+    (queryErrorMessage(recurrenceLookupsQuery.error));
 
   if (!workspaceReady && !workspaceStateQuery.data && !workspaceStateQuery.error) {
     return <MoneyAnalyticsPageSkeleton />;
@@ -793,11 +814,29 @@ function AnalyticsDashboardLoaded({
             categories={categories}
             accounts={accounts}
             tags={tags}
+            onChartDrilldown={handleChartDrilldown}
           />
         ) : (
           <MoneyAnalyticsChartsSkeleton />
         )}
       </div>
+
+      <AnalyticsChartDrilldownModal
+        open={chartDrilldown != null}
+        onClose={() => setChartDrilldown(null)}
+        title={chartDrilldown?.title ?? ""}
+        filterQuery={chartDrilldown?.filterQuery ?? ""}
+        activeWorkspaceId={activeWorkspaceId}
+        accounts={accounts}
+        categories={categories}
+        currency={defaultCurrency}
+        onEditTransaction={handleEditTransaction}
+      />
+      <TransactionEditModal
+        open={editTransactionId != null}
+        transactionId={editTransactionId}
+        onClose={() => setEditTransactionId(null)}
+      />
     </>
   );
 }

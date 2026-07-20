@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import {
@@ -56,7 +57,7 @@ export function MoneySettingsResetSection({ onResetComplete }: Props) {
             } catch (err: unknown) {
               notify.error(
                 "Couldn’t reset data",
-                err instanceof Error ? err.message : "Something went wrong",
+                toUserFacingMessage(err, "Something went wrong"),
               );
             } finally {
               setBusy(false);

@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
@@ -43,7 +44,7 @@ export function MoneySettingsMerchantsSection() {
           await loadMerchants();
         } catch (e: unknown) {
           if (!cancelled) {
-            setBootstrapErr(e instanceof Error ? e.message : "Error");
+            setBootstrapErr(presentClientError("money-settings-merchants", e));
           }
         }
       })();
@@ -76,7 +77,7 @@ export function MoneySettingsMerchantsSection() {
     } catch (err: unknown) {
       notify.error(
         "Couldn’t save settings",
-        err instanceof Error ? err.message : "Something went wrong",
+        toUserFacingMessage(err, "Something went wrong"),
       );
     }
   }
@@ -95,7 +96,7 @@ export function MoneySettingsMerchantsSection() {
     } catch (err: unknown) {
       notify.error(
         "Couldn’t delete merchant",
-        err instanceof Error ? err.message : "Something went wrong",
+        toUserFacingMessage(err, "Something went wrong"),
       );
     }
   }
@@ -113,7 +114,7 @@ export function MoneySettingsMerchantsSection() {
     } catch (err: unknown) {
       notify.error(
         "Couldn’t save settings",
-        err instanceof Error ? err.message : "Something went wrong",
+        toUserFacingMessage(err, "Something went wrong"),
       );
     }
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { queryErrorMessage } from "@/lib/user-facing-error";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -161,9 +162,7 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
           variant="error"
           title="Couldn’t load loan"
           description={
-            detailQuery.error instanceof Error
-              ? detailQuery.error.message
-              : "Loan not found"
+            queryErrorMessage(detailQuery.error) ?? "Loan not found"
           }
         />
         <Link

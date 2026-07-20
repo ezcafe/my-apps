@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
@@ -81,7 +82,7 @@ export function MoneyWorkspaceSettings() {
           await refreshMoneyWorkspaceContext();
         } catch (e: unknown) {
           if (!cancelled) {
-            setBootstrapErr(e instanceof Error ? e.message : "Error");
+            setBootstrapErr(presentClientError("money-workspace-settings", e));
           }
         }
       })();
@@ -92,7 +93,7 @@ export function MoneyWorkspaceSettings() {
   }, [refreshMoneyWorkspaceContext]);
 
   return (
-    <div className="min-w-0 max-w-4xl">
+    <div className="col-span-2 min-w-0 md:col-span-6 lg:col-span-12">
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -152,7 +153,7 @@ export function MoneyWorkspaceSettings() {
                 } catch (err: unknown) {
                   notify.error(
                     "Couldn’t clone workspace",
-                    err instanceof Error ? err.message : "Something went wrong",
+                    toUserFacingMessage(err, "Something went wrong"),
                   );
                 }
               }}

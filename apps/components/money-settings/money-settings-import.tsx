@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useRef, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import {
@@ -213,7 +214,7 @@ export function MoneySettingsImportSection() {
             } catch (err: unknown) {
               notify.error(
                 "Preview failed",
-                err instanceof Error ? err.message : "Something went wrong",
+                toUserFacingMessage(err, "Something went wrong"),
               );
               serverPreviewIdRef.current = null;
               setPreview(null);
@@ -398,9 +399,7 @@ export function MoneySettingsImportSection() {
                     } catch (err: unknown) {
                       notify.error(
                         "Import failed",
-                        err instanceof Error
-                          ? err.message
-                          : "Something went wrong",
+                        presentClientError("money-settings-import", err),
                       );
                     } finally {
                       setBusy(null);

@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,7 @@ export function LoansSettingsNotifications() {
     } catch (e) {
       notify.error(
         "Could not enable notifications",
-        e instanceof Error ? e.message : undefined,
+        toUserFacingMessage(e),
       );
     } finally {
       setBusy(false);
@@ -59,7 +60,7 @@ export function LoansSettingsNotifications() {
     } catch (e) {
       notify.error(
         "Could not disable",
-        e instanceof Error ? e.message : undefined,
+        toUserFacingMessage(e),
       );
     } finally {
       setBusy(false);

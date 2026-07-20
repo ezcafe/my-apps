@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import type { AnalyticsLookupAccount } from "@/components/analytics-filters";
@@ -220,7 +221,7 @@ export function TransactionBulkEditModal({
       onSuccess();
       onClose();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Error");
+      setErr(presentClientError("transaction-bulk-edit-modal", e));
     } finally {
       setSaving(false);
     }

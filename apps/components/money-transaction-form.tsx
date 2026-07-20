@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +12,9 @@ import {
   BudgetUtilizationFillLayer,
   budgetFillTitle,
   MoneyUsageQuickPick,
+  MoneyUsageQuickPickOtherChipContent,
+  moneyUsageQuickPickChipCls,
+  moneyUsageQuickPickOtherChipCls,
 } from "@/components/money-usage-quick-pick";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
@@ -88,7 +92,7 @@ type WhenMode = "today" | "yesterday" | "custom";
 const WHEN_OPTIONS: ReadonlyArray<{ id: WhenMode; label: string }> = [
   { id: "today", label: "Today" },
   { id: "yesterday", label: "Yesterday" },
-  { id: "custom", label: "Custom" },
+  { id: "custom", label: "Select custom date" },
 ];
 
 export type MoneyTransactionFormMode = "transaction" | "recurrence";
@@ -156,10 +160,6 @@ function defaultCategoryPick(
     ),
     emptyOnOther: false,
   };
-}
-
-function queryErrorMessage(error: unknown): string | null {
-  return error instanceof Error ? error.message : null;
 }
 
 function tagsInputTokens(input: string): string[] {
@@ -645,7 +645,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
       } catch (e: unknown) {
         if (cancelled) return;
         autoSyncedWorkspaceRef.current = null;
-        setBootstrapErr(e instanceof Error ? e.message : "Error");
+        setBootstrapErr(presentClientError("money-transaction-form", e));
       }
     })();
 
@@ -752,7 +752,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
         isRecurrenceMode
           ? "Couldn’t save recurring transaction"
           : "Couldn’t save transaction",
-        e instanceof Error ? e.message : "Something went wrong",
+        toUserFacingMessage(e, "Something went wrong"),
       );
     } finally {
       setSubmitting(false);
@@ -898,7 +898,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                     setPendingWorkspaceId(null);
                     notify.error(
                       "Couldn’t switch workspace",
-                      err instanceof Error ? err.message : "Something went wrong",
+                      toUserFacingMessage(err, "Something went wrong"),
                     );
                   }
                 }}
@@ -1054,7 +1054,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                   setSelectedCategoryId(id);
                   setCategoryEmptyOnOther(id === "");
                 }}
-                otherLabel="Other category"
+                otherLabel="Select other category"
                 emptyCountsAsOther
                 emptySelectedOnOther={categoryOtherSelected}
                 emptyMessage={categoryEmptyMessage}
@@ -1064,7 +1064,11 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
           ) : null}
 
           {lookupSkeletonVisible ? (
-            <MoneyLookupQuickPickSkeleton legend="Merchant" chips={3} />
+            <MoneyLookupQuickPickSkeleton
+              legend="Merchant"
+              chips={2}
+              otherChipLabel="Select other merchant"
+            />
           ) : (
             <MoneyUsageQuickPick
               legend="Merchant"
@@ -1072,7 +1076,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
               items={merchantQuickItems}
               selectedId={merchantId}
               onSelect={setSelectedMerchantId}
-              otherLabel="Other merchant"
+              otherLabel="Select other merchant"
               allowEmpty={merchantPickerReady}
               emptyMessage={merchantEmptyMessage}
             />
@@ -1098,15 +1102,19 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                     type="button"
                     role="radio"
                     aria-checked={active}
+                    aria-haspopup={isCustom ? "dialog" : undefined}
                     onClick={() => pickWhenMode(opt.id)}
-                    className={cn(
-                      "min-w-20 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
-                      active
-                        ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-                        : "text-muted hover:bg-muted-surface hover:text-foreground",
-                    )}
+                    className={
+                      isCustom
+                        ? moneyUsageQuickPickOtherChipCls(active)
+                        : moneyUsageQuickPickChipCls(active)
+                    }
                   >
-                    {label}
+                    {isCustom ? (
+                      <MoneyUsageQuickPickOtherChipContent label={label} />
+                    ) : (
+                      label
+                    )}
                   </button>
                 );
               })}

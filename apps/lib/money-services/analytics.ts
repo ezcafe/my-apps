@@ -119,7 +119,12 @@ type PieRow = {
   valueMinor: number;
 };
 
-export type LabelValueRow = { label: string; valueMinor: number };
+export type LabelValueRow = {
+  label: string;
+  valueMinor: number;
+  tagId?: string;
+  merchantId?: string | null;
+};
 
 export type RecurringSpendRow = {
   label: string;
@@ -948,28 +953,27 @@ export async function computeMoneyAnalyticsLeaders(
     templateRows.map((template) => [template.id, template.name]),
   );
 
-  const merchantsSpend: LabelValueRow[] = merchantSpendRows
-    .map((row) => {
-      const valueMinor = Number(row.valueMinor);
-      if (valueMinor <= 0) return null;
-      const label =
-        row.merchantId == null
-          ? "No merchant"
-          : (merchantNameById.get(row.merchantId) ?? "Merchant");
-      return { label, valueMinor };
-    })
-    .filter((row): row is LabelValueRow => row != null);
+  const merchantsSpend: LabelValueRow[] = merchantSpendRows.flatMap((row) => {
+    const valueMinor = Number(row.valueMinor);
+    if (valueMinor <= 0) return [];
+    const label =
+      row.merchantId == null
+        ? "No merchant"
+        : (merchantNameById.get(row.merchantId) ?? "Merchant");
+    return [{ label, valueMinor, merchantId: row.merchantId }];
+  });
 
-  const tagsSpend: LabelValueRow[] = tagSpendRows
-    .map((row) => {
-      const valueMinor = Number(row.valueMinor);
-      if (valueMinor <= 0) return null;
-      return {
+  const tagsSpend: LabelValueRow[] = tagSpendRows.flatMap((row) => {
+    const valueMinor = Number(row.valueMinor);
+    if (valueMinor <= 0) return [];
+    return [
+      {
         label: tagNameById.get(row.tagId) ?? "Tag",
         valueMinor,
-      };
-    })
-    .filter((row): row is LabelValueRow => row != null);
+        tagId: row.tagId,
+      },
+    ];
+  });
 
   const recurringSpend: RecurringSpendRow[] = recurringSpendRows
     .filter((row) => row.templateId != null && Number(row.valueMinor) > 0)

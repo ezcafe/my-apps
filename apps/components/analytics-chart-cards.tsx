@@ -25,6 +25,11 @@ import type {
 } from "@/lib/money-services/analytics";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import { budgetRowsForChart } from "@/lib/analytics-budget-label";
+import {
+  categoryIdForDrilldown,
+  mergeDrilldownQuery,
+  type AnalyticsChartDrilldownPayload,
+} from "@/lib/analytics-build-query";
 import type { StylePreset } from "@/components/theme-provider";
 import type {
   AnalyticsLookupAccount,
@@ -364,6 +369,8 @@ export const IncomeVsExpenseCard = memo(function IncomeVsExpenseCard({
   );
 });
 
+export type ChartDrilldownHandler = (payload: AnalyticsChartDrilldownPayload) => void;
+
 export const SpendByCategoryCard = memo(function SpendByCategoryCard({
   cardRef,
   inView,
@@ -373,6 +380,8 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
   formatChartValue,
   theme,
   defaultCurrency,
+  baseFilterQuery,
+  onDrilldown,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
@@ -382,6 +391,8 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
   formatChartValue: (minor: number) => string;
   theme: ThemeSlice;
   defaultCurrency: string;
+  baseFilterQuery?: string;
+  onDrilldown?: ChartDrilldownHandler;
 }) {
   const { resolved, style } = theme;
   const [hiddenCategories, setHiddenCategories] = useState(() => new Set<string>());
@@ -397,6 +408,19 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
       })),
     [distribution?.pieSpend, resolved, style, defaultCurrency],
   );
+
+  const handlePieClick = useMemo(() => {
+    if (!baseFilterQuery || !onDrilldown) return undefined;
+    return (item: { label: string; categoryId: string | null }) => {
+      onDrilldown({
+        title: `${item.label} · Spend`,
+        filterQuery: mergeDrilldownQuery(baseFilterQuery, {
+          categoryIds: [categoryIdForDrilldown(item.categoryId)],
+          kinds: ["expense"],
+        }),
+      });
+    };
+  }, [baseFilterQuery, onDrilldown]);
 
   return (
     <Card
@@ -430,6 +454,7 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
               formatValue={formatChartValue}
               centerTotalMinor={pieSpendTotal}
               centerLabel="Spent"
+              onItemClick={handlePieClick}
             />
           ) : (
             <AnalyticsEmptyState
@@ -456,6 +481,8 @@ export const IncomeByCategoryCard = memo(function IncomeByCategoryCard({
   formatChartValue,
   theme,
   defaultCurrency,
+  baseFilterQuery,
+  onDrilldown,
 }: {
   inView: boolean;
   distribution: MoneyAnalyticsDistributionPayload | null;
@@ -464,6 +491,8 @@ export const IncomeByCategoryCard = memo(function IncomeByCategoryCard({
   formatChartValue: (minor: number) => string;
   theme: ThemeSlice;
   defaultCurrency: string;
+  baseFilterQuery?: string;
+  onDrilldown?: ChartDrilldownHandler;
 }) {
   const { resolved, style } = theme;
   const [hiddenCategories, setHiddenCategories] = useState(() => new Set<string>());
@@ -479,6 +508,19 @@ export const IncomeByCategoryCard = memo(function IncomeByCategoryCard({
       })),
     [distribution?.pieIncome, resolved, style, defaultCurrency],
   );
+
+  const handlePieClick = useMemo(() => {
+    if (!baseFilterQuery || !onDrilldown) return undefined;
+    return (item: { label: string; categoryId: string | null }) => {
+      onDrilldown({
+        title: `${item.label} · Income`,
+        filterQuery: mergeDrilldownQuery(baseFilterQuery, {
+          categoryIds: [categoryIdForDrilldown(item.categoryId)],
+          kinds: ["income"],
+        }),
+      });
+    };
+  }, [baseFilterQuery, onDrilldown]);
 
   return (
     <Card className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}>
@@ -510,6 +552,7 @@ export const IncomeByCategoryCard = memo(function IncomeByCategoryCard({
             formatValue={formatChartValue}
             centerTotalMinor={pieIncomeTotal}
             centerLabel="Earned"
+            onItemClick={handlePieClick}
           />
         ) : (
           <AnalyticsEmptyState
@@ -821,13 +864,43 @@ export const SpendByTagCard = memo(function SpendByTagCard({
   leaders,
   tagsHasData,
   formatChartValue,
+  baseFilterQuery,
+  onDrilldown,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
   leaders: MoneyAnalyticsLeadersPayload | null;
   tagsHasData: boolean;
   formatChartValue: (minor: number) => string;
+  baseFilterQuery?: string;
+  onDrilldown?: ChartDrilldownHandler;
 }) {
+  const tagBarData = useMemo(
+    () =>
+      (leaders?.tagsSpend ?? []).map((t, i) => ({
+        key: t.tagId ?? `t-${i}-${t.label}`,
+        label: t.label,
+        valueMinor: t.valueMinor,
+        tagId: t.tagId,
+      })),
+    [leaders?.tagsSpend],
+  );
+
+  const handleBarClick = useMemo(() => {
+    if (!baseFilterQuery || !onDrilldown) return undefined;
+    return (item: { key: string; label: string }) => {
+      const row = tagBarData.find((d) => d.key === item.key);
+      if (!row?.tagId) return;
+      onDrilldown({
+        title: `${item.label} · Tag spend`,
+        filterQuery: mergeDrilldownQuery(baseFilterQuery, {
+          tagIds: [row.tagId],
+          kinds: ["expense"],
+        }),
+      });
+    };
+  }, [baseFilterQuery, onDrilldown, tagBarData]);
+
   return (
     <Card
       className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
@@ -840,13 +913,10 @@ export const SpendByTagCard = memo(function SpendByTagCard({
             <DeferredChartLoading ariaLabel="Loading spend by tag chart" />
           ) : tagsHasData ? (
             <HorizontalBarChart
-              data={leaders.tagsSpend.map((t, i) => ({
-                key: `t-${i}-${t.label}`,
-                label: t.label,
-                valueMinor: t.valueMinor,
-              }))}
+              data={tagBarData}
               formatValue={formatChartValue}
               animate={inView}
+              onItemClick={handleBarClick}
             />
           ) : (
             <AnalyticsEmptyState
@@ -871,13 +941,43 @@ export const TopMerchantsCard = memo(function TopMerchantsCard({
   leaders,
   merchantsHasData,
   formatChartValue,
+  baseFilterQuery,
+  onDrilldown,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
   leaders: MoneyAnalyticsLeadersPayload | null;
   merchantsHasData: boolean;
   formatChartValue: (minor: number) => string;
+  baseFilterQuery?: string;
+  onDrilldown?: ChartDrilldownHandler;
 }) {
+  const merchantBarData = useMemo(
+    () =>
+      (leaders?.merchantsSpend ?? []).map((m, i) => ({
+        key: m.merchantId ?? `m-${i}-${m.label}`,
+        label: m.label,
+        valueMinor: m.valueMinor,
+        merchantId: m.merchantId,
+      })),
+    [leaders?.merchantsSpend],
+  );
+
+  const handleBarClick = useMemo(() => {
+    if (!baseFilterQuery || !onDrilldown) return undefined;
+    return (item: { key: string; label: string }) => {
+      const row = merchantBarData.find((d) => d.key === item.key);
+      if (!row?.merchantId) return;
+      onDrilldown({
+        title: `${item.label} · Merchant spend`,
+        filterQuery: mergeDrilldownQuery(baseFilterQuery, {
+          merchantIds: [row.merchantId],
+          kinds: ["expense"],
+        }),
+      });
+    };
+  }, [baseFilterQuery, onDrilldown, merchantBarData]);
+
   return (
     <Card
       className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
@@ -890,13 +990,10 @@ export const TopMerchantsCard = memo(function TopMerchantsCard({
             <DeferredChartLoading ariaLabel="Loading top merchants chart" />
           ) : merchantsHasData ? (
             <HorizontalBarChart
-              data={leaders.merchantsSpend.map((m, i) => ({
-                key: `m-${i}-${m.label}`,
-                label: m.label,
-                valueMinor: m.valueMinor,
-              }))}
+              data={merchantBarData}
               formatValue={formatChartValue}
               animate={inView}
+              onItemClick={handleBarClick}
             />
           ) : (
             <AnalyticsEmptyState
@@ -921,13 +1018,43 @@ export const RecurringSpendCard = memo(function RecurringSpendCard({
   leaders,
   recurringHasData,
   formatChartValue,
+  baseFilterQuery,
+  onDrilldown,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
   leaders: MoneyAnalyticsLeadersPayload | null;
   recurringHasData: boolean;
   formatChartValue: (minor: number) => string;
+  baseFilterQuery?: string;
+  onDrilldown?: ChartDrilldownHandler;
 }) {
+  const recurringBarData = useMemo(
+    () =>
+      (leaders?.recurringSpend ?? []).map((r, i) => ({
+        key: r.templateId ?? `r-${i}`,
+        label: r.label,
+        valueMinor: r.valueMinor,
+        templateId: r.templateId,
+      })),
+    [leaders?.recurringSpend],
+  );
+
+  const handleBarClick = useMemo(() => {
+    if (!baseFilterQuery || !onDrilldown) return undefined;
+    return (item: { key: string; label: string }) => {
+      const row = recurringBarData.find((d) => d.key === item.key);
+      if (!row?.templateId) return;
+      onDrilldown({
+        title: `${item.label} · Recurring spend`,
+        filterQuery: mergeDrilldownQuery(baseFilterQuery, {
+          recurrenceSourceIds: [row.templateId],
+          kinds: ["expense"],
+        }),
+      });
+    };
+  }, [baseFilterQuery, onDrilldown, recurringBarData]);
+
   return (
     <Card
       className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_FULL}`}
@@ -944,13 +1071,10 @@ export const RecurringSpendCard = memo(function RecurringSpendCard({
           <DeferredChartLoading ariaLabel="Loading recurring spend chart" />
         ) : recurringHasData ? (
           <HorizontalBarChart
-            data={leaders.recurringSpend.map((r, i) => ({
-              key: r.templateId ?? `r-${i}`,
-              label: r.label,
-              valueMinor: r.valueMinor,
-            }))}
+            data={recurringBarData}
             formatValue={formatChartValue}
             animate={inView}
+            onItemClick={handleBarClick}
           />
         ) : (
           <AnalyticsEmptyState

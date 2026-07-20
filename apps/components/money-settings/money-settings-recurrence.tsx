@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
@@ -119,7 +120,7 @@ export function MoneySettingsRecurrenceSection() {
           await Promise.all([loadAccounts(), loadRecurrent()]);
         } catch (e: unknown) {
           if (!cancelled) {
-            setBootstrapErr(e instanceof Error ? e.message : "Error");
+            setBootstrapErr(presentClientError("money-settings-recurrence", e));
           }
         }
       })();
@@ -175,7 +176,7 @@ export function MoneySettingsRecurrenceSection() {
     } catch (e: unknown) {
       notify.error(
         "Couldn’t save recurrence",
-        e instanceof Error ? e.message : "Something went wrong",
+        toUserFacingMessage(e, "Something went wrong"),
       );
     }
   }
@@ -196,7 +197,7 @@ export function MoneySettingsRecurrenceSection() {
     } catch (e: unknown) {
       notify.error(
         "Couldn’t delete recurrence",
-        e instanceof Error ? e.message : "Something went wrong",
+        toUserFacingMessage(e, "Something went wrong"),
       );
     }
   }
@@ -209,7 +210,7 @@ export function MoneySettingsRecurrenceSection() {
     } catch (e: unknown) {
       notify.error(
         "Couldn’t generate transaction",
-        e instanceof Error ? e.message : "Something went wrong",
+        toUserFacingMessage(e, "Something went wrong"),
       );
     }
   }

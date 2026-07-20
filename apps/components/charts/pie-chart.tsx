@@ -11,7 +11,14 @@ import type { StylePreset } from "@/components/theme-provider";
 import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/cn";
 
-type Datum = { label: string; valueMinor: number };
+type Datum = { label: string; valueMinor: number; categoryId?: string | null };
+
+export type PieChartDatum = Datum;
+
+export type PieChartItemClickPayload = {
+  label: string;
+  categoryId: string | null;
+};
 
 function pointerPayload(
   e: React.PointerEvent,
@@ -30,6 +37,7 @@ export function PieByCategoryChart({
   centerTotalMinor,
   centerLabel = "Total",
   emptyMessage = "All categories hidden — click legend to show",
+  onItemClick,
 }: {
   data: Datum[];
   hiddenLabels?: Set<string>;
@@ -39,6 +47,7 @@ export function PieByCategoryChart({
   centerTotalMinor?: number;
   centerLabel?: string;
   emptyMessage?: string;
+  onItemClick?: (item: PieChartItemClickPayload) => void;
 }) {
   const { resolved, style } = useTheme();
   const visibleData = useMemo(
@@ -68,6 +77,7 @@ export function PieByCategoryChart({
                 centerTotalMinor={centerTotalMinor}
                 centerLabel={centerLabel}
                 tooltipApi={tooltipApi}
+                onItemClick={onItemClick}
               />
             ) : null
           }
@@ -90,6 +100,7 @@ function PieInner({
   centerTotalMinor,
   centerLabel,
   tooltipApi,
+  onItemClick,
 }: {
   width: number;
   height: number;
@@ -107,6 +118,7 @@ function PieInner({
     moveTooltip: (p: ChartTooltipPayload) => void;
     hideTooltip: () => void;
   };
+  onItemClick?: (item: PieChartItemClickPayload) => void;
 }) {
   const radius = Math.min(width, height) / 2 - 12;
   const centerY = height / 2;
@@ -163,7 +175,7 @@ function PieInner({
                     stroke="transparent"
                     strokeWidth={14}
                     pointerEvents="all"
-                    className="cursor-default"
+                    className={cn(onItemClick ? "cursor-pointer" : "cursor-default")}
                     onPointerEnter={(e) =>
                       tooltipApi.showTooltip(pointerPayload(e, label, valueText))
                     }
@@ -171,6 +183,13 @@ function PieInner({
                       tooltipApi.moveTooltip(pointerPayload(e, label, valueText))
                     }
                     onPointerLeave={() => tooltipApi.hideTooltip()}
+                    onClick={() => {
+                      if (!onItemClick) return;
+                      onItemClick({
+                        label,
+                        categoryId: arc.data.categoryId ?? null,
+                      });
+                    }}
                   />
                 </g>
               );

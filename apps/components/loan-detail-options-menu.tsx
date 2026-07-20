@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useRouter } from "next/navigation";
 import { useState, type SVGProps } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -57,7 +58,7 @@ export function LoanDetailOptionsMenu({
     } catch (e) {
       notify.error(
         "Could not delete loan",
-        e instanceof Error ? e.message : undefined,
+        toUserFacingMessage(e),
       );
     } finally {
       setDeleting(false);

@@ -1,8 +1,12 @@
-import { eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { moneyCategory, moneyTransaction, moneyTransactionTag } from "@/db/schema/money";
 import { expandCategoryFilterIds } from "@/lib/money-category-ui";
+import {
+  isCategoryFilterNone,
+  splitCategoryFilterIds,
+} from "@/lib/analytics-category-filter";
 import { analyticsFiltersSchema } from "@/lib/validators/money";
 import type { z } from "zod";
 
@@ -48,14 +52,21 @@ export async function resolveAnalyticsFiltersForQuery(
   categoryRows?: ReadonlyArray<{ id: string; parentId: string | null }>,
 ): Promise<AnalyticsFiltersData> {
   if (!filters.categoryIds?.length) return filters;
+  const { includeUncategorized, categoryUuids } = splitCategoryFilterIds(
+    filters.categoryIds,
+  );
+  if (categoryUuids.length === 0) return filters;
   const rows =
     categoryRows ??
     (await db
       .select({ id: moneyCategory.id, parentId: moneyCategory.parentId })
       .from(moneyCategory)
       .where(eq(moneyCategory.workspaceId, workspaceId)));
-  const expanded = expandCategoryFilterIds(filters.categoryIds, rows);
-  return { ...filters, categoryIds: expanded };
+  const expanded = expandCategoryFilterIds(categoryUuids, rows);
+  const categoryIds = includeUncategorized
+    ? [...expanded, ...filters.categoryIds.filter(isCategoryFilterNone)]
+    : expanded;
+  return { ...filters, categoryIds };
 }
 
 export function moneyTransactionConditionsForAnalytics(
@@ -73,7 +84,21 @@ export function moneyTransactionConditionsForAnalytics(
     conditions.push(inArray(moneyTransaction.accountId, filters.accountIds));
   }
   if (filters.categoryIds && filters.categoryIds.length > 0) {
-    conditions.push(inArray(moneyTransaction.categoryId, filters.categoryIds));
+    const { includeUncategorized, categoryUuids } = splitCategoryFilterIds(
+      filters.categoryIds,
+    );
+    if (includeUncategorized && categoryUuids.length > 0) {
+      conditions.push(
+        or(
+          isNull(moneyTransaction.categoryId),
+          inArray(moneyTransaction.categoryId, categoryUuids),
+        )!,
+      );
+    } else if (includeUncategorized) {
+      conditions.push(isNull(moneyTransaction.categoryId));
+    } else if (categoryUuids.length > 0) {
+      conditions.push(inArray(moneyTransaction.categoryId, categoryUuids));
+    }
   }
   if (filters.merchantIds && filters.merchantIds.length > 0) {
     conditions.push(inArray(moneyTransaction.merchantId, filters.merchantIds));

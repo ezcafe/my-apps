@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
@@ -175,7 +176,7 @@ export function MoneySettingsBudgetsSection() {
           await Promise.all([loadCategories(), loadAccounts(), loadTags(), loadBudgets()]);
         } catch (e: unknown) {
           if (!cancelled) {
-            setBootstrapErr(e instanceof Error ? e.message : "Error");
+            setBootstrapErr(presentClientError("money-settings-budgets", e));
           }
         }
       })();
@@ -219,7 +220,7 @@ export function MoneySettingsBudgetsSection() {
     } catch (e: unknown) {
       notify.error(
         "Couldn’t save budget",
-        e instanceof Error ? e.message : "Something went wrong",
+        toUserFacingMessage(e, "Something went wrong"),
       );
     }
   }
@@ -248,7 +249,7 @@ export function MoneySettingsBudgetsSection() {
     } catch (e: unknown) {
       notify.error(
         "Couldn’t save budget",
-        e instanceof Error ? e.message : "Something went wrong",
+        toUserFacingMessage(e, "Something went wrong"),
       );
     }
   }
@@ -263,7 +264,7 @@ export function MoneySettingsBudgetsSection() {
     } catch (e: unknown) {
       notify.error(
         "Couldn’t delete budget",
-        e instanceof Error ? e.message : "Something went wrong",
+        toUserFacingMessage(e, "Something went wrong"),
       );
     }
   }

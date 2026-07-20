@@ -21,15 +21,83 @@ import {
   topUsageItems,
   type UsageRankedItem,
 } from "@/lib/money-usage-quick-pick";
+import {
+  moneyQuickPickChipCls,
+  moneyQuickPickOtherChipCls,
+} from "@/lib/money-quick-pick-chip-cls";
 
 const QUICK_PICK_N = 5;
 
-const chipCls = (active: boolean) =>
-  cn(
-    "relative isolate min-w-20 max-w-full overflow-hidden rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
-    active ? "bg-surface shadow-[var(--shadow-sm)]" : "hover:bg-muted-surface",
-    active ? "text-foreground" : "text-muted hover:text-foreground",
+export function moneyUsageQuickPickChipCls(active: boolean) {
+  return moneyQuickPickChipCls(active);
+}
+
+export function moneyUsageQuickPickOtherChipCls(active: boolean) {
+  return moneyQuickPickOtherChipCls(active);
+}
+
+export function MoneyUsageQuickPickOtherChipContent({
+  label,
+}: {
+  label: ReactNode;
+}) {
+  return (
+    <span className="relative z-[1] inline-flex min-w-0 max-w-full items-center gap-1.5">
+      <OtherPickerGlyph />
+      <span className="min-w-0 truncate">{label}</span>
+      <OtherChipChevron className="opacity-55" />
+    </span>
   );
+}
+
+/** @deprecated Use `MoneyUsageQuickPickOtherChipContent` */
+export function MoneyUsageQuickPickOtherChevron({
+  className,
+}: {
+  className?: string;
+}) {
+  return <OtherChipChevron className={className} />;
+}
+
+const chipCls = moneyQuickPickChipCls;
+const otherChipCls = moneyQuickPickOtherChipCls;
+
+function OtherPickerGlyph() {
+  return (
+    <span
+      aria-hidden
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-muted-surface text-muted transition-[background-color,color] duration-200 group-aria-checked/other:bg-[color-mix(in_oklab,var(--accent)_24%,var(--muted-surface))] group-aria-checked/other:text-accent"
+    >
+      <svg viewBox="0 0 16 16" fill="none" className="size-3.5">
+        <path
+          d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function OtherChipChevron({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 16 16"
+      fill="none"
+      className={cn("size-3.5 shrink-0 opacity-70", className)}
+    >
+      <path
+        d="M4 6l4 4 4-4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export function BudgetUtilizationFillLayer({ fill }: { fill: BudgetUtilizationChipFill }) {
   return (
@@ -243,10 +311,12 @@ export function MoneyUsageQuickPick({
               type="button"
               role="radio"
               aria-checked={otherActive}
+              aria-expanded={pickerOpen}
+              aria-haspopup="listbox"
               onClick={() => setPickerOpen((o) => !o)}
-              className={chipCls(otherActive)}
+              className={otherChipCls(otherActive)}
             >
-              {otherLabelText}
+              <MoneyUsageQuickPickOtherChipContent label={otherLabelText} />
             </button>
             <div
               id={listboxId}

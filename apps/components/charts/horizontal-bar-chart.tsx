@@ -26,17 +26,24 @@ function pointerPayload(
   return { label, valueText, clientX: e.clientX, clientY: e.clientY };
 }
 
+export type HorizontalBarItemClickPayload = {
+  key: string;
+  label: string;
+};
+
 export function HorizontalBarChart({
   data,
   formatValue,
   animate = true,
   variant = "simple",
+  onItemClick,
 }: {
   data: HorizontalBarRow[];
   formatValue: (minor: number) => string;
   animate?: boolean;
   /** `budget` draws limit track behind spent bar. */
   variant?: "simple" | "budget";
+  onItemClick?: (item: HorizontalBarItemClickPayload) => void;
 }) {
   const visible = data.filter((d) => d.valueMinor > 0 || (d.limitMinor ?? 0) > 0);
   const isEmpty = visible.length === 0;
@@ -55,6 +62,7 @@ export function HorizontalBarChart({
                 animate={animate}
                 formatValue={formatValue}
                 tooltipApi={tooltipApi}
+                onItemClick={onItemClick}
               />
             ) : null
           }
@@ -72,6 +80,7 @@ function HorizontalBarInner({
   animate,
   formatValue,
   tooltipApi,
+  onItemClick,
 }: {
   width: number;
   height: number;
@@ -84,6 +93,7 @@ function HorizontalBarInner({
     moveTooltip: (p: ChartTooltipPayload) => void;
     hideTooltip: () => void;
   };
+  onItemClick?: (item: HorizontalBarItemClickPayload) => void;
 }) {
   const { resolved, style } = useTheme();
   const stylePreset = style as StylePreset;
@@ -181,7 +191,7 @@ function HorizontalBarInner({
                     width={Math.max(valueW, limitW, 8)}
                     height={barH}
                     fill="transparent"
-                    className="cursor-default"
+                    className={onItemClick ? "cursor-pointer" : "cursor-default"}
                     onPointerEnter={(ev) =>
                       tooltipApi.showTooltip(pointerPayload(ev, d.label, tooltip))
                     }
@@ -189,6 +199,10 @@ function HorizontalBarInner({
                       tooltipApi.moveTooltip(pointerPayload(ev, d.label, tooltip))
                     }
                     onPointerLeave={() => tooltipApi.hideTooltip()}
+                    onClick={() => {
+                      if (!onItemClick) return;
+                      onItemClick({ key: d.key, label: d.label });
+                    }}
                   />
                 </g>
               </Group>

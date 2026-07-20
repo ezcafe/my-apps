@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CATEGORY_FILTER_NONE } from "@/lib/analytics-category-filter";
 import {
   DEV_RECURRENCE_FORM_CADENCES,
   RECURRENCE_FORM_CADENCES,
@@ -243,7 +244,9 @@ export const analyticsFiltersSchema = z.object({
   from: z.string().datetime({ offset: true }).optional(),
   to: z.string().datetime({ offset: true }).optional(),
   accountIds: z.array(z.string().uuid()).optional(),
-  categoryIds: z.array(z.string().uuid()).optional(),
+  categoryIds: z
+    .array(z.union([z.string().uuid(), z.literal(CATEGORY_FILTER_NONE)]))
+    .optional(),
   merchantIds: z.array(z.string().uuid()).optional(),
   tagIds: z.array(z.string().uuid()).optional(),
   kinds: z.array(transactionKindSchema).optional(),

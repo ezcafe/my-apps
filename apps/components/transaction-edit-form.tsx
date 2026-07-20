@@ -1,7 +1,9 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
@@ -39,6 +41,7 @@ import {
   MONEY_TRANSACTION_EDIT_QUERY,
   MONEY_TRANSACTION_UPDATE_MUTATION,
 } from "@/lib/money-gql-documents";
+import { moneyRootQueryKey } from "@/lib/money-query-options";
 
 type Account = {
   id: string;
@@ -119,12 +122,20 @@ function TransactionEditBreadcrumbs({ returnTo }: { returnTo: string }) {
 export function TransactionEditForm({
   transactionId,
   returnTo: returnToProp,
+  variant = "page",
+  onClose,
+  onSaved,
 }: {
   transactionId: string;
   returnTo?: string | null;
+  variant?: "page" | "modal";
+  onClose?: () => void;
+  onSaved?: () => void;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const returnTo = resolveTransactionEditReturnTo(returnToProp ?? null);
+  const isModal = variant === "modal";
   const { defaultCurrency } = useWorkspaceCurrency();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<MoneyCategoryRow[]>([]);
@@ -281,7 +292,7 @@ export function TransactionEditForm({
         setSelectedTagIds([...tx.tagIds]);
       } catch (e: unknown) {
         if (!cancelled) {
-          setErr(e instanceof Error ? e.message : "Error");
+          setErr(presentClientError("transaction-edit-form", e));
           setLoaded(null);
         }
       } finally {
@@ -297,6 +308,17 @@ export function TransactionEditForm({
     setSelectedTagIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
+  };
+
+  const finishSuccess = async () => {
+    await queryClient.invalidateQueries({ queryKey: moneyRootQueryKey });
+    onSaved?.();
+    if (isModal) {
+      onClose?.();
+    } else {
+      router.push(returnTo);
+      router.refresh();
+    }
   };
 
   async function onSubmit(e: React.FormEvent) {
@@ -337,10 +359,9 @@ export function TransactionEditForm({
         id: transactionId,
         input: payload,
       });
-      router.push(returnTo);
-      router.refresh();
+      await finishSuccess();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Error");
+      setErr(presentClientError("transaction-edit-form", e));
     } finally {
       setSaving(false);
     }
@@ -360,10 +381,9 @@ export function TransactionEditForm({
       await moneyGraphQLRequest(MONEY_TRANSACTION_DELETE_MUTATION, {
         id: transactionId,
       });
-      router.push(returnTo);
-      router.refresh();
+      await finishSuccess();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Error");
+      setErr(presentClientError("transaction-edit-form", e));
     } finally {
       setDeleting(false);
     }
@@ -374,8 +394,8 @@ export function TransactionEditForm({
 
   if (loading) {
     return (
-      <div className="min-w-0 max-w-4xl space-y-6">
-        <TransactionEditBreadcrumbs returnTo={returnTo} />
+      <div className={isModal ? "space-y-4" : "min-w-0 max-w-4xl space-y-6"}>
+        {!isModal ? <TransactionEditBreadcrumbs returnTo={returnTo} /> : null}
         <Card className="p-5">
           <div className="grid gap-3">
             <Skeleton className="h-6 w-32" />
@@ -390,18 +410,24 @@ export function TransactionEditForm({
 
   if (!loaded && err) {
     return (
-      <div className="flex min-w-0 max-w-4xl flex-col gap-3">
-        <TransactionEditBreadcrumbs returnTo={returnTo} />
+      <div
+        className={
+          isModal
+            ? "flex flex-col gap-3"
+            : "flex min-w-0 max-w-4xl flex-col gap-3"
+        }
+      >
+        {!isModal ? <TransactionEditBreadcrumbs returnTo={returnTo} /> : null}
         <Alert variant="error" title="Couldn’t load transaction" description={err} />
       </div>
     );
   }
 
   return (
-    <div className="min-w-0 max-w-4xl space-y-6">
-      <TransactionEditBreadcrumbs returnTo={returnTo} />
+    <div className={isModal ? "space-y-4" : "min-w-0 max-w-4xl space-y-6"}>
+      {!isModal ? <TransactionEditBreadcrumbs returnTo={returnTo} /> : null}
       {err ? <Alert variant="error" title={err} /> : null}
-      <Card className="p-5">
+      <Card className={isModal ? "border-0 bg-transparent p-0 shadow-none" : "p-5"}>
         <header className="mb-4 flex items-baseline justify-between gap-3">
           <h2 className="font-display text-lg font-medium tracking-tight">
             Edit transaction
@@ -516,7 +542,7 @@ export function TransactionEditForm({
                 setCategoryId(id);
                 setCategoryEmptyOnOther(id === "");
               }}
-              otherLabel="Other category"
+              otherLabel="Select other category"
               emptyCountsAsOther
               emptySelectedOnOther={categoryEmptyOnOther}
               emptyMessage="No categories yet. Add one in Settings."
@@ -529,7 +555,7 @@ export function TransactionEditForm({
             items={merchantQuickItems}
             selectedId={merchantId}
             onSelect={setMerchantId}
-            otherLabel="Other merchant"
+            otherLabel="Select other merchant"
             allowEmpty
             emptyMessage="No merchants yet. Add one in Settings."
           />
@@ -619,6 +645,24 @@ export function TransactionEditForm({
             >
               {saving ? "Saving…" : "Save changes"}
             </Button>
+            {isModal ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="lg"
+                disabled={saving || deleting}
+                onClick={onClose}
+              >
+                Cancel
+              </Button>
+            ) : (
+              <Link
+                href={returnTo}
+                className="text-sm font-medium text-muted underline-offset-2 transition-colors duration-150 hover:text-foreground hover:underline"
+              >
+                Cancel
+              </Link>
+            )}
             <Button
               type="button"
               variant="danger"

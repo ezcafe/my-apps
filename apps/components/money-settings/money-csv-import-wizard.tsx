@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import {
@@ -736,7 +737,7 @@ export function MoneyCsvImportWizard({
       notify.success(`Imported ${created} row(s).`);
       resetWizard();
     } catch (e: unknown) {
-      notify.error(e instanceof Error ? e.message : "Import failed");
+      notify.error(toUserFacingMessage(e, "Import failed"));
     } finally {
       setBusy(null);
     }
@@ -777,7 +778,7 @@ export function MoneyCsvImportWizard({
       setStep("map");
       notify.success(`Loaded ${rows.length} row(s).`);
     } catch (e: unknown) {
-      notify.error(e instanceof Error ? e.message : "Parse failed");
+      notify.error(toUserFacingMessage(e, "Parse failed"));
     } finally {
       setBusy(null);
     }

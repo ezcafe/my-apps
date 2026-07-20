@@ -1,5 +1,6 @@
 "use client";
 
+import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotify } from "@/components/notification-provider";
@@ -108,7 +109,7 @@ export function LoanPayModal({
     } catch (e) {
       notify.error(
         "Payment failed",
-        e instanceof Error ? e.message : undefined,
+        toUserFacingMessage(e),
       );
     } finally {
       setSaving(false);
