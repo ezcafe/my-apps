@@ -17,7 +17,7 @@ Session cookie from Pocket ID / NextAuth after signing in at `/login`.
 ### Automation / Postman
 
 1. Sign in to the app and open **Settings → API tokens**.
-2. Create a token (bound to one Money workspace). Copy the secret once (`mny_…`).
+2. Create a token (bound to one workspace for Money, Savings, or Investment). Copy the secret once (`mny_…`, `sav_…`, or `inv_…`).
 3. Send on every request:
 
 ```http
@@ -37,14 +37,20 @@ Tokens without `write` receive `403` on mutations and import routes.
 
 ### Workspace binding
 
-Each token is tied to a single `workspace_id` at creation. You do not need the `ctx_workspace_money` cookie when using Bearer auth.
+Each token is tied to a single `workspace_id` and `appKey` at creation. You do not need per-app workspace cookies when using Bearer auth.
 
 ## GraphQL
 
-- **Endpoint:** `POST /api/graphql` (also supports `GET` for GraphQL Yoga)
-- **Content-Type:** `application/json`
+| App | Endpoint |
+|-----|----------|
+| Money | `POST /api/graphql` |
+| Savings | `POST /api/graphql/savings` |
+| Investment | `POST /api/graphql/investment` |
+| Loans | `POST /api/graphql/loans` |
 
-Example:
+**Content-Type:** `application/json`
+
+Money example:
 
 ```bash
 curl -sS "$AUTH_URL/api/graphql" \
@@ -72,6 +78,13 @@ In Postman: **New → GraphQL**, import `docs/money.graphql`, set Authorization 
 | `POST` | `/api/money/import/abandon` | Bearer + write | Discard preview |
 | `POST` | `/api/money/import/{kind}` | Bearer + write | Direct CSV row import |
 | `POST` | `/api/cron/money-recurrence` | `Bearer $CRON_SECRET` | Process due recurrence templates (scheduled job) |
+| `GET` | `/api/savings/activities` | Bearer `sav_` + read | List savings activities |
+| `POST` | `/api/savings/activities` | Bearer `sav_` + write | Create savings activity |
+| `GET/PATCH/DELETE` | `/api/savings/activities/{id}` | Bearer `sav_` | Read/update/delete activity |
+| `GET` | `/api/investment/activities` | Bearer `inv_` + read | List investment activities |
+| `POST` | `/api/investment/activities` | Bearer `inv_` + write | Create investment activity |
+| `GET/PATCH/DELETE` | `/api/investment/activities/{id}` | Bearer `inv_` | Read/update/delete activity |
+| `POST` | `/api/cron/investment-quotes` | `Bearer $CRON_SECRET` | Refresh Yahoo quotes for all instruments |
 | `GET` | `/api/tokens` | Session only | List your tokens |
 | `POST` | `/api/tokens` | Session only | Create token |
 | `DELETE` | `/api/tokens/{id}` | Session only | Revoke token |

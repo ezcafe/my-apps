@@ -44,6 +44,7 @@ export async function createLoansGraphQLContext(
           userSub: null,
           workspaceId: null,
           apiTokenId: null,
+          apiTokenAppKey: null,
           scopes: null,
         },
         userSub: null,

@@ -10,12 +10,22 @@ import {
 import { assertWorkspaceMember } from "@/lib/workspace-context";
 import { getWorkspaceIdForUser } from "@/lib/workspace";
 import { getLoansWorkspaceIdForUser } from "@/lib/workspace-loans";
+import { getSavingsWorkspaceIdForUser } from "@/lib/workspace-savings";
+import { getInvestmentWorkspaceIdForUser } from "@/lib/workspace-investment";
 import { isDbUnreachable } from "@/lib/db-errors";
 
 const scryptAsync = promisify(scrypt);
 
 export const API_TOKEN_PREFIX = "mny_";
 export const API_TOKEN_PREFIX_LENGTH = 12;
+
+export const API_TOKEN_PREFIX_BY_APP = {
+  money: "mny_",
+  savings: "sav_",
+  investment: "inv_",
+} as const;
+
+export type ApiTokenAppKey = keyof typeof API_TOKEN_PREFIX_BY_APP;
 
 export type RequestAuthMethod = "session" | "api_key";
 
@@ -25,6 +35,7 @@ export type ResolvedRequestAuth =
       userSub: string;
       workspaceId: null;
       apiTokenId: null;
+      apiTokenAppKey: null;
       scopes: null;
     }
   | {
@@ -32,6 +43,7 @@ export type ResolvedRequestAuth =
       userSub: string;
       workspaceId: string;
       apiTokenId: string;
+      apiTokenAppKey: ApiTokenAppKey;
       scopes: ApiTokenScope[];
     }
   | {
@@ -39,6 +51,7 @@ export type ResolvedRequestAuth =
       userSub: null;
       workspaceId: null;
       apiTokenId: null;
+      apiTokenAppKey: null;
       scopes: null;
     };
 
@@ -50,8 +63,17 @@ function parseBearerToken(request?: Request): string | null {
   return match?.[1]?.trim() ?? null;
 }
 
+export function appKeyFromTokenSecret(value: string): ApiTokenAppKey | null {
+  for (const [appKey, prefix] of Object.entries(API_TOKEN_PREFIX_BY_APP)) {
+    if (value.startsWith(prefix)) return appKey as ApiTokenAppKey;
+  }
+  return null;
+}
+
 export function isApiTokenSecret(value: string): boolean {
-  return value.startsWith(API_TOKEN_PREFIX) && value.length > API_TOKEN_PREFIX_LENGTH;
+  const appKey = appKeyFromTokenSecret(value);
+  if (!appKey) return false;
+  return value.length > API_TOKEN_PREFIX_LENGTH;
 }
 
 function tokenPrefix(secret: string): string {
@@ -76,9 +98,11 @@ async function verifyApiTokenHash(secret: string, stored: string): Promise<boole
   return timingSafeEqual(derived, expected);
 }
 
-export async function generateApiTokenSecret(): Promise<string> {
+export async function generateApiTokenSecret(
+  appKey: ApiTokenAppKey = "money",
+): Promise<string> {
   const body = randomBytes(32).toString("base64url");
-  return `${API_TOKEN_PREFIX}${body}`;
+  return `${API_TOKEN_PREFIX_BY_APP[appKey]}${body}`;
 }
 
 export async function hashApiTokenForStorage(secret: string): Promise<string> {
@@ -89,13 +113,15 @@ type ApiTokenRow = {
   id: string;
   userSub: string;
   workspaceId: string;
+  appKey: string;
   scopes: ApiTokenScope[];
 };
 
 async function findActiveTokenBySecret(
   secret: string,
 ): Promise<ApiTokenRow | null> {
-  if (!isApiTokenSecret(secret)) return null;
+  const expectedApp = appKeyFromTokenSecret(secret);
+  if (!expectedApp || !isApiTokenSecret(secret)) return null;
   const prefix = tokenPrefix(secret);
 
   const rows = await db
@@ -103,6 +129,7 @@ async function findActiveTokenBySecret(
       id: apiToken.id,
       userSub: apiToken.userSub,
       workspaceId: apiToken.workspaceId,
+      appKey: apiToken.appKey,
       keyHash: apiToken.keyHash,
       scopes: apiToken.scopes,
       expiresAt: apiToken.expiresAt,
@@ -121,6 +148,7 @@ async function findActiveTokenBySecret(
     );
 
   for (const row of rows) {
+    if (row.appKey !== expectedApp) continue;
     const ok = await verifyApiTokenHash(secret, row.keyHash);
     if (!ok) continue;
     if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) continue;
@@ -128,6 +156,7 @@ async function findActiveTokenBySecret(
       id: row.id,
       userSub: row.userSub,
       workspaceId: row.workspaceId,
+      appKey: row.appKey,
       scopes: row.scopes,
     };
   }
@@ -157,15 +186,23 @@ export async function resolveRequestAuth(
           userSub: null,
           workspaceId: null,
           apiTokenId: null,
+          apiTokenAppKey: null,
           scopes: null,
         };
       }
       touchApiTokenLastUsed(row.id);
+      const tokenAppKey =
+        row.appKey === "money" ||
+        row.appKey === "savings" ||
+        row.appKey === "investment"
+          ? (row.appKey as ApiTokenAppKey)
+          : appKeyFromTokenSecret(bearer)!;
       return {
         method: "api_key",
         userSub: row.userSub,
         workspaceId: row.workspaceId,
         apiTokenId: row.id,
+        apiTokenAppKey: tokenAppKey,
         scopes: row.scopes,
       };
     } catch (e) {
@@ -175,6 +212,7 @@ export async function resolveRequestAuth(
         userSub: null,
         workspaceId: null,
         apiTokenId: null,
+        apiTokenAppKey: null,
         scopes: null,
       };
     }
@@ -188,6 +226,7 @@ export async function resolveRequestAuth(
       userSub: null,
       workspaceId: null,
       apiTokenId: null,
+      apiTokenAppKey: null,
       scopes: null,
     };
   }
@@ -197,6 +236,7 @@ export async function resolveRequestAuth(
     userSub,
     workspaceId: null,
     apiTokenId: null,
+    apiTokenAppKey: null,
     scopes: null,
   };
 }
@@ -216,7 +256,8 @@ export async function resolveMoneyWorkspaceId(
 ): Promise<string | null> {
   if (!auth.userSub) return null;
 
-  if (auth.method === "api_key" && auth.workspaceId) {
+  if (auth.method === "api_key") {
+    if (auth.apiTokenAppKey !== "money") return null;
     return auth.workspaceId;
   }
 
@@ -238,6 +279,36 @@ export async function resolveLoansWorkspaceId(
 
   try {
     return await getLoansWorkspaceIdForUser(auth.userSub);
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveSavingsWorkspaceId(
+  auth: ResolvedRequestAuth,
+): Promise<string | null> {
+  if (!auth.userSub) return null;
+  if (auth.method === "api_key") {
+    if (auth.apiTokenAppKey !== "savings") return null;
+    return auth.workspaceId;
+  }
+  try {
+    return await getSavingsWorkspaceIdForUser(auth.userSub);
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveInvestmentWorkspaceId(
+  auth: ResolvedRequestAuth,
+): Promise<string | null> {
+  if (!auth.userSub) return null;
+  if (auth.method === "api_key") {
+    if (auth.apiTokenAppKey !== "investment") return null;
+    return auth.workspaceId;
+  }
+  try {
+    return await getInvestmentWorkspaceIdForUser(auth.userSub);
   } catch {
     return null;
   }

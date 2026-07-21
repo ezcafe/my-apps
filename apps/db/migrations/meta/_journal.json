@@ -115,6 +115,20 @@
       "breakpoints": true
     },
     {
+      "idx": 16,
+      "version": "7",
+      "when": 1779833400000,
+      "tag": "0016_money_balance_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1779833500000,
+      "tag": "0017_money_recurrence_daily",
+      "breakpoints": true
+    },
+    {
       "idx": 18,
       "version": "7",
       "when": 1779833600000,
@@ -154,6 +168,13 @@
       "version": "7",
       "when": 1779834100000,
       "tag": "0023_money_tx_exclude_from_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1779834200000,
+      "tag": "0024_savings_investment",
       "breakpoints": true
     }
   ]

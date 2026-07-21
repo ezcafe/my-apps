@@ -12,6 +12,7 @@ const monorepoRoot = existsSync(path.join(candidateMonorepoRoot, "package.json")
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
+  serverExternalPackages: ["yahoo-finance2"],
   experimental: {
     optimizePackageImports: [
       "@tanstack/react-query",

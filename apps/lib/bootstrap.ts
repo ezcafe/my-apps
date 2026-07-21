@@ -132,6 +132,16 @@ export async function ensureUserBootstrap(userSub: string) {
       },
       {
         userSub,
+        appKey: "savings",
+        defaultWorkspaceId: ws.id,
+      },
+      {
+        userSub,
+        appKey: "investment",
+        defaultWorkspaceId: ws.id,
+      },
+      {
+        userSub,
         appKey: "loans",
         defaultWorkspaceId: ws.id,
       },

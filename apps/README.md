@@ -96,9 +96,19 @@ Docker-specific notes:
 | `npm run db:generate` | Generate a Drizzle migration. |
 | `npm run db:push` | Push schema to the dev DB without a migration. |
 | `npm run db:migrate` | Apply pending migrations. |
+| `npm run db:baseline` | Mark migrations through a tag as applied (see below). |
 | `npm run db:studio` | Open Drizzle Studio. |
 | `npm run db:reset` | Reset the local DB schema (destructive). |
 | `npm run db:recompute-balances` | Recompute Money account balances. |
+
+If `db:migrate` fails on a database that already has schema but an empty `drizzle.__drizzle_migrations` table (common after `db:push`), baseline the last migration that matches your DB, then migrate again:
+
+```bash
+ALLOW_BASELINE_DRIZZLE=1 npm run db:baseline -- --through 0023_money_tx_exclude_from_reports
+npm run db:migrate
+```
+
+Use `db:reset` instead when you can wipe local data and replay all migrations from scratch.
 
 ## Project layout
 

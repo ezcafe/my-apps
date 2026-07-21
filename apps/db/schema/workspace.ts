@@ -15,7 +15,14 @@ import {
  * Registered product areas that use workspace isolation + per-app default/cookie.
  * Add keys here when introducing domains (e.g. notes, tasks).
  */
-export const WORKSPACE_APP_KEYS = ["money", "loans", "notes", "tasks"] as const;
+export const WORKSPACE_APP_KEYS = [
+  "money",
+  "savings",
+  "investment",
+  "loans",
+  "notes",
+  "tasks",
+] as const;
 export type WorkspaceAppKey = (typeof WORKSPACE_APP_KEYS)[number];
 
 export const workspaceMemberRoleEnum = pgEnum("workspace_member_role", [

@@ -140,6 +140,8 @@ export function WorkspaceSettings() {
 
   const [workspaceList, setWorkspaceList] = useState<WorkspaceRow[]>([]);
   const [moneyDefaultPick, setMoneyDefaultPick] = useState("");
+  const [savingsDefaultPick, setSavingsDefaultPick] = useState("");
+  const [investmentDefaultPick, setInvestmentDefaultPick] = useState("");
   const [loansDefaultPick, setLoansDefaultPick] = useState("");
   const [newSharedName, setNewSharedName] = useState("");
   const [newSharedCurrency, setNewSharedCurrency] = useState("USD");
@@ -147,14 +149,19 @@ export function WorkspaceSettings() {
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
   const refreshWorkspaceContext = useCallback(async () => {
-    const [workspaces, moneyDefaultId, loansDefaultId] = await Promise.all([
+    const [workspaces, moneyDefaultId, savingsDefaultId, investmentDefaultId, loansDefaultId] =
+      await Promise.all([
       fetchWorkspaceList("money"),
       fetchDefaultWorkspaceId("money"),
+      fetchDefaultWorkspaceId("savings"),
+      fetchDefaultWorkspaceId("investment"),
       fetchDefaultWorkspaceId("loans"),
     ]);
     setWorkspaceList(workspaces);
     const fallback = workspaces[0]?.id ?? "";
     setMoneyDefaultPick(moneyDefaultId ?? fallback);
+    setSavingsDefaultPick(savingsDefaultId ?? fallback);
+    setInvestmentDefaultPick(investmentDefaultId ?? fallback);
     setLoansDefaultPick(loansDefaultId ?? fallback);
   }, []);
 
@@ -180,7 +187,7 @@ export function WorkspaceSettings() {
     <SettingsSection
       id="settings-workspaces"
       title="Workspaces"
-      description="Shared workspaces can be used across Money and Loans. Each app remembers its own default when you open it without an active workspace cookie."
+      description="Shared workspaces can be used across Money, Savings, Investment, and Loans. Each app remembers its own default when you open it without an active workspace cookie."
     >
       {loadErr ? (
         <Alert
@@ -300,6 +307,24 @@ export function WorkspaceSettings() {
               workspaceList={workspaceList}
               value={moneyDefaultPick}
               onChange={setMoneyDefaultPick}
+              onSaved={refreshWorkspaceContext}
+            />
+            <DefaultWorkspaceForm
+              app="savings"
+              appLabel="Savings"
+              description="Default workspace when you open Savings."
+              workspaceList={workspaceList}
+              value={savingsDefaultPick}
+              onChange={setSavingsDefaultPick}
+              onSaved={refreshWorkspaceContext}
+            />
+            <DefaultWorkspaceForm
+              app="investment"
+              appLabel="Investment"
+              description="Default workspace when you open Investment."
+              workspaceList={workspaceList}
+              value={investmentDefaultPick}
+              onChange={setInvestmentDefaultPick}
               onSaved={refreshWorkspaceContext}
             />
             <DefaultWorkspaceForm

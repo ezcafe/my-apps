@@ -5,6 +5,7 @@ import {
   generateApiTokenSecret,
   hashApiTokenForStorage,
   API_TOKEN_PREFIX_LENGTH,
+  type ApiTokenAppKey,
 } from "@/lib/api-auth";
 import { writeAuditEvent } from "@/lib/audit-log";
 import { assertWorkspaceMember } from "@/lib/workspace-context";
@@ -58,6 +59,7 @@ export async function createApiTokenForUser(
   input: {
     name: string;
     workspaceId: string;
+    appKey: ApiTokenAppKey;
     scopes: ApiTokenScope[];
     expiresAt: Date | null;
   },
@@ -67,7 +69,7 @@ export async function createApiTokenForUser(
     throw new Error("FORBIDDEN");
   }
 
-  const secret = await generateApiTokenSecret();
+  const secret = await generateApiTokenSecret(input.appKey);
   const keyHash = await hashApiTokenForStorage(secret);
   const keyPrefix = secret.slice(0, API_TOKEN_PREFIX_LENGTH);
 
@@ -76,7 +78,7 @@ export async function createApiTokenForUser(
     .values({
       userSub,
       workspaceId: input.workspaceId,
-      appKey: "money",
+      appKey: input.appKey,
       name: input.name,
       keyPrefix,
       keyHash,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { useNotify } from "@/components/notification-provider";
 import {
@@ -10,6 +10,8 @@ import {
 } from "@/components/money-settings/money-settings-shared";
 import type { ApiTokenListItem } from "@/lib/api-token-service";
 import type { ApiTokenScope } from "@/db/schema/api-token";
+import type { ApiTokenAppKey } from "@/lib/api-auth";
+import { API_TOKEN_APP_KEYS } from "@/lib/api-token-app-keys";
 
 type WorkspaceRow = {
   id: string;
@@ -28,12 +30,32 @@ export function ApiTokenSettings({
   initialTokens: ApiTokenListItem[];
 }) {
   const notify = useNotify();
-  const [workspaces] = useState(initialWorkspaces);
+  const [appKey, setAppKey] = useState<ApiTokenAppKey>("money");
+  const [workspaces, setWorkspaces] = useState(initialWorkspaces);
   const [tokens, setTokens] = useState(initialTokens);
   const defaultWs =
     workspaces.find((w) => w.isDefault) ?? workspaces[0];
   const [name, setName] = useState("");
   const [workspaceId, setWorkspaceId] = useState(defaultWs?.id ?? "");
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch(`/api/workspace/list?app=${appKey}`, {
+        credentials: "include",
+      });
+      if (!res.ok) return;
+      const json = (await res.json()) as { data?: WorkspaceRow[] };
+      if (cancelled) return;
+      const list = json.data ?? [];
+      setWorkspaces(list);
+      const pick = list.find((w) => w.isDefault) ?? list[0];
+      if (pick) setWorkspaceId(pick.id);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [appKey]);
   const [writeScope, setWriteScope] = useState(true);
   const [creating, setCreating] = useState(false);
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
@@ -67,6 +89,7 @@ export function ApiTokenSettings({
         body: JSON.stringify({
           name: name.trim(),
           workspaceId,
+          appKey,
           scopes,
         }),
       });
@@ -129,15 +152,29 @@ export function ApiTokenSettings({
       ) : null}
       <p className="text-sm text-muted">
         Personal tokens for Postman, cron jobs, and scripts. Each token is bound
-        to one Money workspace. Send{" "}
+        to one workspace for Money, Savings, or Investment. Send{" "}
         <code className="rounded-[var(--radius-sm)] bg-muted-surface px-1 py-0.5 font-mono text-xs">
-          Authorization: Bearer mny_…
+          Authorization: Bearer mny_|sav_|inv_…
         </code>{" "}
         on GraphQL and REST requests.
       </p>
 
       <div className="mt-4 space-y-4 rounded-[var(--radius-md)] border border-border bg-background p-4">
         <div className="grid gap-3">
+          <label className="block text-sm">
+            <span className="font-medium text-foreground">App</span>
+            <select
+              className={`${inputCls} mt-1`}
+              value={appKey}
+              onChange={(e) => setAppKey(e.target.value as ApiTokenAppKey)}
+            >
+              {API_TOKEN_APP_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {key.charAt(0).toUpperCase() + key.slice(1)}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="block text-sm">
             <span className="font-medium text-foreground">Name</span>
             <input
@@ -200,7 +237,7 @@ export function ApiTokenSettings({
                 <div>
                   <p className="text-sm font-medium text-foreground">{t.name}</p>
                   <p className="mt-1 font-mono text-xs text-muted">
-                    {t.keyPrefix}… · {workspaceName(t.workspaceId)} ·{" "}
+                    {t.keyPrefix}… · {t.appKey} · {workspaceName(t.workspaceId)} ·{" "}
                     {t.scopes.join(", ")}
                   </p>
                   <p className="mt-1 text-xs text-muted">

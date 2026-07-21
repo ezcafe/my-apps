@@ -46,6 +46,7 @@ export async function createMoneyGraphQLContext(
           userSub: null,
           workspaceId: null,
           apiTokenId: null,
+          apiTokenAppKey: null,
           scopes: null,
         },
         userSub: null,

@@ -191,3 +191,126 @@ paths:
       responses:
         "204":
           description: Discarded
+  /api/savings/activities:
+    get:
+      summary: List savings activities
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Activity list
+    post:
+      summary: Create savings activity
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Created
+  /api/savings/activities/{id}:
+    get:
+      summary: Get savings activity
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Activity
+    patch:
+      summary: Update savings activity
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Updated
+    delete:
+      summary: Delete savings activity
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Deleted
+  /api/investment/activities:
+    get:
+      summary: List investment activities
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Activity list
+    post:
+      summary: Create investment activity
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Created
+  /api/investment/activities/{id}:
+    get:
+      summary: Get investment activity
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Activity
+    patch:
+      summary: Update investment activity
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Updated
+    delete:
+      summary: Delete investment activity
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Deleted
+  /api/cron/investment-quotes:
+    post:
+      summary: Refresh Yahoo quotes (cron secret)
+      security: []
+      responses:
+        "200":
+          description: Refresh summary
