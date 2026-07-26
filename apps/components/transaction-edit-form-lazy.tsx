@@ -1,19 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { loadTransactionEditForm } from "@/components/transaction-edit-form-load";
 
-const TransactionEditForm = dynamic(
-  () =>
-    import("@/components/transaction-edit-form").then((m) => ({
-      default: m.TransactionEditForm,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <p className="text-sm text-muted">Loading editor…</p>
-    ),
-  },
-);
+const TransactionEditForm = dynamic(loadTransactionEditForm, {
+  ssr: false,
+  loading: () => (
+    <p className="text-sm text-muted">Loading editor…</p>
+  ),
+});
 
 export function TransactionEditFormLazy({
   transactionId,
@@ -22,5 +17,7 @@ export function TransactionEditFormLazy({
   transactionId: string;
   returnTo?: string | null;
 }) {
-  return <TransactionEditForm transactionId={transactionId} returnTo={returnTo} />;
+  return (
+    <TransactionEditForm transactionId={transactionId} returnTo={returnTo} />
+  );
 }

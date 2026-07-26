@@ -21,6 +21,7 @@ import {
   MONEY_FORM_BUDGET_STATUS_QUERY,
   MONEY_FORM_LOOKUPS_QUERY,
   MONEY_LIST_RECURRENCE_QUERY,
+  MONEY_TRANSACTION_BY_ID_QUERY,
   MONEY_TRANSACTIONS_QUERY,
   MONEY_WORKSPACE_STATE_QUERY,
 } from "@/lib/money-gql-documents";
@@ -159,6 +160,45 @@ export function moneyFormLookupsQueryOptions() {
       return await moneyGraphQLRequest<MoneyFormLookups>(MONEY_FORM_LOOKUPS_QUERY);
     },
     staleTime: 5 * 60_000,
+  });
+}
+
+export type MoneyTransactionDetail = MoneyTransactionListRow;
+
+export function moneyTransactionQueryKey(workspaceKey: string, id: string) {
+  return ["money", "transaction", workspaceKey, id] as const;
+}
+
+/** Prefer a row already in this workspace's transactions list cache (instant edit open). */
+export function findCachedMoneyTransaction(
+  queryClient: QueryClient,
+  workspaceKey: string,
+  id: string,
+): MoneyTransactionDetail | undefined {
+  if (!workspaceKey) return undefined;
+  const queries = queryClient.getQueriesData<MoneyTransactionsListResponse>({
+    queryKey: ["money", "transactions", workspaceKey],
+  });
+  for (const [, data] of queries) {
+    const row = data?.data.find((t) => t.id === id);
+    if (row) return row;
+  }
+  return undefined;
+}
+
+export function moneyTransactionQueryOptions(
+  workspaceKey: string,
+  id: string,
+) {
+  return queryOptions({
+    queryKey: moneyTransactionQueryKey(workspaceKey, id),
+    queryFn: async () => {
+      const res = await moneyGraphQLRequest<{
+        moneyTransaction: MoneyTransactionDetail | null;
+      }>(MONEY_TRANSACTION_BY_ID_QUERY, { id });
+      return res.moneyTransaction;
+    },
+    staleTime: 30_000,
   });
 }
 

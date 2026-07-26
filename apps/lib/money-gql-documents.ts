@@ -110,12 +110,9 @@ export const MONEY_ANALYTICS_LEADERS_QUERY = /* GraphQL */ `
   }
 `;
 
-export const MONEY_TRANSACTION_EDIT_QUERY = /* GraphQL */ `
-  query MoneyTransactionEdit($id: ID!) {
-    moneyAccounts
-    moneyCategories
-    moneyMerchants
-    moneyTags
+/** Transaction detail only — pair with `moneyFormLookupsQueryOptions` for edit UI. */
+export const MONEY_TRANSACTION_BY_ID_QUERY = /* GraphQL */ `
+  query MoneyTransactionById($id: ID!) {
     moneyTransaction(id: $id)
   }
 `;

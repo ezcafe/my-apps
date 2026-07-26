@@ -1,20 +1,22 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import {
+  loadTransactionEditForm,
+  preloadTransactionEditForm,
+} from "@/components/transaction-edit-form-load";
 import { Modal } from "@/components/ui/modal";
+import { moneyFormLookupsQueryOptions } from "@/lib/money-query-options";
+import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 
-const TransactionEditForm = dynamic(
-  () =>
-    import("@/components/transaction-edit-form").then((m) => ({
-      default: m.TransactionEditForm,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <p className="px-4 py-6 text-sm text-muted">Loading editor…</p>
-    ),
-  },
-);
+const TransactionEditForm = dynamic(loadTransactionEditForm, {
+  ssr: false,
+  loading: () => (
+    <p className="px-4 py-6 text-sm text-muted">Loading editor…</p>
+  ),
+});
 
 export function TransactionEditModal({
   open,
@@ -27,7 +29,15 @@ export function TransactionEditModal({
   onClose: () => void;
   onSaved?: () => void;
 }) {
+  const queryClient = useQueryClient();
+  const { workspaceReady } = useWorkspaceCurrency();
   const labelledBy = "transaction-edit-modal-title";
+
+  useEffect(() => {
+    if (!workspaceReady) return;
+    void queryClient.prefetchQuery(moneyFormLookupsQueryOptions());
+    preloadTransactionEditForm();
+  }, [queryClient, workspaceReady]);
 
   return (
     <Modal

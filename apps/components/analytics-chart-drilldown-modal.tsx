@@ -7,6 +7,7 @@ import type { AnalyticsLookupAccount } from "@/components/analytics-filters";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
+import { preloadTransactionEditForm } from "@/components/transaction-edit-form-load";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatMinor } from "@/lib/format-money";
@@ -225,7 +226,14 @@ function DrilldownRow({
         {truncateNote(tx.notes)}
       </td>
       <td className="whitespace-nowrap px-3 py-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onEdit}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onMouseEnter={preloadTransactionEditForm}
+          onFocus={preloadTransactionEditForm}
+          onClick={onEdit}
+        >
           Edit
         </Button>
       </td>

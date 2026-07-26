@@ -7,6 +7,7 @@ import type { AnalyticsLookupAccount } from "@/components/analytics-filters";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { useTheme } from "@/components/theme-provider";
 import { TransactionBulkEditModal } from "@/components/transaction-bulk-edit-modal";
+import { preloadTransactionEditForm } from "@/components/transaction-edit-form-load";
 import { TransactionEditModal } from "@/components/transaction-edit-modal";
 import { TransactionSelectionBar } from "@/components/transaction-selection-bar";
 import { formatMinor } from "@/lib/format-money";
@@ -330,6 +331,8 @@ export function AnalyticsTransactionsTable({
               variant="ghost"
               size="sm"
               className="font-medium text-foreground underline-offset-2 hover:underline"
+              onMouseEnter={preloadTransactionEditForm}
+              onFocus={preloadTransactionEditForm}
               onClick={() => setEditTransactionId(tx.id)}
             >
               Edit

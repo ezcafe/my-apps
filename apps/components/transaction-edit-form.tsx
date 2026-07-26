@@ -1,10 +1,10 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { presentClientError, queryErrorMessage } from "@/lib/user-facing-error";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
@@ -27,7 +27,6 @@ import {
   moneyCategoryById,
   moneyCategoryLabel,
   moneyCategorySelectGroups,
-  type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import {
   formatMinor,
@@ -38,33 +37,17 @@ import {
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
   MONEY_TRANSACTION_DELETE_MUTATION,
-  MONEY_TRANSACTION_EDIT_QUERY,
   MONEY_TRANSACTION_UPDATE_MUTATION,
 } from "@/lib/money-gql-documents";
-import { moneyRootQueryKey } from "@/lib/money-query-options";
+import {
+  findCachedMoneyTransaction,
+  moneyFormLookupsQueryOptions,
+  moneyRootQueryKey,
+  moneyTransactionQueryOptions,
+  type MoneyTransactionDetail,
+} from "@/lib/money-query-options";
 
-type Account = {
-  id: string;
-  name: string;
-  currency: string;
-  balanceMinor?: number;
-  usageCount?: number;
-};
-type Merchant = { id: string; name: string; usageCount?: number };
-type Tag = { id: string; name: string };
-
-type TxPayload = {
-  id: string;
-  accountId: string;
-  kind: "expense" | "income" | "transfer";
-  amountMinor: number;
-  occurredAt: string;
-  categoryId: string | null;
-  merchantId: string | null;
-  notes: string | null;
-  tagIds: string[];
-  excludeFromAnalyticsAndBudget: boolean;
-};
+type TxPayload = MoneyTransactionDetail;
 
 const KIND_OPTIONS = [
   { value: "expense", label: "Expense", description: "Money out" },
@@ -136,13 +119,45 @@ export function TransactionEditForm({
   const queryClient = useQueryClient();
   const returnTo = resolveTransactionEditReturnTo(returnToProp ?? null);
   const isModal = variant === "modal";
-  const { defaultCurrency } = useWorkspaceCurrency();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [categories, setCategories] = useState<MoneyCategoryRow[]>([]);
-  const [merchants, setMerchants] = useState<Merchant[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
+  const { defaultCurrency, workspaceId, workspaceReady } = useWorkspaceCurrency();
+  const workspaceKey = workspaceId ?? "";
+  const canRunMoneyQueries =
+    workspaceReady && workspaceKey !== "" && typeof window !== "undefined";
 
-  const [loaded, setLoaded] = useState<TxPayload | null>(null);
+  const formLookupsQuery = useQuery({
+    ...moneyFormLookupsQueryOptions(),
+    enabled: canRunMoneyQueries,
+  });
+  const transactionQuery = useQuery({
+    ...moneyTransactionQueryOptions(workspaceKey, transactionId),
+    enabled: canRunMoneyQueries,
+    placeholderData: () =>
+      findCachedMoneyTransaction(queryClient, workspaceKey, transactionId) ??
+      undefined,
+  });
+
+  const accounts = useMemo(
+    () => formLookupsQuery.data?.moneyAccounts ?? [],
+    [formLookupsQuery.data?.moneyAccounts],
+  );
+  const categories = useMemo(
+    () => formLookupsQuery.data?.moneyCategories ?? [],
+    [formLookupsQuery.data?.moneyCategories],
+  );
+  const merchants = useMemo(
+    () => formLookupsQuery.data?.moneyMerchants ?? [],
+    [formLookupsQuery.data?.moneyMerchants],
+  );
+  const tags = useMemo(
+    () => formLookupsQuery.data?.moneyTags ?? [],
+    [formLookupsQuery.data?.moneyTags],
+  );
+
+  const loaded =
+    transactionQuery.data && transactionQuery.data.id === transactionId
+      ? transactionQuery.data
+      : null;
+
   const [accountId, setAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
   const [kind, setKind] = useState<TxPayload["kind"]>("expense");
@@ -155,11 +170,43 @@ export function TransactionEditForm({
   const [excludeFromAnalyticsAndBudget, setExcludeFromAnalyticsAndBudget] =
     useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [hydratedId, setHydratedId] = useState<string | null>(null);
 
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const transactionReady =
+    transactionQuery.isSuccess ||
+    (!!transactionQuery.data && transactionQuery.data.id === transactionId);
+  const loading =
+    !canRunMoneyQueries ||
+    (formLookupsQuery.isPending && !formLookupsQuery.data) ||
+    (!transactionReady && transactionQuery.isPending);
+  const loadError =
+    queryErrorMessage(formLookupsQuery.error) ??
+    queryErrorMessage(transactionQuery.error) ??
+    (transactionQuery.isSuccess && transactionQuery.data == null
+      ? "Transaction not found"
+      : null);
+
+  if (transactionId !== hydratedId && loaded?.id === transactionId) {
+    setHydratedId(loaded.id);
+    setErr(null);
+    setAccountId(loaded.accountId);
+    setKind(loaded.kind);
+    setAmountMajor(minorToMajorInput(loaded.amountMinor, defaultCurrency));
+    setOccurredAt(isoToDatetimeLocal(loaded.occurredAt));
+    setCategoryId(loaded.categoryId ?? "");
+    setCategoryEmptyOnOther(!loaded.categoryId);
+    setMerchantId(loaded.merchantId ?? "");
+    setNotes(loaded.notes ?? "");
+    setExcludeFromAnalyticsAndBudget(loaded.excludeFromAnalyticsAndBudget);
+    setSelectedTagIds([...loaded.tagIds]);
+    setToAccountId("");
+  } else if (transactionId !== hydratedId && !loaded) {
+    setHydratedId(null);
+  }
 
   const visibleCategories = useMemo(
     () => (kind === "transfer" ? [] : categoriesOfKind(categories, kind)),
@@ -254,55 +301,6 @@ export function TransactionEditForm({
       setCategoryEmptyOnOther(false);
     }
   }
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      setLoading(true);
-      setErr(null);
-      try {
-        const res = await moneyGraphQLRequest<{
-          moneyAccounts: Account[];
-          moneyCategories: MoneyCategoryRow[];
-          moneyMerchants: Merchant[];
-          moneyTags: Tag[];
-          moneyTransaction: TxPayload | null;
-        }>(MONEY_TRANSACTION_EDIT_QUERY, { id: transactionId });
-        if (cancelled) return;
-        setAccounts(res.moneyAccounts);
-        setCategories(res.moneyCategories);
-        setMerchants(res.moneyMerchants);
-        setTags(res.moneyTags);
-        const tx = res.moneyTransaction;
-        if (!tx) {
-          setErr("Transaction not found");
-          setLoaded(null);
-          return;
-        }
-        setLoaded(tx);
-        setAccountId(tx.accountId);
-        setKind(tx.kind);
-        setAmountMajor(minorToMajorInput(tx.amountMinor, defaultCurrency));
-        setOccurredAt(isoToDatetimeLocal(tx.occurredAt));
-        setCategoryId(tx.categoryId ?? "");
-        setCategoryEmptyOnOther(!tx.categoryId);
-        setMerchantId(tx.merchantId ?? "");
-        setNotes(tx.notes ?? "");
-        setExcludeFromAnalyticsAndBudget(tx.excludeFromAnalyticsAndBudget);
-        setSelectedTagIds([...tx.tagIds]);
-      } catch (e: unknown) {
-        if (!cancelled) {
-          setErr(presentClientError("transaction-edit-form", e));
-          setLoaded(null);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [transactionId, defaultCurrency]);
 
   const toggleTag = (id: string) => {
     setSelectedTagIds((prev) =>
@@ -408,7 +406,7 @@ export function TransactionEditForm({
     );
   }
 
-  if (!loaded && err) {
+  if (!loaded && loadError) {
     return (
       <div
         className={
@@ -418,9 +416,17 @@ export function TransactionEditForm({
         }
       >
         {!isModal ? <TransactionEditBreadcrumbs returnTo={returnTo} /> : null}
-        <Alert variant="error" title="Couldn’t load transaction" description={err} />
+        <Alert
+          variant="error"
+          title="Couldn’t load transaction"
+          description={loadError}
+        />
       </div>
     );
+  }
+
+  if (!loaded) {
+    return null;
   }
 
   return (
