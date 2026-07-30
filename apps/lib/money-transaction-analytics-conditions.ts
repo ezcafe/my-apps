@@ -1,7 +1,7 @@
-import { eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lte, notInArray, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { moneyCategory, moneyTransaction, moneyTransactionTag } from "@/db/schema/money";
+import { moneyAccount, moneyCategory, moneyTransaction, moneyTransactionTag } from "@/db/schema/money";
 import { expandCategoryFilterIds } from "@/lib/money-category-ui";
 import {
   isCategoryFilterNone,
@@ -27,6 +27,8 @@ export function analyticsFilterFieldsFromUrl(url: URL) {
     kinds: getAll("kinds"),
     recurrence: url.searchParams.get("recurrence") ?? undefined,
     recurrenceSourceIds: getAll("recurrenceSourceIds"),
+    accountTypes: getAll("accountTypes"),
+    excludeAccountTypes: getAll("excludeAccountTypes"),
   };
 }
 
@@ -82,6 +84,38 @@ export function moneyTransactionConditionsForAnalytics(
 
   if (filters.accountIds && filters.accountIds.length > 0) {
     conditions.push(inArray(moneyTransaction.accountId, filters.accountIds));
+  }
+  if (filters.accountTypes && filters.accountTypes.length > 0) {
+    conditions.push(
+      inArray(
+        moneyTransaction.accountId,
+        db
+          .select({ id: moneyAccount.id })
+          .from(moneyAccount)
+          .where(
+            and(
+              eq(moneyAccount.workspaceId, workspaceId),
+              inArray(moneyAccount.type, filters.accountTypes),
+            ),
+          ),
+      ),
+    );
+  }
+  if (filters.excludeAccountTypes && filters.excludeAccountTypes.length > 0) {
+    conditions.push(
+      notInArray(
+        moneyTransaction.accountId,
+        db
+          .select({ id: moneyAccount.id })
+          .from(moneyAccount)
+          .where(
+            and(
+              eq(moneyAccount.workspaceId, workspaceId),
+              inArray(moneyAccount.type, filters.excludeAccountTypes),
+            ),
+          ),
+      ),
+    );
   }
   if (filters.categoryIds && filters.categoryIds.length > 0) {
     const { includeUncategorized, categoryUuids } = splitCategoryFilterIds(

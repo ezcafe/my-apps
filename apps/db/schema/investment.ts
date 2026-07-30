@@ -18,16 +18,6 @@ export const investmentInstrumentKindEnum = pgEnum("investment_instrument_kind",
   "fx",
 ]);
 
-export const investmentActivityTypeEnum = pgEnum("investment_activity_type", [
-  "buy",
-  "sell",
-  "dividend",
-  "fee",
-  "adjustment",
-  "deposit",
-  "withdraw",
-]);
-
 export const investmentInstrument = pgTable(
   "investment_instrument",
   {
@@ -49,38 +39,6 @@ export const investmentInstrument = pgTable(
       .notNull(),
   },
   (t) => [index("investment_instrument_workspace_idx").on(t.workspaceId)],
-);
-
-export const investmentActivity = pgTable(
-  "investment_activity",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    workspaceId: uuid("workspace_id")
-      .notNull()
-      .references(() => workspace.id, { onDelete: "cascade" }),
-    instrumentId: uuid("instrument_id")
-      .notNull()
-      .references(() => investmentInstrument.id, { onDelete: "cascade" }),
-    activityDate: text("activity_date").notNull(),
-    type: investmentActivityTypeEnum("type").notNull(),
-    quantity: numeric("quantity", { precision: 24, scale: 8 }),
-    unitPriceMinor: bigint("unit_price_minor", { mode: "number" }),
-    amountMinor: bigint("amount_minor", { mode: "number" }),
-    notes: text("notes"),
-    moneyAccountId: uuid("money_account_id"),
-    moneyTransactionId: uuid("money_transaction_id"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-  },
-  (t) => [
-    index("investment_activity_workspace_idx").on(t.workspaceId),
-    index("investment_activity_instrument_idx").on(t.instrumentId),
-    index("investment_activity_date_idx").on(t.activityDate),
-  ],
 );
 
 export const investmentQuote = pgTable(

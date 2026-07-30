@@ -30,6 +30,7 @@ import {
   transactionCreateSchema,
   transactionListQuerySchema,
   transactionUpdateSchema,
+  categoryKindForTransactionKind,
 } from "@/lib/validators/money";
 import type { MoneyWorkspaceCtx } from "@/lib/money-services/types";
 
@@ -151,6 +152,8 @@ export async function listMoneyTransactions(
       merchantIds: q.merchantIds,
       tagIds: q.tagIds,
       kinds: q.kinds,
+      accountTypes: q.accountTypes,
+      excludeAccountTypes: q.excludeAccountTypes,
       recurrence: q.recurrence,
       recurrenceSourceIds: q.recurrenceSourceIds,
     };
@@ -312,11 +315,14 @@ export async function createMoneyTransaction(
   );
 
   if (kind !== "transfer" && afterRules.categoryId) {
-    await assertCategoryKindMatches(
-      ctx.workspaceId,
-      afterRules.categoryId,
-      kind,
-    );
+    const expected = categoryKindForTransactionKind(kind);
+    if (expected) {
+      await assertCategoryKindMatches(
+        ctx.workspaceId,
+        afterRules.categoryId,
+        expected,
+      );
+    }
   }
 
   const baseTagIds = [...new Set(afterRules.tagIds ?? [])];
@@ -596,11 +602,14 @@ export async function updateMoneyTransaction(
   );
 
   if (nextKind !== "transfer" && mergedForRules.categoryId) {
-    await assertCategoryKindMatches(
-      ctx.workspaceId,
-      mergedForRules.categoryId,
-      nextKind,
-    );
+    const expected = categoryKindForTransactionKind(nextKind);
+    if (expected) {
+      await assertCategoryKindMatches(
+        ctx.workspaceId,
+        mergedForRules.categoryId,
+        expected,
+      );
+    }
   } else if (nextKind === "transfer") {
     mergedForRules.categoryId = null;
   }

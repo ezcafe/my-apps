@@ -40,11 +40,24 @@ export async function fetchMoneyWorkspaceStatePayload(
   };
 }
 
+import {
+  ensureBillsCategoryForWorkspace,
+  ensureDefaultSystemAccountsForWorkspace,
+} from "@/lib/money-seed-defaults";
+
 export async function fetchMoneyBootstrapPayload(
   userSub: string,
 ): Promise<MoneyWorkspaceBootstrapData> {
   const workspaceState = await fetchMoneyWorkspaceStatePayload(userSub);
   const workspaceCurrency = workspaceState.defaultCurrency ?? "USD";
+  await Promise.all([
+    ensureBillsCategoryForWorkspace(db, workspaceState.workspaceId),
+    ensureDefaultSystemAccountsForWorkspace(
+      db,
+      workspaceState.workspaceId,
+      workspaceCurrency,
+    ),
+  ]);
   const lookups = await fetchMoneyLookups(workspaceState.workspaceId, workspaceCurrency);
 
   return {

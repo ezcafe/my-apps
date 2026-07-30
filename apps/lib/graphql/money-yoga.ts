@@ -149,6 +149,8 @@ const yoga = createYoga({
         "Query.moneyAnalyticsDistribution": 30_000,
         "Query.moneyAnalyticsLeaders": 30_000,
         "Query.moneyBootstrap": 60_000,
+        "Query.loansBootstrap": 60_000,
+        "Query.investmentBootstrap": 60_000,
       },
       invalidateViaMutation: true,
     }),

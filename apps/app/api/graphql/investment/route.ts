@@ -1,8 +1,8 @@
 import { resolveRequestAuth } from "@/lib/api-auth";
-import { handleInvestmentGraphQL } from "@/lib/graphql/investment-yoga";
+import { handleMoneyGraphQL } from "@/lib/graphql/money-yoga";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
-const graphqlRpm = Number(process.env.INVESTMENT_GRAPHQL_RPM ?? 60);
+const graphqlRpm = Number(process.env.MONEY_GRAPHQL_RPM ?? 60);
 
 function mergeResponseHeaders(response: Response, extra: Headers): Response {
   const out = new Headers(response.headers);
@@ -19,7 +19,7 @@ function mergeResponseHeaders(response: Response, extra: Headers): Response {
 async function handle(request: Request): Promise<Response> {
   const auth = await resolveRequestAuth(request);
   const allowed = await enforceRateLimit({
-    name: "graphql-investment",
+    name: "graphql-investment-legacy",
     request,
     userKey: auth.userSub,
     points: graphqlRpm,
@@ -30,7 +30,7 @@ async function handle(request: Request): Promise<Response> {
   }
 
   const responseHeaders = new Headers();
-  const response = await handleInvestmentGraphQL(request, responseHeaders);
+  const response = await handleMoneyGraphQL(request, responseHeaders);
   return mergeResponseHeaders(response, responseHeaders);
 }
 

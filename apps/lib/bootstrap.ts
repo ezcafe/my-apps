@@ -1,27 +1,27 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { moneyAccount, moneyCategory } from "@/db/schema/money";
+import { moneyCategory } from "@/db/schema/money";
 import {
   userWorkspaceDefault,
   workspace,
   workspaceMember,
 } from "@/db/schema/workspace";
 
+import {
+  ensureDefaultSystemAccounts,
+  MONEY_SEED_BILLS,
+  MONEY_SEED_NECESSITIES,
+} from "@/lib/money-seed-defaults";
+
 export async function seedMoneyWorkspaceDefaults(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   workspaceId: string,
 ) {
-  await tx.insert(moneyAccount).values({
-    workspaceId,
-    name: "Credit Card",
-    type: "credit",
-    currency: "USD",
-    sortOrder: 0,
-  });
+  await ensureDefaultSystemAccounts(tx, workspaceId, "USD");
 
   const [necessities] = await tx
     .insert(moneyCategory)
-    .values({ workspaceId, name: "Necessities", kind: "expense" })
+    .values({ workspaceId, name: MONEY_SEED_NECESSITIES, kind: "expense" })
     .returning({ id: moneyCategory.id });
   const [give] = await tx
     .insert(moneyCategory)
@@ -46,6 +46,12 @@ export async function seedMoneyWorkspaceDefaults(
     {
       workspaceId,
       name: "Transportation",
+      kind: "expense",
+      parentId: necessities.id,
+    },
+    {
+      workspaceId,
+      name: MONEY_SEED_BILLS,
       kind: "expense",
       parentId: necessities.id,
     },
@@ -128,21 +134,6 @@ export async function ensureUserBootstrap(userSub: string) {
       {
         userSub,
         appKey: "money",
-        defaultWorkspaceId: ws.id,
-      },
-      {
-        userSub,
-        appKey: "savings",
-        defaultWorkspaceId: ws.id,
-      },
-      {
-        userSub,
-        appKey: "investment",
-        defaultWorkspaceId: ws.id,
-      },
-      {
-        userSub,
-        appKey: "loans",
         defaultWorkspaceId: ws.id,
       },
     ]).onConflictDoUpdate({

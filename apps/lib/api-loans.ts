@@ -92,7 +92,7 @@ export async function requireLoansContext(
 }
 
 export function withLoansWorkspaceCookie(res: NextResponse, workspaceId: string) {
-  return setActiveWorkspaceCookie(res, "loans", workspaceId);
+  return setActiveWorkspaceCookie(res, "money", workspaceId);
 }
 
 export function loansContextFromAuth(

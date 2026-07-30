@@ -1,6 +1,6 @@
 # Workspace app
 
-Multi-feature Next.js workspace built around a small **shell** and a **Money** feature module. Pocket ID OIDC handles auth; Drizzle + PostgreSQL 18 hold the data. The UI is a token-driven minimalist design system with Apple/iOS structure, GitHub-inspired light palette, Nord dark palette, and CSS-only motion.
+Multi-feature Next.js workspace built around a small **shell** and a unified **Money** finance module (transactions, investments, loans, and savings-style accounts). Pocket ID OIDC handles auth; Drizzle + PostgreSQL 18 hold the data. The UI is a token-driven minimalist design system with Apple/iOS structure, GitHub-inspired light palette, Nord dark palette, and CSS-only motion.
 
 > **All UI work must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md).** No hard-coded colors, fonts, radii, shadows, or motion libraries.
 

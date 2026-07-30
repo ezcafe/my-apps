@@ -435,7 +435,10 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
   const lookupSkeletonVisible = initialDashboardPending;
 
   const visibleCategories = useMemo(
-    () => (kind === "transfer" ? [] : categoriesOfKind(categories, kind)),
+    () =>
+      kind === "transfer"
+        ? []
+        : categoriesOfKind(categories, kind),
     [categories, kind],
   );
   const categoryById = useMemo(

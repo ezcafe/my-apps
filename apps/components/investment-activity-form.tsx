@@ -132,7 +132,7 @@ export function InvestmentActivityForm() {
 
       await queryClient.invalidateQueries({ queryKey: investmentKeys.all });
       notify.success("Activity saved");
-      router.push("/investment/activities");
+      router.push("/money/spending");
     } catch (err) {
       notify.error("Could not save activity", toUserFacingMessage(err));
     } finally {

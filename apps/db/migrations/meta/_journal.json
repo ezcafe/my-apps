@@ -176,6 +176,41 @@
       "when": 1779834200000,
       "tag": "0024_savings_investment",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1779834300000,
+      "tag": "0025_finance_unify_additive",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1779834400000,
+      "tag": "0026_drop_legacy_finance_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1779834500000,
+      "tag": "0027_money_transaction_kind_bill",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1779834600000,
+      "tag": "0028_bills_category_and_account_ledgers",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1779834700000,
+      "tag": "0029_money_account_system_key",
+      "breakpoints": true
     }
   ]
 }

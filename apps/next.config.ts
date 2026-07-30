@@ -32,6 +32,39 @@ const nextConfig: NextConfig = {
     // https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory
     root: monorepoRoot,
   },
+  async redirects() {
+    return [
+      { source: "/savings", destination: "/money/savings", permanent: true },
+      { source: "/savings/:path*", destination: "/money/savings", permanent: true },
+      { source: "/investment", destination: "/money/investments", permanent: true },
+      {
+        source: "/investment/activities",
+        destination: "/money/spending",
+        permanent: true,
+      },
+      {
+        source: "/investment/activities/:path*",
+        destination: "/money/spending",
+        permanent: true,
+      },
+      {
+        source: "/investment/new",
+        destination: "/money/investments/new",
+        permanent: true,
+      },
+      {
+        source: "/investment/settings",
+        destination: "/money/investments/settings",
+        permanent: true,
+      },
+      { source: "/investment/:path*", destination: "/money/investments", permanent: true },
+      { source: "/loans", destination: "/money/loans", permanent: true },
+      { source: "/loans/new", destination: "/money/loans/new", permanent: true },
+      { source: "/loans/settings", destination: "/money/loans/settings", permanent: true },
+      { source: "/money/transactions", destination: "/money/spending", permanent: true },
+      { source: "/money/transactions/:path*", destination: "/money/spending", permanent: true },
+    ];
+  },
   async headers() {
     const scriptSrc = [
       "'self'",

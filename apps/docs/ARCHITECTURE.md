@@ -17,7 +17,9 @@ Every first-class module (Money today; Tasks, Notes, etc. later) **must**:
 1. Declare a **`WorkspaceAppKey`** in [`db/schema/workspace.ts`](../db/schema/workspace.ts) (`WORKSPACE_APP_KEYS`).
 2. Use the shared cookie name [`workspaceCookieName(appKey)`](../lib/workspace-context.ts) so the active workspace is per user and per app.
 3. Resolve membership + `workspaceId` in API handlers the same way Money does (see [`requireMoneyContext`](../lib/api-money.ts) and `/api/workspace/active`).
-4. Register shell navigation in [`lib/features/registry.ts`](../lib/features/registry.ts) with `kind: "feature"` and **`workspaceAppKey` required**.
+4. Register shell navigation in [`lib/features/registry.ts`](../lib/features/registry.ts) with `kind: "feature"` and **`workspaceAppKey` required`.
+
+Finance domains (investments, loans, savings movements) are **modules under Money**, not separate `WorkspaceAppKey` entries. Investment activities live in `money_transaction` + `money_transaction_investment`; loan payments are `money_transaction` rows linked from installment status.
 
 **Core** routes (Home, Settings) use `kind: "core"` and do not declare an app key; they must not depend on a feature’s bootstrap APIs.
 

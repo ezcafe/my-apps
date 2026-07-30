@@ -271,17 +271,7 @@ export async function resolveMoneyWorkspaceId(
 export async function resolveLoansWorkspaceId(
   auth: ResolvedRequestAuth,
 ): Promise<string | null> {
-  if (!auth.userSub) return null;
-
-  if (auth.method === "api_key" && auth.workspaceId) {
-    return auth.workspaceId;
-  }
-
-  try {
-    return await getLoansWorkspaceIdForUser(auth.userSub);
-  } catch {
-    return null;
-  }
+  return resolveMoneyWorkspaceId(auth);
 }
 
 export async function resolveSavingsWorkspaceId(
@@ -289,7 +279,12 @@ export async function resolveSavingsWorkspaceId(
 ): Promise<string | null> {
   if (!auth.userSub) return null;
   if (auth.method === "api_key") {
-    if (auth.apiTokenAppKey !== "savings") return null;
+    if (
+      auth.apiTokenAppKey !== "savings" &&
+      auth.apiTokenAppKey !== "money"
+    ) {
+      return null;
+    }
     return auth.workspaceId;
   }
   try {
@@ -304,7 +299,12 @@ export async function resolveInvestmentWorkspaceId(
 ): Promise<string | null> {
   if (!auth.userSub) return null;
   if (auth.method === "api_key") {
-    if (auth.apiTokenAppKey !== "investment") return null;
+    if (
+      auth.apiTokenAppKey !== "investment" &&
+      auth.apiTokenAppKey !== "money"
+    ) {
+      return null;
+    }
     return auth.workspaceId;
   }
   try {

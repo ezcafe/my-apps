@@ -20,6 +20,7 @@ import {
 import {
   recurrentCreateSchema,
   recurrentTemplateBodySchema,
+  categoryKindForTransactionKind,
 } from "@/lib/validators/money";
 import type { MoneyWorkspaceCtx } from "@/lib/money-services/types";
 
@@ -58,7 +59,10 @@ export async function createMoneyRecurrenceTemplate(
     throw new Error("Transfer templates cannot reference a category");
   }
   if (tplKind !== "transfer" && tplCategoryId) {
-    await assertCategoryKindMatches(ctx.workspaceId, tplCategoryId, tplKind);
+    const expected = categoryKindForTransactionKind(tplKind);
+    if (expected) {
+      await assertCategoryKindMatches(ctx.workspaceId, tplCategoryId, expected);
+    }
   }
 
   const [created] = await db
@@ -106,7 +110,10 @@ export async function updateMoneyRecurrenceTemplate(
       throw new Error("Transfer templates cannot reference a category");
     }
     if (tplKind !== "transfer" && tplCategoryId) {
-      await assertCategoryKindMatches(ctx.workspaceId, tplCategoryId, tplKind);
+      const expected = categoryKindForTransactionKind(tplKind);
+      if (expected) {
+        await assertCategoryKindMatches(ctx.workspaceId, tplCategoryId, expected);
+      }
     }
   }
 

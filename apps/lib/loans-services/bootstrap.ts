@@ -39,7 +39,7 @@ export async function fetchLoansWorkspaceStatePayload(
       .from(workspace)
       .where(eq(workspace.id, workspaceId))
       .limit(1),
-    fetchWorkspacesForUser(userSub, "loans"),
+    fetchWorkspacesForUser(userSub, "money"),
     runInWorkspace(workspaceId, () => countDueLoanInstallments(workspaceId)),
   ]);
 

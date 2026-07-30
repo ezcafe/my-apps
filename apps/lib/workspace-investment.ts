@@ -4,7 +4,7 @@ import {
   workspaceCookieName,
 } from "@/lib/workspace-context";
 
-const INVESTMENT_APP: WorkspaceAppKey = "investment";
+const INVESTMENT_APP: WorkspaceAppKey = "money";
 
 export async function getInvestmentWorkspaceIdForUser(
   userSub: string,

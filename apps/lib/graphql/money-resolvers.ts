@@ -1,5 +1,5 @@
 import { GraphQLError } from "graphql";
-import { GraphQLJSONObject } from "graphql-scalars";
+import { GraphQLJSONObject, BigIntResolver } from "graphql-scalars";
 import { runInWorkspace } from "@/db";
 import { analyticsFiltersSchema } from "@/lib/validators/money";
 import {
@@ -77,6 +77,8 @@ import {
 import {
   appendActiveWorkspaceCookieHeader,
 } from "@/lib/workspace-context";
+import { loansResolvers } from "@/lib/graphql/loans-resolvers";
+import { investmentResolvers } from "@/lib/graphql/investment-resolvers";
 import {
   parseMoneyAppKey,
   requireAuth,
@@ -109,6 +111,8 @@ function filtersFromInput(raw: Record<string, unknown> | null | undefined) {
     from: raw?.from ?? undefined,
     to: raw?.to ?? undefined,
     accountIds: raw?.accountIds ?? undefined,
+    accountTypes: raw?.accountTypes ?? undefined,
+    excludeAccountTypes: raw?.excludeAccountTypes ?? undefined,
     categoryIds: raw?.categoryIds ?? undefined,
     merchantIds: raw?.merchantIds ?? undefined,
     tagIds: raw?.tagIds ?? undefined,
@@ -567,9 +571,11 @@ const moneyMutations = withMutationGuard(
 );
 
 export const moneyResolvers = {
+  BigInt: BigIntResolver,
   JSONObject: GraphQLJSONObject,
 
-  Query: withQueryWorkspaceRls({
+  Query: {
+    ...withQueryWorkspaceRls({
     moneyBootstrap: async (
       _: unknown,
       __: unknown,
@@ -837,7 +843,14 @@ export const moneyResolvers = {
         mapServiceError(e);
       }
     },
-  }),
+    }),
+    ...loansResolvers.Query,
+    ...investmentResolvers.Query,
+  },
 
-  Mutation: moneyMutations,
+  Mutation: {
+    ...moneyMutations,
+    ...loansResolvers.Mutation,
+    ...investmentResolvers.Mutation,
+  },
 };

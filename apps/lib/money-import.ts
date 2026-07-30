@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { categoryKindForTransactionKind } from "@/lib/validators/money";
 import { and, eq, inArray } from "drizzle-orm";
 import type { AppDatabase } from "@/db";
 import { db } from "@/db";
@@ -346,12 +347,15 @@ async function importRecurrence(
       if (t.kind === "transfer") {
         throw new Error("Transfer templates cannot reference a category");
       }
-      await assertCategoriesKindMatchTx(
-        tx,
-        ctx.workspaceId,
-        [t.categoryId],
-        t.kind,
-      );
+      const expected = categoryKindForTransactionKind(t.kind);
+      if (expected) {
+        await assertCategoriesKindMatchTx(
+          tx,
+          ctx.workspaceId,
+          [t.categoryId],
+          expected,
+        );
+      }
     }
     if (t.merchantId) {
       await assertMerchantsInWorkspaceTx(tx, ctx.workspaceId, [t.merchantId]);
@@ -411,12 +415,15 @@ async function importTransactions(
       if (txKind === "transfer") {
         throw new Error("Transfer transactions cannot reference a category");
       }
-      await assertCategoriesKindMatchTx(
-        tx,
-        ctx.workspaceId,
-        [r.categoryId],
-        txKind,
-      );
+      const expected = categoryKindForTransactionKind(txKind);
+      if (expected) {
+        await assertCategoriesKindMatchTx(
+          tx,
+          ctx.workspaceId,
+          [r.categoryId],
+          expected,
+        );
+      }
     }
     if (r.merchantId) {
       await assertMerchantsInWorkspaceTx(tx, ctx.workspaceId, [r.merchantId]);

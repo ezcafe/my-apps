@@ -62,18 +62,36 @@ function isoToDatetimeLocal(iso: string): string {
 }
 
 function resolveTransactionEditReturnTo(raw: string | null): string {
-  if (raw === "/money/transactions" || raw === "/money/analytics") {
-    return raw;
+  if (
+    raw === "/money/spending" ||
+    raw === "/money/transactions" ||
+    raw === "/money/bills" ||
+    raw === "/money/savings" ||
+    raw === "/money/investments" ||
+    raw === "/money/loans" ||
+    raw === "/money/analytics"
+  ) {
+    return raw === "/money/transactions" ? "/money/spending" : raw;
   }
   return "/money/analytics";
+}
+
+function transactionEditReturnLabel(returnTo: string): string {
+  if (returnTo === "/money/spending" || returnTo === "/money/transactions") {
+    return "Spending";
+  }
+  if (returnTo === "/money/bills") return "Bills";
+  if (returnTo === "/money/savings") return "Savings";
+  if (returnTo === "/money/investments") return "Investments";
+  if (returnTo === "/money/loans") return "Loans";
+  return "Analytics";
 }
 
 function TransactionEditBreadcrumbs({ returnTo }: { returnTo: string }) {
   const itemCls =
     "text-sm font-medium text-muted transition-colors duration-150 hover:text-foreground";
   const currentCls = "text-sm font-medium text-foreground";
-  const parentLabel =
-    returnTo === "/money/transactions" ? "Transactions" : "Analytics";
+  const parentLabel = transactionEditReturnLabel(returnTo);
 
   return (
     <nav aria-label="Breadcrumb">
@@ -209,7 +227,10 @@ export function TransactionEditForm({
   }
 
   const visibleCategories = useMemo(
-    () => (kind === "transfer" ? [] : categoriesOfKind(categories, kind)),
+    () =>
+      kind === "transfer"
+        ? []
+        : categoriesOfKind(categories, kind),
     [categories, kind],
   );
   const categoryById = useMemo(

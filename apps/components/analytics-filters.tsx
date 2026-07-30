@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { MultiSelect, type MultiSelectItem } from "@/components/ui/multi-select";
 import { Select } from "@/components/ui/select";
+import { MoneyFilterToolbar, MoneyPageHeader } from "@/components/money-page-header";
 import { cn } from "@/lib/cn";
 import {
   moneyCategoryById,
@@ -104,7 +105,8 @@ const RECURRENCE_OPTIONS: { value: AnalyticsRecurrence; label: string }[] = [
 
 function deriveDirection(kinds: AnalyticsKind[]): DirectionKey {
   if (kinds.length !== 1) return "all";
-  return kinds[0]!;
+  const k = kinds[0]!;
+  return k;
 }
 
 function formatShortDate(iso: string): string {
@@ -353,6 +355,83 @@ function FilterCheckboxList({
   );
 }
 
+export type AnalyticsFilterViewOption = {
+  id: string;
+  label: string;
+};
+
+/** Immediate-apply view switch in the filter bar (ledger scope, Activity/Portfolio, …). */
+export type AnalyticsFilterViewConfig = {
+  /** Accessible / legend label (e.g. "Ledger", "View"). */
+  menuLabel: string;
+  value: string;
+  options: readonly AnalyticsFilterViewOption[];
+  onChange: (id: string) => void;
+  /** Treat this value as inactive for the filter trigger underline. */
+  defaultValue?: string;
+};
+
+function FilterViewRadios({
+  menuLabel,
+  value,
+  options,
+  onSelect,
+}: {
+  menuLabel: string;
+  value: string;
+  options: readonly AnalyticsFilterViewOption[];
+  onSelect: (id: string) => void;
+}) {
+  const name = useId();
+  return (
+    <fieldset className="grid gap-1.5 text-sm">
+      <legend className="text-muted">{menuLabel}</legend>
+      <div
+        role="radiogroup"
+        aria-label={menuLabel}
+        className="flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+      >
+        {options.map((opt) => {
+          const selected = value === opt.id;
+          return (
+            <label
+              key={opt.id}
+              className={cn(
+                "cursor-pointer rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-colors duration-200 fx-press",
+                selected
+                  ? "bg-muted-surface text-foreground"
+                  : "text-muted hover:bg-muted-surface hover:text-foreground",
+              )}
+            >
+              <input
+                type="radio"
+                name={name}
+                className="peer sr-only"
+                checked={selected}
+                onChange={() => onSelect(opt.id)}
+              />
+              {opt.label}
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+function viewFilterTriggerLabel(viewFilter: AnalyticsFilterViewConfig): string {
+  return (
+    viewFilter.options.find((o) => o.id === viewFilter.value)?.label ??
+    viewFilter.menuLabel
+  );
+}
+
+function viewFilterIsActive(viewFilter: AnalyticsFilterViewConfig): boolean {
+  const fallback = viewFilter.options[0]?.id;
+  const inactive = viewFilter.defaultValue ?? fallback;
+  return inactive != null && viewFilter.value !== inactive;
+}
+
 function DirectionRadios({
   direction,
   onSelect,
@@ -455,6 +534,7 @@ type AnalyticsFiltersFieldsProps = {
   direction: DirectionKey;
   setDirection: (next: DirectionKey) => void;
   setRecurrence: (next: AnalyticsRecurrence) => void;
+  viewFilter?: AnalyticsFilterViewConfig;
 };
 
 function AnalyticsFiltersFields({
@@ -473,9 +553,37 @@ function AnalyticsFiltersFields({
   direction,
   setDirection,
   setRecurrence,
+  viewFilter,
 }: AnalyticsFiltersFieldsProps) {
   return (
     <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
+      <Field label="From">
+        <Input
+          type="date"
+          value={value.fromDate}
+          onChange={(e) => onChange({ ...value, fromDate: e.target.value })}
+        />
+      </Field>
+
+      <Field label="To">
+        <Input
+          type="date"
+          value={value.toDate}
+          onChange={(e) => onChange({ ...value, toDate: e.target.value })}
+        />
+      </Field>
+
+      {viewFilter ? (
+        <div className="col-span-full">
+          <FilterViewRadios
+            menuLabel={viewFilter.menuLabel}
+            value={viewFilter.value}
+            options={viewFilter.options}
+            onSelect={viewFilter.onChange}
+          />
+        </div>
+      ) : null}
+
       {workspaces.length > 1 ? (
         <Field label="Workspace">
           <Select
@@ -495,22 +603,6 @@ function AnalyticsFiltersFields({
           </Select>
         </Field>
       ) : null}
-
-      <Field label="From">
-        <Input
-          type="date"
-          value={value.fromDate}
-          onChange={(e) => onChange({ ...value, fromDate: e.target.value })}
-        />
-      </Field>
-
-      <Field label="To">
-        <Input
-          type="date"
-          value={value.toDate}
-          onChange={(e) => onChange({ ...value, toDate: e.target.value })}
-        />
-      </Field>
 
       <div className="col-span-full">
         <DirectionRadios direction={direction} onSelect={setDirection} />
@@ -592,6 +684,7 @@ function AnalyticsFiltersFields({
 export function AnalyticsFiltersBar({
   title,
   description,
+  viewFilter,
   value,
   onChange,
   onApply,
@@ -611,6 +704,8 @@ export function AnalyticsFiltersBar({
 }: {
   title: string;
   description: string;
+  /** Immediate-apply view switch (ledger scope, Activity/Portfolio, …). */
+  viewFilter?: AnalyticsFilterViewConfig;
   value: AnalyticsFiltersValue;
   onChange: (next: AnalyticsFiltersValue) => void;
   onApply: () => void;
@@ -747,6 +842,7 @@ export function AnalyticsFiltersBar({
     direction,
     setDirection,
     setRecurrence,
+    viewFilter,
   };
 
   return (
@@ -755,15 +851,11 @@ export function AnalyticsFiltersBar({
       aria-label="Analytics filters"
       aria-labelledby="analytics-filters-heading"
     >
-      <div>
-        <h2
-          id="analytics-filters-heading"
-          className="font-display text-lg font-medium tracking-tight"
-        >
-          {title}
-        </h2>
-        <p className="mt-1 max-w-prose text-sm text-muted">{description}</p>
-      </div>
+      <MoneyPageHeader
+        title={title}
+        description={description}
+        titleId="analytics-filters-heading"
+      />
 
       <div className="mt-4 flex justify-end @md:hidden">
         <Button
@@ -846,12 +938,56 @@ export function AnalyticsFiltersBar({
         </Modal>
       ) : null}
 
-      <div className="mt-4 hidden border-b border-border @md:block">
-        <div
-          className="flex flex-nowrap items-center justify-center gap-0 overflow-x-auto pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          role="toolbar"
-          aria-label="Filter controls"
-        >
+      <MoneyFilterToolbar className="mt-4 hidden @md:block">
+          <FilterMenu
+            id="date"
+            label={dateLabel}
+            isActive={Boolean(value.fromDate && value.toDate)}
+            openMenu={openMenu}
+            onOpenMenu={setOpenMenu}
+            panelClassName="min-w-[min(100vw-2rem,18rem)]"
+          >
+            <div className="grid gap-3">
+              <Field label="From">
+                <Input
+                  type="date"
+                  value={value.fromDate}
+                  onChange={(e) =>
+                    onChange({ ...value, fromDate: e.target.value })
+                  }
+                />
+              </Field>
+              <Field label="To">
+                <Input
+                  type="date"
+                  value={value.toDate}
+                  onChange={(e) =>
+                    onChange({ ...value, toDate: e.target.value })
+                  }
+                />
+              </Field>
+            </div>
+          </FilterMenu>
+
+          {viewFilter ? (
+            <FilterMenu
+              id="view"
+              label={viewFilterTriggerLabel(viewFilter)}
+              isActive={viewFilterIsActive(viewFilter)}
+              openMenu={openMenu}
+              onOpenMenu={setOpenMenu}
+            >
+              <FilterViewRadios
+                menuLabel={viewFilter.menuLabel}
+                value={viewFilter.value}
+                options={viewFilter.options}
+                onSelect={(id) => {
+                  viewFilter.onChange(id);
+                  setOpenMenu(null);
+                }}
+              />
+            </FilterMenu>
+          ) : null}
           {workspaces.length > 1 ? (
             <FilterMenu
               id="workspace"
@@ -883,36 +1019,6 @@ export function AnalyticsFiltersBar({
               </p>
             </FilterMenu>
           ) : null}
-
-          <FilterMenu
-            id="date"
-            label={dateLabel}
-            isActive={Boolean(value.fromDate && value.toDate)}
-            openMenu={openMenu}
-            onOpenMenu={setOpenMenu}
-            panelClassName="min-w-[min(100vw-2rem,18rem)]"
-          >
-            <div className="grid gap-3">
-              <Field label="From">
-                <Input
-                  type="date"
-                  value={value.fromDate}
-                  onChange={(e) =>
-                    onChange({ ...value, fromDate: e.target.value })
-                  }
-                />
-              </Field>
-              <Field label="To">
-                <Input
-                  type="date"
-                  value={value.toDate}
-                  onChange={(e) =>
-                    onChange({ ...value, toDate: e.target.value })
-                  }
-                />
-              </Field>
-            </div>
-          </FilterMenu>
 
           <FilterMenu
             id="direction"
@@ -1058,8 +1164,51 @@ export function AnalyticsFiltersBar({
               Reset
             </Button>
           </div>
-        </div>
-      </div>
+      </MoneyFilterToolbar>
+    </section>
+  );
+}
+
+/**
+ * Title + a single View filter menu (Activity / Portfolio, etc.) for pages
+ * without the full analytics filter bar.
+ */
+export function MoneyViewFiltersBar({
+  title,
+  description,
+  viewFilter,
+}: {
+  title: string;
+  description?: string;
+  viewFilter: AnalyticsFilterViewConfig;
+}) {
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+
+  return (
+    <section
+      className="@container mb-4 fx-fade-in"
+      aria-label={`${viewFilter.menuLabel} filters`}
+    >
+      <MoneyPageHeader title={title} description={description} />
+      <MoneyFilterToolbar className="mt-4" aria-label={viewFilter.menuLabel}>
+        <FilterMenu
+          id="view"
+          label={viewFilterTriggerLabel(viewFilter)}
+          isActive={viewFilterIsActive(viewFilter)}
+          openMenu={openMenu}
+          onOpenMenu={setOpenMenu}
+        >
+          <FilterViewRadios
+            menuLabel={viewFilter.menuLabel}
+            value={viewFilter.value}
+            options={viewFilter.options}
+            onSelect={(id) => {
+              viewFilter.onChange(id);
+              setOpenMenu(null);
+            }}
+          />
+        </FilterMenu>
+      </MoneyFilterToolbar>
     </section>
   );
 }

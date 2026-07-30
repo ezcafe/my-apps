@@ -41,6 +41,7 @@ type Account = {
   type: string;
   balanceMinor: number;
   archived: boolean;
+  systemKey?: string | null;
 };
 
 export function MoneySettingsAccountsSection() {
@@ -252,6 +253,7 @@ export function MoneySettingsAccountsSection() {
                         setEditType(e.target.value as (typeof ACCOUNT_TYPES)[number])
                       }
                       aria-label="Account type"
+                      disabled={Boolean(a.systemKey)}
                     >
                       {ACCOUNT_TYPES.map((t) => (
                         <option key={t} value={t}>
@@ -289,13 +291,15 @@ export function MoneySettingsAccountsSection() {
                       >
                         Edit
                       </button>
-                      <button
-                        type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
-                        onClick={() => void removeAccount(a.id, a.name)}
-                      >
-                        Remove
-                      </button>
+                      {!a.systemKey ? (
+                        <button
+                          type="button"
+                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                          onClick={() => void removeAccount(a.id, a.name)}
+                        >
+                          Remove
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 )}

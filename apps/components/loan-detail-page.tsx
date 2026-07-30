@@ -26,6 +26,7 @@ import {
   useLoansWorkspace,
 } from "@/components/loans-workspace-provider";
 import { Alert } from "@/components/ui/alert";
+import { buttonClassName } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
@@ -49,7 +50,7 @@ function LoanDetailBreadcrumb({ loanName }: { loanName: string }) {
     <nav aria-label="Breadcrumb">
       <ol className="flex flex-wrap items-center gap-2">
         <li>
-          <Link href="/loans" className={itemCls}>
+          <Link href="/money/loans/manage" className={itemCls}>
             Loans
           </Link>
         </li>
@@ -166,8 +167,12 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
           }
         />
         <Link
-          href="/loans"
-          className="mt-4 inline-block text-sm font-medium text-foreground underline-offset-2 transition-colors duration-150 hover:underline"
+          href="/money/loans/manage"
+          className={buttonClassName({
+            variant: "secondary",
+            size: "md",
+            className: "mt-4",
+          })}
         >
           Back to loans
         </Link>

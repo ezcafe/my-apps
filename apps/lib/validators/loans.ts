@@ -39,7 +39,7 @@ export const loanInstallmentMarkPaidSchema = z.object({
 
 export const loanInstallmentPayWithTransactionSchema = z.object({
   scheduleInstallmentId: z.string().uuid(),
-  moneyWorkspaceId: z.string().uuid(),
+  moneyWorkspaceId: z.string().uuid().optional(),
   accountId: z.string().uuid(),
   categoryId: z.string().uuid().optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),

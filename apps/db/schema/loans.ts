@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { moneyAccount, moneyCategory, moneyTransaction } from "./money";
 import { workspace } from "./workspace";
 
 export const loanCalculationMethodEnum = pgEnum("loan_calculation_method", [
@@ -56,8 +57,12 @@ export const loan = pgTable(
       mode: "number",
     }),
     collateralValueMinor: bigint("collateral_value_minor", { mode: "number" }),
-    moneyAccountId: uuid("money_account_id"),
-    moneyCategoryId: uuid("money_category_id"),
+    moneyAccountId: uuid("money_account_id").references(() => moneyAccount.id, {
+      onDelete: "set null",
+    }),
+    moneyCategoryId: uuid("money_category_id").references(() => moneyCategory.id, {
+      onDelete: "set null",
+    }),
     status: loanStatusEnum("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -108,7 +113,10 @@ export const loanInstallmentStatus = pgTable(
       .references(() => loanScheduleInstallment.id, { onDelete: "cascade" }),
     status: loanPayStatusEnum("status").notNull().default("pending"),
     paidAt: timestamp("paid_at", { withTimezone: true }),
-    moneyTransactionId: uuid("money_transaction_id"),
+    moneyTransactionId: uuid("money_transaction_id").references(
+      () => moneyTransaction.id,
+      { onDelete: "set null" },
+    ),
     paidWithoutTransaction: boolean("paid_without_transaction")
       .notNull()
       .default(false),

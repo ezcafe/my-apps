@@ -1,3 +1,5 @@
+import { moneyFinanceTypeDefs } from "@/lib/graphql/money-finance-typeDefs";
+
 export const moneyTypeDefs = /* GraphQL */ `
   scalar JSONObject
 
@@ -5,6 +7,8 @@ export const moneyTypeDefs = /* GraphQL */ `
     from: String
     to: String
     accountIds: [String!]
+    accountTypes: [String!]
+    excludeAccountTypes: [String!]
     categoryIds: [String!]
     merchantIds: [String!]
     tagIds: [String!]
@@ -262,4 +266,6 @@ export const moneyTypeDefs = /* GraphQL */ `
     moneyTransactionUpdate(id: ID!, input: MoneyTransactionUpdateInput!): JSONObject!
     moneyTransactionDelete(id: ID!): MoneyOk!
   }
+
+  ${moneyFinanceTypeDefs}
 `;

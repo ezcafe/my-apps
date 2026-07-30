@@ -17,9 +17,6 @@ import {
  */
 export const WORKSPACE_APP_KEYS = [
   "money",
-  "savings",
-  "investment",
-  "loans",
   "notes",
   "tasks",
 ] as const;

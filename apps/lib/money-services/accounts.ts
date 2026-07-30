@@ -7,6 +7,29 @@ import type { MoneyWorkspaceCtx } from "@/lib/money-services/types";
 
 const USAGE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 
+export const SYSTEM_ACCOUNT_PROTECTED =
+  "System accounts cannot be removed";
+export const SYSTEM_ACCOUNT_TYPE_LOCKED =
+  "System account type cannot be changed";
+
+export function assertCanArchiveAccount(systemKey: string | null): void {
+  if (systemKey) throw new Error(SYSTEM_ACCOUNT_PROTECTED);
+}
+
+export function assertCanChangeAccountType(
+  systemKey: string | null,
+  existingType: string,
+  nextType: string | undefined,
+): void {
+  if (
+    systemKey &&
+    nextType !== undefined &&
+    nextType !== existingType
+  ) {
+    throw new Error(SYSTEM_ACCOUNT_TYPE_LOCKED);
+  }
+}
+
 export async function listMoneyAccounts(workspaceId: string) {
   const since = new Date(Date.now() - USAGE_WINDOW_MS);
   const rows = await db
@@ -78,6 +101,28 @@ export async function updateMoneyAccount(
     );
   }
 
+  const [existing] = await db
+    .select({
+      id: moneyAccount.id,
+      systemKey: moneyAccount.systemKey,
+      type: moneyAccount.type,
+    })
+    .from(moneyAccount)
+    .where(
+      and(
+        eq(moneyAccount.id, id),
+        eq(moneyAccount.workspaceId, ctx.workspaceId),
+      ),
+    )
+    .limit(1);
+  if (!existing) throw new Error("NOT_FOUND");
+
+  assertCanChangeAccountType(
+    existing.systemKey,
+    existing.type,
+    parsed.data.type,
+  );
+
   const updates = Object.fromEntries(
     Object.entries(parsed.data).filter(([, v]) => v !== undefined),
   );
@@ -109,6 +154,22 @@ export async function archiveMoneyAccount(
   ctx: MoneyWorkspaceCtx,
   id: string,
 ): Promise<boolean> {
+  const [existing] = await db
+    .select({
+      id: moneyAccount.id,
+      systemKey: moneyAccount.systemKey,
+    })
+    .from(moneyAccount)
+    .where(
+      and(
+        eq(moneyAccount.id, id),
+        eq(moneyAccount.workspaceId, ctx.workspaceId),
+      ),
+    )
+    .limit(1);
+  if (!existing) return false;
+  assertCanArchiveAccount(existing.systemKey);
+
   const [row] = await db
     .update(moneyAccount)
     .set({ archived: true })

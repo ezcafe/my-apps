@@ -1,10 +1,8 @@
 "use client";
 
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
-import type { AnalyticsFiltersValue } from "@/components/analytics-filters";
 import {
-  analyticsFiltersQueryKey,
-  analyticsFiltersToGraphQLInput,
+  filterQueryToGraphQLAnalyticsInput,
 } from "@/lib/analytics-graphql-filters";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
@@ -298,16 +296,16 @@ export type MoneyAnalyticsLeadersQueryResult = {
 
 export function moneyAnalyticsSummaryQueryOptions(
   workspaceKey: string,
-  applied: AnalyticsFiltersValue,
+  filterQuery: string,
 ) {
-  const filters = analyticsFiltersToGraphQLInput(applied);
+  const filters = filterQueryToGraphQLAnalyticsInput(filterQuery);
 
   return queryOptions({
     queryKey: [
       "money",
       "analyticsSummary",
       workspaceKey,
-      ...analyticsFiltersQueryKey(applied),
+      filterQuery,
     ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsSummaryQueryResult>(
@@ -323,16 +321,16 @@ export function moneyAnalyticsSummaryQueryOptions(
 
 export function moneyAnalyticsDashboardQueryOptions(
   workspaceKey: string,
-  applied: AnalyticsFiltersValue,
+  filterQuery: string,
 ) {
-  const filters = analyticsFiltersToGraphQLInput(applied);
+  const filters = filterQueryToGraphQLAnalyticsInput(filterQuery);
 
   return queryOptions({
     queryKey: [
       "money",
       "analyticsDashboard",
       workspaceKey,
-      ...analyticsFiltersQueryKey(applied),
+      filterQuery,
     ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsDashboardQueryResult>(
@@ -348,16 +346,16 @@ export function moneyAnalyticsDashboardQueryOptions(
 
 export function moneyAnalyticsOverviewQueryOptions(
   workspaceKey: string,
-  applied: AnalyticsFiltersValue,
+  filterQuery: string,
 ) {
-  const filters = analyticsFiltersToGraphQLInput(applied);
+  const filters = filterQueryToGraphQLAnalyticsInput(filterQuery);
 
   return queryOptions({
     queryKey: [
       "money",
       "analyticsOverview",
       workspaceKey,
-      ...analyticsFiltersQueryKey(applied),
+      filterQuery,
     ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsOverviewQueryResult>(
@@ -371,18 +369,45 @@ export function moneyAnalyticsOverviewQueryOptions(
   });
 }
 
+/** Overview line series for ledger tabs (spending, bills, …) using merged preset filter query. */
+export function moneyLedgerAnalyticsOverviewQueryOptions(
+  workspaceKey: string,
+  filterQuery: string,
+) {
+  const filters = filterQueryToGraphQLAnalyticsInput(filterQuery);
+
+  return queryOptions({
+    queryKey: [
+      "money",
+      "analyticsOverview",
+      workspaceKey,
+      "ledger",
+      filterQuery,
+    ] as const,
+    queryFn: async () => {
+      const res = await moneyGraphQLRequest<MoneyAnalyticsOverviewQueryResult>(
+        MONEY_ANALYTICS_OVERVIEW_QUERY,
+        { filters },
+      );
+      return res.moneyAnalyticsOverview;
+    },
+    placeholderData: (previousData) => previousData,
+    staleTime: 20_000,
+  });
+}
+
 export function moneyAnalyticsDistributionQueryOptions(
   workspaceKey: string,
-  applied: AnalyticsFiltersValue,
+  filterQuery: string,
 ) {
-  const filters = analyticsFiltersToGraphQLInput(applied);
+  const filters = filterQueryToGraphQLAnalyticsInput(filterQuery);
 
   return queryOptions({
     queryKey: [
       "money",
       "analyticsDistribution",
       workspaceKey,
-      ...analyticsFiltersQueryKey(applied),
+      filterQuery,
     ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsDistributionQueryResult>(
@@ -398,16 +423,16 @@ export function moneyAnalyticsDistributionQueryOptions(
 
 export function moneyAnalyticsBudgetsQueryOptions(
   workspaceKey: string,
-  applied: AnalyticsFiltersValue,
+  filterQuery: string,
 ) {
-  const filters = analyticsFiltersToGraphQLInput(applied);
+  const filters = filterQueryToGraphQLAnalyticsInput(filterQuery);
 
   return queryOptions({
     queryKey: [
       "money",
       "analyticsBudgets",
       workspaceKey,
-      ...analyticsFiltersQueryKey(applied),
+      filterQuery,
     ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsBudgetQueryResult>(
@@ -423,16 +448,16 @@ export function moneyAnalyticsBudgetsQueryOptions(
 
 export function moneyAnalyticsSankeyQueryOptions(
   workspaceKey: string,
-  applied: AnalyticsFiltersValue,
+  filterQuery: string,
 ) {
-  const filters = analyticsFiltersToGraphQLInput(applied);
+  const filters = filterQueryToGraphQLAnalyticsInput(filterQuery);
 
   return queryOptions({
     queryKey: [
       "money",
       "analyticsSankey",
       workspaceKey,
-      ...analyticsFiltersQueryKey(applied),
+      filterQuery,
     ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsSankeyQueryResult>(
@@ -448,16 +473,16 @@ export function moneyAnalyticsSankeyQueryOptions(
 
 export function moneyAnalyticsLeadersQueryOptions(
   workspaceKey: string,
-  applied: AnalyticsFiltersValue,
+  filterQuery: string,
 ) {
-  const filters = analyticsFiltersToGraphQLInput(applied);
+  const filters = filterQueryToGraphQLAnalyticsInput(filterQuery);
 
   return queryOptions({
     queryKey: [
       "money",
       "analyticsLeaders",
       workspaceKey,
-      ...analyticsFiltersQueryKey(applied),
+      filterQuery,
     ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsLeadersQueryResult>(
@@ -496,6 +521,8 @@ function analyticsTransactionsQueryObject(
     "tagIds",
     "kinds",
     "recurrenceSourceIds",
+    "accountTypes",
+    "excludeAccountTypes",
   ] as const) {
     const all = params.getAll(key);
     if (all.length > 0) query[key] = all;

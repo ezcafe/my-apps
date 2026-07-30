@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 
   try {
     const row = await withInvestmentWorkspaceRls(ctx, () =>
-      createInvestmentActivity(ctx.workspaceId, parsed.data),
+      createInvestmentActivity(ctx.workspaceId, ctx.userSub, parsed.data),
     );
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (e) {

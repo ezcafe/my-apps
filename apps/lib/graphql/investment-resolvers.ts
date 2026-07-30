@@ -188,8 +188,9 @@ export const investmentResolvers = {
       if (!parsed.success) gqlErr("Invalid input", "BAD_REQUEST");
       try {
         const created = await runInWorkspace(workspaceId, () =>
-          createInvestmentActivity(workspaceId, parsed.data),
+          createInvestmentActivity(workspaceId, ctx.userSub!, parsed.data),
         );
+        if (!created) gqlErr("Not found", "NOT_FOUND");
         const joined = await listInvestmentActivities(workspaceId, { limit: 200 });
         const item = joined.items.find((i) => i.id === created.id);
         if (!item) gqlErr("Not found", "NOT_FOUND");

@@ -37,7 +37,7 @@ import type {
 } from "@/components/analytics-filters";
 
 const CHART_EMPTY_TRANSACTION_ACTIONS = {
-  action: { href: "/money/transactions", label: "View transactions" },
+  action: { href: "/money/spending", label: "View transactions" },
   secondaryAction: { href: "/money", label: "Add transaction" },
 } as const;
 
@@ -202,6 +202,10 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
   isCurrentMonthCompare,
   defaultCurrency,
   theme,
+  title = "Net cumulative flow",
+  description,
+  compareDescription,
+  emptyState,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
@@ -212,6 +216,15 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
   isCurrentMonthCompare: boolean;
   defaultCurrency: string;
   theme: ThemeSlice;
+  title?: string;
+  description?: string;
+  compareDescription?: string;
+  emptyState?: {
+    title: string;
+    description: string;
+    primaryAction?: { href: string; label: string };
+    secondaryAction?: { href: string; label: string };
+  };
 }) {
   const { resolved, style } = theme;
   const overviewLine = overview?.line ?? [];
@@ -266,14 +279,18 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
       className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
       ref={cardRef}
     >
-      <h2 className="mb-2 font-display text-lg font-medium">Net cumulative flow</h2>
+      <h2 className="mb-2 font-display text-lg font-medium">{title}</h2>
       {overviewLineCompare ? (
         <p className="mb-2 text-xs text-muted">
-          Solid: this month through today. Dashed: {lineCompareLabel}.
+          {compareDescription ??
+            (lineCompareLabel
+              ? `Solid: this month through today. Dashed: ${lineCompareLabel}.`
+              : "Solid: this month through today.")}
         </p>
       ) : (
         <p className="mb-2 text-xs text-muted">
-          Cumulative income minus expenses for the selected range.
+          {description ??
+            "Cumulative income minus expenses for the selected range."}
         </p>
       )}
       <AnalyticsChartContainer
@@ -313,12 +330,20 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
             />
           ) : (
             <AnalyticsEmptyState
-              title="No cash flow in this range"
-              description="Widen the range or add transactions."
+              title={emptyState?.title ?? "No cash flow in this range"}
+              description={
+                emptyState?.description ??
+                "Widen the range or add transactions."
+              }
               descriptionClassName="line-clamp-1"
               minHeightClass="min-h-0"
               className={CHART_SLOT_CLASS}
-              {...CHART_EMPTY_TRANSACTION_ACTIONS}
+              {...(emptyState?.primaryAction || emptyState?.secondaryAction
+                ? {
+                    primaryAction: emptyState.primaryAction,
+                    secondaryAction: emptyState.secondaryAction,
+                  }
+                : CHART_EMPTY_TRANSACTION_ACTIONS)}
             />
           )
         ) : (

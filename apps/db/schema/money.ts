@@ -6,6 +6,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   primaryKey,
@@ -14,6 +15,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { investmentInstrument } from "./investment";
 import { workspace } from "./workspace";
 
 export const moneyAccountTypeEnum = pgEnum("money_account_type", [
@@ -31,6 +33,12 @@ export const moneyTransactionKindEnum = pgEnum("money_transaction_kind", [
   "income",
   "transfer",
 ]);
+
+/** Investment activity subtype stored on unified money transactions. */
+export const moneyInvestmentActivityTypeEnum = pgEnum(
+  "money_investment_activity_type",
+  ["buy", "sell", "dividend", "fee", "adjustment", "deposit", "withdraw"],
+);
 
 export const moneyCategoryKindEnum = pgEnum("money_category_kind", [
   "expense",
@@ -75,11 +83,21 @@ export const moneyAccount = pgTable(
       .default(0),
     sortOrder: integer("sort_order").notNull().default(0),
     archived: boolean("archived").notNull().default(false),
+    /**
+     * Stable key for seeded system accounts (credit/savings/investment/loan).
+     * When set, the account cannot be archived; identity survives renames.
+     */
+    systemKey: text("system_key"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
-  (t) => [index("money_account_workspace_idx").on(t.workspaceId)],
+  (t) => [
+    index("money_account_workspace_idx").on(t.workspaceId),
+    uniqueIndex("money_account_workspace_system_key_uq")
+      .on(t.workspaceId, t.systemKey)
+      .where(sql`${t.systemKey} IS NOT NULL`),
+  ],
 );
 
 export const moneyCategory = pgTable(
@@ -227,6 +245,25 @@ export const moneyTransaction = pgTable(
       t.occurredAt,
     ),
     index("money_tx_account_idx").on(t.accountId),
+  ],
+);
+
+export const moneyTransactionInvestment = pgTable(
+  "money_transaction_investment",
+  {
+    transactionId: uuid("transaction_id")
+      .primaryKey()
+      .references(() => moneyTransaction.id, { onDelete: "cascade" }),
+    instrumentId: uuid("instrument_id")
+      .notNull()
+      .references(() => investmentInstrument.id, { onDelete: "restrict" }),
+    activityType: moneyInvestmentActivityTypeEnum("activity_type").notNull(),
+    quantity: numeric("quantity", { precision: 24, scale: 8 }),
+    unitPriceMinor: bigint("unit_price_minor", { mode: "number" }),
+  },
+  (t) => [
+    index("money_tx_investment_instrument_idx").on(t.instrumentId),
+    index("money_tx_investment_type_idx").on(t.activityType),
   ],
 );
 

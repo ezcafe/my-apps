@@ -78,5 +78,45 @@ export function analyticsFiltersToGraphQLInput(
   const recurrenceSourceIds = u.getAll("recurrenceSourceIds");
   if (recurrenceSourceIds.length) out.recurrenceSourceIds = recurrenceSourceIds;
 
+  const accountTypes = u.getAll("accountTypes");
+  if (accountTypes.length) out.accountTypes = accountTypes;
+
+  const excludeAccountTypes = u.getAll("excludeAccountTypes");
+  if (excludeAccountTypes.length) out.excludeAccountTypes = excludeAccountTypes;
+
+  return out;
+}
+
+/** Maps a ledger/analytics URL query string to `AnalyticsFiltersInput` for GraphQL. */
+export function filterQueryToGraphQLAnalyticsInput(
+  filterQuery: string,
+): Record<string, unknown> {
+  const u = new URLSearchParams(filterQuery);
+  const out: Record<string, unknown> = {};
+
+  const from = u.get("from");
+  const to = u.get("to");
+  if (from) out.from = from;
+  if (to) out.to = to;
+
+  for (const key of [
+    "accountIds",
+    "categoryIds",
+    "merchantIds",
+    "tagIds",
+    "kinds",
+    "recurrenceSourceIds",
+    "accountTypes",
+    "excludeAccountTypes",
+  ] as const) {
+    const values = u.getAll(key);
+    if (values.length) out[key] = values;
+  }
+
+  const recurrence = u.get("recurrence");
+  if (recurrence === "recurring" || recurrence === "one-time") {
+    out.recurrence = recurrence;
+  }
+
   return out;
 }

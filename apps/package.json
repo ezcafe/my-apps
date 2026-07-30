@@ -11,10 +11,11 @@
     "db:generate": "drizzle-kit generate",
     "db:reset": "node scripts/reset-local-db-schema.mjs",
     "db:baseline": "node scripts/baseline-drizzle-migrations.mjs",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node scripts/run-drizzle-migrate.mjs",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:recompute-balances": "node scripts/recompute-money-balances.mjs",
+    "db:backfill-finance-unify": "node scripts/backfill-finance-unify.mjs",
     "api:export-schema": "node scripts/export-graphql-schema.mjs"
   },
   "dependencies": {

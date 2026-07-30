@@ -4,8 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode, SVGProps } from "react";
 import { cn } from "@/lib/cn";
+import {
+  useMoneySectionTabVisibility,
+  type MoneyOptionalSectionTabKey,
+} from "@/lib/money-section-tab-visibility";
 
-type MoneySectionTabIconId = "new" | "transactions" | "analytics" | "import" | "settings";
+type MoneySectionTabIconId =
+  | "new"
+  | "analytics"
+  | "spending"
+  | "bills"
+  | "savings"
+  | "loans"
+  | "investments"
+  | "import"
+  | "settings";
 
 function IconNew(props: SVGProps<SVGSVGElement>) {
   return (
@@ -20,7 +33,21 @@ function IconNew(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function IconTransactions(props: SVGProps<SVGSVGElement>) {
+function IconAnalytics(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M4 19V5M10 19V9M16 19v-6M22 19V3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconSpending(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
       <path
@@ -34,11 +61,69 @@ function IconTransactions(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function IconAnalytics(props: SVGProps<SVGSVGElement>) {
+function IconBills(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
       <path
-        d="M4 19V5M10 19V9M16 19v-6M22 19V3"
+        d="M6 2h12a2 2 0 0 1 2 2v16l-4-2-4 2-4-2-4 2V4a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 7h8M8 11h8M8 15h5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconSavings(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M19 11c0 5-7 9-7 9s-7-4-7-9a7 7 0 0 1 14 0Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M12 11v3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconLoans(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconInvestments(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M3 17l6-6 4 4 8-10"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M17 5h4v4"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
@@ -86,23 +171,45 @@ const moneySectionTabIcons: Record<
   (props: SVGProps<SVGSVGElement>) => ReactNode
 > = {
   new: IconNew,
-  transactions: IconTransactions,
   analytics: IconAnalytics,
+  spending: IconSpending,
+  bills: IconBills,
+  savings: IconSavings,
+  loans: IconLoans,
+  investments: IconInvestments,
   import: IconImport,
   settings: IconSettings,
 };
+
+const CHART_DOT = [
+  "bg-chart-0",
+  "bg-chart-1",
+  "bg-chart-2",
+  "bg-chart-3",
+  "bg-chart-4",
+  "bg-chart-5",
+  "bg-chart-6",
+  "bg-chart-7",
+] as const;
 
 const tabs: Array<{
   href: string;
   label: string;
   icon: MoneySectionTabIconId;
   exact: boolean;
+  accentIndex: number;
+  /** When set, tab is hidden unless user enabled it in Settings. */
+  visibilityKey?: MoneyOptionalSectionTabKey;
 }> = [
-  { href: "/money", label: "New", icon: "new", exact: true },
-  { href: "/money/transactions", label: "Transactions", icon: "transactions", exact: false },
-  { href: "/money/analytics", label: "Analytics", icon: "analytics", exact: false },
-  { href: "/money/import", label: "Import", icon: "import", exact: false },
-  { href: "/money/settings", label: "Settings", icon: "settings", exact: false },
+  { href: "/money", label: "New", icon: "new", exact: true, accentIndex: 0 },
+  { href: "/money/analytics", label: "Analytics", icon: "analytics", exact: false, accentIndex: 1 },
+  { href: "/money/spending", label: "Spending", icon: "spending", exact: false, accentIndex: 0 },
+  { href: "/money/bills", label: "Bills", icon: "bills", exact: false, accentIndex: 5, visibilityKey: "bills" },
+  { href: "/money/savings", label: "Savings", icon: "savings", exact: false, accentIndex: 3, visibilityKey: "savings" },
+  { href: "/money/loans", label: "Loans", icon: "loans", exact: false, accentIndex: 6, visibilityKey: "loans" },
+  { href: "/money/investments", label: "Invest", icon: "investments", exact: false, accentIndex: 4, visibilityKey: "investments" },
+  { href: "/money/import", label: "Import", icon: "import", exact: false, accentIndex: 2, visibilityKey: "import" },
+  { href: "/money/settings", label: "Settings", icon: "settings", exact: false, accentIndex: 7 },
 ];
 
 /**
@@ -113,38 +220,53 @@ const tabs: Array<{
  */
 export function MoneySectionTabs() {
   const pathname = usePathname();
+  const { isTabVisible } = useMoneySectionTabVisibility();
 
   return (
     <nav
       role="tablist"
       aria-label="Money sections"
-      className="flex min-w-0 flex-wrap gap-1 border-b border-border"
+      className="-mx-1 flex min-w-0 gap-0.5 overflow-x-auto border-b border-border px-1 pb-px [scrollbar-width:thin]"
     >
-      {tabs.map(({ href, label, icon, exact }) => {
-        const active = exact
-          ? pathname === "/money"
-          : pathname === href || pathname.startsWith(`${href}/`);
-        const Icon = moneySectionTabIcons[icon];
+      {tabs
+        .filter(({ visibilityKey }) => isTabVisible(visibilityKey))
+        .map(({ href, label, icon, exact, accentIndex }) => {
+          const active = exact
+            ? pathname === "/money"
+            : pathname === href || pathname.startsWith(`${href}/`);
+          const Icon = moneySectionTabIcons[icon];
+          const dotClass = CHART_DOT[accentIndex] ?? CHART_DOT[0];
 
-        return (
-          <Link
-            key={href}
-            href={href}
-            title={label}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "relative -mb-px flex items-center justify-center gap-1.5 border-b-2 px-2.5 py-2 transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background max-md:fx-hit-40 md:px-3",
-              active
-                ? "fx-vt-money-tab-active border-accent text-foreground"
-                : "border-transparent text-muted hover:border-border hover:text-foreground",
-            )}
-          >
-            <Icon className="size-5 shrink-0" />
-            <span className="sr-only md:hidden">{label}</span>
-            <span className="hidden text-sm font-medium md:inline">{label}</span>
-          </Link>
-        );
-      })}
+          return (
+            <Link
+              key={href}
+              href={href}
+              title={label}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "relative flex min-w-[3.25rem] shrink-0 snap-start flex-col items-center gap-0.5 border-b-2 px-2 py-2 transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-hit-40 md:min-w-0 md:flex-row md:gap-1.5 md:px-3",
+                active
+                  ? "fx-vt-money-tab-active border-accent text-foreground"
+                  : "border-transparent text-muted hover:border-border hover:text-foreground",
+              )}
+            >
+              <span className="relative">
+                <Icon className="size-5 shrink-0" />
+                <span
+                  className={cn(
+                    "absolute -end-0.5 -top-0.5 size-1.5 rounded-full ring-1 ring-background md:hidden",
+                    dotClass,
+                  )}
+                  aria-hidden
+                />
+              </span>
+              <span className="max-w-[4.5rem] truncate text-[10px] font-medium leading-tight md:hidden">
+                {label}
+              </span>
+              <span className="hidden text-sm font-medium md:inline">{label}</span>
+            </Link>
+          );
+        })}
     </nav>
   );
 }

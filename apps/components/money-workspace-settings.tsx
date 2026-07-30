@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
@@ -14,6 +15,11 @@ import {
   MONEY_WORKSPACE_CLONE_MUTATION,
 } from "@/lib/money-gql-documents";
 import type { MoneyWorkspaceBootstrapData } from "@/lib/money-workspace-bootstrap-data";
+import {
+  MONEY_OPTIONAL_SECTION_TAB_KEYS,
+  MONEY_OPTIONAL_SECTION_TAB_LABELS,
+  useMoneySectionTabVisibility,
+} from "@/lib/money-section-tab-visibility";
 import { MoneySettingsResetSection } from "@/components/money-settings/money-settings-reset";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
@@ -58,6 +64,7 @@ function LedgerLinkChevron() {
 export function MoneyWorkspaceSettings() {
   const notify = useNotify();
   const { refreshWorkspaceCurrency } = useWorkspaceCurrency();
+  const { visibility, setVisible } = useMoneySectionTabVisibility();
 
   const [workspaceList, setWorkspaceList] = useState<WorkspaceRow[]>([]);
   const [moneyWorkspaceId, setMoneyWorkspaceId] = useState("");
@@ -104,6 +111,37 @@ export function MoneyWorkspaceSettings() {
       ) : null}
 
       <div className="space-y-6">
+        <SettingsSection
+          id="money-settings-section-tabs"
+          title="Section tabs"
+          description="Choose which optional tabs appear in the Money nav. New, Analytics, Spending, and Settings always stay visible."
+        >
+          <ul
+            role="list"
+            className="divide-y divide-border overflow-hidden rounded-[var(--radius-md)] border border-border"
+            aria-label="Optional section tabs"
+          >
+            {MONEY_OPTIONAL_SECTION_TAB_KEYS.map((key) => {
+              const label = MONEY_OPTIONAL_SECTION_TAB_LABELS[key];
+              const checked = visibility[key];
+              return (
+                <li key={key} className="min-w-0">
+                  <div className="flex items-center gap-3 bg-surface px-4 py-3">
+                    <Checkbox
+                      checked={checked}
+                      onChange={() => setVisible(key, !checked)}
+                      ariaLabel={`Show ${label} tab`}
+                    />
+                    <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
+                      {label}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </SettingsSection>
+
         <SettingsSection
           id="money-settings-ledger"
           title="Accounts & categories"

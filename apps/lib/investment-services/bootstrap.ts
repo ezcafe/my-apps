@@ -36,7 +36,7 @@ export async function fetchInvestmentBootstrapSafe(userSub: string): Promise<
         .from(workspace)
         .where(eq(workspace.id, workspaceId))
         .limit(1),
-      fetchWorkspacesForUser(userSub, "investment"),
+      fetchWorkspacesForUser(userSub, "money"),
       runInWorkspace(workspaceId, () =>
         countInvestmentInstruments(workspaceId),
       ),

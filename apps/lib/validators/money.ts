@@ -6,10 +6,23 @@ import {
   recurrenceCadenceAllowedInCurrentEnv,
 } from "@/lib/recurrence";
 
-export const transactionKindSchema = z.enum(["expense", "income", "transfer"]);
+export const transactionKindSchema = z.enum([
+  "expense",
+  "income",
+  "transfer",
+]);
 
 export const categoryKindSchema = z.enum(["expense", "income"]);
 export type CategoryKind = z.infer<typeof categoryKindSchema>;
+
+/** Category bucket used when validating categoryId for a transaction kind. */
+export function categoryKindForTransactionKind(
+  kind: z.infer<typeof transactionKindSchema>,
+): CategoryKind | null {
+  if (kind === "income") return "income";
+  if (kind === "expense") return "expense";
+  return null;
+}
 
 const transactionBaseSchema = z.object({
   accountId: z.string().uuid(),
@@ -240,10 +253,22 @@ export const budgetCreateSchema = z
 
 export const analyticsRecurrenceFilterSchema = z.enum(["recurring", "one-time"]);
 
+export const moneyAccountTypeFilterSchema = z.enum([
+  "checking",
+  "savings",
+  "cash",
+  "credit",
+  "loan",
+  "investment",
+  "other",
+]);
+
 export const analyticsFiltersSchema = z.object({
   from: z.string().datetime({ offset: true }).optional(),
   to: z.string().datetime({ offset: true }).optional(),
   accountIds: z.array(z.string().uuid()).optional(),
+  accountTypes: z.array(moneyAccountTypeFilterSchema).optional(),
+  excludeAccountTypes: z.array(moneyAccountTypeFilterSchema).optional(),
   categoryIds: z
     .array(z.union([z.string().uuid(), z.literal(CATEGORY_FILTER_NONE)]))
     .optional(),

@@ -99,7 +99,7 @@ export async function requireInvestmentContext(
 }
 
 export function withInvestmentWorkspaceCookie(res: NextResponse, workspaceId: string) {
-  return setActiveWorkspaceCookie(res, "investment", workspaceId);
+  return setActiveWorkspaceCookie(res, "money", workspaceId);
 }
 
 export async function withInvestmentWorkspaceRls<T>(

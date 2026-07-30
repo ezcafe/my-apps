@@ -3,13 +3,13 @@ import { toUserFacingError } from "@/lib/user-facing-error";
 
 function resolveLoansGraphQLEndpoint(): string {
   if (typeof window !== "undefined" && window.location?.origin) {
-    return new URL("/api/graphql/loans", window.location.origin).href;
+    return new URL("/api/graphql", window.location.origin).href;
   }
   const fromPublic = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
-  if (fromPublic) return `${fromPublic}/api/graphql/loans`;
+  if (fromPublic) return `${fromPublic}/api/graphql`;
   if (process.env.VERCEL_URL)
-    return `https://${process.env.VERCEL_URL}/api/graphql/loans`;
-  return "http://127.0.0.1:3000/api/graphql/loans";
+    return `https://${process.env.VERCEL_URL}/api/graphql`;
+  return "http://127.0.0.1:3000/api/graphql";
 }
 
 let loansGraphqlClient: GraphQLClient | null = null;

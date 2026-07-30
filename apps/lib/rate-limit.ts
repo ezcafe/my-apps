@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
+import { isDbUnreachable } from "@/lib/db-errors";
 
 type RateLimitOptions = {
   name: string;
@@ -40,7 +41,8 @@ export async function enforceRateLimit(opts: RateLimitOptions): Promise<boolean>
   const bucketStartMs = Math.floor(now / bucketMs) * bucketMs;
   const bucketStart = new Date(bucketStartMs).toISOString();
   const key = `${opts.name}:${principal}`;
-  const result = await db.execute(sql`
+  try {
+    const result = await db.execute(sql`
     INSERT INTO security_rate_limit (key, bucket_start, count, updated_at)
     VALUES (${key}, ${bucketStart}::timestamptz, 1, now())
     ON CONFLICT (key, bucket_start)
@@ -48,7 +50,13 @@ export async function enforceRateLimit(opts: RateLimitOptions): Promise<boolean>
     RETURNING count
   `);
 
-  const rows = Array.from(result as unknown as Iterable<{ count: number }>);
-  const count = rows[0]?.count ?? 1;
-  return count <= opts.points;
+    const rows = Array.from(result as unknown as Iterable<{ count: number }>);
+    const count = rows[0]?.count ?? 1;
+    return count <= opts.points;
+  } catch (e) {
+    if (isDbUnreachable(e)) {
+      return true;
+    }
+    throw e;
+  }
 }

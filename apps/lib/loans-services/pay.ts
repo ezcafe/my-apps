@@ -98,10 +98,10 @@ export async function payLoanInstallmentWithTransaction(
     parsed.data.scheduleInstallmentId,
   );
 
-  const member = await assertWorkspaceMember(
-    ctx.userSub,
-    parsed.data.moneyWorkspaceId,
-  );
+  const moneyWorkspaceId =
+    parsed.data.moneyWorkspaceId ?? ctx.workspaceId;
+
+  const member = await assertWorkspaceMember(ctx.userSub, moneyWorkspaceId);
   if (!member) throw new Error("FORBIDDEN");
 
   const notes =
@@ -110,9 +110,9 @@ export async function payLoanInstallmentWithTransaction(
 
   const amountMinor = parsed.data.amountMinor ?? installment.paymentMinor;
 
-  const tx = await runInWorkspace(parsed.data.moneyWorkspaceId, () =>
+  const tx = await runInWorkspace(moneyWorkspaceId, () =>
     createMoneyTransaction(
-      { userSub: ctx.userSub, workspaceId: parsed.data.moneyWorkspaceId },
+      { userSub: ctx.userSub, workspaceId: moneyWorkspaceId },
       {
         accountId: parsed.data.accountId,
         kind: "expense",

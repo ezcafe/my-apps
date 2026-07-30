@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { MoneyStatCard } from "@/components/money-feedback";
 import { Tag } from "@/components/ui/tag";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
@@ -30,7 +31,7 @@ export function LoanListCard({
   const tone = dueTone(loan.nextDueDate, todayIso);
 
   return (
-    <Link href={`/loans/${loan.id}`} className="fx-press block h-full">
+    <Link href={`/money/loans/${loan.id}`} className="fx-press block h-full">
       <Card className="flex h-full flex-col p-5 transition-[border-color,box-shadow] duration-200 hover:border-accent/40 hover:shadow-[var(--shadow-sm)]">
         <div className="flex items-start justify-between gap-2">
           <h2 className="font-display text-lg font-semibold leading-tight">
@@ -110,24 +111,17 @@ export function LoansOverviewSummary({
 
   return (
     <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
-      <Card className="p-4">
-        <p className="text-xs text-muted">Active loans</p>
-        <p className="mt-1 font-display text-2xl font-semibold tabular-nums">
-          {active.length}
-        </p>
-      </Card>
-      <Card className="p-4">
-        <p className="text-xs text-muted">Total remaining</p>
-        <p className="mt-1 font-display text-2xl font-semibold tabular-nums">
-          {formatMinor(remainingTotal, currency)}
-        </p>
-      </Card>
-      <Card className="p-4">
-        <p className="text-xs text-muted">Monthly payments</p>
-        <p className="mt-1 font-display text-2xl font-semibold tabular-nums">
-          {formatMinor(paymentTotal, currency)}
-        </p>
-      </Card>
+      <MoneyStatCard label="Active loans" value={active.length} accentIndex={4} />
+      <MoneyStatCard
+        label="Total remaining"
+        value={formatMinor(remainingTotal, currency)}
+        accentIndex={5}
+      />
+      <MoneyStatCard
+        label="Monthly payments"
+        value={formatMinor(paymentTotal, currency)}
+        accentIndex={6}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { presentClientError, queryErrorMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AnalyticsLookupAccount } from "@/components/analytics-filters";
@@ -13,10 +13,12 @@ import { TransactionSelectionBar } from "@/components/transaction-selection-bar"
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
+import { MoneyListSkeleton } from "@/components/money-feedback";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/cn";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
@@ -31,6 +33,7 @@ import {
   moneyTransactionsQueryOptions,
   type MoneyTransactionListRow,
 } from "@/lib/money-query-options";
+import type { MoneyLedgerEmptyState } from "@/lib/money-ledger-presets";
 import { useInViewOnce } from "@/lib/use-in-view-once";
 import type { TransactionListSortKey } from "@/lib/validators/money";
 
@@ -56,6 +59,7 @@ export function AnalyticsTransactionsTable({
   currency,
   deferFetchUntilVisible = true,
   variant = "analytics",
+  emptyState,
 }: {
   filterQuery: string;
   activeWorkspaceId: string;
@@ -66,6 +70,7 @@ export function AnalyticsTransactionsTable({
   /** When true, the transactions API runs only after this section intersects the viewport. */
   deferFetchUntilVisible?: boolean;
   variant?: "analytics" | "standalone";
+  emptyState?: MoneyLedgerEmptyState;
 }) {
   const queryClient = useQueryClient();
   const selectable = variant === "standalone";
@@ -343,11 +348,127 @@ export function AnalyticsTransactionsTable({
     );
   }
 
+  function renderMobileCard(tx: MoneyTransactionListRow) {
+    const acc = accountById.get(tx.accountId);
+    const cat = tx.categoryId ? categoryById.get(tx.categoryId) : null;
+    const categoryLabel =
+      cat != null ? moneyCategoryLabel(cat, categoryById) : "—";
+    const amountLabel = formatMinor(tx.amountMinor, currency);
+    const dateLabel = formatDate(tx.occurredAt, { omitYear: true });
+    const isSelected = selectedIds.has(tx.id);
+
+    return (
+      <div
+        key={tx.id}
+        className={cn(
+          "flex min-h-12 items-start gap-3 rounded-[var(--radius-sm)] border border-border bg-surface px-3 py-3 transition-colors duration-150",
+          isSelected &&
+            "border-accent/40 bg-[color-mix(in_oklab,var(--accent)_8%,transparent)]",
+        )}
+      >
+        {selectable ? (
+          <div className="shrink-0 pt-0.5">
+            <Checkbox
+              checked={isSelected}
+              onChange={() => toggleRow(tx.id)}
+              ariaLabel={`Select transaction ${dateLabel}, ${amountLabel}`}
+            />
+          </div>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-medium tabular-nums">{amountLabel}</p>
+              <p className="mt-0.5 truncate text-sm text-muted">{acc?.name ?? "—"}</p>
+            </div>
+            <span className="shrink-0 text-xs text-muted tabular-nums">{dateLabel}</span>
+          </div>
+          <p className="mt-1 truncate text-sm">{categoryLabel}</p>
+          {tx.tagIds.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {tx.tagIds.map((tagId) => {
+                const tag = tagById.get(tagId);
+                if (!tag) return null;
+                return <Tag key={tagId}>{tag.name}</Tag>;
+              })}
+            </div>
+          ) : null}
+          {!selectable ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              className="mt-3 w-full"
+              onMouseEnter={preloadTransactionEditForm}
+              onFocus={preloadTransactionEditForm}
+              onClick={() => setEditTransactionId(tx.id)}
+            >
+              Edit
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  function renderTableLoadingBody() {
+    return (
+      <>
+        {Array.from({ length: 6 }, (_, rowIndex) => (
+          <tr key={`tx-skel-${rowIndex}`}>
+            {Array.from({ length: columnCount }, (_, colIndex) => (
+              <td key={`tx-skel-${rowIndex}-${colIndex}`} className="px-3 py-3">
+                <Skeleton className="h-4 w-full" />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </>
+    );
+  }
+
+  const defaultEmptyState = {
+    icon: "table" as const,
+    title: "No transactions for this view",
+    description: "Adjust filters or add transactions on the ledger.",
+    action:
+      variant === "standalone"
+        ? { href: "/money", label: "Add transaction" }
+        : { href: "/money/spending", label: "View transactions" },
+  };
+
+  const resolvedEmpty = emptyState
+    ? {
+        icon: emptyState.icon,
+        title: emptyState.title,
+        description: emptyState.description,
+        accentChartIndex: emptyState.accentChartIndex,
+        primaryAction: emptyState.primaryAction,
+        secondaryAction: emptyState.secondaryAction,
+      }
+    : {
+        icon: defaultEmptyState.icon,
+        title: defaultEmptyState.title,
+        description: defaultEmptyState.description,
+        accentChartIndex: undefined as number | undefined,
+        primaryAction:
+          variant === "standalone"
+            ? { href: "/money", label: "Add transaction" }
+            : undefined,
+        secondaryAction:
+          variant === "analytics"
+            ? { href: "/money/spending", label: "Open spending ledger" }
+            : undefined,
+      };
+
+  const showLoadingList = !awaitingViewport && loading && !payload;
+  const showDataList = !awaitingViewport && !showLoadingList;
+
   return (
     <>
       <Card
         ref={viewportRef}
-        className="col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12"
+        className="@container col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12"
       >
         <section aria-labelledby="analytics-transactions-heading">
           <h2
@@ -381,106 +502,114 @@ export function AnalyticsTransactionsTable({
 
           {showTransactionsEmpty ? (
             <AnalyticsEmptyState
-              icon="table"
-              title="No transactions for this view"
-              description="Adjust filters or add transactions on the ledger."
+              icon={resolvedEmpty.icon}
+              title={resolvedEmpty.title}
+              description={resolvedEmpty.description}
+              accentChartIndex={resolvedEmpty.accentChartIndex}
+              primaryAction={resolvedEmpty.primaryAction}
+              secondaryAction={resolvedEmpty.secondaryAction}
               minHeightClass="min-h-[220px]"
-              action={
-                variant === "standalone"
-                  ? { href: "/money", label: "Add transaction" }
-                  : { href: "/money/transactions", label: "View transactions" }
-              }
             />
           ) : (
-            <div className="overflow-x-auto rounded-[var(--radius-md)] border border-border">
-              <table className="min-w-full divide-y divide-border text-left text-sm">
-                <caption className="sr-only">
-                  Filtered transactions with sorting and pagination
-                </caption>
-                <thead className="bg-muted-surface">
-                  <tr>
-                    {selectable ? (
-                      <th scope="col" className="w-10 px-3 py-2">
-                        <Checkbox
-                          checked={allPageSelected}
-                          indeterminate={somePageSelected}
-                          onChange={toggleAllOnPage}
-                          ariaLabel="Select all transactions on this page"
-                        />
-                      </th>
-                    ) : null}
-                    <th
-                      scope="col"
-                      className="px-3 py-2 font-medium"
-                      aria-sort={sortAria("occurredAt")}
-                    >
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-1 py-0.5 font-medium transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] fx-press"
-                        onClick={() => onSortHeader("occurredAt")}
-                      >
-                        Date
-                        {sortIndicator("occurredAt")}
-                      </button>
-                    </th>
-                    <th scope="col" className="px-3 py-2 font-medium">
-                      Account
-                    </th>
-                    <th scope="col" className="px-3 py-2 font-medium">
-                      Category
-                    </th>
-                    <th scope="col" className="px-3 py-2 font-medium">
-                      Tags
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-2 font-medium text-right"
-                      aria-sort={sortAria("amountMinor")}
-                    >
-                      <button
-                        type="button"
-                        className="inline-flex w-full items-center justify-end gap-1 rounded-[var(--radius-sm)] px-1 py-0.5 font-medium transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] fx-press"
-                        onClick={() => onSortHeader("amountMinor")}
-                      >
-                        Amount
-                        {sortIndicator("amountMinor")}
-                      </button>
-                    </th>
-                    <th scope="col" className="px-3 py-2 font-medium">
-                      Note
-                    </th>
-                    {!selectable ? (
-                      <th scope="col" className="px-3 py-2 font-medium">
-                        <span className="sr-only">Actions</span>
-                      </th>
-                    ) : null}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {awaitingViewport ? (
-                    <tr>
-                      <td
-                        colSpan={columnCount}
-                        className="px-3 py-8 text-center text-sm text-muted"
-                      >
-                        Scroll to load transactions for this filter range.
-                      </td>
-                    </tr>
-                  ) : null}
-                  {!awaitingViewport && loading && !payload ? (
-                    <tr>
-                      <td
-                        colSpan={columnCount}
-                        className="px-3 py-6 text-center text-muted"
-                      >
-                        Loading transactions…
-                      </td>
-                    </tr>
-                  ) : null}
-                  {pageRows.map(renderRow)}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {awaitingViewport ? (
+                <p className="rounded-[var(--radius-md)] border border-border px-3 py-8 text-center text-sm text-muted">
+                  Scroll to load transactions for this filter range.
+                </p>
+              ) : null}
+
+              {showLoadingList ? (
+                <>
+                  <div className="hidden overflow-x-auto rounded-[var(--radius-md)] border border-border @md:block">
+                    <table className="min-w-full divide-y divide-border text-left text-sm">
+                      <tbody className="divide-y divide-border">
+                        {renderTableLoadingBody()}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="rounded-[var(--radius-md)] border border-border p-3 @md:hidden">
+                    <MoneyListSkeleton variant="tableRows" />
+                  </div>
+                </>
+              ) : null}
+
+              {showDataList ? (
+                <>
+                  <div className="hidden overflow-x-auto rounded-[var(--radius-md)] border border-border @md:block">
+                    <table className="min-w-full divide-y divide-border text-left text-sm">
+                      <caption className="sr-only">
+                        Filtered transactions with sorting and pagination
+                      </caption>
+                      <thead className="bg-muted-surface">
+                        <tr>
+                          {selectable ? (
+                            <th scope="col" className="w-10 px-3 py-2">
+                              <Checkbox
+                                checked={allPageSelected}
+                                indeterminate={somePageSelected}
+                                onChange={toggleAllOnPage}
+                                ariaLabel="Select all transactions on this page"
+                              />
+                            </th>
+                          ) : null}
+                          <th
+                            scope="col"
+                            className="px-3 py-2 font-medium"
+                            aria-sort={sortAria("occurredAt")}
+                          >
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-1 py-0.5 font-medium transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] fx-press"
+                              onClick={() => onSortHeader("occurredAt")}
+                            >
+                              Date
+                              {sortIndicator("occurredAt")}
+                            </button>
+                          </th>
+                          <th scope="col" className="px-3 py-2 font-medium">
+                            Account
+                          </th>
+                          <th scope="col" className="px-3 py-2 font-medium">
+                            Category
+                          </th>
+                          <th scope="col" className="px-3 py-2 font-medium">
+                            Tags
+                          </th>
+                          <th
+                            scope="col"
+                            className="px-3 py-2 font-medium text-right"
+                            aria-sort={sortAria("amountMinor")}
+                          >
+                            <button
+                              type="button"
+                              className="inline-flex w-full items-center justify-end gap-1 rounded-[var(--radius-sm)] px-1 py-0.5 font-medium transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] fx-press"
+                              onClick={() => onSortHeader("amountMinor")}
+                            >
+                              Amount
+                              {sortIndicator("amountMinor")}
+                            </button>
+                          </th>
+                          <th scope="col" className="px-3 py-2 font-medium">
+                            Note
+                          </th>
+                          {!selectable ? (
+                            <th scope="col" className="px-3 py-2 font-medium">
+                              <span className="sr-only">Actions</span>
+                            </th>
+                          ) : null}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {pageRows.map(renderRow)}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="space-y-2 @md:hidden">
+                    {pageRows.map(renderMobileCard)}
+                  </div>
+                </>
+              ) : null}
+            </>
           )}
 
           {payload && payload.total > 0 ? (
@@ -493,7 +622,7 @@ export function AnalyticsTransactionsTable({
                 <Button
                   type="button"
                   variant="secondary"
-                  size="sm"
+                  size="md"
                   disabled={page <= 1 || fetching}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
@@ -502,7 +631,7 @@ export function AnalyticsTransactionsTable({
                 <Button
                   type="button"
                   variant="secondary"
-                  size="sm"
+                  size="md"
                   disabled={page >= totalPages || fetching}
                   onClick={() => setPage((p) => p + 1)}
                 >

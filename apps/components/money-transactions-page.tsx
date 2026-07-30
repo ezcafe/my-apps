@@ -1,6 +1,6 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { presentClientError, queryErrorMessage } from "@/lib/user-facing-error";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import {
@@ -11,9 +11,11 @@ import {
   useState,
   useTransition,
 } from "react";
+import { useRouter } from "next/navigation";
 import {
   defaultAnalyticsFilters,
   type AnalyticsFiltersValue,
+  type AnalyticsFilterViewConfig,
   type AnalyticsLookupAccount,
   type AnalyticsLookupMerchant,
   type AnalyticsLookupRecurrence,
@@ -21,9 +23,11 @@ import {
   type AnalyticsWorkspaceRow,
 } from "@/components/analytics-filters";
 import { MoneyAnalyticsFiltersBarSkeleton, MoneyAnalyticsTransactionsTableSkeleton } from "@/components/money-analytics-skeleton";
+import { MoneyLedgerTrendCard } from "@/components/money-ledger-trend-card";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import { buildQuery } from "@/lib/analytics-build-query";
+import { mergeLedgerPresetQuery, resolveLedgerPresetCategoryIds } from "@/lib/money-ledger-presets";
 import { analyticsFiltersEqual } from "@/lib/analytics-graphql-filters";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_SET_ACTIVE_WORKSPACE_MUTATION } from "@/lib/money-gql-documents";
@@ -54,10 +58,21 @@ const AnalyticsTransactionsTableLazy = dynamic(
 export function MoneyTransactionsPage({
   userSub,
   authenticated,
+  preset,
+  viewNav,
 }: {
   userSub?: string;
   authenticated: boolean;
+  preset?: import("@/lib/money-ledger-presets").MoneyLedgerPreset;
+  /** Route-based View filter (Activity / Portfolio, etc.). */
+  viewNav?: {
+    menuLabel?: string;
+    value: string;
+    defaultValue?: string;
+    options: ReadonlyArray<{ id: string; label: string; href: string }>;
+  };
 }) {
+  const router = useRouter();
   const {
     workspaceId: coreWorkspaceId,
     defaultCurrency,
@@ -65,6 +80,20 @@ export function MoneyTransactionsPage({
     workspaceReady,
   } = useWorkspaceCurrency();
   const canRunMoneyQueries = authenticated && typeof window !== "undefined";
+
+  const viewFilter = useMemo((): AnalyticsFilterViewConfig | undefined => {
+    if (!viewNav) return undefined;
+    return {
+      menuLabel: viewNav.menuLabel ?? "View",
+      value: viewNav.value,
+      defaultValue: viewNav.defaultValue ?? viewNav.options[0]?.id,
+      options: viewNav.options.map(({ id, label }) => ({ id, label })),
+      onChange: (id) => {
+        const href = viewNav.options.find((o) => o.id === id)?.href;
+        if (href) router.push(href);
+      },
+    };
+  }, [router, viewNav]);
 
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(
     null,
@@ -166,8 +195,23 @@ export function MoneyTransactionsPage({
   );
   const lookupsReady = !workspaceSyncPending && chartLookupsQuery.isSuccess;
 
+  const presetCategoryIds = useMemo(
+    () => (preset ? resolveLedgerPresetCategoryIds(preset, categories) : []),
+    [preset, categories],
+  );
+
   const dirty = !analyticsFiltersEqual(draft, applied);
-  const filterQuery = useMemo(() => buildQuery(applied), [applied]);
+  const filterQuery = useMemo(
+    () =>
+      preset
+        ? mergeLedgerPresetQuery(
+            buildQuery(applied),
+            preset,
+            presetCategoryIds.length > 0 ? presetCategoryIds : undefined,
+          )
+        : buildQuery(applied),
+    [applied, preset, presetCategoryIds],
+  );
 
   const autoSyncedWorkspaceRef = useRef<string | null>(null);
 
@@ -262,8 +306,12 @@ export function MoneyTransactionsPage({
   return (
     <>
       <AnalyticsFiltersBar
-        title="Transactions"
-        description="Browse and edit workspace transactions. Default range is the current calendar month — apply to refresh."
+        title={preset?.title ?? "Transactions"}
+        description={
+          preset?.description ??
+          "Browse and edit workspace transactions. Default range is the current calendar month — apply to refresh."
+        }
+        viewFilter={viewFilter}
         value={draft}
         onChange={setDraft}
         onApply={handleApply}
@@ -291,7 +339,27 @@ export function MoneyTransactionsPage({
         />
       ) : null}
 
+      {preset?.lockedCategorySeed &&
+      lookupsReady &&
+      presetCategoryIds.length === 0 ? (
+        <Alert
+          variant="warning"
+          title="Bills category missing"
+          description='Add a "Bills" category under "Necessities" in Settings → Categories, or reload after the app creates it automatically.'
+          className="mb-3"
+        />
+      ) : null}
+
       <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3">
+        {preset && lookupsReady && activeWorkspaceId ? (
+          <MoneyLedgerTrendCard
+            preset={preset}
+            filterQuery={filterQuery}
+            workspaceId={activeWorkspaceId}
+            defaultCurrency={defaultCurrency}
+            enabled={!isFilterPending}
+          />
+        ) : null}
         {lookupsReady && activeWorkspaceId ? (
           <AnalyticsTransactionsTableLazy
             filterQuery={filterQuery}
@@ -302,6 +370,7 @@ export function MoneyTransactionsPage({
             currency={defaultCurrency}
             deferFetchUntilVisible={false}
             variant="standalone"
+            emptyState={preset?.emptyState}
           />
         ) : (
           <div className="col-span-2 md:col-span-6 lg:col-span-12">

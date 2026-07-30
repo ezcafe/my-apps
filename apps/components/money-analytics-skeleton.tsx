@@ -235,6 +235,31 @@ export function MoneyAnalyticsPageSkeleton() {
   );
 }
 
+/** Filters bar + transactions table — used by ledger routes (spending, bills, savings). */
+export function MoneyLedgerPageSkeleton() {
+  return (
+    <div
+      className="min-w-0"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Loading ledger"
+    >
+      <MoneyAnalyticsFiltersBarSkeleton />
+      <div className={ANALYTICS_GRID_CLASS}>
+        <AnalyticsChartCardSkeleton
+          className="col-span-2 w-full md:col-span-6 lg:col-span-12"
+          chartHeightClass="h-[360px] min-h-[360px] max-h-[360px]"
+          titleWidthClass="w-44"
+          descriptionWidthClass="w-64 max-w-full"
+          showLegend
+        />
+        <MoneyAnalyticsTransactionsTableSkeleton />
+      </div>
+    </div>
+  );
+}
+
 export function MoneyAnalyticsChartsSkeleton() {
   return (
     <div

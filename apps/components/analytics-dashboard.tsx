@@ -1,6 +1,6 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { presentClientError, queryErrorMessage } from "@/lib/user-facing-error";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import type { Ref } from "react";
@@ -47,7 +47,6 @@ import {
   type AnalyticsWorkspaceRow,
 } from "@/components/analytics-filters";
 import { budgetRowsForChart } from "@/lib/analytics-budget-label";
-import { buildQuery } from "@/lib/analytics-build-query";
 import type { AnalyticsChartDrilldownPayload } from "@/lib/analytics-build-query";
 import { AnalyticsChartDrilldownModal } from "@/components/analytics-chart-drilldown-modal";
 import { TransactionEditModal } from "@/components/transaction-edit-modal";
@@ -77,6 +76,15 @@ import type {
   MoneyAnalyticsSankeyPayload,
 } from "@/lib/money-services/analytics";
 import { useInViewOnce } from "@/lib/use-in-view-once";
+import {
+  buildMoneyAnalyticsFilterQuery,
+  MONEY_LEDGER_SCOPES,
+  moneyLedgerScopeDescription,
+  moneyLedgerScopePreset,
+  parseMoneyLedgerScopeId,
+  type MoneyLedgerScopeId,
+} from "@/lib/money-ledger-presets";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const AnalyticsFiltersBar = dynamic(
   () =>
@@ -140,7 +148,6 @@ export function AnalyticsChartsSkeleton() {
 }
 
 type AnalyticsStagesProps = {
-  applied: AnalyticsFiltersValue;
   filterQuery: string;
   workspaceKey: string;
   defaultCurrency: string;
@@ -171,11 +178,12 @@ type AnalyticsStagesProps = {
   accounts: AnalyticsLookupAccount[];
   tags: AnalyticsLookupTag[];
   onChartDrilldown: (payload: AnalyticsChartDrilldownPayload) => void;
+  analyticsEmptyState?: import("@/lib/money-ledger-presets").MoneyLedgerEmptyState;
 };
 
 function AnalyticsSummaryShell(props: AnalyticsStagesProps) {
   const { data } = useQuery(
-    moneyAnalyticsDashboardQueryOptions(props.workspaceKey, props.applied),
+    moneyAnalyticsDashboardQueryOptions(props.workspaceKey, props.filterQuery),
   );
   const summary = data?.moneyAnalyticsSummary as
     | MoneyAnalyticsSummaryPayload
@@ -204,7 +212,6 @@ function AnalyticsChartsView({
   ...rest
 }: AnalyticsChartsViewProps) {
   const {
-    applied,
     filterQuery,
     workspaceKey,
     budgetRef,
@@ -235,12 +242,13 @@ function AnalyticsChartsView({
     tags,
     defaultCurrency,
     onChartDrilldown,
+    analyticsEmptyState,
   } = rest;
 
   const overviewReady = true;
 
   const { data: budgetsResponse } = useQuery({
-    ...moneyAnalyticsBudgetsQueryOptions(workspaceKey, applied),
+    ...moneyAnalyticsBudgetsQueryOptions(workspaceKey, filterQuery),
     enabled: budgetInView && lookupsReady && Boolean(workspaceKey),
   });
   const budgets =
@@ -249,7 +257,7 @@ function AnalyticsChartsView({
       | undefined) ?? null;
 
   const { data: sankeyResponse } = useQuery({
-    ...moneyAnalyticsSankeyQueryOptions(workspaceKey, applied),
+    ...moneyAnalyticsSankeyQueryOptions(workspaceKey, filterQuery),
     enabled: sankeyInView && Boolean(workspaceKey),
   });
   const sankeyPayload =
@@ -259,7 +267,7 @@ function AnalyticsChartsView({
   const distributionStageInView = spendByCategoryInView || categoryTrendInView;
 
   const { data: distributionResponse } = useQuery({
-    ...moneyAnalyticsDistributionQueryOptions(workspaceKey, applied),
+    ...moneyAnalyticsDistributionQueryOptions(workspaceKey, filterQuery),
     enabled: distributionStageInView && Boolean(workspaceKey),
   });
   const distribution =
@@ -269,7 +277,7 @@ function AnalyticsChartsView({
   const leadersStageInView = merchantsInView || recurringInView || tagsInView;
 
   const { data: leadersResponse } = useQuery({
-    ...moneyAnalyticsLeadersQueryOptions(workspaceKey, applied),
+    ...moneyAnalyticsLeadersQueryOptions(workspaceKey, filterQuery),
     enabled: leadersStageInView && Boolean(workspaceKey),
   });
   const leaders =
@@ -501,6 +509,7 @@ function AnalyticsChartsView({
             categories={categories}
             currency={defaultCurrency}
             deferFetchUntilVisible={false}
+            emptyState={analyticsEmptyState}
           />
         ) : (
           <MoneyAnalyticsTransactionsTableSkeleton />
@@ -525,6 +534,24 @@ function AnalyticsDashboardLoaded({
   } = useWorkspaceCurrency();
   const { resolved, style } = useTheme();
   const canRunMoneyQueries = authenticated && typeof window !== "undefined";
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const ledgerScope = useMemo(
+    () => parseMoneyLedgerScopeId(searchParams.get("ledger")),
+    [searchParams],
+  );
+
+  const setLedgerScope = useCallback(
+    (scope: MoneyLedgerScopeId) => {
+      const sp = new URLSearchParams(searchParams.toString());
+      if (scope === "all") sp.delete("ledger");
+      else sp.set("ledger", scope);
+      const qs = sp.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   const {
     ref: budgetRef,
@@ -665,7 +692,28 @@ function AnalyticsDashboardLoaded({
   const lookupsReady = !workspaceSyncPending && chartLookupsQuery.isSuccess;
 
   const dirty = !analyticsFiltersEqual(draft, applied);
-  const analyticsFilterQuery = useMemo(() => buildQuery(applied), [applied]);
+  const analyticsFilterQuery = useMemo(
+    () => buildMoneyAnalyticsFilterQuery(applied, ledgerScope, categories),
+    [applied, ledgerScope, categories],
+  );
+
+  const analyticsEmptyState = useMemo(() => {
+    const preset = moneyLedgerScopePreset(ledgerScope);
+    if (preset) return preset.emptyState;
+    return {
+      title: "No transactions for this view",
+      description:
+        "Adjust filters or widen the date range. With scope All, spending, bills, savings, loans, and investments are included.",
+      icon: "table" as const,
+      accentChartIndex: 1,
+      primaryAction: { href: "/money", label: "Add transaction" },
+    };
+  }, [ledgerScope]);
+
+  const filtersDescription = useMemo(() => {
+    const scopeLine = moneyLedgerScopeDescription(ledgerScope);
+    return `${scopeLine} Default range is the current calendar month — apply to refresh charts.`;
+  }, [ledgerScope]);
 
   const autoSyncedWorkspaceRef = useRef<string | null>(null);
 
@@ -716,13 +764,14 @@ function AnalyticsDashboardLoaded({
         const fresh = defaultAnalyticsFilters();
         setDraft(fresh);
         setApplied(fresh);
+        setLedgerScope("all");
       } catch (e: unknown) {
         setError(presentClientError("analytics-dashboard", e));
       } finally {
         setPendingWorkspaceId(null);
       }
     },
-    [activeWorkspaceId, refreshWorkspaceCurrency],
+    [activeWorkspaceId, refreshWorkspaceCurrency, setLedgerScope],
   );
 
   const handleApply = useCallback(() => {
@@ -735,7 +784,8 @@ function AnalyticsDashboardLoaded({
     const fresh = defaultAnalyticsFilters();
     setDraft(fresh);
     setApplied(fresh);
-  }, []);
+    setLedgerScope("all");
+  }, [setLedgerScope]);
 
   const loadError =
     error ??
@@ -752,7 +802,14 @@ function AnalyticsDashboardLoaded({
     <>
       <AnalyticsFiltersBar
         title="Analysis"
-        description="Workspace-scoped aggregates for the range you set below (default: current calendar month). Apply to refresh charts."
+        description={filtersDescription}
+        viewFilter={{
+          menuLabel: "Ledger",
+          value: ledgerScope,
+          defaultValue: "all",
+          options: MONEY_LEDGER_SCOPES.map(({ id, label }) => ({ id, label })),
+          onChange: (id) => setLedgerScope(id as MoneyLedgerScopeId),
+        }}
         value={draft}
         onChange={setDraft}
         onApply={handleApply}
@@ -784,8 +841,8 @@ function AnalyticsDashboardLoaded({
 
         {activeWorkspaceId && !workspaceSyncPending ? (
           <AnalyticsSummaryShell
-            applied={applied}
             filterQuery={analyticsFilterQuery}
+            analyticsEmptyState={analyticsEmptyState}
             workspaceKey={activeWorkspaceId}
             defaultCurrency={defaultCurrency}
             budgetRef={budgetRef}

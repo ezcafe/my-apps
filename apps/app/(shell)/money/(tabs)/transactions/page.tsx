@@ -1,11 +1,5 @@
-import { MoneyTransactionsPage } from "@/components/money-transactions-page";
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
-export default async function MoneyTransactionsListPage() {
-  const session = await auth();
-  const userSub = session?.user?.id;
-
-  return (
-    <MoneyTransactionsPage userSub={userSub} authenticated={Boolean(userSub)} />
-  );
+export default function MoneyTransactionsListRedirect() {
+  redirect("/money/spending");
 }
