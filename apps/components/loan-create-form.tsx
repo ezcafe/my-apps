@@ -1,6 +1,6 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";

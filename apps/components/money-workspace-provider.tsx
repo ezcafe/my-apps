@@ -1,6 +1,6 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { presentClientError } from "@/lib/user-facing-error";
 import {
   createContext,
   useCallback,
@@ -103,7 +103,7 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
     return () => {
       cancelled = true;
     };
-  }, [bootstrapQuery.data?.workspaceId, queryClient]);
+  }, [bootstrapQuery.data, queryClient]);
   const [currencyDraft, setCurrencyDraft] = useState<{
     workspaceId: string | null;
     value: string;

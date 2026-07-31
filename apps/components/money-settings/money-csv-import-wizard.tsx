@@ -1,6 +1,6 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import {
@@ -228,7 +228,7 @@ function ImportProgress({
                   if (!future && i !== currentIdx) onStepClick(id);
                 }}
                 aria-current={active ? "step" : undefined}
-                className={`rounded-full border px-2.5 py-1 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
+                className={`rounded-[var(--radius-sm)] border px-2.5 py-1 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 fx-press ${
                   active
                     ? "border-accent bg-accent text-accent-foreground"
                     : done

@@ -29,10 +29,10 @@ export function requireInvestmentWriteScope(ctx: MoneyGraphQLContext): void {
   requireWriteScope(ctx);
 }
 
-export function parseLoansAppKey(_raw: string): "money" {
+export function parseLoansAppKey(): "money" {
   return "money";
 }
 
-export function parseInvestmentAppKey(_raw: string): "money" {
+export function parseInvestmentAppKey(): "money" {
   return "money";
 }

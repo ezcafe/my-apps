@@ -298,7 +298,6 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     useState(false);
   const [tagsInput, setTagsInput] = useState("");
   const [tagSuggestFocused, setTagSuggestFocused] = useState(false);
-  const [tagSuggestHighlight, setTagSuggestHighlight] = useState(-1);
   const tagSuggestListId = useId();
   const [recurrenceEnabled, setRecurrenceEnabled] = useState(isRecurrenceMode);
   const [recurrenceCadence, setRecurrenceCadence] =
@@ -554,6 +553,28 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
   );
   const showTagSuggest =
     tagSuggestFocused && tagAutocompleteOptions.length > 0;
+
+  const tagOptionsKey = tagAutocompleteOptions.map((t) => t.name).join("\0");
+  const [tagHighlightState, setTagHighlightState] = useState({
+    key: tagOptionsKey,
+    index: tagAutocompleteOptions.length > 0 ? 0 : -1,
+  });
+  if (tagHighlightState.key !== tagOptionsKey) {
+    setTagHighlightState({
+      key: tagOptionsKey,
+      index: tagAutocompleteOptions.length > 0 ? 0 : -1,
+    });
+  }
+  const tagSuggestHighlight = tagHighlightState.index;
+  const setTagSuggestHighlight = (
+    next: number | ((i: number) => number),
+  ) => {
+    setTagHighlightState((s) => ({
+      key: s.key,
+      index: typeof next === "function" ? next(s.index) : next,
+    }));
+  };
+
   const toAccountOptions = useMemo(
     () => accounts.filter((a) => a.id !== accountId),
     [accounts, accountId],
@@ -574,10 +595,6 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     setTagsInput((prev) => completeTagToken(prev, name));
     setTagSuggestHighlight(-1);
   }, []);
-
-  useEffect(() => {
-    setTagSuggestHighlight(tagAutocompleteOptions.length > 0 ? 0 : -1);
-  }, [tagAutocompleteOptions]);
 
   function handleTagsInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (!showTagSuggest) return;
@@ -1105,7 +1122,6 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                     type="button"
                     role="radio"
                     aria-checked={active}
-                    aria-haspopup={isCustom ? "dialog" : undefined}
                     onClick={() => pickWhenMode(opt.id)}
                     className={
                       isCustom

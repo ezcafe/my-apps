@@ -36,8 +36,8 @@ export function ThemeSettings({ embedded }: { embedded?: boolean }) {
         <h2 className="font-display text-lg font-medium tracking-tight">Appearance</h2>
       ) : null}
       <p className="text-sm text-muted">
-        Light mode uses Atom One Light; dark mode uses Nord. System
-        follows <code className="font-mono text-xs">prefers-color-scheme</code>.
+        Catppuccin Latte in light mode, Mocha in dark.
+        System follows <code className="font-mono text-xs">prefers-color-scheme</code>.
       </p>
       {showResolved ? (
         <p className="text-xs text-muted">

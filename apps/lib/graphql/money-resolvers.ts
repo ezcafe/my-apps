@@ -129,11 +129,14 @@ function filtersFromInput(raw: Record<string, unknown> | null | undefined) {
   return parsed.data;
 }
 
-type ResolverHandler = (
-  parent: any,
-  args: any,
-  ctx: MoneyGraphQLContext,
-) => unknown;
+/** Yoga field resolvers; args shapes vary per field (bivariant for the handler map). */
+type ResolverHandler = {
+  bivarianceHack(
+    parent: unknown,
+    args: object,
+    ctx: MoneyGraphQLContext,
+  ): unknown;
+}["bivarianceHack"];
 
 function withWorkspaceRlsHandler<T extends ResolverHandler>(handler: T): T {
   return (async (parent, args, ctx) => {

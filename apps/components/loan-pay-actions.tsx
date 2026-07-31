@@ -1,12 +1,13 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LoanPayModal } from "@/components/loan-pay-modal";
 import { useNotify } from "@/components/notification-provider";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { MoreMenu, MoreMenuItem } from "@/components/ui/more-menu";
 import { loansGraphQLRequest } from "@/lib/loans-gql-client";
 import { LOAN_INSTALLMENT_MARK_PAID_MUTATION } from "@/lib/loans-gql-documents";
 import { loansKeys } from "@/lib/loans-query-options";
@@ -31,6 +32,7 @@ export function LoanPayActions({
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [payOpen, setPayOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [marking, setMarking] = useState(false);
 
@@ -55,17 +57,24 @@ export function LoanPayActions({
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button type="button" onClick={() => setPayOpen(true)}>
           Add payment to Money
         </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => setConfirmOpen(true)}
+        <MoreMenu
+          aria-label="More payment options"
+          open={menuOpen}
+          onOpenChange={setMenuOpen}
         >
-          Mark paid (no transaction)
-        </Button>
+          <MoreMenuItem
+            onClick={() => {
+              setMenuOpen(false);
+              setConfirmOpen(true);
+            }}
+          >
+            Mark paid (no transaction)
+          </MoreMenuItem>
+        </MoreMenu>
       </div>
 
       <LoanPayModal

@@ -1,30 +1,16 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useRouter } from "next/navigation";
-import { useState, type SVGProps } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNotify } from "@/components/notification-provider";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import { Popover } from "@/components/ui/popover";
+import { MoreMenu, MoreMenuItem } from "@/components/ui/more-menu";
 import { loansGraphQLRequest } from "@/lib/loans-gql-client";
 import { LOAN_CANCEL_MUTATION } from "@/lib/loans-gql-documents";
 import { loansKeys } from "@/lib/loans-query-options";
-
-function IconEllipsisVertical(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden
-      {...props}
-    >
-      <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 14a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" />
-    </svg>
-  );
-}
 
 export function LoanDetailOptionsMenu({
   loanId,
@@ -67,26 +53,21 @@ export function LoanDetailOptionsMenu({
 
   return (
     <>
-      <Popover
-        align="end"
+      <MoreMenu
         aria-label="Loan options"
         open={menuOpen}
         onOpenChange={setMenuOpen}
-        trigger={<IconEllipsisVertical className="size-5" />}
-        triggerClassName="fx-hit-40 size-10 shrink-0 p-0"
-        className="min-w-[12rem] p-1.5"
       >
-        <button
-          type="button"
-          className="flex w-full items-center rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm font-medium text-[var(--destructive-muted-text)] transition-colors duration-200 hover:bg-[var(--destructive-muted-bg)] focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        <MoreMenuItem
+          variant="danger"
           onClick={() => {
             setMenuOpen(false);
             setConfirmOpen(true);
           }}
         >
           Delete loan
-        </button>
-      </Popover>
+        </MoreMenuItem>
+      </MoreMenu>
 
       <Modal
         open={confirmOpen}

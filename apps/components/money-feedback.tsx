@@ -84,7 +84,7 @@ export function MoneyListSkeleton({
   variant,
   className,
 }: {
-  variant: "summaryTiles" | "cardGrid" | "tableRows";
+  variant: "summaryTiles" | "cardGrid" | "tableRows" | "panelCards";
   className?: string;
 }) {
   if (variant === "summaryTiles") {
@@ -97,7 +97,20 @@ export function MoneyListSkeleton({
         aria-hidden
       >
         {Array.from({ length: 3 }, (_, i) => (
-          <Skeleton key={`summary-tile-${i}`} className="h-20" />
+          <Card
+            key={`summary-tile-${i}`}
+            className="relative overflow-hidden p-4"
+          >
+            <div
+              className={cn(
+                "absolute inset-y-0 start-0 w-1 rounded-s-[var(--radius-sm)]",
+                chartAccentBarClass(i + 4),
+              )}
+              aria-hidden
+            />
+            <Skeleton className="h-3 w-20 rounded-[var(--radius-sm)]" />
+            <Skeleton className="mt-2 h-7 w-24 rounded-[var(--radius-sm)]" />
+          </Card>
         ))}
       </div>
     );
@@ -113,8 +126,60 @@ export function MoneyListSkeleton({
         aria-hidden
       >
         {Array.from({ length: 2 }, (_, i) => (
-          <Skeleton key={`card-grid-${i}`} className="h-52" />
+          <Card key={`card-grid-${i}`} className="flex h-full flex-col p-5">
+            <div className="flex items-start justify-between gap-2">
+              <Skeleton className="h-6 w-36 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-5 w-14 rounded-[var(--radius-sm)]" />
+            </div>
+            <div className="mt-4">
+              <div className="mb-1 flex justify-between gap-2">
+                <Skeleton className="h-3 w-16 rounded-[var(--radius-sm)]" />
+                <Skeleton className="h-3 w-10 rounded-[var(--radius-sm)]" />
+              </div>
+              <Skeleton className="h-2 w-full rounded-[var(--radius-sm)]" />
+            </div>
+            <div className="mt-4 flex flex-1 flex-col gap-2">
+              <div className="flex justify-between gap-2">
+                <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
+                <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+              </div>
+              <div className="flex justify-between gap-2">
+                <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+                <Skeleton className="h-4 w-14 rounded-[var(--radius-sm)]" />
+              </div>
+              <div className="flex justify-between gap-2">
+                <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+                <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
+              </div>
+            </div>
+            <Skeleton className="mt-4 h-3 w-24 rounded-[var(--radius-sm)]" />
+          </Card>
         ))}
+      </div>
+    );
+  }
+
+  if (variant === "panelCards") {
+    return (
+      <div className={cn("space-y-4", className)} aria-hidden>
+        <Card className="p-4">
+          <Skeleton className="h-6 w-36 rounded-[var(--radius-sm)]" />
+          <Skeleton className="mt-3 h-56 w-full rounded-[var(--radius-sm)]" />
+        </Card>
+        <Card className="p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <Skeleton className="h-6 w-28 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
+          </div>
+          <div className="space-y-2">
+            {Array.from({ length: 4 }, (_, i) => (
+              <Skeleton
+                key={`panel-row-${i}`}
+                className="h-10 w-full rounded-[var(--radius-sm)]"
+              />
+            ))}
+          </div>
+        </Card>
       </div>
     );
   }
@@ -122,7 +187,10 @@ export function MoneyListSkeleton({
   return (
     <div className={cn("space-y-2", className)} aria-hidden>
       {Array.from({ length: 6 }, (_, i) => (
-        <Skeleton key={`table-row-${i}`} className="h-12 w-full" />
+        <Skeleton
+          key={`table-row-${i}`}
+          className="h-12 w-full rounded-[var(--radius-sm)]"
+        />
       ))}
     </div>
   );

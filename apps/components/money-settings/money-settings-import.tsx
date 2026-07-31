@@ -1,6 +1,6 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useRef, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import {

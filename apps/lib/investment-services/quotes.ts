@@ -120,6 +120,8 @@ export async function getDailyQuotesForRange(
   from: string,
   to: string,
 ) {
+  void from;
+  void to;
   return db
     .select()
     .from(investmentQuoteDaily)

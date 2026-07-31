@@ -21,5 +21,5 @@ export function resolveThemePreference(
 export function themeInitInlineScript(): string {
   const key = THEME_STORAGE_KEY;
   const legacy = LEGACY_THEME_STORAGE_KEY;
-  return `(function(){try{var d=document.documentElement;var t=localStorage.getItem("${key}");if(!t){var l=localStorage.getItem("${legacy}");if(l==="light"||l==="dark"||l==="system"){t=l;localStorage.setItem("${key}",l);try{localStorage.removeItem("${legacy}")}catch(e){}}}var mq=window.matchMedia("(prefers-color-scheme: dark)");var r=t==="light"||t==="dark"?t:(t==="system"||!t)?(mq.matches?"dark":"light"):"light";d.classList.toggle("dark",r==="dark");d.dataset.style="apple";}catch(e){}})();`;
+  return `(function(){try{var d=document.documentElement;var t=localStorage.getItem("${key}");if(!t){var l=localStorage.getItem("${legacy}");if(l==="light"||l==="dark"||l==="system"){t=l;localStorage.setItem("${key}",l);try{localStorage.removeItem("${legacy}")}catch(e){}}}var mq=window.matchMedia("(prefers-color-scheme: dark)");var r=t==="light"||t==="dark"?t:(t==="system"||!t)?(mq.matches?"dark":"light"):"light";d.classList.toggle("dark",r==="dark");d.dataset.style="quiet";}catch(e){}})();`;
 }

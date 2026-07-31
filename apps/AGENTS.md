@@ -15,7 +15,7 @@ Money client bootstrap: [`components/money-workspace-provider.tsx`](components/m
 
 ## UI / design system (mandatory)
 
-Any user-facing change — new pages, components, micro-tweaks — must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md). The shell uses Apple/iOS structure with GitHub light and Nord dark palettes; if your change does not survive switching light/dark in `/settings`, it is wrong.
+Any user-facing change — new pages, components, micro-tweaks — must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md). The shell uses the **Quiet Ink** preset (`data-style="quiet"`) with **Catppuccin Latte** (light) and **Mocha** (dark); if your change does not survive switching light/dark in `/settings`, it is wrong.
 
 Hard rules:
 

@@ -2,7 +2,7 @@
 
 import { queryErrorMessage } from "@/lib/user-facing-error";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { AnalyticsLookupAccount } from "@/components/analytics-filters";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { useTheme } from "@/components/theme-provider";
@@ -52,14 +52,22 @@ export function AnalyticsChartDrilldownModal({
   currency: string;
   onEditTransaction: (transactionId: string) => void;
 }) {
-  const [page, setPage] = useState(1);
   const { formatDate } = useFormatDate();
   const { resolved, style } = useTheme();
   const incomeAmountColor = colorByIndex(resolved, 3, style);
 
-  useEffect(() => {
-    if (open) setPage(1);
-  }, [open, filterQuery]);
+  const pageResetKey = `${open ? "1" : "0"}:${JSON.stringify(filterQuery)}`;
+  const [pageState, setPageState] = useState({ key: pageResetKey, page: 1 });
+  if (pageState.key !== pageResetKey) {
+    setPageState({ key: pageResetKey, page: 1 });
+  }
+  const page = pageState.page;
+  const setPage = (next: number | ((p: number) => number)) => {
+    setPageState((s) => ({
+      key: s.key,
+      page: typeof next === "function" ? next(s.page) : next,
+    }));
+  };
 
   const listQuery = useQuery({
     ...moneyTransactionsQueryOptions(
@@ -113,10 +121,14 @@ export function AnalyticsChartDrilldownModal({
 
         <div className="min-h-0 flex-1 overflow-auto">
           {listQuery.isLoading ? (
-            <div className="space-y-2 p-4">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
+            <div className="space-y-0 divide-y divide-border p-1">
+              {Array.from({ length: 5 }, (_, i) => (
+                <div key={`drilldown-row-${i}`} className="flex gap-3 px-3 py-3">
+                  <Skeleton className="h-4 w-16 shrink-0 rounded-[var(--radius-sm)]" />
+                  <Skeleton className="h-4 min-w-0 flex-1 rounded-[var(--radius-sm)]" />
+                  <Skeleton className="h-4 w-20 shrink-0 rounded-[var(--radius-sm)]" />
+                </div>
+              ))}
             </div>
           ) : listQuery.isError ? (
             <p className="p-4 text-sm text-destructive" role="alert">

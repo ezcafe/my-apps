@@ -41,16 +41,24 @@ export function Popover({
 
   const rootRef = useRef<HTMLDivElement>(null);
   const id = useId();
+  const onOpenChangeRef = useRef(onOpenChange);
+
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
 
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
       const el = rootRef.current;
-      if (!el?.contains(e.target as Node)) setOpen(false);
+      if (!el?.contains(e.target as Node)) {
+        if (isControlled) onOpenChangeRef.current?.(false);
+        else setUncontrolledOpen(false);
+      }
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+  }, [open, isControlled]);
 
   return (
     <div ref={rootRef} className="relative inline-flex">

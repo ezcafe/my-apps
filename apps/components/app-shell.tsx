@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode, type SVGProps } from "react";
+import { useState, type ReactNode, type SVGProps } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -191,10 +191,11 @@ const shellNavIcons: Record<
 function ShellMobileMenu() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  const [menuPath, setMenuPath] = useState(pathname);
+  if (pathname !== menuPath) {
+    setMenuPath(pathname);
+    if (open) setOpen(false);
+  }
 
   const close = () => setOpen(false);
 

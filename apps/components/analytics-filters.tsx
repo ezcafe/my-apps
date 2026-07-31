@@ -203,10 +203,7 @@ function FilterMenu({
   }, []);
 
   useLayoutEffect(() => {
-    if (!open) {
-      setPanelPos(null);
-      return;
-    }
+    if (!open) return;
     updatePanelPosition();
     window.addEventListener("resize", updatePanelPosition);
     window.addEventListener("scroll", updatePanelPosition, true);
@@ -537,7 +534,20 @@ type AnalyticsFiltersFieldsProps = {
   viewFilter?: AnalyticsFilterViewConfig;
 };
 
-function AnalyticsFiltersFields({
+/** Date / merchants / tags / recurrence — secondary chrome under More. */
+function secondaryFiltersActive(value: AnalyticsFiltersValue): boolean {
+  const defaults = defaultAnalyticsFilters();
+  return (
+    value.fromDate !== defaults.fromDate ||
+    value.toDate !== defaults.toDate ||
+    value.merchantIds.length > 0 ||
+    value.tagIds.length > 0 ||
+    value.recurrence !== "all" ||
+    value.recurrenceSourceIds.length > 0
+  );
+}
+
+function AnalyticsFiltersPrimaryFields({
   value,
   onChange,
   workspaces,
@@ -547,32 +557,15 @@ function AnalyticsFiltersFields({
   userSub,
   accountItems,
   categoryItems,
-  merchantItems,
-  tagItems,
-  recurrenceItems,
   direction,
   setDirection,
-  setRecurrence,
   viewFilter,
-}: AnalyticsFiltersFieldsProps) {
+}: Omit<
+  AnalyticsFiltersFieldsProps,
+  "merchantItems" | "tagItems" | "recurrenceItems" | "setRecurrence"
+>) {
   return (
     <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
-      <Field label="From">
-        <Input
-          type="date"
-          value={value.fromDate}
-          onChange={(e) => onChange({ ...value, fromDate: e.target.value })}
-        />
-      </Field>
-
-      <Field label="To">
-        <Input
-          type="date"
-          value={value.toDate}
-          onChange={(e) => onChange({ ...value, toDate: e.target.value })}
-        />
-      </Field>
-
       {viewFilter ? (
         <div className="col-span-full">
           <FilterViewRadios
@@ -629,6 +622,53 @@ function AnalyticsFiltersFields({
           />
         </Field>
       )}
+    </div>
+  );
+}
+
+function AnalyticsFiltersSecondaryFields({
+  value,
+  onChange,
+  merchantItems,
+  tagItems,
+  recurrenceItems,
+  direction,
+  setRecurrence,
+  compact = false,
+}: Pick<
+  AnalyticsFiltersFieldsProps,
+  | "value"
+  | "onChange"
+  | "merchantItems"
+  | "tagItems"
+  | "recurrenceItems"
+  | "direction"
+  | "setRecurrence"
+> & { compact?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "grid gap-4",
+        compact
+          ? "gap-3"
+          : "[grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]",
+      )}
+    >
+      <Field label="From">
+        <Input
+          type="date"
+          value={value.fromDate}
+          onChange={(e) => onChange({ ...value, fromDate: e.target.value })}
+        />
+      </Field>
+
+      <Field label="To">
+        <Input
+          type="date"
+          value={value.toDate}
+          onChange={(e) => onChange({ ...value, toDate: e.target.value })}
+        />
+      </Field>
 
       <Field label="Merchants">
         <FilterCheckboxList
@@ -672,6 +712,7 @@ function AnalyticsFiltersFields({
                 }
                 placeholder="All recurring"
                 aria-label="Filter by recurrence templates"
+                disablePortal={compact}
               />
             </Field>
           ) : null}
@@ -725,6 +766,8 @@ export function AnalyticsFiltersBar({
 }) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [morePanelMounted, setMorePanelMounted] = useState(false);
   const categoryById = useMemo(() => moneyCategoryById(categories), [categories]);
   const categoryGroupsByKind = useMemo(
     () => moneyCategoryGroupsByKind(categories),
@@ -790,8 +833,9 @@ export function AnalyticsFiltersBar({
       : (DIRECTION_OPTIONS.find((o) => o.value === direction)?.label ??
         "Direction");
 
-  const recurrenceActive =
-    value.recurrence !== "all" || value.recurrenceSourceIds.length > 0;
+  const secondaryActive = secondaryFiltersActive(value);
+  const showMobileMore = mobileMoreOpen || secondaryActive;
+  const showDesktopMorePanel = openMenu === "more" || morePanelMounted;
 
   const setDirection = (next: DirectionKey) => {
     if (next === "all") {
@@ -826,7 +870,7 @@ export function AnalyticsFiltersBar({
     });
   };
 
-  const fieldsProps: AnalyticsFiltersFieldsProps = {
+  const primaryFieldsProps = {
     value,
     onChange,
     workspaces,
@@ -836,13 +880,24 @@ export function AnalyticsFiltersBar({
     userSub,
     accountItems,
     categoryItems,
+    direction,
+    setDirection,
+    viewFilter,
+  };
+
+  const secondaryFieldsProps = {
+    value,
+    onChange,
     merchantItems,
     tagItems,
     recurrenceItems,
     direction,
-    setDirection,
     setRecurrence,
-    viewFilter,
+  };
+
+  const onOpenMenu = (id: string | null) => {
+    if (id === "more") setMorePanelMounted(true);
+    setOpenMenu(id);
   };
 
   return (
@@ -864,7 +919,7 @@ export function AnalyticsFiltersBar({
           size="md"
           onClick={() => setMobileFiltersOpen(true)}
           trailing={
-            dirty ? (
+            dirty || secondaryActive ? (
               <span className="size-1.5 rounded-full bg-accent/70" aria-hidden />
             ) : null
           }
@@ -904,7 +959,32 @@ export function AnalyticsFiltersBar({
               </Button>
             </div>
             <div className="mt-4">
-              <AnalyticsFiltersFields {...fieldsProps} />
+              <AnalyticsFiltersPrimaryFields {...primaryFieldsProps} />
+            </div>
+            <div className="mt-4 border-t border-border pt-4">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 text-sm font-medium text-foreground fx-press"
+                aria-expanded={showMobileMore}
+                onClick={() => setMobileMoreOpen((o) => !o)}
+              >
+                <span className="inline-flex items-center gap-2">
+                  More filters
+                  {secondaryActive ? (
+                    <span
+                      className="size-1.5 rounded-full bg-accent"
+                      aria-hidden
+                    />
+                  ) : null}
+                </span>
+                <ChevronDown open={showMobileMore} className="text-muted" />
+              </button>
+              {showMobileMore ? (
+                <div className="mt-3 fx-fade-in">
+                  <p className="mb-3 text-xs text-muted">{dateLabel}</p>
+                  <AnalyticsFiltersSecondaryFields {...secondaryFieldsProps} />
+                </div>
+              ) : null}
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <Button
@@ -939,43 +1019,13 @@ export function AnalyticsFiltersBar({
       ) : null}
 
       <MoneyFilterToolbar className="mt-4 hidden @md:block">
-          <FilterMenu
-            id="date"
-            label={dateLabel}
-            isActive={Boolean(value.fromDate && value.toDate)}
-            openMenu={openMenu}
-            onOpenMenu={setOpenMenu}
-            panelClassName="min-w-[min(100vw-2rem,18rem)]"
-          >
-            <div className="grid gap-3">
-              <Field label="From">
-                <Input
-                  type="date"
-                  value={value.fromDate}
-                  onChange={(e) =>
-                    onChange({ ...value, fromDate: e.target.value })
-                  }
-                />
-              </Field>
-              <Field label="To">
-                <Input
-                  type="date"
-                  value={value.toDate}
-                  onChange={(e) =>
-                    onChange({ ...value, toDate: e.target.value })
-                  }
-                />
-              </Field>
-            </div>
-          </FilterMenu>
-
           {viewFilter ? (
             <FilterMenu
               id="view"
               label={viewFilterTriggerLabel(viewFilter)}
               isActive={viewFilterIsActive(viewFilter)}
               openMenu={openMenu}
-              onOpenMenu={setOpenMenu}
+              onOpenMenu={onOpenMenu}
             >
               <FilterViewRadios
                 menuLabel={viewFilter.menuLabel}
@@ -993,7 +1043,7 @@ export function AnalyticsFiltersBar({
               id="workspace"
               label={workspaceLabel}
               openMenu={openMenu}
-              onOpenMenu={setOpenMenu}
+              onOpenMenu={onOpenMenu}
               panelClassName="min-w-[min(100vw-2rem,18rem)]"
             >
               <Field label="Workspace">
@@ -1025,7 +1075,7 @@ export function AnalyticsFiltersBar({
             label={directionLabel}
             isActive={direction !== "all"}
             openMenu={openMenu}
-            onOpenMenu={setOpenMenu}
+            onOpenMenu={onOpenMenu}
           >
             <DirectionRadios direction={direction} onSelect={setDirection} />
           </FilterMenu>
@@ -1035,7 +1085,7 @@ export function AnalyticsFiltersBar({
             label="Accounts"
             activeCount={value.accountIds.length}
             openMenu={openMenu}
-            onOpenMenu={setOpenMenu}
+            onOpenMenu={onOpenMenu}
             panelClassName="min-w-[min(100vw-2rem,20rem)]"
           >
             <FilterCheckboxList
@@ -1053,7 +1103,7 @@ export function AnalyticsFiltersBar({
               label="Categories"
               activeCount={value.categoryIds.length}
               openMenu={openMenu}
-              onOpenMenu={setOpenMenu}
+              onOpenMenu={onOpenMenu}
               panelClassName="min-w-[min(100vw-2rem,20rem)]"
             >
               <FilterCheckboxList
@@ -1067,79 +1117,23 @@ export function AnalyticsFiltersBar({
           )}
 
           <FilterMenu
-            id="merchants"
-            label="Merchants"
-            activeCount={value.merchantIds.length}
+            id="more"
+            label="More"
+            isActive={secondaryActive}
             openMenu={openMenu}
-            onOpenMenu={setOpenMenu}
-            panelClassName="min-w-[min(100vw-2rem,20rem)]"
+            onOpenMenu={onOpenMenu}
+            panelClassName="min-w-[min(100vw-2rem,22rem)]"
           >
-            <FilterCheckboxList
-              items={merchantItems}
-              value={value.merchantIds}
-              onChange={(next) => onChange({ ...value, merchantIds: next })}
-              emptyHint="No merchants"
-              aria-label="Filter by merchants"
-            />
-          </FilterMenu>
-
-          <FilterMenu
-            id="tags"
-            label="Tags"
-            activeCount={value.tagIds.length}
-            openMenu={openMenu}
-            onOpenMenu={setOpenMenu}
-            panelClassName="min-w-[min(100vw-2rem,20rem)]"
-          >
-            <p className="mb-2 text-xs text-muted">Must have all selected</p>
-            <FilterCheckboxList
-              items={tagItems}
-              value={value.tagIds}
-              onChange={(next) => onChange({ ...value, tagIds: next })}
-              emptyHint="No tags"
-              aria-label="Filter by tags"
-            />
-          </FilterMenu>
-
-          {direction === "transfer" ? null : (
-            <FilterMenu
-              id="recurrence"
-              label="Recurrence"
-              isActive={recurrenceActive}
-              activeCount={value.recurrenceSourceIds.length}
-              openMenu={openMenu}
-              onOpenMenu={setOpenMenu}
-              panelClassName="min-w-[min(100vw-2rem,20rem)]"
-            >
-              <div className="grid gap-3">
-                <RecurrenceRadios
-                  recurrence={value.recurrence}
-                  onSelect={setRecurrence}
+            {showDesktopMorePanel ? (
+              <div className="grid max-h-[min(70vh,32rem)] gap-3 overflow-y-auto">
+                <p className="text-xs text-muted">Date · {dateLabel}</p>
+                <AnalyticsFiltersSecondaryFields
+                  {...secondaryFieldsProps}
+                  compact
                 />
-                {value.recurrence !== "one-time" ? (
-                  <Field label="Recurrence templates">
-                    <MultiSelect
-                      items={recurrenceItems}
-                      value={value.recurrenceSourceIds}
-                      onChange={(next) =>
-                        onChange({
-                          ...value,
-                          recurrenceSourceIds: next,
-                          recurrence:
-                            next.length > 0 && value.recurrence === "all"
-                              ? "recurring"
-                              : value.recurrence,
-                        })
-                      }
-                      placeholder="All recurring"
-                      aria-label="Filter by recurrence templates"
-                      disablePortal
-                    />
-                  </Field>
-                ) : null}
               </div>
-            </FilterMenu>
-          )}
+            ) : null}
+          </FilterMenu>
 
           <div className="ms-2 flex shrink-0 items-center gap-2 border-s border-border ps-3">
             <Button

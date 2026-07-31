@@ -6,8 +6,8 @@ describe("buildNetCashflowSankeyData", () => {
   it("builds a central cash flow topology with directional links", () => {
     const payload = buildNetCashflowSankeyData(
       [
-        { id: "salary", parentId: null, name: "Salary", color: "#4ade80" },
-        { id: "housing", parentId: null, name: "Housing", color: "#f87171" },
+        { id: "salary", parentId: null, name: "Salary", color: "#2f7d4a" },
+        { id: "housing", parentId: null, name: "Housing", color: "#d14343" },
       ],
       [
         { kind: "income", categoryId: "salary", valueMinor: 300_000 },
@@ -25,8 +25,8 @@ describe("buildNetCashflowSankeyData", () => {
   it("chains parent-child nodes when both are net-income", () => {
     const payload = buildNetCashflowSankeyData(
       [
-        { id: "work", parentId: null, name: "Work", color: "#4ade80" },
-        { id: "bonus", parentId: "work", name: "Bonus", color: "#22c55e" },
+        { id: "work", parentId: null, name: "Work", color: "#2f7d4a" },
+        { id: "bonus", parentId: "work", name: "Bonus", color: "#0d9488" },
       ],
       [
         { kind: "income", categoryId: "work", valueMinor: 180_000 },

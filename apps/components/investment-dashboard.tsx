@@ -87,7 +87,7 @@ export function InvestmentDashboard() {
       {loading ? (
         <>
           <MoneyListSkeleton variant="summaryTiles" className="max-w-md" />
-          <MoneyListSkeleton variant="cardGrid" />
+          <MoneyListSkeleton variant="panelCards" />
         </>
       ) : null}
 

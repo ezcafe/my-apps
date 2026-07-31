@@ -3,72 +3,72 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
-  Design tokens: Apple/iOS structure × Atom One Light / Nord dark palettes.
+  Design tokens: Quiet Ink structure + Catppuccin palettes
+  (Latte light / Mocha dark). Hexes from https://github.com/catppuccin/palette
   Chart hexes mirror lib/theme-chart-palette.ts (chartPaletteFor).
-  Default (SSR / no JS): data-style="apple" — matches FOUC script + ThemeProvider.
+  Default (SSR / no JS): data-style="quiet" — matches FOUC script + ThemeProvider.
 */
 
 :root {
-  --font-geist-sans: ui-sans-serif;
+  --font-plex-sans: "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-plex-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
-/* ---- Apple structure + Atom One Light palette ---- */
-:root[data-style="apple"],
+/* ---- Catppuccin Latte (light) ---- */
+:root[data-style="quiet"],
 :root:not([data-style]) {
   color-scheme: light;
-  --radius: 0.875rem;
-  --radius-inner: 0.5rem;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px -4px rgb(0 0 0 / 0.08);
-  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.12);
-  --font-heading: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-geist-sans),
-    sans-serif;
-  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-geist-sans),
-    sans-serif;
+  --radius: 0.75rem;
+  --radius-inner: 0.4375rem;
+  --shadow-sm: 0 1px 2px rgb(76 79 105 / 0.06), 0 4px 12px -4px rgb(76 79 105 / 0.1);
+  --shadow-md: 0 1px 2px rgb(76 79 105 / 0.06), 0 8px 24px -12px rgb(76 79 105 / 0.14);
+  --font-heading: var(--font-plex-sans);
+  --font-body: var(--font-plex-sans);
   --space-step: 0.5rem;
 
-  --background: #fafafa;
-  --foreground: #383a42;
-  --muted: #a0a1a7;
-  --surface: #ffffff;
-  --border: #e5e5e6;
-  --muted-surface: #ededed;
+  --background: #eff1f5; /* base */
+  --foreground: #4c4f69; /* text */
+  --muted: #6c6f85; /* subtext0 */
+  --surface: #e6e9ef; /* mantle */
+  --border: #bcc0cc; /* surface1 */
+  --muted-surface: #ccd0da; /* surface0 */
 
-  --accent: #4078f2;
-  --accent-hover: #3366d6;
-  --accent-foreground: #ffffff;
-  --ring: #4078f2;
+  --accent: #1e66f5; /* blue */
+  --accent-hover: #7287fd; /* lavender */
+  --accent-foreground: #eff1f5; /* base */
+  --ring: #1e66f5;
 
-  --destructive: #e45649;
+  --destructive: #d20f39; /* red */
   --danger: var(--destructive);
-  --destructive-foreground: #ffffff;
-  --destructive-muted-bg: color-mix(in oklab, #e45649 10%, var(--surface));
-  --destructive-muted-border: color-mix(in oklab, #e45649 28%, var(--border));
-  --destructive-muted-text: #ca1243;
-  --destructive-icon-bg: color-mix(in oklab, #e45649 14%, transparent);
+  --destructive-foreground: #eff1f5;
+  --destructive-muted-bg: color-mix(in oklab, #d20f39 10%, var(--surface));
+  --destructive-muted-border: color-mix(in oklab, #d20f39 28%, var(--border));
+  --destructive-muted-text: #e64553; /* maroon */
+  --destructive-icon-bg: color-mix(in oklab, #d20f39 14%, transparent);
 
-  --alert-error-bg: color-mix(in oklab, #e45649 8%, var(--surface));
-  --alert-error-border: color-mix(in oklab, #e45649 28%, var(--border));
-  --alert-error-accent: #e45649;
-  --alert-error-title: #ca1243;
-  --alert-error-body: #696c77;
+  --alert-error-bg: color-mix(in oklab, #d20f39 8%, var(--surface));
+  --alert-error-border: color-mix(in oklab, #d20f39 28%, var(--border));
+  --alert-error-accent: #d20f39;
+  --alert-error-title: #e64553;
+  --alert-error-body: #6c6f85;
 
-  --alert-warning-bg: color-mix(in oklab, #c18401 14%, var(--surface));
-  --alert-warning-border: color-mix(in oklab, #986801 35%, var(--border));
-  --alert-warning-accent: #c18401;
-  --alert-warning-title: #986801;
-  --alert-warning-body: #696c77;
+  --alert-warning-bg: color-mix(in oklab, #df8e1d 12%, var(--surface));
+  --alert-warning-border: color-mix(in oklab, #df8e1d 32%, var(--border));
+  --alert-warning-accent: #df8e1d; /* yellow */
+  --alert-warning-title: #fe640b; /* peach */
+  --alert-warning-body: #6c6f85;
 
   --toast-success-bg: var(--surface);
   --toast-success-border: var(--border);
-  --toast-success-accent: #50a14f;
-  --toast-success-icon-bg: color-mix(in oklab, #50a14f 14%, transparent);
+  --toast-success-accent: #40a02b; /* green */
+  --toast-success-icon-bg: color-mix(in oklab, #40a02b 14%, transparent);
   --toast-success-title: var(--foreground);
   --toast-success-body: var(--muted);
 
   --toast-warning-bg: var(--alert-warning-bg);
   --toast-warning-border: var(--border);
   --toast-warning-accent: var(--alert-warning-accent);
-  --toast-warning-icon-bg: color-mix(in oklab, #c18401 14%, transparent);
+  --toast-warning-icon-bg: color-mix(in oklab, #df8e1d 14%, transparent);
   --toast-warning-title: var(--alert-warning-title);
   --toast-warning-body: var(--alert-warning-body);
 
@@ -79,80 +79,81 @@
   --toast-error-title: var(--alert-error-title);
   --toast-error-body: var(--alert-error-body);
 
-  --chart-0: #4078f2;
-  --chart-1: #a626a4;
-  --chart-2: #c18401;
-  --chart-3: #50a14f;
-  --chart-4: #0184bc;
-  --chart-5: #e45649;
-  --chart-6: #986801;
-  --chart-7: #696c77;
+  --chart-0: #1e66f5; /* blue */
+  --chart-1: #179299; /* teal */
+  --chart-2: #fe640b; /* peach */
+  --chart-3: #40a02b; /* green */
+  --chart-4: #8839ef; /* mauve */
+  --chart-5: #d20f39; /* red */
+  --chart-6: #04a5e5; /* sky */
+  --chart-7: #9ca0b0; /* overlay0 */
 }
 
-:root[data-style="apple"].dark,
+/* ---- Catppuccin Mocha (dark) ---- */
+:root[data-style="quiet"].dark,
 :root:not([data-style]).dark {
   color-scheme: dark;
 
-  --background: #2e3440;
-  --foreground: #d8dee9;
-  --muted: #a3b1c2;
-  --surface: #3b4252;
-  --border: #4c566a;
-  --muted-surface: #434c5e;
+  --background: #1e1e2e; /* base */
+  --foreground: #cdd6f4; /* text */
+  --muted: #a6adc8; /* subtext0 */
+  --surface: #313244; /* surface0 */
+  --border: #45475a; /* surface1 */
+  --muted-surface: #45475a; /* surface1 */
 
-  --accent: #88c0d0;
-  --accent-hover: #8fbcbb;
-  --accent-foreground: #2e3440;
-  --ring: #88c0d0;
+  --accent: #89b4fa; /* blue */
+  --accent-hover: #b4befe; /* lavender */
+  --accent-foreground: #1e1e2e; /* base */
+  --ring: #89b4fa;
 
-  --destructive: #bf616a;
-  --destructive-foreground: #2e3440;
-  --destructive-muted-bg: color-mix(in oklab, #bf616a 14%, var(--surface));
-  --destructive-muted-border: color-mix(in oklab, #bf616a 35%, var(--border));
-  --destructive-muted-text: #d08770;
-  --destructive-icon-bg: color-mix(in oklab, #bf616a 18%, transparent);
+  --destructive: #f38ba8; /* red */
+  --destructive-foreground: #1e1e2e;
+  --destructive-muted-bg: color-mix(in oklab, #f38ba8 14%, var(--surface));
+  --destructive-muted-border: color-mix(in oklab, #f38ba8 35%, var(--border));
+  --destructive-muted-text: #eba0ac; /* maroon */
+  --destructive-icon-bg: color-mix(in oklab, #f38ba8 18%, transparent);
 
-  --alert-error-bg: color-mix(in oklab, #bf616a 14%, var(--surface));
-  --alert-error-border: color-mix(in oklab, #bf616a 28%, var(--border));
-  --alert-error-accent: #bf616a;
-  --alert-error-title: #d08770;
-  --alert-error-body: #ebcb8b;
+  --alert-error-bg: color-mix(in oklab, #f38ba8 14%, var(--surface));
+  --alert-error-border: color-mix(in oklab, #f38ba8 28%, var(--border));
+  --alert-error-accent: #f38ba8;
+  --alert-error-title: #eba0ac;
+  --alert-error-body: #a6adc8;
 
-  --alert-warning-bg: color-mix(in oklab, #ebcb8b 12%, var(--surface));
-  --alert-warning-border: color-mix(in oklab, #ebcb8b 28%, var(--border));
-  --alert-warning-accent: #ebcb8b;
-  --alert-warning-title: #eceff4;
-  --alert-warning-body: #d8dee9;
+  --alert-warning-bg: color-mix(in oklab, #f9e2af 12%, var(--surface));
+  --alert-warning-border: color-mix(in oklab, #f9e2af 28%, var(--border));
+  --alert-warning-accent: #f9e2af; /* yellow */
+  --alert-warning-title: #fab387; /* peach */
+  --alert-warning-body: #a6adc8;
 
   --toast-success-bg: var(--surface);
   --toast-success-border: var(--border);
-  --toast-success-accent: #a3be8c;
-  --toast-success-icon-bg: color-mix(in oklab, #a3be8c 18%, transparent);
+  --toast-success-accent: #a6e3a1; /* green */
+  --toast-success-icon-bg: color-mix(in oklab, #a6e3a1 18%, transparent);
   --toast-success-title: var(--foreground);
   --toast-success-body: var(--muted);
 
   --toast-warning-bg: var(--alert-warning-bg);
   --toast-warning-border: var(--border);
   --toast-warning-accent: var(--alert-warning-accent);
-  --toast-warning-icon-bg: color-mix(in oklab, #ebcb8b 18%, transparent);
+  --toast-warning-icon-bg: color-mix(in oklab, #f9e2af 18%, transparent);
   --toast-warning-title: var(--alert-warning-title);
   --toast-warning-body: var(--alert-warning-body);
 
   --toast-error-bg: var(--alert-error-bg);
   --toast-error-border: var(--border);
-  --toast-error-accent: #bf616a;
+  --toast-error-accent: #f38ba8;
   --toast-error-icon-bg: var(--destructive-icon-bg);
-  --toast-error-title: #d08770;
-  --toast-error-body: #ebcb8b;
+  --toast-error-title: #eba0ac;
+  --toast-error-body: #a6adc8;
 
-  --chart-0: #88c0d0;
-  --chart-1: #b48ead;
-  --chart-2: #d08770;
-  --chart-3: #a3be8c;
-  --chart-4: #81a1c1;
-  --chart-5: #bf616a;
-  --chart-6: #5e81ac;
-  --chart-7: #ebcb8b;
+  --chart-0: #89b4fa; /* blue */
+  --chart-1: #94e2d5; /* teal */
+  --chart-2: #fab387; /* peach */
+  --chart-3: #a6e3a1; /* green */
+  --chart-4: #cba6f7; /* mauve */
+  --chart-5: #f38ba8; /* red */
+  --chart-6: #89dceb; /* sky */
+  --chart-7: #6c7086; /* overlay0 */
 }
 
 @theme inline {
@@ -172,8 +173,7 @@
   --radius-sm: var(--radius-inner);
   --font-sans: var(--font-body);
   --font-display: var(--font-heading);
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
-    "Liberation Mono", monospace;
+  --font-mono: var(--font-plex-mono);
   --color-chart-0: var(--chart-0);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -198,8 +198,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-body);
   /* Tabular nums applied globally so dynamic counters/amounts
-     never cause layout shift. Fonts in this app (Geist, system stacks,
-     SF Pro) handle this gracefully. */
+     never cause layout shift. IBM Plex Sans handles this gracefully. */
   font-variant-numeric: tabular-nums;
 }
 
@@ -295,8 +294,8 @@ dialog::backdrop {
     container-type: inline-size;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: clamp(0.75rem, 2cqi, 1.5rem);
-    padding: clamp(0.75rem, 3cqi, 1.75rem);
+    gap: clamp(1rem, 2.5cqi, 1.75rem);
+    padding: clamp(1rem, 3.5cqi, 2.25rem);
     max-inline-size: 100%;
     margin-inline: auto;
     width: 100%;

@@ -4,7 +4,6 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   moneyAccount,
-  moneyCategory,
   moneyRecurrentTemplate,
   moneyRule,
   moneyTag,

@@ -1,6 +1,6 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
@@ -437,7 +437,7 @@ export function MoneySettingsBudgetsSection() {
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
                       {overBudget ? (
-                        <span className="rounded-full border border-[color:var(--danger)]/50 bg-[color-mix(in_oklab,var(--danger)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-[color:var(--danger)]">
+                        <span className="rounded-[var(--radius-sm)] border border-[color:var(--danger)]/50 bg-[color-mix(in_oklab,var(--danger)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-[color:var(--danger)]">
                           Overspent
                         </span>
                       ) : null}

@@ -6,13 +6,14 @@ import { LinePath } from "@visx/shape";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear, scalePoint } from "@visx/scale";
 import { useId, useLayoutEffect, useMemo, useRef } from "react";
-import { chartIncomeColor } from "@/components/charts/chart-income-expense-colors";
+import {
+  loanProgressSeriesColors,
+  type LoanProgressSeriesKey,
+} from "@/components/charts/loan-progress-colors";
 import { ChartShell } from "@/components/charts/chart-shell";
 import type { ChartTooltipPayload } from "@/components/charts/use-chart-tooltip";
-import type { StylePreset } from "@/components/theme-provider";
 import { useTheme } from "@/components/theme-provider";
 import { prefersReducedMotion } from "@/lib/microinteractions";
-import { colorByIndex } from "@/lib/theme-chart-palette";
 
 export type LoanProgressChartPoint = {
   label: string;
@@ -21,18 +22,8 @@ export type LoanProgressChartPoint = {
   projectedCumulativeMinor: number;
 };
 
-export type LoanProgressSeriesKey = "actual" | "scheduled" | "projected";
-
-export function loanProgressSeriesColors(
-  resolved: "light" | "dark",
-  style: StylePreset,
-): Record<LoanProgressSeriesKey, string> {
-  return {
-    actual: chartIncomeColor(resolved, style),
-    scheduled: "var(--muted)",
-    projected: colorByIndex(resolved, 2, style),
-  };
-}
+export type { LoanProgressSeriesKey } from "@/components/charts/loan-progress-colors";
+export { loanProgressSeriesColors } from "@/components/charts/loan-progress-colors";
 
 function xTickIndices(length: number, maxTicks: number): number[] {
   if (length <= 0) return [];

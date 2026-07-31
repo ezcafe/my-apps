@@ -1,7 +1,7 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
-import { useEffect, useState } from "react";
+import { toUserFacingMessage } from "@/lib/user-facing-error";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotify } from "@/components/notification-provider";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,19 @@ export function LoanPayModal({
   const categories =
     moneyBootstrap.data?.categories.filter((c) => c.kind === "expense") ?? [];
 
+  const syncKey = open
+    ? [
+        scheduleInstallmentId,
+        defaultAccountId ?? "",
+        defaultCategoryId ?? "",
+        String(paymentMinor),
+        currency,
+        loanName,
+        String(installmentNumber),
+      ].join("|")
+    : null;
+
+  const [formKey, setFormKey] = useState(syncKey);
   const [accountId, setAccountId] = useState(defaultAccountId ?? "");
   const [categoryId, setCategoryId] = useState(defaultCategoryId ?? "");
   const [amountMajor, setAmountMajor] = useState(() =>
@@ -60,21 +73,14 @@ export function LoanPayModal({
   const [notes, setNotes] = useState(`Loan: ${loanName} #${installmentNumber}`);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
+  if (open && syncKey !== formKey) {
+    setFormKey(syncKey);
     setAccountId(defaultAccountId ?? "");
     setCategoryId(defaultCategoryId ?? "");
     setAmountMajor(minorToMajorInput(paymentMinor, currency));
     setNotes(`Loan: ${loanName} #${installmentNumber}`);
-  }, [
-    open,
-    defaultAccountId,
-    defaultCategoryId,
-    paymentMinor,
-    currency,
-    loanName,
-    installmentNumber,
-  ]);
+    setSaving(false);
+  }
 
   async function onPay() {
     const moneyWorkspaceId = moneyBootstrap.data?.workspaceId;

@@ -2,7 +2,6 @@ import {
   bigint,
   index,
   integer,
-  numeric,
   pgEnum,
   pgTable,
   text,

@@ -9,7 +9,6 @@ import {
 } from "@/db/schema/api-token";
 import { assertWorkspaceMember } from "@/lib/workspace-context";
 import { getWorkspaceIdForUser } from "@/lib/workspace";
-import { getLoansWorkspaceIdForUser } from "@/lib/workspace-loans";
 import { getSavingsWorkspaceIdForUser } from "@/lib/workspace-savings";
 import { getInvestmentWorkspaceIdForUser } from "@/lib/workspace-investment";
 import { isDbUnreachable } from "@/lib/db-errors";

@@ -1,6 +1,6 @@
 "use client";
 
-import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
+import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Button } from "@/components/ui/button";
@@ -11,19 +11,21 @@ import {
   unsubscribeLoansPush,
 } from "@/lib/loans-push-client";
 
+function readNotificationPermission(): NotificationPermission | "unsupported" {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return "unsupported";
+  }
+  return Notification.permission;
+}
+
 export function LoansSettingsNotifications() {
   const notify = useNotify();
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
-    "default",
+    () => readNotificationPermission(),
   );
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) {
-      setPermission("unsupported");
-      return;
-    }
-    setPermission(Notification.permission);
     void registerLoansServiceWorker();
   }, []);
 

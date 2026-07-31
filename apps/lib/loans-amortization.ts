@@ -180,7 +180,7 @@ export function buildAmortizationSchedule(
     ? input.initialRateMonths!
     : input.termMonths + 1;
 
-  let paymentMinor =
+  const paymentMinor =
     input.paymentMinor ??
     computeMonthlyPaymentMinor(
       input.principalMinor,

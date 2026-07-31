@@ -8,13 +8,19 @@ import {
   preloadTransactionEditForm,
 } from "@/components/transaction-edit-form-load";
 import { Modal } from "@/components/ui/modal";
+import { Skeleton } from "@/components/ui/skeleton";
 import { moneyFormLookupsQueryOptions } from "@/lib/money-query-options";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 
 const TransactionEditForm = dynamic(loadTransactionEditForm, {
   ssr: false,
   loading: () => (
-    <p className="px-4 py-6 text-sm text-muted">Loading editor…</p>
+    <div className="space-y-3 p-1">
+      <Skeleton className="h-6 w-40 rounded-[var(--radius-sm)]" />
+      <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+      <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+      <Skeleton className="h-24 w-full rounded-[var(--radius-md)]" />
+    </div>
   ),
 });
 

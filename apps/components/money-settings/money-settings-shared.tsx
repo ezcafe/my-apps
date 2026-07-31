@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { AboutDisclosure } from "@/components/ui/about-disclosure";
 
 /**
  * Shared class strings for money-settings panels. All values are token-driven
@@ -29,7 +30,9 @@ export function SettingsSubsectionHeading({
       <h3 className="font-display text-base font-semibold leading-6 text-foreground">
         {title}
       </h3>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{description}</p>
+      <AboutDisclosure>
+        <p>{description}</p>
+      </AboutDisclosure>
     </div>
   );
 }
@@ -56,9 +59,13 @@ export function SettingsSection({
           {title}
         </h2>
         {description != null && description !== "" ? (
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-            {description}
-          </p>
+          <AboutDisclosure>
+            {typeof description === "string" ? (
+              <p>{description}</p>
+            ) : (
+              description
+            )}
+          </AboutDisclosure>
         ) : null}
         <div className="mt-4">{children}</div>
       </div>

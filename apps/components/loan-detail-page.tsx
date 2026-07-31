@@ -2,21 +2,20 @@
 
 import { queryErrorMessage } from "@/lib/user-facing-error";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
-  AnalyticsChartContainer,
   CHART_CARD_HEIGHT_TALL,
   CHART_CARD_LAYOUT,
-} from "@/components/analytics-chart-cards";
+} from "@/components/analytics-chart-layout";
 import { LoanDetailOptionsMenu } from "@/components/loan-detail-options-menu";
 import { LoanPayActions } from "@/components/loan-pay-actions";
+import { ChartLegendList } from "@/components/charts/chart-legend-list";
 import {
-  LoanProgressChart,
   loanProgressSeriesColors,
   type LoanProgressSeriesKey,
-} from "@/components/charts/loan-progress-chart";
-import { ChartLegendList } from "@/components/charts/chart-legend-list";
+} from "@/components/charts/loan-progress-colors";
 import { useTheme } from "@/components/theme-provider";
 import { LoanDetailStats } from "@/components/loan-detail-stats";
 import { LoanInstallmentsTable } from "@/components/loan-installments-table";
@@ -26,13 +25,36 @@ import {
   useLoansWorkspace,
 } from "@/components/loans-workspace-provider";
 import { Alert } from "@/components/ui/alert";
+import { AboutDisclosure } from "@/components/ui/about-disclosure";
 import { buttonClassName } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { toggleSetKey } from "@/lib/chart-legend-toggle";
 import { loanDetailQueryOptions, type LoanDetail } from "@/lib/loans-query-options";
 import { cn } from "@/lib/cn";
+
+const AnalyticsChartContainer = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.AnalyticsChartContainer,
+    })),
+  { ssr: false },
+);
+
+const LoanProgressChart = dynamic(
+  () =>
+    import("@/components/charts/loan-progress-chart").then((m) => ({
+      default: m.LoanProgressChart,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <Skeleton className="h-full min-h-0 w-full rounded-[var(--radius-sm)]" />
+    ),
+  },
+);
 
 const LOAN_DETAIL_GRID_CLASS =
   "grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3";
@@ -193,11 +215,13 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
             <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
               {loan.name}
             </h1>
-            <p className="mt-2 max-w-prose text-sm text-muted">
-              Track payoff progress, record payments, and review your amortization
-              schedule. Payments can be posted to Money or marked paid without a
-              ledger entry.
-            </p>
+            <AboutDisclosure>
+              <p>
+                Track payoff progress, record payments, and review your
+                amortization schedule. Payments can be posted to Money or marked
+                paid without a ledger entry.
+              </p>
+            </AboutDisclosure>
           </div>
           <LoanDetailOptionsMenu
             loanId={loan.id}

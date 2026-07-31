@@ -72,9 +72,12 @@ export async function fetchYahooQuotes(
 
 /** v2 package ships quote only; daily history is optional/backfill no-op until chart module is enabled. */
 export async function fetchYahooHistoricalCloses(
-  _symbol: string,
-  _from: string,
-  _to: string,
+  symbol: string,
+  from: string,
+  to: string,
 ): Promise<{ date: string; closeMajor: number }[]> {
+  void symbol;
+  void from;
+  void to;
   return [];
 }

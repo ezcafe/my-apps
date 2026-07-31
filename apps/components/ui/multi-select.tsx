@@ -242,8 +242,6 @@ export function MultiSelect({
   useLayoutEffect(() => {
     if (!open) {
       hidePanelPopover(panelRef.current);
-      setPanelPos(null);
-      setPanelHost(null);
       return;
     }
     updatePanelPosition();

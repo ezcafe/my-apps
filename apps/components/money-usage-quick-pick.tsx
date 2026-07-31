@@ -311,8 +311,6 @@ export function MoneyUsageQuickPick({
               type="button"
               role="radio"
               aria-checked={otherActive}
-              aria-expanded={pickerOpen}
-              aria-haspopup="listbox"
               onClick={() => setPickerOpen((o) => !o)}
               className={otherChipCls(otherActive)}
             >

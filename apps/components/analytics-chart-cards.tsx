@@ -10,7 +10,6 @@ import {
   chartExpenseColor,
   chartIncomeColor,
 } from "@/components/charts/chart-income-expense-colors";
-import { DivergingBarChart } from "@/components/charts/diverging-bar-chart";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toggleSetKey } from "@/lib/chart-legend-toggle";
@@ -35,6 +34,23 @@ import type {
   AnalyticsLookupAccount,
   AnalyticsLookupTag,
 } from "@/components/analytics-filters";
+import {
+  CHART_CARD_HEIGHT_FULL,
+  CHART_CARD_HEIGHT_HALF,
+  CHART_CARD_HEIGHT_TALL,
+  CHART_CARD_LAYOUT,
+  CHART_CARD_MIN_HEIGHT_HALF_PX,
+  CHART_SLOT_CLASS,
+} from "@/components/analytics-chart-layout";
+
+export {
+  CHART_CARD_HEIGHT_FULL,
+  CHART_CARD_HEIGHT_HALF,
+  CHART_CARD_HEIGHT_TALL,
+  CHART_CARD_LAYOUT,
+  CHART_CARD_MIN_HEIGHT_HALF_PX,
+  CHART_SLOT_CLASS,
+} from "@/components/analytics-chart-layout";
 
 const CHART_EMPTY_TRANSACTION_ACTIONS = {
   action: { href: "/money/spending", label: "View transactions" },
@@ -89,12 +105,13 @@ const StackedAreaChart = dynamic(
   { ssr: false },
 );
 
-export const CHART_CARD_HEIGHT_FULL = "h-[260px] min-h-[260px] max-h-[260px]";
-export const CHART_CARD_HEIGHT_HALF = "h-[280px] min-h-[280px] max-h-[280px]";
-export const CHART_CARD_HEIGHT_TALL = "h-[360px] min-h-[360px] max-h-[360px]";
-export const CHART_CARD_MIN_HEIGHT_HALF_PX = 280;
-export const CHART_CARD_LAYOUT = "flex flex-col";
-export const CHART_SLOT_CLASS = "h-full min-h-0 overflow-hidden";
+const DivergingBarChart = dynamic(
+  () =>
+    import("@/components/charts/diverging-bar-chart").then((m) => ({
+      default: m.DivergingBarChart,
+    })),
+  { ssr: false },
+);
 
 const LEGEND_GRID_DEFAULT =
   "grid-cols-1 grid-rows-[minmax(0,1fr)_auto] md:grid-rows-1 md:[grid-template-columns:minmax(0,20%)_minmax(0,80%)]";
@@ -162,7 +179,7 @@ export function AnalyticsChartContainer({
 export function ChartViewportFallback({ ariaLabel }: { ariaLabel: string }) {
   return (
     <Skeleton
-      className="flex h-full w-full min-h-0 min-w-0 items-center justify-center text-xs text-muted"
+      className="flex h-full w-full min-h-0 min-w-0 items-center justify-center rounded-[var(--radius-sm)] text-xs text-muted"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -176,7 +193,7 @@ export function ChartViewportFallback({ ariaLabel }: { ariaLabel: string }) {
 export function DeferredChartLoading({ ariaLabel }: { ariaLabel: string }) {
   return (
     <Skeleton
-      className="flex h-full w-full min-h-0 min-w-0 items-center justify-center text-xs text-muted"
+      className="flex h-full w-full min-h-0 min-w-0 items-center justify-center rounded-[var(--radius-sm)] text-xs text-muted"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -227,7 +244,7 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
   };
 }) {
   const { resolved, style } = theme;
-  const overviewLine = overview?.line ?? [];
+  const overviewLine = useMemo(() => overview?.line ?? [], [overview?.line]);
   const overviewLineCompare = overview?.lineCompare;
   const overviewLineMode = overview?.lineMode ?? "date";
   const [hiddenLineSeries, setHiddenLineSeries] = useState(

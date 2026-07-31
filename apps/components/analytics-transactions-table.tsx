@@ -6,7 +6,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AnalyticsLookupAccount } from "@/components/analytics-filters";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { useTheme } from "@/components/theme-provider";
-import { TransactionBulkEditModal } from "@/components/transaction-bulk-edit-modal";
 import { preloadTransactionEditForm } from "@/components/transaction-edit-form-load";
 import { TransactionEditModal } from "@/components/transaction-edit-modal";
 import { TransactionSelectionBar } from "@/components/transaction-selection-bar";
@@ -36,6 +35,15 @@ import {
 import type { MoneyLedgerEmptyState } from "@/lib/money-ledger-presets";
 import { useInViewOnce } from "@/lib/use-in-view-once";
 import type { TransactionListSortKey } from "@/lib/validators/money";
+import dynamic from "next/dynamic";
+
+const TransactionBulkEditModal = dynamic(
+  () =>
+    import("@/components/transaction-bulk-edit-modal").then((m) => ({
+      default: m.TransactionBulkEditModal,
+    })),
+  { ssr: false },
+);
 
 const PAGE_SIZE = 20;
 
@@ -151,7 +159,7 @@ export function AnalyticsTransactionsTable({
     setPage(effectivePage);
   }
 
-  const pageRows = payload?.data ?? [];
+  const pageRows = useMemo(() => payload?.data ?? [], [payload?.data]);
   const pageIds = useMemo(() => pageRows.map((tx) => tx.id), [pageRows]);
   const selectedRows = useMemo(
     () => pageRows.filter((tx) => selectedIds.has(tx.id)),
@@ -418,7 +426,7 @@ export function AnalyticsTransactionsTable({
           <tr key={`tx-skel-${rowIndex}`}>
             {Array.from({ length: columnCount }, (_, colIndex) => (
               <td key={`tx-skel-${rowIndex}-${colIndex}`} className="px-3 py-3">
-                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
               </td>
             ))}
           </tr>
@@ -652,16 +660,18 @@ export function AnalyticsTransactionsTable({
             onDelete={() => void handleDelete()}
             onClear={clearSelection}
           />
-          <TransactionBulkEditModal
-            open={bulkEditOpen}
-            activeWorkspaceId={activeWorkspaceId}
-            selectedRows={selectedRows}
-            accounts={accounts}
-            categories={categories}
-            tags={tags}
-            onClose={() => setBulkEditOpen(false)}
-            onSuccess={onBulkEditSuccess}
-          />
+          {bulkEditOpen ? (
+            <TransactionBulkEditModal
+              open={bulkEditOpen}
+              activeWorkspaceId={activeWorkspaceId}
+              selectedRows={selectedRows}
+              accounts={accounts}
+              categories={categories}
+              tags={tags}
+              onClose={() => setBulkEditOpen(false)}
+              onSuccess={onBulkEditSuccess}
+            />
+          ) : null}
         </>
       ) : null}
 

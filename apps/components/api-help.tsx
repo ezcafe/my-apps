@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
@@ -21,6 +27,22 @@ import {
   type ApiHelpSection,
 } from "@/lib/api-help-content";
 import { cn } from "@/lib/cn";
+
+function subscribeOrigin() {
+  return () => {};
+}
+
+function getClientOrigin() {
+  return window.location.origin;
+}
+
+function getServerOrigin() {
+  return API_HELP_BASE_URL_PLACEHOLDER;
+}
+
+function useDocumentOrigin() {
+  return useSyncExternalStore(subscribeOrigin, getClientOrigin, getServerOrigin);
+}
 
 function HelpCodeBlock({
   sample,
@@ -310,18 +332,10 @@ function HelpTabbedCatalog<T extends { id: string; tabLabel?: string }>({
   renderPanel: (item: T) => ReactNode;
 }) {
   const [value, setValue] = useState(items[0]?.id ?? "");
-
-  useEffect(() => {
-    if (items.length === 0) {
-      if (value !== "") setValue("");
-      return;
-    }
-    if (!items.some((item) => item.id === value)) {
-      setValue(items[0]!.id);
-    }
-  }, [items, value]);
-
-  const active = items.find((item) => item.id === value) ?? items[0];
+  const activeId = items.some((item) => item.id === value)
+    ? value
+    : (items[0]?.id ?? "");
+  const active = items.find((item) => item.id === activeId) ?? items[0];
   if (!active) return null;
 
   return (
@@ -439,14 +453,7 @@ function HelpSectionBody({
 }
 
 export function ApiHelp() {
-  const [baseUrl, setBaseUrl] = useState("");
-
-  useEffect(() => {
-    setBaseUrl(window.location.origin);
-  }, []);
-
-  const resolvedBase =
-    baseUrl || API_HELP_BASE_URL_PLACEHOLDER;
+  const resolvedBase = useDocumentOrigin();
 
   const sectionById = useMemo(
     () => new Map(apiHelpSections.map((section) => [section.id, section])),

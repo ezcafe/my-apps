@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
+import { AboutDisclosure } from "@/components/ui/about-disclosure";
 import { cn } from "@/lib/cn";
 
-/** Page title + optional description (segmented views belong in the filter bar). */
+/** Page title + optional description (collapsed behind About by default). */
 export function MoneyPageHeader({
   title,
   description,
@@ -22,7 +23,9 @@ export function MoneyPageHeader({
         {title}
       </h2>
       {description ? (
-        <p className="mt-1 max-w-prose text-sm text-muted">{description}</p>
+        <AboutDisclosure>
+          <p>{description}</p>
+        </AboutDisclosure>
       ) : null}
     </div>
   );

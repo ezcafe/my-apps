@@ -6,7 +6,10 @@ export default function LoginPage() {
     <div className="shell-main grid min-h-[70dvh] place-content-center gap-8 py-16 fx-fade-in">
       <div className="grid items-center gap-8 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]">
         <div className="max-w-md space-y-2 lg:justify-self-end lg:text-right">
-          <h1 className="font-display text-2xl font-semibold tracking-tight">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted">
+            Workspace
+          </p>
+          <h1 className="font-display text-3xl font-semibold tracking-tight">
             Sign in
           </h1>
           <p className="text-sm text-muted">

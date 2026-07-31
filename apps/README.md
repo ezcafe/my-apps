@@ -1,6 +1,6 @@
 # Workspace app
 
-Multi-feature Next.js workspace built around a small **shell** and a unified **Money** finance module (transactions, investments, loans, and savings-style accounts). Pocket ID OIDC handles auth; Drizzle + PostgreSQL 18 hold the data. The UI is a token-driven minimalist design system with Apple/iOS structure, GitHub-inspired light palette, Nord dark palette, and CSS-only motion.
+Multi-feature Next.js workspace built around a small **shell** and a unified **Money** finance module (transactions, investments, loans, and savings-style accounts). Pocket ID OIDC handles auth; Drizzle + PostgreSQL 18 hold the data. The UI is a token-driven **Quiet Ink** design system with **Catppuccin Latte** (light) and **Mocha** (dark) palettes and CSS-only motion.
 
 > **All UI work must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md).** No hard-coded colors, fonts, radii, shadows, or motion libraries.
 
@@ -141,9 +141,9 @@ docs/                  Architecture, design guide, feature checklist.
 
 ## Design system (mandatory)
 
-- Fixed Apple/iOS structure with two color palettes:
-  - `style` → `<html data-style="apple">` (always).
-  - `mode` → `<html class="dark">` toggled for Nord dark; otherwise GitHub-inspired light.
+- Fixed **Quiet Ink** structure with two Catppuccin appearance palettes:
+  - `style` → `<html data-style="quiet">` (always).
+  - `mode` → `<html class="dark">` for Mocha dark; otherwise Latte light.
 - **2 token sets** declared in [`app/globals.css`](app/globals.css). Components never branch on `style`.
 - Compose UI from [`components/ui/`](components/ui/) primitives. They already consume tokens (`rounded-[var(--radius-md)]`, `shadow-[var(--shadow-sm)]`, `bg-surface`, etc.).
 - Microinteractions are CSS-only (`fx-press`, `fx-fade-in`, `fx-shimmer`, `fx-field` + `fx-field-underline`). For state-driven transitions, use [`withViewTransition`](lib/microinteractions.ts).
@@ -154,7 +154,7 @@ docs/                  Architecture, design guide, feature checklist.
 
 Forbidden: `rounded-md`/`rounded-lg`/`rounded-xl`/`rounded-2xl`, `shadow-sm`/`shadow-md`/`shadow-lg`, hand-picked hex colors or font families, JS animation libraries (Framer Motion / Motion One / GSAP), manual portals for dialogs (use `Modal`).
 
-Full rules + primitive table + microinteraction utilities: [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md).
+Full rules + primitive table + microinteraction utilities: [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md). Spec: [`docs/SPEC.md`](docs/SPEC.md).
 
 ## Architecture & adding features
 

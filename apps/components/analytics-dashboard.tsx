@@ -13,25 +13,16 @@ import {
   useTransition,
 } from "react";
 import {
-  BudgetVsActualCard,
-  CategorySpendTrendCard,
   CHART_CARD_HEIGHT_FULL,
   CHART_CARD_HEIGHT_HALF,
-  IncomeByCategoryCard,
-  IncomeVsExpenseCard,
-  MoneyFlowSankeyCard,
-  MonthlyColumnsCard,
-  NetCumulativeFlowCard,
-  RecurringSpendCard,
-  SpendByCategoryCard,
-  SpendByTagCard,
-  TopMerchantsCard,
-} from "@/components/analytics-chart-cards";
+  CHART_CARD_LAYOUT,
+} from "@/components/analytics-chart-layout";
 import {
   MoneyAnalyticsChartsSkeleton,
   MoneyAnalyticsPageSkeleton,
   MoneyAnalyticsTransactionsTableSkeleton,
 } from "@/components/money-analytics-skeleton";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { AnalyticsStats } from "@/components/analytics-stats";
@@ -86,6 +77,104 @@ import {
 } from "@/lib/money-ledger-presets";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+const chartCardLoading = () => (
+  <Card
+    className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_FULL}`}
+  >
+    <Skeleton className="mb-2 h-6 w-40 rounded-[var(--radius-sm)]" />
+    <Skeleton className="mb-2 h-3 w-56 max-w-full rounded-[var(--radius-sm)]" />
+    <Skeleton className="min-h-0 w-full flex-1 rounded-[var(--radius-sm)]" />
+  </Card>
+);
+
+const chartCardLoadingHalf = () => (
+  <Card
+    className={`col-span-2 w-full min-w-0 p-4 md:col-span-3 lg:col-span-6 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
+  >
+    <Skeleton className="mb-2 h-6 w-36 rounded-[var(--radius-sm)]" />
+    <Skeleton className="mb-2 h-3 w-44 max-w-full rounded-[var(--radius-sm)]" />
+    <Skeleton className="min-h-0 w-full flex-1 rounded-[var(--radius-sm)]" />
+  </Card>
+);
+
+const NetCumulativeFlowCard = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.NetCumulativeFlowCard,
+    })),
+  { loading: chartCardLoading, ssr: false },
+);
+const IncomeVsExpenseCard = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.IncomeVsExpenseCard,
+    })),
+  { loading: chartCardLoadingHalf, ssr: false },
+);
+const BudgetVsActualCard = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.BudgetVsActualCard,
+    })),
+  { loading: chartCardLoadingHalf, ssr: false },
+);
+const MoneyFlowSankeyCard = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.MoneyFlowSankeyCard,
+    })),
+  { ssr: false },
+);
+const SpendByCategoryCard = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.SpendByCategoryCard,
+    })),
+  { ssr: false },
+);
+const IncomeByCategoryCard = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.IncomeByCategoryCard,
+    })),
+  { ssr: false },
+);
+const MonthlyColumnsCard = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.MonthlyColumnsCard,
+    })),
+  { ssr: false },
+);
+const CategorySpendTrendCard = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.CategorySpendTrendCard,
+    })),
+  { ssr: false },
+);
+const SpendByTagCard = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.SpendByTagCard,
+    })),
+  { ssr: false },
+);
+const TopMerchantsCard = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.TopMerchantsCard,
+    })),
+  { ssr: false },
+);
+const RecurringSpendCard = dynamic(
+  () =>
+    import("@/components/analytics-chart-cards").then((m) => ({
+      default: m.RecurringSpendCard,
+    })),
+  { ssr: false },
+);
+
 const AnalyticsFiltersBar = dynamic(
   () =>
     import("@/components/analytics-filters").then((m) => ({
@@ -101,51 +190,6 @@ const AnalyticsTransactionsTableLazy = dynamic(
     })),
   { loading: () => <MoneyAnalyticsTransactionsTableSkeleton /> },
 );
-
-export function AnalyticsDashboardSkeleton() {
-  return (
-    <div
-      className="grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3"
-      role="status"
-      aria-busy="true"
-      aria-label="Loading analytics"
-    >
-      <Skeleton className="col-span-2 h-24 md:col-span-6 lg:col-span-12" />
-      <div className={`col-span-2 md:col-span-6 lg:col-span-12 ${CHART_CARD_HEIGHT_FULL}`}>
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className={`col-span-2 md:col-span-6 lg:col-span-6 ${CHART_CARD_HEIGHT_HALF}`}>
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className={`col-span-2 md:col-span-6 lg:col-span-6 ${CHART_CARD_HEIGHT_HALF}`}>
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className={`col-span-2 md:col-span-6 lg:col-span-12 ${CHART_CARD_HEIGHT_FULL}`}>
-        <Skeleton className="h-full w-full" />
-      </div>
-    </div>
-  );
-}
-
-export function AnalyticsChartsSkeleton() {
-  return (
-    <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3">
-      <Skeleton className="col-span-2 h-24 md:col-span-6 lg:col-span-12" />
-      <div className={`col-span-2 md:col-span-6 lg:col-span-12 ${CHART_CARD_HEIGHT_FULL}`}>
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className={`col-span-2 md:col-span-6 lg:col-span-6 ${CHART_CARD_HEIGHT_HALF}`}>
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className={`col-span-2 md:col-span-6 lg:col-span-6 ${CHART_CARD_HEIGHT_HALF}`}>
-        <Skeleton className="h-full w-full" />
-      </div>
-      <div className={`col-span-2 md:col-span-6 lg:col-span-12 ${CHART_CARD_HEIGHT_FULL}`}>
-        <Skeleton className="h-full w-full" />
-      </div>
-    </div>
-  );
-}
 
 type AnalyticsStagesProps = {
   filterQuery: string;

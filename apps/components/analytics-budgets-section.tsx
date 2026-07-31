@@ -80,7 +80,7 @@ export function AnalyticsBudgetsSection({
                   <span className="text-sm font-medium text-foreground">{label}</span>
                   <div className="flex items-center gap-2">
                     {budget.overBudget ? (
-                      <span className="rounded-full border border-[color:var(--destructive)]/50 bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-[color:var(--destructive)]">
+                      <span className="rounded-[var(--radius-sm)] border border-[color:var(--destructive)]/50 bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-[color:var(--destructive)]">
                         Overspent
                       </span>
                     ) : null}

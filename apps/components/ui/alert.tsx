@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** Inline alerts using semantic theme tokens (GitHub light / Catppuccin Mocha dark). */
+/** Inline alerts using semantic theme tokens (Catppuccin Latte light / Mocha dark). */
 export function Alert({
   variant,
   title,

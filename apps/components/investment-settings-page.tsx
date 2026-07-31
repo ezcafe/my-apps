@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { MoreMenu, MoreMenuItem } from "@/components/ui/more-menu";
 import { Select } from "@/components/ui/select";
 import { investmentGraphQLRequest } from "@/lib/investment-gql-client";
 import {
@@ -39,6 +40,8 @@ export function InvestmentSettingsPage() {
   const [yahooSymbol, setYahooSymbol] = useState("");
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -62,6 +65,7 @@ export function InvestmentSettingsPage() {
       setName("");
       setSymbol("");
       setYahooSymbol("");
+      setCreateOpen(false);
       await queryClient.invalidateQueries({ queryKey: investmentKeys.all });
       notify.success("Instrument created", trimmedSymbol);
     } catch (err) {
@@ -79,6 +83,8 @@ export function InvestmentSettingsPage() {
       notify.success("Quotes refreshed");
     } catch (err) {
       notify.error("Could not refresh quotes", toUserFacingMessage(err));
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -89,15 +95,32 @@ export function InvestmentSettingsPage() {
       <Card className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-lg font-medium">Instruments</h2>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={refreshing}
-            onClick={() => void onRefreshQuotes()}
-          >
-            {refreshing ? "Refreshing…" : "Refresh quotes"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setCreateOpen((o) => !o)}
+              aria-expanded={createOpen}
+            >
+              {createOpen ? "Hide form" : "Add instrument"}
+            </Button>
+            <MoreMenu
+              aria-label="Instrument options"
+              open={menuOpen}
+              onOpenChange={setMenuOpen}
+            >
+              <MoreMenuItem
+                disabled={refreshing}
+                onClick={() => {
+                  setMenuOpen(false);
+                  void onRefreshQuotes();
+                }}
+              >
+                {refreshing ? "Refreshing…" : "Refresh quotes"}
+              </MoreMenuItem>
+            </MoreMenu>
+          </div>
         </div>
         {instrumentsQuery.isLoading ? (
           <p className="mt-4 text-sm text-muted">Loading…</p>
@@ -136,50 +159,52 @@ export function InvestmentSettingsPage() {
         ) : null}
       </Card>
 
-      <Card className="max-w-xl p-5">
-        <h2 className="font-display text-lg font-medium">Create instrument</h2>
-        <form className="mt-4 grid gap-4" onSubmit={onCreate}>
-          <Field label="Kind" required>
-            <Select
-              value={kind}
-              onChange={(e) =>
-                setKind(e.target.value as (typeof INSTRUMENT_KINDS)[number])
-              }
-            >
-              {INSTRUMENT_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Name" required>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoComplete="off"
-            />
-          </Field>
-          <Field label="Symbol" required>
-            <Input
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value)}
-              autoComplete="off"
-            />
-          </Field>
-          <Field label="Yahoo symbol" hint="Optional, for live quotes">
-            <Input
-              value={yahooSymbol}
-              onChange={(e) => setYahooSymbol(e.target.value)}
-              autoComplete="off"
-            />
-          </Field>
-          <p className="text-xs text-muted">Currency: {defaultCurrency}</p>
-          <Button type="submit" disabled={saving}>
-            {saving ? "Creating…" : "Create instrument"}
-          </Button>
-        </form>
-      </Card>
+      {createOpen ? (
+        <Card className="max-w-xl p-5 fx-fade-in">
+          <h2 className="font-display text-lg font-medium">Create instrument</h2>
+          <form className="mt-4 grid gap-4" onSubmit={onCreate}>
+            <Field label="Kind" required>
+              <Select
+                value={kind}
+                onChange={(e) =>
+                  setKind(e.target.value as (typeof INSTRUMENT_KINDS)[number])
+                }
+              >
+                {INSTRUMENT_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Name" required>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Symbol" required>
+              <Input
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Yahoo symbol" hint="Optional, for live quotes">
+              <Input
+                value={yahooSymbol}
+                onChange={(e) => setYahooSymbol(e.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+            <p className="text-xs text-muted">Currency: {defaultCurrency}</p>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Creating…" : "Create instrument"}
+            </Button>
+          </form>
+        </Card>
+      ) : null}
     </div>
   );
 }

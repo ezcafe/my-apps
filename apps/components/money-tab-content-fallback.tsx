@@ -4,20 +4,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** Placeholder while a money tab panel chunk loads (`next/dynamic`). */
 export function MoneyTabContentFallback() {
   return (
-    <Card
-      className="p-6"
+    <div
+      className="min-w-0 space-y-4"
       aria-busy="true"
       aria-live="polite"
       aria-label="Loading tab content"
     >
-      <div className="space-y-4">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-32 w-full" />
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-3">
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-        </div>
+      <div className="min-w-0">
+        <Skeleton className="h-7 w-40 rounded-[var(--radius-sm)]" />
+        <Skeleton className="mt-2 h-3 w-12 rounded-[var(--radius-sm)]" />
       </div>
-    </Card>
+      <Card className="p-5">
+        <Skeleton className="h-6 w-36 rounded-[var(--radius-sm)]" />
+        <Skeleton className="mt-4 h-32 w-full rounded-[var(--radius-sm)]" />
+        <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr))]">
+          <Skeleton className="h-20 rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-20 rounded-[var(--radius-sm)]" />
+        </div>
+      </Card>
+    </div>
   );
 }

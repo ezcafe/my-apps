@@ -17,7 +17,7 @@ import {
 } from "@/lib/theme-init-script";
 
 export type Theme = ThemePreference;
-export type StylePreset = "apple";
+export type StylePreset = "quiet";
 
 function readStoredTheme(): Theme {
   if (typeof window === "undefined") return "system";
@@ -54,7 +54,7 @@ function applyThemeClass(resolved: ResolvedTheme) {
 }
 
 function applyStyleDataset() {
-  document.documentElement.dataset.style = "apple";
+  document.documentElement.dataset.style = "quiet";
 }
 
 type ThemeContextValue = {
@@ -100,7 +100,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ theme, setTheme, resolved, style: "apple" as const }),
+    () => ({ theme, setTheme, resolved, style: "quiet" as const }),
     [theme, setTheme, resolved],
   );
 

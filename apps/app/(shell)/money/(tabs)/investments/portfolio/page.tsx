@@ -14,8 +14,8 @@ const InvestmentDashboardLazy = dynamic(
   {
     loading: () => (
       <div className="min-w-0 space-y-4">
-        <MoneyListSkeleton variant="summaryTiles" />
-        <MoneyListSkeleton variant="cardGrid" />
+        <MoneyListSkeleton variant="summaryTiles" className="max-w-md" />
+        <MoneyListSkeleton variant="panelCards" />
       </div>
     ),
   },
