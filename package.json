@@ -7,5 +7,9 @@
     "build": "npm run build -w apps",
     "start": "npm run start -w apps",
     "lint": "npm run lint -w apps"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "typescript": "~6.0.3"
   }
 }

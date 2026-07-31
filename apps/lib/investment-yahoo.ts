@@ -35,9 +35,30 @@ export type YahooQuoteResult = {
   asOf: Date;
 };
 
-async function getYahooFinance() {
-  const YahooFinance = (await import("yahoo-finance2")).default;
-  return new YahooFinance();
+type YahooFinanceClient = InstanceType<
+  typeof import("yahoo-finance2").default
+>;
+
+let yahooFinancePromise: Promise<YahooFinanceClient> | null = null;
+
+/**
+ * yahoo-finance2 v3+: default export is a class; construct once per process.
+ * @see https://github.com/gadicc/yahoo-finance2/blob/dev/docs/UPGRADING.md
+ */
+async function getYahooFinance(): Promise<YahooFinanceClient> {
+  if (!yahooFinancePromise) {
+    yahooFinancePromise = import("yahoo-finance2").then(
+      ({ default: YahooFinance }) =>
+        new YahooFinance({
+          suppressNotices: ["yahooSurvey"],
+        }),
+    );
+  }
+  return yahooFinancePromise;
+}
+
+function isoDateUtc(d: Date): string {
+  return d.toISOString().slice(0, 10);
 }
 
 export async function fetchYahooQuotes(
@@ -48,36 +69,59 @@ export async function fetchYahooQuotes(
   if (unique.length === 0) return out;
 
   const yf = await getYahooFinance();
-  for (const symbol of unique) {
-    try {
-      const q = await yf.quote(symbol);
+  try {
+    const raw = await yf.quote(unique, {
+      fields: ["symbol", "regularMarketPrice", "currency", "regularMarketTime"],
+    });
+    const quotes = Array.isArray(raw) ? raw : [raw];
+    for (const q of quotes) {
       if (!q || typeof q !== "object") continue;
+      const symbol = typeof q.symbol === "string" ? q.symbol : null;
       const price =
         typeof q.regularMarketPrice === "number"
           ? q.regularMarketPrice
           : null;
-      if (price == null) continue;
+      if (!symbol || price == null) continue;
       out.set(symbol, {
         symbol,
         priceMajor: price,
         currency: String(q.currency ?? "USD"),
-        asOf: new Date(),
+        asOf:
+          q.regularMarketTime instanceof Date
+            ? q.regularMarketTime
+            : new Date(),
       });
-    } catch {
-      /* skip failed symbol */
     }
+  } catch {
+    /* skip batch failure */
   }
   return out;
 }
 
-/** v2 package ships quote only; daily history is optional/backfill no-op until chart module is enabled. */
+/** Daily closes via yahoo-finance2 `historical` (available since v3+). */
 export async function fetchYahooHistoricalCloses(
   symbol: string,
   from: string,
   to: string,
 ): Promise<{ date: string; closeMajor: number }[]> {
-  void symbol;
-  void from;
-  void to;
-  return [];
+  const yf = await getYahooFinance();
+  try {
+    const rows = await yf.historical(symbol, {
+      period1: from,
+      period2: to,
+      interval: "1d",
+    });
+    return rows
+      .filter(
+        (row): row is typeof row & { date: Date; close: number } =>
+          row.date instanceof Date && typeof row.close === "number",
+      )
+      .map((row) => ({
+        date: isoDateUtc(row.date),
+        closeMajor:
+          typeof row.adjClose === "number" ? row.adjClose : row.close,
+      }));
+  } catch {
+    return [];
+  }
 }

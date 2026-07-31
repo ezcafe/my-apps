@@ -1,7 +1,7 @@
 "use client";
 
 import { Group } from "@visx/group";
-import Pie from "@visx/shape/lib/shapes/Pie";
+import { Pie } from "@visx/shape";
 import { ParentSize } from "@visx/responsive";
 import { useMemo } from "react";
 import { colorByIndex } from "@/components/charts/chart-colors";

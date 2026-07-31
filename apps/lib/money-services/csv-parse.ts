@@ -15,12 +15,12 @@ export function parseMoneyImportCsv(csv: string): {
 
   let records: Record<string, string>[];
   try {
-    records = parse(csv, {
+    records = parse<Record<string, string>>(csv, {
       columns: true,
       skip_empty_lines: true,
       trim: true,
       relax_column_count: true,
-    }) as Record<string, string>[];
+    });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Invalid CSV";
     throw new Error(msg);
@@ -40,7 +40,7 @@ export function parseMoneyImportCsv(csv: string): {
               skip_empty_lines: true,
               trim: true,
               to_line: 1,
-            }) as string[][];
+            });
             return rows[0]?.map(String) ?? [];
           } catch {
             return [];

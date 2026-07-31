@@ -45,7 +45,7 @@ function parseCsvToRecords(text: string): {
     relax_column_count: true,
     relax_quotes: false,
     max_record_size: MAX_IMPORT_RECORD_BYTES,
-  }) as string[][];
+  });
   if (all.length > MAX_IMPORT_ROWS + 1) {
     throw new Error(`CSV has more than ${MAX_IMPORT_ROWS} rows`);
   }
