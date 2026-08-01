@@ -87,6 +87,8 @@ What Compose does:
 Docker-specific notes:
 
 - Prefer `npm run docker:up` / `--env-file .env` so Compose can interpolate `${POSTGRES_*}` overrides; `.env` is also attached to `app`/`migrate` via `env_file`.
+- **`AUTH_SECRET` and `AUTH_POCKET_ID_*` are required** for the `app` service (Compose refuses to start if they are missing). Generate `AUTH_SECRET` with `openssl rand -base64 32`.
+- Behind **Cloudflare Tunnel** (or any public hostname), set both `AUTH_URL` and `NEXT_PUBLIC_APP_URL` to the public HTTPS origin (e.g. `https://xxx.aaa.vn`), not `http://localhost:3000`. Otherwise Auth.js / OIDC redirects break.
 - The app/migration containers default to `DATABASE_URL=postgresql://…@pgbouncer:5432/…`.
 - For direct SQL from host tools, continue using `localhost:5432` (Postgres) or `localhost:6432` (PgBouncer).
 - The runtime image is built from Next.js standalone output, so it only copies the files needed to serve the app.

@@ -74,9 +74,15 @@ services:
       # Override host-oriented DATABASE_URL from .env for in-compose networking.
       DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://${POSTGRES_USER:-money}:${POSTGRES_PASSWORD:-money}@pgbouncer:5432/${POSTGRES_DB:-money}}
       PG_STARTUP_TIMEOUTS: "0"
+      # Public URL must match the browser origin (Cloudflare Tunnel hostname, not localhost).
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
-      # AUTH_SECRET and AUTH_POCKET_ID_* come from .env (env_file).
+      # Required at runtime — Compose fails fast if missing from `.env` / `--env-file`.
+      # Middleware loads auth on /money; without this Safari may prompt to “allow downloads”.
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env — e.g. openssl rand -base64 32}
+      AUTH_POCKET_ID_ISSUER: ${AUTH_POCKET_ID_ISSUER:?Set AUTH_POCKET_ID_ISSUER in .env}
+      AUTH_POCKET_ID_ID: ${AUTH_POCKET_ID_ID:?Set AUTH_POCKET_ID_ID in .env}
+      AUTH_POCKET_ID_SECRET: ${AUTH_POCKET_ID_SECRET:?Set AUTH_POCKET_ID_SECRET in .env}
     depends_on:
       migrate:
         condition: service_completed_successfully

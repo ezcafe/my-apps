@@ -8,79 +8,7 @@ const clientSecret = process.env.AUTH_POCKET_ID_SECRET;
 const authSecret = process.env.AUTH_SECRET;
 const isProduction = process.env.NODE_ENV === "production";
 
-// #region agent log
-{
-  const payload = {
-    sessionId: "821bf7",
-    runId: "pre-fix",
-    hypothesisId: "A",
-    location: "auth.ts:secret-check",
-    message: "AUTH_SECRET presence at module load",
-    data: {
-      hasAuthSecret: Boolean(authSecret),
-      secretLength: authSecret?.length ?? 0,
-      isWhitespaceOnly: Boolean(authSecret && authSecret.trim().length === 0),
-      nodeEnv: process.env.NODE_ENV ?? null,
-      hasAuthUrl: Boolean(process.env.AUTH_URL),
-      authUrlHost: (() => {
-        try {
-          return process.env.AUTH_URL
-            ? new URL(process.env.AUTH_URL).host
-            : null;
-        } catch {
-          return "invalid";
-        }
-      })(),
-      hasPocketIssuer: Boolean(issuer),
-      hasPocketId: Boolean(clientId),
-      hasPocketSecret: Boolean(clientSecret),
-    },
-    timestamp: Date.now(),
-  };
-  console.error("[debug-821bf7]", JSON.stringify(payload));
-  const body = JSON.stringify(payload);
-  for (const base of [
-    "http://127.0.0.1:7618",
-    "http://host.docker.internal:7618",
-  ]) {
-    fetch(`${base}/ingest/38009b80-25c5-44ac-8785-d17f25197c79`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "821bf7",
-      },
-      body,
-    }).catch(() => {});
-  }
-}
-// #endregion
-
 if (!authSecret) {
-  // #region agent log
-  {
-    const payload = {
-      sessionId: "821bf7",
-      runId: "pre-fix",
-      hypothesisId: "A",
-      location: "auth.ts:throw-missing",
-      message: "Throwing AUTH_SECRET is required",
-      data: { willThrow: true },
-      timestamp: Date.now(),
-    };
-    console.error("[debug-821bf7]", JSON.stringify(payload));
-    fetch(
-      "http://host.docker.internal:7618/ingest/38009b80-25c5-44ac-8785-d17f25197c79",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "821bf7",
-        },
-        body: JSON.stringify(payload),
-      },
-    ).catch(() => {});
-  }
-  // #endregion
   throw new Error("AUTH_SECRET is required");
 }
 
