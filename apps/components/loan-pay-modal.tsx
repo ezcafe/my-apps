@@ -50,9 +50,15 @@ export function LoanPayModal({
   const notify = useNotify();
   const queryClient = useQueryClient();
   const moneyBootstrap = useQuery(moneyBootstrapQueryOptions());
-  const accounts = moneyBootstrap.data?.accounts ?? [];
-  const categories =
-    moneyBootstrap.data?.categories.filter((c) => c.kind === "expense") ?? [];
+  const accounts = useMemo(
+    () => moneyBootstrap.data?.accounts ?? [],
+    [moneyBootstrap.data?.accounts],
+  );
+  const categories = useMemo(
+    () =>
+      moneyBootstrap.data?.categories.filter((c) => c.kind === "expense") ?? [],
+    [moneyBootstrap.data?.categories],
+  );
 
   const resolvedDefaultAccountId = useMemo(() => {
     const loansAccountId = findSystemAccountId(accounts, "loan");
