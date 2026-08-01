@@ -1,21 +1,15 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AboutDisclosure } from "@/components/ui/about-disclosure";
+import { Card } from "@/components/ui/card";
 
 /**
- * Shared class strings for money-settings panels. All values are token-driven
- * so they switch radius/shadow/border with the active visual style preset.
- * See `docs/DESIGN_GUIDE.md` for usage rules.
+ * Shared settings chrome. Compose form controls from `components/ui/*`
+ * (Field, Input, Select, Button) — do not reinvent inputs or buttons.
+ * Children must not wrap content in another bordered+shadowed card;
+ * use divide-y lists or flat bg-background inset rows with --radius-sm.
+ * See `docs/DESIGN_GUIDE.md`.
  */
-
-export const inputCls =
-  "w-full min-w-0 rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-foreground antialiased outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
-
-export const secondaryBtnCls =
-  "inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border bg-surface px-3.5 py-2 text-sm font-medium text-foreground shadow-[var(--shadow-sm)] transition-[opacity,transform,box-shadow] duration-200 hover:bg-muted-surface focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 fx-press";
-
-export const primaryBtnCls =
-  "inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-[var(--shadow-sm)] transition-[opacity,transform,box-shadow] duration-200 hover:opacity-95 active:opacity-90 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 fx-press";
 
 /** Application-style section heading (Tailwind Plus “section headings” pattern). */
 export function SettingsSubsectionHeading({
@@ -39,7 +33,7 @@ export function SettingsSubsectionHeading({
   );
 }
 
-/** Panel shell — token-driven radius and shadow. */
+/** Panel shell — single elevated Card surface. */
 export function SettingsSection({
   id,
   title,
@@ -52,10 +46,7 @@ export function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section
-      id={id}
-      className="scroll-mt-24 rounded-[var(--radius-md)] border border-border bg-surface shadow-[var(--shadow-sm)] fx-fade-in"
-    >
+    <Card id={id} className="scroll-mt-24 fx-fade-in">
       <div className="p-5">
         <div className="flex min-w-0 items-center gap-1.5">
           <h2 className="font-display text-base font-semibold leading-6 text-foreground">
@@ -73,7 +64,7 @@ export function SettingsSection({
         </div>
         <div className="mt-4">{children}</div>
       </div>
-    </section>
+    </Card>
   );
 }
 

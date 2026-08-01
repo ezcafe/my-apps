@@ -5,8 +5,8 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotify } from "@/components/notification-provider";
 import { useInvestmentWorkspace } from "@/components/investment-workspace-provider";
+import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { MoreMenu, MoreMenuItem } from "@/components/ui/more-menu";
@@ -92,35 +92,36 @@ export function InvestmentSettingsPage() {
 
   return (
     <div className="col-span-2 min-w-0 space-y-6 md:col-span-6 lg:col-span-12">
-      <Card className="p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-lg font-medium">Instruments</h2>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setCreateOpen((o) => !o)}
-              aria-expanded={createOpen}
+      <SettingsSection
+        id="investment-settings-instruments"
+        title="Instruments"
+        description="Track stocks, coins, and FX pairs used by investment activities."
+      >
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setCreateOpen((o) => !o)}
+            aria-expanded={createOpen}
+          >
+            {createOpen ? "Hide form" : "Add instrument"}
+          </Button>
+          <MoreMenu
+            aria-label="Instrument options"
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+          >
+            <MoreMenuItem
+              disabled={refreshing}
+              onClick={() => {
+                setMenuOpen(false);
+                void onRefreshQuotes();
+              }}
             >
-              {createOpen ? "Hide form" : "Add instrument"}
-            </Button>
-            <MoreMenu
-              aria-label="Instrument options"
-              open={menuOpen}
-              onOpenChange={setMenuOpen}
-            >
-              <MoreMenuItem
-                disabled={refreshing}
-                onClick={() => {
-                  setMenuOpen(false);
-                  void onRefreshQuotes();
-                }}
-              >
-                {refreshing ? "Refreshing…" : "Refresh quotes"}
-              </MoreMenuItem>
-            </MoreMenu>
-          </div>
+              {refreshing ? "Refreshing…" : "Refresh quotes"}
+            </MoreMenuItem>
+          </MoreMenu>
         </div>
         {instrumentsQuery.isLoading ? (
           <p className="mt-4 text-sm text-muted">Loading…</p>
@@ -135,11 +136,11 @@ export function InvestmentSettingsPage() {
           <p className="mt-4 text-sm text-muted">No instruments yet.</p>
         ) : null}
         {instruments.length > 0 ? (
-          <ul className="mt-4 divide-y divide-border text-sm">
+          <ul className="mt-4 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm">
             {instruments.map((i) => (
               <li
                 key={i.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-2.5"
+                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
               >
                 <div>
                   <p className="font-medium">
@@ -157,12 +158,12 @@ export function InvestmentSettingsPage() {
             ))}
           </ul>
         ) : null}
-      </Card>
 
-      {createOpen ? (
-        <Card className="max-w-xl p-5 fx-fade-in">
-          <h2 className="font-display text-lg font-medium">Create instrument</h2>
-          <form className="mt-4 grid gap-4" onSubmit={onCreate}>
+        {createOpen ? (
+          <form
+            className="mt-6 max-w-xl grid gap-4 border-t border-border pt-6 fx-fade-in"
+            onSubmit={onCreate}
+          >
             <Field label="Kind" required>
               <Select
                 value={kind}
@@ -182,6 +183,7 @@ export function InvestmentSettingsPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="off"
+                required
               />
             </Field>
             <Field label="Symbol" required>
@@ -189,6 +191,7 @@ export function InvestmentSettingsPage() {
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
                 autoComplete="off"
+                required
               />
             </Field>
             <Field label="Yahoo symbol" hint="Optional, for live quotes">
@@ -199,12 +202,12 @@ export function InvestmentSettingsPage() {
               />
             </Field>
             <p className="text-xs text-muted">Currency: {defaultCurrency}</p>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" variant="primary" disabled={saving} className="w-fit">
               {saving ? "Creating…" : "Create instrument"}
             </Button>
           </form>
-        </Card>
-      ) : null}
+        ) : null}
+      </SettingsSection>
     </div>
   );
 }

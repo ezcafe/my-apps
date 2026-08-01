@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { MultiSelect, type MultiSelectItem } from "@/components/ui/multi-select";
 import { Select } from "@/components/ui/select";
-import { MoneyFilterToolbar, MoneyPageHeader } from "@/components/money-page-header";
+import { MoneyFilterToolbar } from "@/components/money-page-header";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cn } from "@/lib/cn";
 import {
@@ -29,47 +29,19 @@ import {
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 
-export type AnalyticsKind = "expense" | "income" | "transfer";
+export type {
+  AnalyticsFiltersValue,
+  AnalyticsKind,
+  AnalyticsRecurrence,
+} from "@/lib/analytics-default-filters";
+export { defaultAnalyticsFilters } from "@/lib/analytics-default-filters";
 
-export type AnalyticsRecurrence = "all" | "recurring" | "one-time";
-
-export type AnalyticsFiltersValue = {
-  /** YYYY-MM-DD (HTML date input format), or "" when unset. */
-  fromDate: string;
-  toDate: string;
-  accountIds: string[];
-  categoryIds: string[];
-  merchantIds: string[];
-  tagIds: string[];
-  kinds: AnalyticsKind[];
-  recurrence: AnalyticsRecurrence;
-  recurrenceSourceIds: string[];
-};
-
-function pad2(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-/** Local calendar month: first day through last day of the current month. */
-export function defaultAnalyticsFilters(): AnalyticsFiltersValue {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const fromDate = `${y}-${pad2(m + 1)}-01`;
-  const last = new Date(y, m + 1, 0);
-  const toDate = `${last.getFullYear()}-${pad2(last.getMonth() + 1)}-${pad2(last.getDate())}`;
-  return {
-    fromDate,
-    toDate,
-    accountIds: [],
-    categoryIds: [],
-    merchantIds: [],
-    tagIds: [],
-    kinds: [],
-    recurrence: "all",
-    recurrenceSourceIds: [],
-  };
-}
+import {
+  defaultAnalyticsFilters,
+  type AnalyticsFiltersValue,
+  type AnalyticsKind,
+  type AnalyticsRecurrence,
+} from "@/lib/analytics-default-filters";
 
 export type AnalyticsLookupAccount = {
   id: string;
@@ -726,8 +698,6 @@ function AnalyticsFiltersSecondaryFields({
 }
 
 export function AnalyticsFiltersBar({
-  title,
-  description,
   viewFilter,
   value,
   onChange,
@@ -747,8 +717,6 @@ export function AnalyticsFiltersBar({
   userSub,
   onAdvancedFiltersNeeded,
 }: {
-  title: string;
-  description: string;
   /** Immediate-apply view switch (ledger scope, Activity/Portfolio, …). */
   viewFilter?: AnalyticsFilterViewConfig;
   value: AnalyticsFiltersValue;
@@ -918,15 +886,8 @@ export function AnalyticsFiltersBar({
     <section
       className={cn(MONEY_FULL_SPAN, "@container mb-4 fx-fade-in")}
       aria-label="Analytics filters"
-      aria-labelledby="analytics-filters-heading"
     >
-      <MoneyPageHeader
-        title={title}
-        description={description}
-        titleId="analytics-filters-heading"
-      />
-
-      <div className="mt-4 flex justify-end @md:hidden">
+      <div className="flex justify-end @md:hidden">
         <Button
           type="button"
           variant="secondary"
@@ -950,12 +911,15 @@ export function AnalyticsFiltersBar({
           open
           onClose={() => setMobileFiltersOpen(false)}
           bare
-          labelledBy="analytics-filters-heading"
+          labelledBy="analytics-filters-modal-heading"
         >
           <div className="fx-fade-in">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <h3 className="font-display text-lg font-medium tracking-tight">
+                <h3
+                  id="analytics-filters-modal-heading"
+                  className="font-display text-lg font-medium tracking-tight"
+                >
                   Filters
                 </h3>
                 <p className="mt-1 text-xs text-muted">
@@ -1032,7 +996,7 @@ export function AnalyticsFiltersBar({
         </Modal>
       ) : null}
 
-      <MoneyFilterToolbar className="mt-4 hidden @md:flex">
+      <MoneyFilterToolbar className="mt-3 hidden @md:flex">
           {viewFilter ? (
             <FilterMenu
               id="view"
@@ -1178,16 +1142,12 @@ export function AnalyticsFiltersBar({
 }
 
 /**
- * Title + a single View filter menu (Activity / Portfolio, etc.) for pages
+ * A single View filter menu (Activity / Portfolio, etc.) for pages
  * without the full analytics filter bar.
  */
 export function MoneyViewFiltersBar({
-  title,
-  description,
   viewFilter,
 }: {
-  title: string;
-  description?: string;
   viewFilter: AnalyticsFilterViewConfig;
 }) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -1197,8 +1157,7 @@ export function MoneyViewFiltersBar({
       className={cn(MONEY_FULL_SPAN, "@container mb-4 fx-fade-in")}
       aria-label={`${viewFilter.menuLabel} filters`}
     >
-      <MoneyPageHeader title={title} description={description} />
-      <MoneyFilterToolbar className="mt-4" aria-label={viewFilter.menuLabel}>
+      <MoneyFilterToolbar aria-label={viewFilter.menuLabel}>
         <FilterMenu
           id="view"
           label={viewFilterTriggerLabel(viewFilter)}

@@ -28,7 +28,7 @@ Distilled from modern minimal / clean UI practice. Clarity beats decoration.
 | **Subtle motion only** | `fx-*` utilities — feedback without clutter. |
 | **Never hide essentials** | Minimal ≠ incomplete. Keep required actions visible and labeled. |
 | **Progressive disclosure** | Primary chrome only: one primary CTA + essential filters (e.g. Direction, Accounts, Categories, Apply). Secondary filters/actions and help copy live behind [`MoreMenu`](../components/ui/more-menu.tsx) or an info-icon tooltip ([`AboutDisclosure`](../components/ui/about-disclosure.tsx)). Never hide Workspace, View, Apply, or the primary CTA. |
-| **Load only what the viewport shows** | Home and default Insights must not fetch form lookups, full analytics overview, budgets, sankey, or leaders until Add / More insights / advanced filters need them. |
+| **Load only what the viewport shows** | Default Insights must not fetch form lookups, budgets, sankey, or leaders until Add / More insights / advanced filters need them. |
 
 ## Default spender experience (Money)
 
@@ -36,9 +36,8 @@ Default audience is the **day-to-day spender**: log a spend quickly, then see wh
 
 | Tab / route | Job |
 |-------------|-----|
-| **Home** `/money` | Calm overview: period KPIs, top categories, recent transactions, primary **Add** CTA. |
-| **Add** `/money/new` | Capture a transaction (form lookups load here, not on Home). |
-| **Insights** `/money/analytics` | Default: KPIs + spend-by-category + income vs expense. Remaining charts behind **More insights**. |
+| **Insights** `/money/analytics` (home) | Default landing: KPIs + spend-by-category + income vs expense. Remaining charts behind **More insights**. `/money` redirects here. |
+| **Add** `/money/new` | Capture a transaction (form lookups load here, not on Insights). |
 | **Spending** `/money/spending` | Full ledger. |
 | **Settings** `/money/settings` | Workspace config; optional section tabs (Bills, Savings, Loans, Invest, Import) stay off by default. |
 

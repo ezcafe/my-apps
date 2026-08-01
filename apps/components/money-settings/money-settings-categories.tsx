@@ -4,6 +4,10 @@ import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Tabs } from "@/components/ui/tabs";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
@@ -21,9 +25,7 @@ import {
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import {
-  inputCls,
   MoneySettingsBackLink,
-  secondaryBtnCls,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
@@ -239,56 +241,59 @@ function CategoryKindPanel({
     return (
       <li
         key={c.id}
-        className={`rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30${nested ? " ml-3 border-l border-border pl-3" : ""}`}
+        className={`px-3 py-2.5${nested ? " ml-3 border-l border-border pl-3" : ""}`}
       >
         {editingId === c.id ? (
           <form className="flex flex-col gap-3" onSubmit={saveEdit}>
-            <input
-              className={inputCls}
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              aria-label="Category name"
-            />
-            <select
-              className={inputCls}
-              value={editParentId}
-              onChange={(e) => setEditParentId(e.target.value)}
-              aria-label="Parent category"
-            >
-              <option value="">Top-level category</option>
-              {parentChoices.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+            <Field label="Name" required>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Parent category">
+              <Select
+                value={editParentId}
+                onChange={(e) => setEditParentId(e.target.value)}
+              >
+                <option value="">Top-level category</option>
+                {parentChoices.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
             <div className="flex flex-wrap gap-2">
-              <button type="submit" className={secondaryBtnCls}>
+              <Button type="submit" variant="primary" size="sm">
                 Save
-              </button>
-              <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-foreground">{shown}</span>
             <div className="flex flex-wrap gap-2">
-              <button
+              <Button
                 type="button"
-                className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                variant="ghost"
+                size="sm"
                 onClick={() => startEdit(c)}
               >
                 Edit
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                variant="danger"
+                size="sm"
                 onClick={() => void removeCategory(c.id, label)}
               >
                 Remove
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -300,19 +305,16 @@ function CategoryKindPanel({
     <>
       <p className="text-sm text-muted">{meta.description}</p>
       <form className="mt-4 flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
-        <label className="grid gap-1.5 text-sm">
-          <span className="font-medium text-foreground">Name</span>
-          <input
-            className={inputCls}
+        <Field label="Name" required>
+          <Input
             placeholder={meta.placeholder}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
+            required
           />
-        </label>
-        <label className="grid gap-1.5 text-sm">
-          <span className="font-medium text-foreground">Parent (optional)</span>
-          <select
-            className={inputCls}
+        </Field>
+        <Field label="Parent (optional)">
+          <Select
             value={newParentId}
             onChange={(e) => setNewParentId(e.target.value)}
           >
@@ -322,24 +324,24 @@ function CategoryKindPanel({
                 {c.name}
               </option>
             ))}
-          </select>
-        </label>
-        <button type="submit" className={`${secondaryBtnCls} self-start`}>
+          </Select>
+        </Field>
+        <Button type="submit" variant="primary" className="self-start">
           Add category
-        </button>
+        </Button>
       </form>
       <div className="mt-8 border-t border-border pt-8">
         <h3 className="text-sm font-medium text-foreground">{meta.allCategoriesHeading}</h3>
         {groups.length === 0 ? (
           <p className="mt-3 text-sm text-muted">None yet.</p>
         ) : (
-          <ul className="mt-3 space-y-4 text-sm text-muted">
+          <ul className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm text-muted">
             {groups.map((g) =>
               g.type === "single" ? (
                 categoryRowLi(g.category, "default", false)
               ) : (
-                <li key={g.parent.id} className="list-none space-y-2">
-                  <ul className="space-y-2">
+                <li key={g.parent.id} className="list-none">
+                  <ul className="divide-y divide-border">
                     {categoryRowLi(g.parent, "default", false)}
                     {g.children.map((ch) => categoryRowLi(ch, "underParent", true))}
                   </ul>

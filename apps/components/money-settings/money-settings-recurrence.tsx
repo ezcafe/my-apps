@@ -7,6 +7,10 @@ import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button, buttonClassName } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { formatMinor, minorToMajorInput, parseMajorToMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
@@ -18,10 +22,7 @@ import {
   MONEY_RECURRENCE_UPDATE_MUTATION,
 } from "@/lib/money-gql-documents";
 import {
-  inputCls,
   MoneySettingsBackLink,
-  primaryBtnCls,
-  secondaryBtnCls,
   SettingsSection,
   SettingsSubsectionHeading,
 } from "@/components/money-settings/money-settings-shared";
@@ -231,7 +232,7 @@ export function MoneySettingsRecurrenceSection() {
         title="Recurrence"
         description="Manage existing recurring schedules. New ones are created from Add."
       >
-        <div className="rounded-[var(--radius-md)] border border-border bg-background px-4 py-4 text-sm leading-6 text-muted">
+        <div className="rounded-[var(--radius-sm)] bg-background px-4 py-4 text-sm leading-6 text-muted">
           <p>
             To add a recurring transaction, open{" "}
             <Link
@@ -248,7 +249,10 @@ export function MoneySettingsRecurrenceSection() {
             <li>Choose how often it repeats (daily, monthly, or yearly).</li>
             <li>Save — the first entry is recorded and future runs are scheduled automatically.</li>
           </ol>
-          <Link href="/money/new" className={`${primaryBtnCls} mt-4`}>
+          <Link
+            href="/money/new"
+            className={buttonClassName({ variant: "primary", size: "md", className: "mt-4" })}
+          >
             Go to Add
           </Link>
         </div>
@@ -270,68 +274,71 @@ export function MoneySettingsRecurrenceSection() {
               .
             </p>
           ) : (
-            <ul className="mt-5 space-y-2 text-sm">
+            <ul className="mt-5 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm">
               {recurrent.map((r) => (
-                <li
-                  key={r.id}
-                  className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-3 transition-colors duration-150 hover:border-foreground/30"
-                >
+                <li key={r.id} className="px-3 py-2.5">
                   {editingId === r.id ? (
-                    <form className="auto-fit-2 max-w-4xl" onSubmit={saveEdit}>
-                      <input
-                        className={inputCls}
-                        placeholder="Name"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                      />
-                      <select
-                        className={inputCls}
-                        value={editCadence}
-                        onChange={(e) =>
-                          setEditCadence(e.target.value as MoneyCadence)
-                        }
-                      >
-                        {editCadenceOptions.map((cadence) => (
-                          <option key={cadence} value={cadence}>
-                            {cadenceLabel(cadence)}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="datetime-local"
-                        className={inputCls}
-                        value={editNext}
-                        onChange={(e) => setEditNext(e.target.value)}
-                      />
-                      <select
-                        className={inputCls}
-                        value={editAccountId}
-                        onChange={(e) => setEditAccountId(e.target.value)}
-                      >
-                        <option value="">Template account</option>
-                        {visibleAccounts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        className={inputCls}
-                        value={editKind}
-                        onChange={(e) =>
-                          setEditKind(e.target.value as typeof editKind)
-                        }
-                      >
-                        <option value="expense">expense</option>
-                        <option value="income">income</option>
-                        <option value="transfer">transfer</option>
-                      </select>
-                      <input
-                        className={inputCls}
-                        placeholder="Amount"
-                        value={editAmount}
-                        onChange={(e) => setEditAmount(e.target.value)}
-                      />
+                    <form className="flex flex-col gap-3" onSubmit={saveEdit}>
+                      <Field label="Name">
+                        <Input
+                          placeholder="Name"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                        />
+                      </Field>
+                      <Field label="Cadence">
+                        <Select
+                          value={editCadence}
+                          onChange={(e) =>
+                            setEditCadence(e.target.value as MoneyCadence)
+                          }
+                        >
+                          {editCadenceOptions.map((cadence) => (
+                            <option key={cadence} value={cadence}>
+                              {cadenceLabel(cadence)}
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                      <Field label="Next run">
+                        <Input
+                          type="datetime-local"
+                          value={editNext}
+                          onChange={(e) => setEditNext(e.target.value)}
+                        />
+                      </Field>
+                      <Field label="Account">
+                        <Select
+                          value={editAccountId}
+                          onChange={(e) => setEditAccountId(e.target.value)}
+                        >
+                          <option value="">Template account</option>
+                          {visibleAccounts.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                      <Field label="Kind">
+                        <Select
+                          value={editKind}
+                          onChange={(e) =>
+                            setEditKind(e.target.value as typeof editKind)
+                          }
+                        >
+                          <option value="expense">expense</option>
+                          <option value="income">income</option>
+                          <option value="transfer">transfer</option>
+                        </Select>
+                      </Field>
+                      <Field label="Amount">
+                        <Input
+                          placeholder="Amount"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                        />
+                      </Field>
                       <label className="flex items-center gap-2 text-sm text-muted">
                         <input
                           type="checkbox"
@@ -340,17 +347,18 @@ export function MoneySettingsRecurrenceSection() {
                         />
                         Active
                       </label>
-                      <div className="col-span-full flex flex-wrap gap-2">
-                        <button type="submit" className={primaryBtnCls}>
-                          Save changes
-                        </button>
-                        <button
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="submit" variant="primary" size="sm">
+                          Save
+                        </Button>
+                        <Button
                           type="button"
-                          className={secondaryBtnCls}
+                          variant="ghost"
+                          size="sm"
                           onClick={cancelEdit}
                         >
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     </form>
                   ) : (
@@ -372,27 +380,30 @@ export function MoneySettingsRecurrenceSection() {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <button
+                        <Button
                           type="button"
-                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                          variant="ghost"
+                          size="sm"
                           onClick={() => startEdit(r)}
                         >
                           Edit
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
-                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                          variant="danger"
+                          size="sm"
                           onClick={() => void deleteRec(r.id, r.name)}
                         >
                           Delete
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
-                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
-                          onClick={() => generateRec(r.id)}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void generateRec(r.id)}
                         >
                           Generate now
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}

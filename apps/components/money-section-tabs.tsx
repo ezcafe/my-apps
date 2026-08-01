@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode, SVGProps } from "react";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { useState, type ReactNode, type SVGProps } from "react";
+import { Popover } from "@/components/ui/popover";
 import { cn } from "@/lib/cn";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import {
   useMoneySectionTabVisibility,
   type MoneyOptionalSectionTabKey,
 } from "@/lib/money-section-tab-visibility";
 
 type MoneySectionTabIconId =
-  | "home"
   | "new"
   | "analytics"
   | "spending"
@@ -22,14 +22,14 @@ type MoneySectionTabIconId =
   | "import"
   | "settings";
 
-function IconHome(props: SVGProps<SVGSVGElement>) {
+function IconMenu(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
       <path
-        d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Z"
+        d="M4 7h16M4 12h16M4 17h16"
         stroke="currentColor"
         strokeWidth="2"
-        strokeLinejoin="round"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -185,7 +185,6 @@ const moneySectionTabIcons: Record<
   MoneySectionTabIconId,
   (props: SVGProps<SVGSVGElement>) => ReactNode
 > = {
-  home: IconHome,
   new: IconNew,
   analytics: IconAnalytics,
   spending: IconSpending,
@@ -205,66 +204,127 @@ const tabs: Array<{
   /** When set, tab is hidden unless user enabled it in Settings. */
   visibilityKey?: MoneyOptionalSectionTabKey;
 }> = [
-  { href: "/money", label: "Home", icon: "home", exact: true },
-  { href: "/money/new", label: "Add", icon: "new", exact: true },
   { href: "/money/analytics", label: "Insights", icon: "analytics", exact: false },
+  { href: "/money/new", label: "Add", icon: "new", exact: true },
   { href: "/money/spending", label: "Spending", icon: "spending", exact: false },
-  { href: "/money/bills", label: "Bills", icon: "bills", exact: false, visibilityKey: "bills" },
-  { href: "/money/savings", label: "Savings", icon: "savings", exact: false, visibilityKey: "savings" },
-  { href: "/money/loans", label: "Loans", icon: "loans", exact: false, visibilityKey: "loans" },
-  { href: "/money/investments", label: "Invest", icon: "investments", exact: false, visibilityKey: "investments" },
-  { href: "/money/import", label: "Import", icon: "import", exact: false, visibilityKey: "import" },
+  {
+    href: "/money/bills",
+    label: "Bills",
+    icon: "bills",
+    exact: false,
+    visibilityKey: "bills",
+  },
+  {
+    href: "/money/savings",
+    label: "Savings",
+    icon: "savings",
+    exact: false,
+    visibilityKey: "savings",
+  },
+  {
+    href: "/money/loans",
+    label: "Loans",
+    icon: "loans",
+    exact: false,
+    visibilityKey: "loans",
+  },
+  {
+    href: "/money/investments",
+    label: "Investments",
+    icon: "investments",
+    exact: false,
+    visibilityKey: "investments",
+  },
+  {
+    href: "/money/import",
+    label: "Import",
+    icon: "import",
+    exact: false,
+    visibilityKey: "import",
+  },
   { href: "/money/settings", label: "Settings", icon: "settings", exact: false },
 ];
 
+function isTabActive(
+  pathname: string,
+  href: string,
+  exact: boolean,
+): boolean {
+  return exact
+    ? pathname === href
+    : pathname === href || pathname.startsWith(`${href}/`);
+}
+
 /**
- * Route-driven section tabs for `/money/**`. Mirrors the visual language of
- * the radio-input `Tabs` primitive — underline + token colors — but each tab
- * is a `<Link>` that triggers a route change. The active link carries
- * `view-transition-name` so the underline glides between routes.
+ * Page title for the active Money section + a Menu popover of section links.
  */
 export function MoneySectionTabs() {
   const pathname = usePathname();
   const { isTabVisible } = useMoneySectionTabVisibility();
+  const [open, setOpen] = useState(false);
+  const [menuPath, setMenuPath] = useState(pathname);
+
+  if (pathname !== menuPath) {
+    setMenuPath(pathname);
+    if (open) setOpen(false);
+  }
+
+  const visibleTabs = tabs.filter(({ visibilityKey }) =>
+    isTabVisible(visibilityKey),
+  );
+  const activeTab =
+    tabs.find(({ href, exact }) => isTabActive(pathname, href, exact)) ??
+    visibleTabs[0];
 
   return (
-    <nav
-      role="tablist"
-      aria-label="Money sections"
+    <header
       className={cn(
         MONEY_FULL_SPAN,
-        "-mx-1 flex gap-0.5 overflow-x-auto border-b border-border px-1 pb-px [scrollbar-width:thin]",
+        "flex items-center justify-between gap-4",
       )}
     >
-      {tabs
-        .filter(({ visibilityKey }) => isTabVisible(visibilityKey))
-        .map(({ href, label, icon, exact }) => {
-          const active = exact
-            ? pathname === href
-            : pathname === href || pathname.startsWith(`${href}/`);
-          const Icon = moneySectionTabIcons[icon];
+      <h1 className="min-w-0 truncate text-3xl font-semibold tracking-tight sm:text-4xl">
+        {activeTab?.label ?? "Money"}
+      </h1>
+      <Popover
+        align="end"
+        aria-label="Open Money menu"
+        open={open}
+        onOpenChange={setOpen}
+        trigger={
+          <span className="inline-flex items-center gap-1.5">
+            <IconMenu className="size-5" />
+            <span>Menu</span>
+          </span>
+        }
+        triggerClassName="h-10 w-auto gap-1.5 px-2.5"
+        className="min-w-[min(100vw-2rem,16rem)] p-1.5"
+      >
+        <nav className="flex flex-col" aria-label="Money sections">
+          {visibleTabs.map(({ href, label, icon, exact }) => {
+            const active = isTabActive(pathname, href, exact);
+            const Icon = moneySectionTabIcons[icon];
 
-          return (
-            <Link
-              key={href}
-              href={href}
-              title={label}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "relative flex min-w-[3.25rem] shrink-0 snap-start flex-col items-center gap-0.5 border-b-2 px-2 py-2 transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-hit-40 md:min-w-0 md:flex-row md:gap-1.5 md:px-3",
-                active
-                  ? "fx-vt-money-tab-active border-accent text-foreground"
-                  : "border-transparent text-muted hover:border-border hover:text-foreground",
-              )}
-            >
-              <Icon className="size-5 shrink-0" />
-              <span className="max-w-[4.5rem] truncate text-[10px] font-medium leading-tight md:hidden">
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                onClick={() => setOpen(false)}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  active
+                    ? "bg-muted-surface text-foreground"
+                    : "text-muted hover:bg-muted-surface hover:text-foreground",
+                )}
+              >
+                <Icon className="size-5 shrink-0" />
                 {label}
-              </span>
-              <span className="hidden text-sm font-medium md:inline">{label}</span>
-            </Link>
-          );
-        })}
-    </nav>
+              </Link>
+            );
+          })}
+        </nav>
+      </Popover>
+    </header>
   );
 }

@@ -31,6 +31,7 @@ import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import {
   defaultAnalyticsFilters,
   type AnalyticsFiltersValue,
+  type AnalyticsLookupAccount,
   type AnalyticsLookupMerchant,
   type AnalyticsLookupRecurrence,
   type AnalyticsLookupTag,
@@ -72,7 +73,6 @@ import {
   buildMoneyAnalyticsFilterQuery,
   defaultFiltersForLedgerPreset,
   MONEY_LEDGER_SCOPES,
-  moneyLedgerScopeDescription,
   moneyLedgerScopePreset,
   parseMoneyLedgerScopeId,
   type MoneyLedgerScopeId,
@@ -605,7 +605,7 @@ export function AnalyticsDashboard({
     workspaceReady,
   } = useWorkspaceCurrency();
   const { resolved, style } = useTheme();
-  const canRunMoneyQueries = authenticated && typeof window !== "undefined";
+  const canRunMoneyQueries = authenticated;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -760,11 +760,6 @@ export function AnalyticsDashboard({
     [applied, ledgerScope, categories],
   );
 
-  const filtersDescription = useMemo(() => {
-    const scopeLine = moneyLedgerScopeDescription(ledgerScope);
-    return `${scopeLine} Default range is the current calendar month — apply to refresh charts.`;
-  }, [ledgerScope]);
-
   const autoSyncedWorkspaceRef = useRef<string | null>(null);
   const seededFiltersKeyRef = useRef<string | null>(null);
 
@@ -896,8 +891,6 @@ export function AnalyticsDashboard({
   return (
     <>
       <AnalyticsFiltersBar
-        title="Insights"
-        description={filtersDescription}
         viewFilter={{
           menuLabel: "Ledger",
           value: ledgerScope,

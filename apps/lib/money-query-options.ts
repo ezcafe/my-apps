@@ -1,5 +1,3 @@
-"use client";
-
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import {
   filterQueryToGraphQLAnalyticsInput,

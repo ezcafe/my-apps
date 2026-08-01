@@ -1292,7 +1292,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             />
           </Field>
 
-          <div className="rounded-[var(--radius-md)] border border-border bg-muted-surface/40 p-4 [grid-column:1/-1]">
+          <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 p-4 [grid-column:1/-1]">
             <div className="flex items-start gap-2">
               <Checkbox
                 checked={excludeFromAnalyticsAndBudget}
@@ -1315,7 +1315,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
           </div>
 
           {kind !== "transfer" ? (
-            <div className="grid min-w-0 gap-3 rounded-[var(--radius-md)] border border-border bg-muted-surface/40 p-4 [grid-column:1/-1]">
+            <div className="grid min-w-0 gap-3 rounded-[var(--radius-sm)] bg-muted-surface/40 p-4 [grid-column:1/-1]">
               {!isRecurrenceMode ? (
                 <div className="flex items-start gap-2">
                   <Checkbox

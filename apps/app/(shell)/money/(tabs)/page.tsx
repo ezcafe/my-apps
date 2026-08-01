@@ -1,14 +1,6 @@
-import dynamic from "next/dynamic";
-import { MoneyOverviewSkeleton } from "@/components/money-overview-skeleton";
+import { redirect } from "next/navigation";
 
-const MoneyOverviewLazy = dynamic(
-  () =>
-    import("@/components/money-overview").then((mod) => ({
-      default: mod.MoneyOverview,
-    })),
-  { loading: () => <MoneyOverviewSkeleton /> },
-);
-
+/** Money home is Insights (`/money/analytics`). */
 export default function MoneyPage() {
-  return <MoneyOverviewLazy />;
+  redirect("/money/analytics");
 }

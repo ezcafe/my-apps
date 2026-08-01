@@ -5,6 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   formatMinor,
   minorToMajorInput,
@@ -30,10 +34,7 @@ import { utcCalendarMonthRangeIso } from "@/lib/budget-utc-month-range";
 import { moneyBudgetScopeTypeSchema } from "@/lib/validators/money";
 import type { z } from "zod";
 import {
-  inputCls,
   MoneySettingsBackLink,
-  primaryBtnCls,
-  secondaryBtnCls,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
@@ -278,84 +279,88 @@ export function MoneySettingsBudgetsSection() {
   ) {
     return (
       <>
-        <select
-          id={`${idPrefix}-scope-type`}
-          className={inputCls}
-          value={scopeType}
-          onChange={(e) => {
-            onScopeType(e.target.value as BudgetScope);
-            onScopeId("");
-          }}
-        >
-          {SCOPE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        {scopeType === "category" ? (
-          <select
-            id={`${idPrefix}-scope-cat`}
-            className={inputCls}
-            value={scopeId}
-            onChange={(e) => onScopeId(e.target.value)}
-            required
+        <Field label="Scope">
+          <Select
+            id={`${idPrefix}-scope-type`}
+            value={scopeType}
+            onChange={(e) => {
+              onScopeType(e.target.value as BudgetScope);
+              onScopeId("");
+            }}
           >
-            <option value="">Select category</option>
-            {budgetCategorySelectGroups.singleRoots.length > 0 ? (
-              <optgroup label="No parent">
-                {budgetCategorySelectGroups.singleRoots.map((g) => (
-                  <option key={g.category.id} value={g.category.id}>
-                    {categoryOptionLabel(g.category, categoryById)}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null}
-            {budgetCategorySelectGroups.parentGroups.map((g) => (
-              <optgroup key={`parent-${g.parent.id}`} label={g.parent.name}>
-                <option value={g.parent.id}>
-                  {`${moneyCategoryLabel(g.parent, categoryById)} (all) (${KIND_TAG[g.parent.kind]})`}
-                </option>
-                {g.children.map((child) => (
-                  <option key={child.id} value={child.id}>
-                    {categoryOptionLabel(child, categoryById)}
-                  </option>
-                ))}
-              </optgroup>
+            {SCOPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
-          </select>
+          </Select>
+        </Field>
+        {scopeType === "category" ? (
+          <Field label="Category" required>
+            <Select
+              id={`${idPrefix}-scope-cat`}
+              value={scopeId}
+              onChange={(e) => onScopeId(e.target.value)}
+              required
+            >
+              <option value="">Select category</option>
+              {budgetCategorySelectGroups.singleRoots.length > 0 ? (
+                <optgroup label="No parent">
+                  {budgetCategorySelectGroups.singleRoots.map((g) => (
+                    <option key={g.category.id} value={g.category.id}>
+                      {categoryOptionLabel(g.category, categoryById)}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {budgetCategorySelectGroups.parentGroups.map((g) => (
+                <optgroup key={`parent-${g.parent.id}`} label={g.parent.name}>
+                  <option value={g.parent.id}>
+                    {`${moneyCategoryLabel(g.parent, categoryById)} (all) (${KIND_TAG[g.parent.kind]})`}
+                  </option>
+                  {g.children.map((child) => (
+                    <option key={child.id} value={child.id}>
+                      {categoryOptionLabel(child, categoryById)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </Select>
+          </Field>
         ) : null}
         {scopeType === "account" ? (
-          <select
-            id={`${idPrefix}-scope-acct`}
-            className={inputCls}
-            value={scopeId}
-            onChange={(e) => onScopeId(e.target.value)}
-            required
-          >
-            <option value="">Select account</option>
-            {visibleAccounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
+          <Field label="Account" required>
+            <Select
+              id={`${idPrefix}-scope-acct`}
+              value={scopeId}
+              onChange={(e) => onScopeId(e.target.value)}
+              required
+            >
+              <option value="">Select account</option>
+              {visibleAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
         ) : null}
         {scopeType === "tag" ? (
-          <select
-            id={`${idPrefix}-scope-tag`}
-            className={inputCls}
-            value={scopeId}
-            onChange={(e) => onScopeId(e.target.value)}
-            required
-          >
-            <option value="">Select tag</option>
-            {tags.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
+          <Field label="Tag" required>
+            <Select
+              id={`${idPrefix}-scope-tag`}
+              value={scopeId}
+              onChange={(e) => onScopeId(e.target.value)}
+              required
+            >
+              <option value="">Select tag</option>
+              {tags.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
         ) : null}
       </>
     );
@@ -377,88 +382,92 @@ export function MoneySettingsBudgetsSection() {
         title="Budgets"
         description="Set a monthly spending cap. One budget per workspace, category, account, or tag. Caps repeat every calendar month."
       >
-        <form className="auto-fit-2 max-w-4xl" onSubmit={saveBudget}>
+        <form className="flex max-w-xl flex-col gap-3" onSubmit={saveBudget}>
           {scopeSelect(budScopeType, budScopeId, setBudScopeType, setBudScopeId, "new")}
-          <input
-            className={inputCls}
-            placeholder="Monthly limit amount"
-            value={budLimit}
-            onChange={(e) => setBudLimit(e.target.value)}
-          />
-          <button type="submit" className={`${primaryBtnCls} self-start`}>
+          <Field label="Monthly limit">
+            <Input
+              placeholder="Monthly limit amount"
+              value={budLimit}
+              onChange={(e) => setBudLimit(e.target.value)}
+            />
+          </Field>
+          <Button type="submit" variant="primary" className="self-start">
             Save budget
-          </button>
+          </Button>
         </form>
         <div className="mt-8 border-t border-border pt-8">
           <h3 className="text-sm font-medium text-foreground">Active budgets</h3>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
+          <ul className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm text-muted">
             {budgets.map((b) => {
               const overBudget = b.overBudget === true;
               const spentMinor = b.spentAmountMinor ?? 0;
               return (
-              <li
-                key={b.id}
-                className={`rounded-[var(--radius-md)] px-3 py-2 transition-colors duration-150 ${
-                  overBudget
-                    ? "border border-[color:var(--danger)]/40 bg-[color-mix(in_oklab,var(--danger)_8%,var(--background))]"
-                    : "border border-border bg-background hover:border-foreground/30"
-                }`}
-              >
-                {editingId === b.id ? (
-                  <form className="auto-fit-2 max-w-4xl" onSubmit={saveEdit}>
-                    {scopeSelect(
-                      editScopeType,
-                      editScopeId,
-                      setEditScopeType,
-                      setEditScopeId,
-                      `edit-${b.id}`,
-                    )}
-                    <input
-                      className={inputCls}
-                      placeholder="Monthly limit amount"
-                      value={editLimit}
-                      onChange={(e) => setEditLimit(e.target.value)}
-                    />
-                    <div className="col-span-full flex flex-wrap gap-2">
-                      <button type="submit" className={primaryBtnCls}>
-                        Save changes
-                      </button>
-                      <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
-                        Cancel
-                      </button>
+                <li
+                  key={b.id}
+                  className={`px-3 py-2.5 ${
+                    overBudget
+                      ? "bg-[color-mix(in_oklab,var(--danger)_8%,var(--background))]"
+                      : ""
+                  }`}
+                >
+                  {editingId === b.id ? (
+                    <form className="flex flex-col gap-3" onSubmit={saveEdit}>
+                      {scopeSelect(
+                        editScopeType,
+                        editScopeId,
+                        setEditScopeType,
+                        setEditScopeId,
+                        `edit-${b.id}`,
+                      )}
+                      <Field label="Monthly limit">
+                        <Input
+                          placeholder="Monthly limit amount"
+                          value={editLimit}
+                          onChange={(e) => setEditLimit(e.target.value)}
+                        />
+                      </Field>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="submit" variant="primary" size="sm">
+                          Save
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className={overBudget ? "text-[color:var(--danger)]" : ""}>
+                        {budgetRowLabel(b, categoryById, accountById, tagById)} ·{" "}
+                        {formatMinor(b.limitAmountMinor, defaultCurrency)} / month
+                        {` · ${formatMinor(spentMinor, defaultCurrency)} spent`}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {overBudget ? (
+                          <span className="rounded-[var(--radius-sm)] bg-[color-mix(in_oklab,var(--danger)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-[color:var(--danger)]">
+                            Overspent
+                          </span>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEdit(b)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="danger"
+                          size="sm"
+                          onClick={() => void deleteBudget(b.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </div>
-                  </form>
-                ) : (
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className={overBudget ? "text-[color:var(--danger)]" : ""}>
-                      {budgetRowLabel(b, categoryById, accountById, tagById)} ·{" "}
-                      {formatMinor(b.limitAmountMinor, defaultCurrency)} / month
-                      {` · ${formatMinor(spentMinor, defaultCurrency)} spent`}
-                    </span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {overBudget ? (
-                        <span className="rounded-[var(--radius-sm)] border border-[color:var(--danger)]/50 bg-[color-mix(in_oklab,var(--danger)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-[color:var(--danger)]">
-                          Overspent
-                        </span>
-                      ) : null}
-                      <button
-                        type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
-                        onClick={() => startEdit(b)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
-                        onClick={() => void deleteBudget(b.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </li>
+                  )}
+                </li>
               );
             })}
           </ul>

@@ -3,12 +3,12 @@
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
-import {
-  inputCls,
-  primaryBtnCls,
-  secondaryBtnCls,
-} from "@/components/money-settings/money-settings-shared";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { cn } from "@/lib/cn";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
   MONEY_ACCOUNT_CREATE_MUTATION,
@@ -199,7 +199,7 @@ function ImportProgress({
   const currentIdx = STEP_ORDER.indexOf(current);
   const progressPct = ((currentIdx + 1) / STEP_ORDER.length) * 100;
   return (
-    <nav aria-label="Import steps" className="mt-6 space-y-3">
+    <nav aria-label="Import steps" className="space-y-3">
       <div className="flex items-center justify-between text-xs text-muted">
         <span>
           Step {currentIdx + 1} of {STEP_ORDER.length}
@@ -214,34 +214,40 @@ function ImportProgress({
           style={{ width: `${progressPct}%` }}
         />
       </div>
-      <ol role="list" className="flex flex-wrap gap-2 text-xs">
+      <div
+        role="radiogroup"
+        aria-label="Import steps"
+        className="flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+      >
         {STEP_ORDER.map((id, i) => {
           const done = i < currentIdx;
           const active = id === current;
           const future = i > currentIdx;
           return (
-            <li key={id}>
-              <button
-                type="button"
-                disabled={future}
-                onClick={() => {
-                  if (!future && i !== currentIdx) onStepClick(id);
-                }}
-                aria-current={active ? "step" : undefined}
-                className={`rounded-[var(--radius-sm)] border px-2.5 py-1 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 fx-press ${
-                  active
-                    ? "border-accent bg-accent text-accent-foreground"
-                    : done
-                      ? "border-border bg-surface text-foreground hover:bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)]"
-                      : "border-border bg-surface text-muted"
-                }`}
-              >
-                {i + 1}. {STEP_META[id].title}
-              </button>
-            </li>
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              aria-current={active ? "step" : undefined}
+              disabled={future}
+              onClick={() => {
+                if (!future && i !== currentIdx) onStepClick(id);
+              }}
+              className={cn(
+                "rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press disabled:cursor-not-allowed disabled:opacity-45",
+                active
+                  ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
+                  : done
+                    ? "text-foreground hover:bg-muted-surface"
+                    : "text-muted",
+              )}
+            >
+              {STEP_META[id].title}
+            </button>
           );
         })}
-      </ol>
+      </div>
     </nav>
   );
 }
@@ -811,11 +817,6 @@ export function MoneyCsvImportWizard({
 
   return (
     <div className="min-w-0 max-w-4xl">
-      <h2 className="text-xl font-semibold text-foreground">Import</h2>
-      <p className="mt-1 text-sm text-muted">
-        CSV import for your workspace. More sources (e.g. PDF) may be added later.
-      </p>
-
       <ImportProgress current={step} onStepClick={goToStep} />
 
       {step === "type" ? (
@@ -852,24 +853,23 @@ export function MoneyCsvImportWizard({
             Import type: <span className="font-medium text-foreground">{moneyImportSectionTitle[kind]}</span>
             . File must include a header row.
           </p>
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-foreground">CSV file</span>
-            <input
+          <Field label="CSV file">
+            <Input
               type="file"
               accept=".csv,text/csv,text/plain"
-              className={`${inputCls} cursor-pointer file:mr-3 file:cursor-pointer`}
+              className="cursor-pointer file:mr-3 file:cursor-pointer"
               disabled={busy !== null}
               onChange={(e) => void handleCsvFile(e.target.files?.[0] ?? null)}
             />
-          </label>
+          </Field>
           {csvFileName ? (
             <p className="text-xs text-muted">
               Selected: <span className="font-mono text-foreground">{csvFileName}</span>
             </p>
           ) : null}
-          <button type="button" className={secondaryBtnCls} onClick={() => setStep("type")}>
+          <Button type="button" variant="ghost" onClick={() => setStep("type")}>
             Back
-          </button>
+          </Button>
         </div>
       ) : null}
 
@@ -910,8 +910,7 @@ export function MoneyCsvImportWizard({
                           <MapArrowIcon />
                         </td>
                         <td className="px-3 py-3">
-                          <select
-                            className={inputCls}
+                          <Select
                             value={dbFieldByCsvCol[h] ?? ""}
                             onChange={(e) =>
                               setDbFieldByCsvCol((prev) =>
@@ -926,7 +925,7 @@ export function MoneyCsvImportWizard({
                                 {f.required ? " *" : ""}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                         </td>
                       </tr>
                     );
@@ -1037,8 +1036,7 @@ export function MoneyCsvImportWizard({
                                   ) : null}
                                   <td className="py-2 align-top">
                                     <div className="flex flex-col gap-2">
-                                      <select
-                                        className={inputCls}
+                                      <Select
                                         value={selectValue || ""}
                                         onChange={(e) => {
                                           const v = e.target.value;
@@ -1069,7 +1067,7 @@ export function MoneyCsvImportWizard({
                                         >
                                           Top-level (root)
                                         </option>
-                                      </select>
+                                      </Select>
                                     </div>
                                   </td>
                                 </tr>
@@ -1122,8 +1120,7 @@ export function MoneyCsvImportWizard({
                                 <tr key={rowKey} className="border-t border-border/40">
                                   <td className="py-2 pr-2 align-top font-mono">{csvKey}</td>
                                   <td className="py-2 align-top">
-                                    <select
-                                      className={inputCls}
+                                    <Select
                                       value={
                                         pick?.kind === "ignore"
                                           ? VALUE_PICK_SELECT_IGNORE
@@ -1151,7 +1148,7 @@ export function MoneyCsvImportWizard({
                                         </option>
                                       ))}
                                       <option value={VALUE_PICK_SELECT_IGNORE}>Ignore</option>
-                                    </select>
+                                    </Select>
                                   </td>
                                 </tr>
                               );
@@ -1174,8 +1171,7 @@ export function MoneyCsvImportWizard({
                                 <td className="py-2 pr-2 align-top font-mono">{csvLabel}</td>
                                 <td className="py-2 align-top">
                                   <div className="flex flex-col gap-2">
-                                    <select
-                                      className={inputCls}
+                                    <Select
                                       value={selectValue || ""}
                                       onChange={(e) => {
                                         const v = e.target.value;
@@ -1224,13 +1220,11 @@ export function MoneyCsvImportWizard({
                                           <option value={VALUE_PICK_SELECT_IGNORE}>Ignore</option>
                                         </>
                                       )}
-                                    </select>
+                                    </Select>
                                     {showNewDetails && f.fk === "account" ? (
                                       <div className="flex flex-wrap gap-2">
-                                        <label className="grid min-w-[12rem] flex-1 gap-1">
-                                          <span className="text-muted">Name</span>
-                                          <input
-                                            className={inputCls}
+                                        <Field label="Name" className="min-w-[12rem] flex-1">
+                                          <Input
                                             value={pick.name}
                                             onChange={(e) =>
                                               setValuePicksByField((prev) => {
@@ -1243,11 +1237,9 @@ export function MoneyCsvImportWizard({
                                               })
                                             }
                                           />
-                                        </label>
-                                        <label className="grid min-w-[10rem] gap-1">
-                                          <span className="text-muted">Account type</span>
-                                          <select
-                                            className={inputCls}
+                                        </Field>
+                                        <Field label="Account type" className="min-w-[10rem]">
+                                          <Select
                                             value={pick.accountType ?? ""}
                                             onChange={(e) => {
                                               const v = e.target.value;
@@ -1273,15 +1265,13 @@ export function MoneyCsvImportWizard({
                                                 {t}
                                               </option>
                                             ))}
-                                          </select>
-                                        </label>
+                                          </Select>
+                                        </Field>
                                       </div>
                                     ) : null}
                                     {showNewDetails && f.fk === "merchant" ? (
-                                      <label className="grid gap-1">
-                                        <span className="text-muted">Name</span>
-                                        <input
-                                          className={inputCls}
+                                      <Field label="Name">
+                                        <Input
                                           value={pick.name}
                                           onChange={(e) =>
                                             setValuePicksByField((prev) => {
@@ -1294,13 +1284,11 @@ export function MoneyCsvImportWizard({
                                             })
                                           }
                                         />
-                                      </label>
+                                      </Field>
                                     ) : null}
                                     {showNewDetails && f.fk === "category_root" ? (
-                                      <label className="grid gap-1">
-                                        <span className="text-muted">Category name</span>
-                                        <input
-                                          className={inputCls}
+                                      <Field label="Category name">
+                                        <Input
                                           value={pick.name}
                                           onChange={(e) =>
                                             setValuePicksByField((prev) => {
@@ -1313,14 +1301,12 @@ export function MoneyCsvImportWizard({
                                             })
                                           }
                                         />
-                                      </label>
+                                      </Field>
                                     ) : null}
                                     {showNewDetails && f.fk === "category_leaf" ? (
                                       <div className="flex flex-col gap-2">
-                                        <label className="grid gap-1">
-                                          <span className="text-muted">Name</span>
-                                          <input
-                                            className={inputCls}
+                                        <Field label="Name">
+                                          <Input
                                             value={pick.name}
                                             onChange={(e) =>
                                               setValuePicksByField((prev) => {
@@ -1333,11 +1319,9 @@ export function MoneyCsvImportWizard({
                                               })
                                             }
                                           />
-                                        </label>
-                                        <label className="grid gap-1">
-                                          <span className="text-muted">Under parent</span>
-                                          <select
-                                            className={inputCls}
+                                        </Field>
+                                        <Field label="Under parent">
+                                          <Select
                                             value={
                                               pick.parentCategoryId === undefined
                                                 ? ""
@@ -1375,8 +1359,8 @@ export function MoneyCsvImportWizard({
                                                 "category_root",
                                               )}
                                             />
-                                          </select>
-                                        </label>
+                                          </Select>
+                                        </Field>
                                       </div>
                                     ) : null}
                                   </div>
@@ -1394,12 +1378,12 @@ export function MoneyCsvImportWizard({
           ) : null}
 
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={secondaryBtnCls} onClick={() => setStep("upload")}>
+            <Button type="button" variant="ghost" onClick={() => setStep("upload")}>
               Back
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className={primaryBtnCls}
+              variant="primary"
               disabled={!allRequiredColumnsMapped(kind, columnByField) || !valuesSatisfied}
               onClick={() => {
                 syncValuePicks();
@@ -1407,7 +1391,7 @@ export function MoneyCsvImportWizard({
               }}
             >
               Continue to review
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
@@ -1446,17 +1430,17 @@ export function MoneyCsvImportWizard({
             </table>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={secondaryBtnCls} onClick={() => setStep("map")}>
+            <Button type="button" variant="ghost" onClick={() => setStep("map")}>
               Back
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className={primaryBtnCls}
+              variant="primary"
               disabled={busy !== null || preview.rows.length === 0}
               onClick={() => void runImport()}
             >
               {busy === "import" ? "Importing…" : `Import ${preview.rows.length} row(s)`}
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}

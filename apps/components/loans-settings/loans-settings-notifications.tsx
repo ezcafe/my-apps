@@ -3,8 +3,8 @@
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
+import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   registerLoansServiceWorker,
   subscribeLoansPush,
@@ -71,14 +71,12 @@ export function LoansSettingsNotifications() {
 
   return (
     <div className="min-w-0 max-w-4xl space-y-6">
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold">Payment reminders</h2>
-        <p className="mt-2 text-sm text-muted">
-          In-app banners and toasts appear on the Loans overview when an
-          installment is due. Enable browser notifications to get alerts when
-          the app is in the background (requires VAPID keys on the server).
-        </p>
-        <p className="mt-2 text-sm text-muted">
+      <SettingsSection
+        id="loans-settings-notifications"
+        title="Payment reminders"
+        description="In-app banners and toasts appear on the Loans overview when an installment is due. Enable browser notifications to get alerts when the app is in the background (requires VAPID keys on the server)."
+      >
+        <p className="text-sm text-muted">
           Status:{" "}
           <span className="font-medium text-foreground">
             {permission === "unsupported"
@@ -87,19 +85,19 @@ export function LoansSettingsNotifications() {
           </span>
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button type="button" onClick={enablePush} disabled={busy}>
+          <Button type="button" variant="primary" onClick={enablePush} disabled={busy}>
             Enable browser notifications
           </Button>
           <Button
             type="button"
-            variant="secondary"
+            variant="ghost"
             onClick={disablePush}
             disabled={busy}
           >
             Remove subscription
           </Button>
         </div>
-      </Card>
+      </SettingsSection>
     </div>
   );
 }

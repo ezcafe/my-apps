@@ -1,4 +1,4 @@
-import type { AnalyticsFiltersValue } from "@/components/analytics-filters";
+import type { AnalyticsFiltersValue } from "@/lib/analytics-default-filters";
 import { buildQuery } from "@/lib/analytics-build-query";
 
 function stringArraysEqual(a: readonly string[], b: readonly string[]): boolean {

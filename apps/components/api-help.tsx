@@ -9,13 +9,11 @@ import {
   type ReactNode,
 } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
 import { useNotify } from "@/components/notification-provider";
-import {
-  secondaryBtnCls,
-  SettingsSection,
-} from "@/components/money-settings/money-settings-shared";
+import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import {
   API_HELP_BASE_URL_PLACEHOLDER,
   apiHelpSections,
@@ -79,13 +77,15 @@ function HelpCodeBlock({
         >
           {resolved}
         </pre>
-        <button
+        <Button
           type="button"
-          className={cn(secondaryBtnCls, "absolute top-2 right-2 px-2 py-1 text-xs")}
+          variant="secondary"
+          size="sm"
+          className="absolute top-2 right-2"
           onClick={() => void copy()}
         >
           Copy
-        </button>
+        </Button>
       </div>
     </div>
   );

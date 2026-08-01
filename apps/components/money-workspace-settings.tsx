@@ -114,24 +114,24 @@ export function MoneyWorkspaceSettings() {
       <div className="space-y-6">
         <SettingsSection
           id="money-settings-section-tabs"
-          title="Section tabs"
-          description="Choose which optional tabs appear in the Money nav. New, Analytics, Spending, and Settings always stay visible."
+          title="Section menu"
+          description="Choose which optional sections appear in the Money menu. Home, Add, Insights, Spending, and Settings always stay visible."
         >
           <ul
             role="list"
-            className="divide-y divide-border overflow-hidden rounded-[var(--radius-md)] border border-border"
-            aria-label="Optional section tabs"
+            className="divide-y divide-border rounded-[var(--radius-sm)] bg-background"
+            aria-label="Optional Money menu sections"
           >
             {MONEY_OPTIONAL_SECTION_TAB_KEYS.map((key) => {
               const label = MONEY_OPTIONAL_SECTION_TAB_LABELS[key];
               const checked = visibility[key];
               return (
                 <li key={key} className="min-w-0">
-                  <div className="flex items-center gap-3 bg-surface px-4 py-3">
+                  <div className="flex items-center gap-3 px-3 py-2.5">
                     <Checkbox
                       checked={checked}
                       onChange={() => setVisible(key, !checked)}
-                      ariaLabel={`Show ${label} tab`}
+                      ariaLabel={`Show ${label} in Money menu`}
                     />
                     <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
                       {label}
@@ -150,14 +150,14 @@ export function MoneyWorkspaceSettings() {
         >
           <ul
             role="list"
-            className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-px overflow-hidden rounded-[var(--radius-md)] bg-border shadow-[var(--shadow-sm)] ring-1 ring-border"
+            className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-px overflow-hidden rounded-[var(--radius-sm)] bg-border"
             aria-label="Ledger and automation"
           >
             {LEDGER_MANAGEMENT_LINKS.map(({ href, label }) => (
               <li key={href} className="min-w-0">
                 <Link
                   href={href}
-                  className="relative flex items-center gap-x-3 bg-surface px-4 py-5 text-sm font-semibold text-foreground transition-colors duration-200 hover:bg-muted-surface focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground fx-press"
+                  className="relative flex items-center gap-x-3 bg-background px-4 py-4 text-sm font-semibold text-foreground transition-colors duration-200 hover:bg-muted-surface focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground fx-press"
                 >
                   <span className="min-w-0 flex-1">{label}</span>
                   <LedgerLinkChevron />
@@ -214,7 +214,7 @@ export function MoneyWorkspaceSettings() {
               </Field>
               <Button
                 type="submit"
-                variant="secondary"
+                variant="primary"
                 size="md"
                 className="w-fit"
                 disabled={

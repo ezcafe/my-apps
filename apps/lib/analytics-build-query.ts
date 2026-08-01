@@ -1,4 +1,4 @@
-import type { AnalyticsFiltersValue } from "@/components/analytics-filters";
+import type { AnalyticsFiltersValue } from "@/lib/analytics-default-filters";
 import { CATEGORY_FILTER_NONE } from "@/lib/analytics-category-filter";
 
 /** Map `<input type="date">` values (local calendar days) to UTC ISO bounds for the API. */

@@ -4,6 +4,9 @@ import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error
 import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
   MONEY_LIST_MERCHANTS_QUERY,
@@ -12,9 +15,7 @@ import {
   MONEY_MERCHANT_UPDATE_MUTATION,
 } from "@/lib/money-gql-documents";
 import {
-  inputCls,
   MoneySettingsBackLink,
-  secondaryBtnCls,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
@@ -132,62 +133,61 @@ export function MoneySettingsMerchantsSection() {
       ) : null}
       <SettingsSection id="money-settings-merchants-page" title="Merchants">
         <form className="flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
-          <label className="grid gap-1.5 text-sm">
-            <span className="font-medium text-foreground">Name</span>
-            <input
-              className={inputCls}
+          <Field label="Name" required>
+            <Input
               placeholder="Coffee shop"
               value={newMerchant}
               onChange={(e) => setNewMerchant(e.target.value)}
+              required
             />
-          </label>
-          <button type="submit" className={`${secondaryBtnCls} self-start`}>
+          </Field>
+          <Button type="submit" variant="primary" className="self-start">
             Add merchant
-          </button>
+          </Button>
         </form>
         <div className="mt-8 border-t border-border pt-8">
           <h3 className="text-sm font-medium text-foreground">Existing merchants</h3>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
+          <ul className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm text-muted">
             {merchants.map((m) => (
-              <li
-                key={m.id}
-                className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30"
-              >
+              <li key={m.id} className="px-3 py-2.5">
                 {editingId === m.id ? (
                   <form className="flex flex-col gap-3" onSubmit={saveEdit}>
-                    <input
-                      className={inputCls}
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      aria-label="Merchant name"
-                    />
+                    <Field label="Name" required>
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        required
+                      />
+                    </Field>
                     <div className="flex flex-wrap gap-2">
-                      <button type="submit" className={secondaryBtnCls}>
+                      <Button type="submit" variant="primary" size="sm">
                         Save
-                      </button>
-                      <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-foreground">{m.name}</span>
                     <div className="flex flex-wrap gap-2">
-                      <button
+                      <Button
                         type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        variant="ghost"
+                        size="sm"
                         onClick={() => startEdit(m)}
                       >
                         Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        variant="danger"
+                        size="sm"
                         onClick={() => void deleteMerchant(m.id, m.name)}
                       >
                         Delete
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}

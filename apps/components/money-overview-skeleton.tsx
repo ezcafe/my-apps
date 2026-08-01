@@ -28,11 +28,7 @@ export function MoneyOverviewSkeleton({
 
   return (
     <div className={cn(MONEY_FULL_SPAN, "space-y-8", className)}>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-2">
-          <div className="h-8 w-28 animate-pulse rounded-[var(--radius-sm)] bg-muted-surface" />
-          <div className="h-4 w-56 animate-pulse rounded-[var(--radius-sm)] bg-muted-surface" />
-        </div>
+      <div className="flex justify-end">
         <div className="h-10 w-36 animate-pulse rounded-[var(--radius-sm)] bg-muted-surface" />
       </div>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-4 border-b border-border pb-4">

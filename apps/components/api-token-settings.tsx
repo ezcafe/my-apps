@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { useNotify } from "@/components/notification-provider";
-import {
-  inputCls,
-  primaryBtnCls,
-  secondaryBtnCls,
-} from "@/components/money-settings/money-settings-shared";
 import type { ApiTokenListItem } from "@/lib/api-token-service";
 import type { ApiTokenScope } from "@/db/schema/api-token";
 import type { ApiTokenAppKey } from "@/lib/api-auth";
@@ -150,21 +150,21 @@ export function ApiTokenSettings({
           API tokens
         </h2>
       ) : null}
-      <p className="text-sm text-muted">
-        Personal tokens for Postman, cron jobs, and scripts. Each token is bound
-        to one workspace for Money, Savings, or Investment. Send{" "}
-        <code className="rounded-[var(--radius-sm)] bg-muted-surface px-1 py-0.5 font-mono text-xs">
-          Authorization: Bearer mny_|sav_|inv_…
-        </code>{" "}
-        on GraphQL and REST requests.
-      </p>
+      {!embedded ? (
+        <p className="text-sm text-muted">
+          Personal tokens for Postman, cron jobs, and scripts. Each token is bound
+          to one workspace for Money, Savings, or Investment. Send{" "}
+          <code className="rounded-[var(--radius-sm)] bg-muted-surface px-1 py-0.5 font-mono text-xs">
+            Authorization: Bearer mny_|sav_|inv_…
+          </code>{" "}
+          on GraphQL and REST requests.
+        </p>
+      ) : null}
 
-      <div className="mt-4 space-y-4 rounded-[var(--radius-md)] border border-border bg-background p-4">
+      <div className="space-y-4 rounded-[var(--radius-sm)] bg-background p-4">
         <div className="grid gap-3">
-          <label className="block text-sm">
-            <span className="font-medium text-foreground">App</span>
-            <select
-              className={`${inputCls} mt-1`}
+          <Field label="App">
+            <Select
               value={appKey}
               onChange={(e) => setAppKey(e.target.value as ApiTokenAppKey)}
             >
@@ -173,22 +173,19 @@ export function ApiTokenSettings({
                   {key.charAt(0).toUpperCase() + key.slice(1)}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="block text-sm">
-            <span className="font-medium text-foreground">Name</span>
-            <input
-              className={`${inputCls} mt-1`}
+            </Select>
+          </Field>
+          <Field label="Name" required>
+            <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. nightly backup"
               maxLength={120}
+              required
             />
-          </label>
-          <label className="block text-sm">
-            <span className="font-medium text-foreground">Workspace</span>
-            <select
-              className={`${inputCls} mt-1`}
+          </Field>
+          <Field label="Workspace" required>
+            <Select
               value={workspaceId}
               onChange={(e) => setWorkspaceId(e.target.value)}
             >
@@ -198,26 +195,25 @@ export function ApiTokenSettings({
                   {w.isDefault ? " (default)" : ""}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-foreground">
-            <input
-              type="checkbox"
+            </Select>
+          </Field>
+          <div className="flex items-center gap-2 text-sm text-foreground">
+            <Checkbox
               checked={writeScope}
-              onChange={(e) => setWriteScope(e.target.checked)}
-              className="size-4 rounded-[var(--radius-sm)] border-border"
+              onChange={() => setWriteScope((v) => !v)}
+              ariaLabel="Allow write (mutations, imports)"
             />
-            Allow write (mutations, imports)
-          </label>
+            <span>Allow write (mutations, imports)</span>
+          </div>
         </div>
-        <button
+        <Button
           type="button"
-          className={primaryBtnCls}
+          variant="primary"
           disabled={creating || !workspaceId}
           onClick={() => void createToken()}
         >
           {creating ? "Creating…" : "Create token"}
-        </button>
+        </Button>
       </div>
 
       <div className="mt-6">
@@ -227,12 +223,12 @@ export function ApiTokenSettings({
         ) : (
           <ul
             role="list"
-            className="mt-3 divide-y divide-border border-t border-border"
+            className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background"
           >
             {tokens.map((t) => (
               <li
                 key={t.id}
-                className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
                   <p className="text-sm font-medium text-foreground">{t.name}</p>
@@ -247,14 +243,15 @@ export function ApiTokenSettings({
                       : ""}
                   </p>
                 </div>
-                <button
+                <Button
                   type="button"
-                  className={secondaryBtnCls}
+                  variant="danger"
+                  size="sm"
                   disabled={revokingId === t.id}
                   onClick={() => void revoke(t.id)}
                 >
                   {revokingId === t.id ? "Revoking…" : "Revoke"}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
@@ -273,20 +270,12 @@ export function ApiTokenSettings({
           {revealedToken}
         </pre>
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            className={primaryBtnCls}
-            onClick={() => void copyRevealed()}
-          >
+          <Button type="button" variant="primary" onClick={() => void copyRevealed()}>
             Copy
-          </button>
-          <button
-            type="button"
-            className={secondaryBtnCls}
-            onClick={() => setRevealedToken(null)}
-          >
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => setRevealedToken(null)}>
             Done
-          </button>
+          </Button>
         </div>
       </Modal>
     </>

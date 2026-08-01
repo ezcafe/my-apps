@@ -1,7 +1,7 @@
 import {
   defaultAnalyticsFilters,
   type AnalyticsFiltersValue,
-} from "@/components/analytics-filters";
+} from "@/lib/analytics-default-filters";
 import { buildQuery } from "@/lib/analytics-build-query";
 import {
   MONEY_SEED_BILLS,

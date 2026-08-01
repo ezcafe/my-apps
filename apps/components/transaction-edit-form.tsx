@@ -97,7 +97,7 @@ function TransactionEditBreadcrumbs({ returnTo }: { returnTo: string }) {
     <nav aria-label="Breadcrumb">
       <ol className="flex flex-wrap items-center gap-2">
         <li>
-          <Link href="/money" className={itemCls}>
+          <Link href="/money/analytics" className={itemCls}>
             Money
           </Link>
         </li>
@@ -336,7 +336,6 @@ export function TransactionEditForm({
       onClose?.();
     } else {
       router.push(returnTo);
-      router.refresh();
     }
   };
 

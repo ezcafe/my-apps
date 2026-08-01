@@ -333,7 +333,7 @@ export const moneyImportSectionTitle: Record<MoneyImportKind, string> = {
 };
 
 export function moneyImportSettingsPath(kind: MoneyImportKind): string {
-  return `/money/settings/${kind}/import`;
+  return `/money/import/${kind}`;
 }
 
 export function moneyImportApiPath(kind: MoneyImportKind): string {

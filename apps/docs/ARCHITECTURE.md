@@ -25,9 +25,13 @@ Finance domains (investments, loans, savings movements) are **modules under Mone
 
 ## Money bootstrap (scoped)
 
-Money-specific client bootstrap (init + default currency modal) runs only inside [`MoneyWorkspaceProvider`](../components/money-workspace-provider.tsx), mounted from [`money/layout.tsx`](../app/(shell)/money/layout.tsx) via [`MoneyRouteLayout`](../components/money-route-layout.tsx).
+Money workspace bootstrap runs under [`MoneyWorkspaceProvider`](../components/money-workspace-provider.tsx), mounted from [`money/layout.tsx`](../app/(shell)/money/layout.tsx) via [`MoneyRouteLayout`](../components/money-route-layout.tsx).
 
-Other shell routes (e.g. `/settings`) **do not** call `/api/money/workspace/init` on load.
+**First load (SSR):** authenticated Money layouts/pages prefetch GraphQL into a per-request TanStack Query client ([`getQueryClient`](../lib/get-query-client.ts), [`money-ssr-prefetch.ts`](../lib/money-ssr-prefetch.ts)), dehydrate, and hydrate via `HydrationBoundary` so above-the-fold data paints without a client waterfall. Cookie-forwarded GraphQL requests use [`gql-request-headers.ts`](../lib/gql-request-headers.ts).
+
+**After mutations (CSR):** create/edit/add invalidate React Query roots (`["money"]`, `loansKeys`, `investmentKeys`) and refetch active queries only — no full document reload.
+
+Other shell routes (e.g. `/settings`) **do not** call Money bootstrap on load.
 
 ## Themes and providers
 

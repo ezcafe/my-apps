@@ -34,6 +34,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      { source: "/money", destination: "/money/analytics", permanent: true },
       { source: "/savings", destination: "/money/savings", permanent: true },
       { source: "/savings/:path*", destination: "/money/savings", permanent: true },
       { source: "/investment", destination: "/money/investments", permanent: true },

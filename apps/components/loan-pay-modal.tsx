@@ -22,6 +22,7 @@ import {
 import { loansGraphQLRequest } from "@/lib/loans-gql-client";
 import { LOAN_INSTALLMENT_PAY_MUTATION } from "@/lib/loans-gql-documents";
 import { loansKeys } from "@/lib/loans-query-options";
+import { invalidateMoneyWorkspaceQueries } from "@/lib/money-query-options";
 import { findSystemAccountId } from "@/lib/money-seed-defaults";
 import { moneyBootstrapQueryOptions } from "@/lib/money-query-options";
 
@@ -123,6 +124,7 @@ export function LoanPayModal({
         },
       });
       await queryClient.invalidateQueries({ queryKey: loansKeys.all });
+      await invalidateMoneyWorkspaceQueries(queryClient);
       notify.success("Payment recorded in Money");
       onClose();
     } catch (e) {

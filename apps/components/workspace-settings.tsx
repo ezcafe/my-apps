@@ -6,10 +6,10 @@ import { useNotify } from "@/components/notification-provider";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { cn } from "@/lib/cn";
 import type { WorkspaceAppKey } from "@/db/schema/workspace";
 
 type WorkspaceRow = {
@@ -122,7 +122,7 @@ function DefaultWorkspaceForm({
           </Field>
           <Button
             type="submit"
-            variant="secondary"
+            variant="primary"
             size="md"
             className="w-fit"
             disabled={!value}
@@ -254,34 +254,15 @@ export function WorkspaceSettings() {
                   ))}
                 </Select>
               </Field>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted fx-press">
-                <input
-                  type="checkbox"
-                  className="peer sr-only"
+              <div className="flex items-center gap-2 text-sm text-muted">
+                <Checkbox
                   checked={seedMoneyOnShared}
-                  onChange={(e) => setSeedMoneyOnShared(e.target.checked)}
+                  onChange={() => setSeedMoneyOnShared((v) => !v)}
+                  ariaLabel="Seed Money accounts and categories"
                 />
-                <span
-                  aria-hidden
-                  className={cn(
-                    "flex size-4 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-border bg-background transition-colors duration-150",
-                    seedMoneyOnShared &&
-                      "border-foreground bg-foreground text-background",
-                  )}
-                >
-                  {seedMoneyOnShared ? (
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="size-3">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.704 5.296a1 1 0 0 1 0 1.408l-7.5 7.5a1 1 0 0 1-1.414 0l-3.5-3.5a1 1 0 1 1 1.414-1.414L8.5 12.086l6.793-6.79a1 1 0 0 1 1.411 0Z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  ) : null}
-                </span>
-                Seed Money accounts &amp; categories
-              </label>
-              <Button type="submit" variant="secondary" size="md" className="w-fit">
+                <span>Seed Money accounts &amp; categories</span>
+              </div>
+              <Button type="submit" variant="primary" size="md" className="w-fit">
                 Create workspace
               </Button>
             </form>

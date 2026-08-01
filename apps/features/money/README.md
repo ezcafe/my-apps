@@ -42,6 +42,6 @@ export async function handleExample() {
 
 Always resolve the active workspace with the same helpers as existing Money routes ([`requireMoneyContext`](../../lib/api-money.ts), cookies per `workspaceCookieName("money")` from [`lib/workspace-context.ts`](../../lib/workspace-context.ts)).
 
-## Workspace bootstrap (client)
+## Workspace bootstrap
 
-[`MoneyWorkspaceProvider`](../../components/money-workspace-provider.tsx) runs only inside [`money/layout.tsx`](../../app/(shell)/money/layout.tsx). New features should add their own layout-level provider, not the global shell.
+[`MoneyWorkspaceProvider`](../../components/money-workspace-provider.tsx) runs only inside [`money/layout.tsx`](../../app/(shell)/money/layout.tsx). First load prefetches bootstrap (and tab data) on the server into TanStack Query; mutations refresh via client invalidate/refetch. New features should add their own layout-level provider, not the global shell.

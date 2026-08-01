@@ -55,20 +55,20 @@ export default async function SettingsPage() {
             title="Account"
             description="Profile comes from your Pocket ID OIDC claims."
           >
-            <dl className="divide-y divide-border rounded-[var(--radius-md)] border border-border bg-background text-sm shadow-[var(--shadow-sm)]">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 py-3">
+            <dl className="divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-3 py-2.5">
                 <dt className="text-muted">Name</dt>
                 <dd className="min-w-0 font-medium text-foreground">
                   {session?.user?.name ?? "—"}
                 </dd>
               </div>
-              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 py-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-3 py-2.5">
                 <dt className="text-muted">Email</dt>
                 <dd className="min-w-0 text-foreground">
                   {session?.user?.email ?? "—"}
                 </dd>
               </div>
-              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-4 py-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-3 py-2.5">
                 <dt className="text-muted">Subject</dt>
                 <dd className="min-w-0 max-w-full font-mono text-xs break-all text-foreground">
                   {session?.user?.id ?? "—"}

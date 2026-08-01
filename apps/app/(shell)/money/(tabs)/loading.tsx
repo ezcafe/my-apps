@@ -1,5 +1,5 @@
-import { MoneyOverviewSkeleton } from "@/components/money-overview-skeleton";
+import { MoneyAnalyticsPageSkeleton } from "@/components/money-analytics-skeleton";
 
 export default function MoneyTabsLoading() {
-  return <MoneyOverviewSkeleton />;
+  return <MoneyAnalyticsPageSkeleton />;
 }

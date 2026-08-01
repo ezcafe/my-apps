@@ -4,6 +4,9 @@ import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error
 import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
   MONEY_LIST_TAGS_QUERY,
@@ -12,9 +15,7 @@ import {
   MONEY_TAG_UPDATE_MUTATION,
 } from "@/lib/money-gql-documents";
 import {
-  inputCls,
   MoneySettingsBackLink,
-  secondaryBtnCls,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
@@ -128,62 +129,61 @@ export function MoneySettingsTagsSection() {
       ) : null}
       <SettingsSection id="money-settings-tags-page" title="Tags">
         <form className="flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
-          <label className="grid gap-1.5 text-sm">
-            <span className="font-medium text-foreground">Name</span>
-            <input
-              className={inputCls}
+          <Field label="Name" required>
+            <Input
               placeholder="vacation"
               value={newTag}
               onChange={(e) => setNewTag(e.target.value)}
+              required
             />
-          </label>
-          <button type="submit" className={`${secondaryBtnCls} self-start`}>
+          </Field>
+          <Button type="submit" variant="primary" className="self-start">
             Add tag
-          </button>
+          </Button>
         </form>
         <div className="mt-8 border-t border-border pt-8">
           <h3 className="text-sm font-medium text-foreground">Existing tags</h3>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
+          <ul className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm text-muted">
             {tags.map((t) => (
-              <li
-                key={t.id}
-                className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30"
-              >
+              <li key={t.id} className="px-3 py-2.5">
                 {editingId === t.id ? (
                   <form className="flex flex-col gap-3" onSubmit={saveEdit}>
-                    <input
-                      className={inputCls}
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      aria-label="Tag name"
-                    />
+                    <Field label="Name" required>
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        required
+                      />
+                    </Field>
                     <div className="flex flex-wrap gap-2">
-                      <button type="submit" className={secondaryBtnCls}>
+                      <Button type="submit" variant="primary" size="sm">
                         Save
-                      </button>
-                      <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-foreground">{t.name}</span>
                     <div className="flex flex-wrap gap-2">
-                      <button
+                      <Button
                         type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        variant="ghost"
+                        size="sm"
                         onClick={() => startEdit(t)}
                       >
                         Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        variant="danger"
+                        size="sm"
                         onClick={() => void deleteTag(t.id, t.name)}
                       >
                         Delete
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}

@@ -1,35 +1,5 @@
 import type { ReactNode } from "react";
-import { AboutDisclosure } from "@/components/ui/about-disclosure";
 import { cn } from "@/lib/cn";
-
-/** Page title + optional description (info icon tooltip beside the title). */
-export function MoneyPageHeader({
-  title,
-  description,
-  titleId,
-  className,
-}: {
-  title: string;
-  description?: string;
-  titleId?: string;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex min-w-0 items-center gap-1.5", className)}>
-      <h2
-        id={titleId}
-        className="font-display text-lg font-medium tracking-tight"
-      >
-        {title}
-      </h2>
-      {description ? (
-        <AboutDisclosure label={`About ${title}`}>
-          <p>{description}</p>
-        </AboutDisclosure>
-      ) : null}
-    </div>
-  );
-}
 
 /** Underline strip matching the analytics filter toolbar chrome. */
 export function MoneyFilterToolbar({

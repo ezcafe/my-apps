@@ -78,8 +78,8 @@ export function MoneyTransactionsPage({
     options: ReadonlyArray<{ id: string; label: string; href: string }>;
   };
   /**
-   * `page` — full ledger chrome (title from preset, optional View nav, trend chart).
-   * `section` — embed under another surface (Activity heading, no View nav / trend).
+   * `page` — full ledger chrome (optional View nav, trend chart).
+   * `section` — embed under another surface (no View nav / trend).
    */
   variant?: "page" | "section";
 }) {
@@ -91,7 +91,7 @@ export function MoneyTransactionsPage({
     refreshWorkspaceCurrency,
     workspaceReady,
   } = useWorkspaceCurrency();
-  const canRunMoneyQueries = authenticated && typeof window !== "undefined";
+  const canRunMoneyQueries = authenticated;
 
   const viewFilter = useMemo((): AnalyticsFilterViewConfig | undefined => {
     if (isSection || !viewNav) return undefined;
@@ -106,11 +106,6 @@ export function MoneyTransactionsPage({
       },
     };
   }, [isSection, router, viewNav]);
-
-  const sectionTitle = isSection ? "Activity" : (preset?.title ?? "Transactions");
-  const sectionDescription =
-    preset?.description ??
-    "Browse and edit workspace transactions. Default range is the current calendar month — apply to refresh.";
 
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(
     null,
@@ -339,8 +334,6 @@ export function MoneyTransactionsPage({
   return (
     <>
       <AnalyticsFiltersBar
-        title={sectionTitle}
-        description={sectionDescription}
         viewFilter={viewFilter}
         value={draft}
         onChange={setDraft}

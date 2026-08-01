@@ -1,4 +1,5 @@
 import { GraphQLClient } from "graphql-request";
+import { graphqlRequestHeaders } from "@/lib/gql-request-headers";
 import { toUserFacingError } from "@/lib/user-facing-error";
 
 function resolveLoansGraphQLEndpoint(): string {
@@ -12,25 +13,16 @@ function resolveLoansGraphQLEndpoint(): string {
   return "http://127.0.0.1:3000/api/graphql";
 }
 
-let loansGraphqlClient: GraphQLClient | null = null;
-
-function getLoansGraphqlClient() {
-  if (loansGraphqlClient) return loansGraphqlClient;
-  loansGraphqlClient = new GraphQLClient(resolveLoansGraphQLEndpoint(), {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-  return loansGraphqlClient;
-}
-
 export async function loansGraphQLRequest<T extends Record<string, unknown>>(
   document: string,
   variables?: Record<string, unknown>,
 ): Promise<T> {
   try {
-    return await getLoansGraphqlClient().request<T>(
+    const client = new GraphQLClient(resolveLoansGraphQLEndpoint(), {
+      credentials: "include",
+      headers: await graphqlRequestHeaders(),
+    });
+    return await client.request<T>(
       document,
       variables as Record<string, unknown> | undefined,
     );

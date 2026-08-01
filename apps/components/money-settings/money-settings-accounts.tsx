@@ -5,6 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   formatMinor,
   minorToMajorInput,
@@ -18,9 +22,7 @@ import {
   MONEY_LIST_ACCOUNTS_QUERY,
 } from "@/lib/money-gql-documents";
 import {
-  inputCls,
   MoneySettingsBackLink,
-  secondaryBtnCls,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
@@ -188,19 +190,16 @@ export function MoneySettingsAccountsSection() {
       ) : null}
       <SettingsSection id="money-settings-accounts-page" title="Accounts">
         <form className="flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
-          <label className="grid gap-1.5 text-sm">
-            <span className="font-medium text-foreground">Name</span>
-            <input
-              className={inputCls}
+          <Field label="Name" required>
+            <Input
               placeholder="Checking"
               value={newAccount}
               onChange={(e) => setNewAccount(e.target.value)}
+              required
             />
-          </label>
-          <label className="grid gap-1.5 text-sm">
-            <span className="font-medium text-foreground">Type</span>
-            <select
-              className={inputCls}
+          </Field>
+          <Field label="Type">
+            <Select
               value={newAccountType}
               onChange={(e) =>
                 setNewAccountType(e.target.value as (typeof ACCOUNT_TYPES)[number])
@@ -211,70 +210,66 @@ export function MoneySettingsAccountsSection() {
                   {t}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-sm">
-            <span className="font-medium text-foreground">Balance</span>
-            <input
-              className={inputCls}
+            </Select>
+          </Field>
+          <Field
+            label="Balance"
+            hint="Current balance in major units; leave empty for 0."
+          >
+            <Input
               inputMode="decimal"
               placeholder={defaultCurrency === "VND" ? "0" : "0.00"}
               value={newAccountBalanceMajor}
               onChange={(e) => setNewAccountBalanceMajor(e.target.value)}
             />
-            <span className="text-xs text-muted">
-              Current balance in major units; leave empty for 0.
-            </span>
-          </label>
-          <button type="submit" className={`${secondaryBtnCls} self-start`}>
+          </Field>
+          <Button type="submit" variant="primary" className="self-start">
             Add account
-          </button>
+          </Button>
         </form>
         <div className="mt-8 border-t border-border pt-8">
           <h3 className="text-sm font-medium text-foreground">Existing accounts</h3>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
+          <ul className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm text-muted">
             {visibleAccounts.map((a) => (
-              <li
-                key={a.id}
-                className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30"
-              >
+              <li key={a.id} className="px-3 py-2.5">
                 {editingId === a.id ? (
                   <form className="flex flex-col gap-3" onSubmit={saveEdit}>
-                    <input
-                      className={inputCls}
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      aria-label="Account name"
-                    />
-                    <select
-                      className={inputCls}
-                      value={editType}
-                      onChange={(e) =>
-                        setEditType(e.target.value as (typeof ACCOUNT_TYPES)[number])
-                      }
-                      aria-label="Account type"
-                      disabled={Boolean(a.systemKey)}
-                    >
-                      {ACCOUNT_TYPES.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      className={inputCls}
-                      inputMode="decimal"
-                      value={editBalanceMajor}
-                      onChange={(e) => setEditBalanceMajor(e.target.value)}
-                      aria-label="Balance"
-                    />
+                    <Field label="Name" required>
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        required
+                      />
+                    </Field>
+                    <Field label="Type">
+                      <Select
+                        value={editType}
+                        onChange={(e) =>
+                          setEditType(e.target.value as (typeof ACCOUNT_TYPES)[number])
+                        }
+                        disabled={Boolean(a.systemKey)}
+                      >
+                        {ACCOUNT_TYPES.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field label="Balance">
+                      <Input
+                        inputMode="decimal"
+                        value={editBalanceMajor}
+                        onChange={(e) => setEditBalanceMajor(e.target.value)}
+                      />
+                    </Field>
                     <div className="flex flex-wrap gap-2">
-                      <button type="submit" className={secondaryBtnCls}>
+                      <Button type="submit" variant="primary" size="sm">
                         Save
-                      </button>
-                      <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 ) : (
@@ -284,21 +279,23 @@ export function MoneySettingsAccountsSection() {
                       {formatMinor(a.balanceMinor, defaultCurrency)}
                     </span>
                     <div className="flex flex-wrap gap-2">
-                      <button
+                      <Button
                         type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        variant="ghost"
+                        size="sm"
                         onClick={() => startEdit(a)}
                       >
                         Edit
-                      </button>
+                      </Button>
                       {!a.systemKey ? (
-                        <button
+                        <Button
                           type="button"
-                          className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                          variant="danger"
+                          size="sm"
                           onClick={() => void removeAccount(a.id, a.name)}
                         >
                           Remove
-                        </button>
+                        </Button>
                       ) : null}
                     </div>
                   </div>

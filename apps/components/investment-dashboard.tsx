@@ -18,6 +18,7 @@ import {
   investmentHoldingsQueryOptions,
   investmentPortfolioSeriesQueryOptions,
 } from "@/lib/investment-query-options";
+import { investmentDefaultChartRange } from "@/lib/money-first-load-filters";
 import { cn } from "@/lib/cn";
 
 const LineChart = dynamic(
@@ -27,20 +28,6 @@ const LineChart = dynamic(
     })),
   { ssr: false },
 );
-
-function localDateString(d = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function chartRange(monthsBack: number): { from: string; to: string } {
-  const to = new Date();
-  const from = new Date();
-  from.setMonth(from.getMonth() - monthsBack);
-  return { from: localDateString(from), to: localDateString(to) };
-}
 
 const HOLDING_SYMBOL_COLORS = [
   "text-chart-0",
@@ -55,7 +42,7 @@ const HOLDING_SYMBOL_COLORS = [
 
 export function InvestmentDashboard() {
   const { workspaceReady, defaultCurrency } = useInvestmentWorkspace();
-  const range = useMemo(() => chartRange(6), []);
+  const range = useMemo(() => investmentDefaultChartRange(6), []);
 
   const holdingsQuery = useQuery({
     ...investmentHoldingsQueryOptions(),

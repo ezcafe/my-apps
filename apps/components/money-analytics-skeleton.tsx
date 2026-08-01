@@ -19,15 +19,11 @@ const LEGEND_GRID_SKELETON =
 export function MoneyAnalyticsFiltersBarSkeleton() {
   return (
     <section className={cn(MONEY_FULL_SPAN, "@container mb-4")} aria-hidden>
-      <div className="flex items-center gap-1.5">
-        <Skeleton className="h-7 w-36 rounded-[var(--radius-sm)]" />
-        <Skeleton className="size-4 shrink-0 rounded-full" />
-      </div>
-      <div className="mt-4 flex justify-end @md:hidden">
+      <div className="flex justify-end @md:hidden">
         <Skeleton className="h-10 w-24 shrink-0 rounded-[var(--radius-md)]" />
       </div>
 
-      <MoneyFilterToolbar className="mt-4 hidden @md:flex">
+      <MoneyFilterToolbar className="mt-3 hidden @md:flex">
         {Array.from({ length: FILTER_TRIGGER_COUNT }, (_, index) => (
           <Skeleton
             key={`analytics-filter-trigger-${index}`}

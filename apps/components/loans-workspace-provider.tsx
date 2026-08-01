@@ -66,7 +66,8 @@ export function LoansWorkspaceProvider({
 }) {
   const { status } = useSession();
   const queryClient = useQueryClient();
-  const canRun = status === "authenticated" && typeof window !== "undefined";
+  // Include "loading" so hydrated bootstrap is consumed before session resolves.
+  const canRun = status !== "unauthenticated";
 
   const bootstrapQuery = useQuery({
     ...loansBootstrapQueryOptions(),
@@ -74,9 +75,9 @@ export function LoansWorkspaceProvider({
   });
 
   useEffect(() => {
-    if (!canRun) return;
+    if (status !== "authenticated" || typeof window === "undefined") return;
     void registerLoansServiceWorker();
-  }, [canRun]);
+  }, [status]);
 
   const workspaceId = bootstrapQuery.data?.workspaceId ?? null;
   const defaultCurrency =

@@ -12,8 +12,10 @@ Use this doc to verify regressions after changes that affect bundles, data fetch
 
 2. **Chrome DevTools → Performance / Lighthouse** (mobile + desktop):
 
-   - LCP, TBT, and **JS transfer size** for `/`, `/login`, `/money`, `/money/analytics`.
+   - LCP, TBT, and **JS transfer size** for `/`, `/login`, `/money/analytics`.
    - Compare **number of requests** before first meaningful paint on Money tabs.
+   - **SSR hydration check:** on a cold load of `/money/analytics` (signed in; `/money` redirects here), Network should show GraphQL for bootstrap/summary/distribution during the document/RSC work; the client should **not** immediately re-request the same query keys while `staleTime` holds (30s default). Repeat for `/money/spending`, `/money/loans`, `/money/investments`.
+   - **Mutation check:** after create/edit transaction or loan pay, lists/KPIs update via React Query invalidate — no full page reload.
 
 3. **Next.js bundles**: inspect `.next` build output and route chunks after `next build` (or use `@next/bundle-analyzer` if added later).
 

@@ -13,11 +13,10 @@ All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analy
 - Quiet Ink tokens (Facebook light / Catppuccin Mocha dark) and IBM Plex type load in both modes; Atom One / Nord are no longer the brand palette.
 - [`DESIGN_GUIDE.md`](DESIGN_GUIDE.md) is the single source of truth, including distilled minimal-UI rules, default spender IA, and progressive disclosure.
 - Every route under `app/**/page.tsx` and shared components use semantic tokens + `components/ui/*` only — no raw hex, Tailwind radius/shadow presets, or non-token status colors in feature JSX.
-- Money tabs: **Home** (overview), **Add**, **Insights**, **Spending**, **Settings**; optional tabs remain off by default.
+- Money tabs: **Insights** (home / `/money` → `/money/analytics`), **Add**, **Spending**, **Settings**; optional tabs remain off by default.
 - Money filter toolbars show Direction, Accounts, Categories, Apply/Reset (plus Workspace/View when present); Date, Merchants, Tags, Recurrence live under **More**.
 - Primary CTAs stay visible; secondary actions use [`MoreMenu`](../components/ui/more-menu.tsx); help copy uses [`AboutDisclosure`](../components/ui/about-disclosure.tsx) (info icon + tooltip).
 - Default Insights shows KPIs + spend-by-category + income vs expense; remaining charts behind **More insights** (unmounted until expanded).
-- **Home first paint:** bootstrap + analytics summary + distribution + short recent transactions — no form lookups / merchant+recurrence analytics lookups / full overview.
 - **Default Insights first paint:** summary + distribution only — not full overview, budgets, sankey, or leaders until More insights.
 - Heavy chart/modal modules load via `next/dynamic` (chart cards, DivergingBar, LoanProgressChart, bulk-edit modal).
 - `npm run lint` and `npm run build` pass; light + dark verified via `/settings`.
@@ -25,9 +24,9 @@ All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analy
 ## Test plan
 
 - **Static:** grep for forbidden `#hex`, `rounded-md|lg|xl|2xl`, `shadow-sm|md|lg` Tailwind presets outside token sources.
-- **Visual:** light + dark on login, money home (overview), Add, Spending, Insights, loan detail, investments, settings.
+- **Visual:** light + dark on login, Insights (money home), Add, Spending, loan detail, investments, settings.
 - **Disclosure:** Analytics/Spending desktop strip = Direction/Accounts/Categories/More/Apply; More opens date + merchants + tags + recurrence; page help is an info-icon tooltip; Insights More insights reveals advanced charts.
-- **Network:** Home and default Insights omit formLookups / full overview / leaders until Add or More insights.
+- **Network:** Default Insights omit formLookups / full overview / leaders until Add or More insights.
 - **Loan:** primary “Add payment to Money”; mark-paid via More; delete via header More.
 - **Investments settings:** Refresh quotes in More; create instrument behind “Add instrument”.
 - **A11y:** focus rings on new accent; contrast of accent text; `prefers-reduced-motion` disables `fx-*`.

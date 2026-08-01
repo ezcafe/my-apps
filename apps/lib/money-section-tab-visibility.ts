@@ -35,7 +35,7 @@ export const MONEY_OPTIONAL_SECTION_TAB_LABELS: Record<
   bills: "Bills",
   savings: "Savings",
   loans: "Loans",
-  investments: "Invest",
+  investments: "Investments",
   import: "Import",
 };
 

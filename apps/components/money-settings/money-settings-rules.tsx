@@ -4,6 +4,10 @@ import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
   MONEY_LIST_ACCOUNTS_QUERY,
@@ -22,10 +26,7 @@ import {
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import {
-  inputCls,
   MoneySettingsBackLink,
-  primaryBtnCls,
-  secondaryBtnCls,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
@@ -321,122 +322,129 @@ function RulesKindSection({
 
   return (
     <SettingsSection id={meta.id} title={meta.title} description={meta.description}>
-      <form className="auto-fit-2 max-w-4xl" onSubmit={saveRule}>
-        <input
-          className={inputCls}
-          placeholder="Rule name"
-          value={ruleName}
-          onChange={(e) => setRuleName(e.target.value)}
-        />
-        <input
-          type="number"
-          className={inputCls}
-          placeholder="Priority"
-          value={rulePriority}
-          onChange={(e) => setRulePriority(Number(e.target.value))}
-        />
-        <select
-          className={inputCls}
-          value={ruleMerchantId}
-          onChange={(e) => setRuleMerchantId(e.target.value)}
-        >
-          <option value="">Any merchant</option>
-          {merchants.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className={inputCls}
-          value={ruleAccountId}
-          onChange={(e) => setRuleAccountId(e.target.value)}
-        >
-          <option value="">Any account</option>
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className={inputCls}
-          value={ruleCategoryId}
-          onChange={(e) => setRuleCategoryId(e.target.value)}
-        >
-          <option value="">Set category…</option>
-          {visibleCategories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {moneyCategoryLabel(c, categoryById)}
-            </option>
-          ))}
-        </select>
-        <button type="submit" className={`${primaryBtnCls} self-start`}>
+      <form className="flex max-w-xl flex-col gap-3" onSubmit={saveRule}>
+        <Field label="Name">
+          <Input
+            placeholder="Rule name"
+            value={ruleName}
+            onChange={(e) => setRuleName(e.target.value)}
+          />
+        </Field>
+        <Field label="Priority">
+          <Input
+            type="number"
+            placeholder="Priority"
+            value={rulePriority}
+            onChange={(e) => setRulePriority(Number(e.target.value))}
+          />
+        </Field>
+        <Field label="Merchant">
+          <Select
+            value={ruleMerchantId}
+            onChange={(e) => setRuleMerchantId(e.target.value)}
+          >
+            <option value="">Any merchant</option>
+            {merchants.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Account">
+          <Select
+            value={ruleAccountId}
+            onChange={(e) => setRuleAccountId(e.target.value)}
+          >
+            <option value="">Any account</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Category">
+          <Select
+            value={ruleCategoryId}
+            onChange={(e) => setRuleCategoryId(e.target.value)}
+          >
+            <option value="">Set category…</option>
+            {visibleCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {moneyCategoryLabel(c, categoryById)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Button type="submit" variant="primary" className="self-start">
           Save rule
-        </button>
+        </Button>
       </form>
       <div className="mt-8 border-t border-border pt-8">
         <h3 className="text-sm font-medium text-foreground">Saved {meta.title.toLowerCase()}</h3>
         {visibleRules.length === 0 ? (
           <p className="mt-3 text-sm text-muted">None yet.</p>
         ) : (
-          <ul className="mt-3 space-y-2 text-sm text-muted">
+          <ul className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm text-muted">
             {visibleRules.map((r) => (
-              <li
-                key={r.id}
-                className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 transition-colors duration-150 hover:border-foreground/30"
-              >
+              <li key={r.id} className="px-3 py-2.5">
                 {editingId === r.id ? (
-                  <form className="auto-fit-2 max-w-4xl" onSubmit={saveEdit}>
-                    <input
-                      className={inputCls}
-                      placeholder="Rule name"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                    />
-                    <input
-                      type="number"
-                      className={inputCls}
-                      placeholder="Priority"
-                      value={editPriority}
-                      onChange={(e) => setEditPriority(Number(e.target.value))}
-                    />
-                    <select
-                      className={inputCls}
-                      value={editMerchantId}
-                      onChange={(e) => setEditMerchantId(e.target.value)}
-                    >
-                      <option value="">Any merchant</option>
-                      {merchants.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className={inputCls}
-                      value={editAccountId}
-                      onChange={(e) => setEditAccountId(e.target.value)}
-                    >
-                      <option value="">Any account</option>
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className={inputCls}
-                      value={editCategoryId}
-                      onChange={(e) => setEditCategoryId(e.target.value)}
-                    >
-                      <option value="">Set category…</option>
-                      {visibleCategories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {moneyCategoryLabel(c, categoryById)}
-                        </option>
-                      ))}
-                    </select>
+                  <form className="flex flex-col gap-3" onSubmit={saveEdit}>
+                    <Field label="Name">
+                      <Input
+                        placeholder="Rule name"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Priority">
+                      <Input
+                        type="number"
+                        placeholder="Priority"
+                        value={editPriority}
+                        onChange={(e) => setEditPriority(Number(e.target.value))}
+                      />
+                    </Field>
+                    <Field label="Merchant">
+                      <Select
+                        value={editMerchantId}
+                        onChange={(e) => setEditMerchantId(e.target.value)}
+                      >
+                        <option value="">Any merchant</option>
+                        {merchants.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field label="Account">
+                      <Select
+                        value={editAccountId}
+                        onChange={(e) => setEditAccountId(e.target.value)}
+                      >
+                        <option value="">Any account</option>
+                        {accounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field label="Category">
+                      <Select
+                        value={editCategoryId}
+                        onChange={(e) => setEditCategoryId(e.target.value)}
+                      >
+                        <option value="">Set category…</option>
+                        {visibleCategories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {moneyCategoryLabel(c, categoryById)}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
                     <label className="flex items-center gap-2 text-sm text-muted">
                       <input
                         type="checkbox"
@@ -445,13 +453,13 @@ function RulesKindSection({
                       />
                       Active
                     </label>
-                    <div className="col-span-full flex flex-wrap gap-2">
-                      <button type="submit" className={primaryBtnCls}>
-                        Save changes
-                      </button>
-                      <button type="button" className={secondaryBtnCls} onClick={cancelEdit}>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="submit" variant="primary" size="sm">
+                        Save
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 ) : (
@@ -460,20 +468,22 @@ function RulesKindSection({
                       {r.name} · priority {r.priority} · {r.active ? "active" : "off"}
                     </span>
                     <div className="flex flex-wrap gap-2">
-                      <button
+                      <Button
                         type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        variant="ghost"
+                        size="sm"
                         onClick={() => startEdit(r)}
                       >
                         Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        className={`${secondaryBtnCls} shrink-0 px-2 py-1 text-xs`}
+                        variant="danger"
+                        size="sm"
                         onClick={() => void deleteRule(r.id, r.name)}
                       >
                         Delete
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}

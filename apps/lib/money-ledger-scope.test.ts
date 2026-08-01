@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { defaultAnalyticsFilters } from "@/components/analytics-filters";
+import { defaultAnalyticsFilters } from "@/lib/analytics-default-filters";
 import {
   buildMoneyAnalyticsFilterQuery,
   defaultFiltersForLedgerPreset,

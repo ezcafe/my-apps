@@ -58,10 +58,8 @@ export function useWorkspaceCurrency() {
 
 function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
-  const canRunMoneyQueries = typeof window !== "undefined";
   const bootstrapQuery = useQuery({
     ...moneyBootstrapQueryOptions(),
-    enabled: canRunMoneyQueries,
   });
   const workspaceState = bootstrapQuery.data;
 
@@ -262,7 +260,9 @@ export function MoneyWorkspaceProvider({
 }) {
   const { status } = useSession();
 
-  if (status !== "authenticated") {
+  // Allow "loading" so SSR/hydration can consume prefetched bootstrap before
+  // SessionProvider resolves; only skip when explicitly signed out.
+  if (status === "unauthenticated") {
     return (
       <WorkspaceCurrencyContext.Provider
         value={{

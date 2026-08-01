@@ -42,7 +42,7 @@ export function InvestmentWorkspaceProvider({
 }) {
   const { status } = useSession();
   const queryClient = useQueryClient();
-  const canRun = status === "authenticated" && typeof window !== "undefined";
+  const canRun = status !== "unauthenticated";
 
   const bootstrapQuery = useQuery({
     ...investmentBootstrapQueryOptions(),

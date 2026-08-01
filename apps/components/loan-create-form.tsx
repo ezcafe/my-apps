@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { formatMinor, parseMajorToMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import {
@@ -403,7 +404,7 @@ export function LoanCreateForm() {
           ) : null}
 
           {computedPaymentMinor != null ? (
-            <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
+            <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 p-4">
               <p className="text-sm font-medium text-foreground">
                 Estimated monthly payment
               </p>
@@ -537,12 +538,12 @@ export function LoanCreateForm() {
 
           {ltvLabel != null ? (
             <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
-              <div className="rounded-[var(--radius-sm)] border border-border bg-surface-raised px-3 py-2">
+              <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 px-3 py-2">
                 <p className="text-xs text-muted">LTV ratio</p>
                 <p className="mt-0.5 text-sm font-medium tabular-nums">{ltvLabel}</p>
               </div>
               {downPaymentMinor != null ? (
-                <div className="rounded-[var(--radius-sm)] border border-border bg-surface-raised px-3 py-2">
+                <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 px-3 py-2">
                   <p className="text-xs text-muted">Down payment</p>
                   <p className="mt-0.5 text-sm font-medium tabular-nums">
                     {formatMinor(downPaymentMinor, defaultCurrency)}
@@ -574,7 +575,7 @@ export function LoanCreateForm() {
           </div>
 
           {pastDueCount > 0 ? (
-            <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
+            <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 p-4">
               <div className="flex items-start gap-2">
                 <Checkbox
                   checked={autoMarkPastDuePaid}
@@ -617,7 +618,7 @@ export function LoanCreateForm() {
             </div>
           ) : null}
 
-          <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
+          <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 p-4">
             <div className="flex items-start gap-2">
               <Checkbox
                 checked={useCustomPayment}
@@ -649,7 +650,7 @@ export function LoanCreateForm() {
           </div>
 
           {hasRateChangeConfigured ? (
-            <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
+            <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 p-4">
               <div className="flex items-start gap-2">
                 <Checkbox
                   checked={useCustomPaymentAfterRateChange}
@@ -686,7 +687,7 @@ export function LoanCreateForm() {
             </div>
           ) : null}
 
-          <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4">
+          <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 p-4">
             <p className="text-sm text-muted">
               Optional: link payments to your Money workspace (
               {moneyBootstrap.data?.workspaceId
@@ -696,8 +697,7 @@ export function LoanCreateForm() {
             </p>
             <div className="mt-3 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
               <Field label="Pay from account">
-                <select
-                  className="w-full rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2 text-sm"
+                <Select
                   value={moneyAccountId}
                   onChange={(e) => setMoneyAccountId(e.target.value)}
                 >
@@ -707,11 +707,10 @@ export function LoanCreateForm() {
                       {a.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </Field>
               <Field label="Category">
-                <select
-                  className="w-full rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2 text-sm"
+                <Select
                   value={moneyCategoryId}
                   onChange={(e) => setMoneyCategoryId(e.target.value)}
                 >
@@ -721,7 +720,7 @@ export function LoanCreateForm() {
                       {c.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </Field>
             </div>
           </div>
