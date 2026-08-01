@@ -20,7 +20,8 @@ cp .env.example .env
 # suggested: AUTH_SECRET=$(openssl rand -base64 32)
 
 # bring up Postgres 18 for local dev (or point DATABASE_URL elsewhere)
-docker compose -f docker-compose-db.yml up -d
+npm run docker:db
+# or: docker compose -f docker-compose-db.yml up -d
 
 # install + apply schema
 npm install
@@ -42,7 +43,8 @@ Use `docker-compose-db.yml` when you only want the local PostgreSQL 18 database 
 cp .env.example .env
 # optionally override DATABASE_URL if you are not using the default local DB
 
-docker compose -f docker-compose-db.yml up -d
+npm run docker:db
+# or: docker compose -f docker-compose-db.yml up -d
 ```
 
 What this file does:
@@ -55,7 +57,7 @@ Docker-specific notes:
 
 - Default container credentials are defined in `docker-compose-db.yml`: user `money`, password `money`, database `money`.
 - For the app running on your machine, use `localhost` in `DATABASE_URL`, not `db`.
-- Stop the database with `docker compose -f docker-compose-db.yml down`; add `-v` if you also want to remove the local volume.
+- Stop the database with `npm run docker:db:down` or `docker compose -f docker-compose-db.yml down`; add `-v` if you also want to remove the local volume.
 
 ## Docker (production-style)
 
@@ -66,7 +68,8 @@ cp .env.example .env
 # set AUTH_SECRET at minimum (recommended: openssl rand -base64 32)
 # fill AUTH_POCKET_ID_* when you want the real login flow to work
 
-docker compose up --build
+npm run docker:up
+# or: docker compose --env-file .env up --build
 ```
 
 What Compose does:
@@ -78,6 +81,7 @@ What Compose does:
 
 Docker-specific notes:
 
+- Prefer `npm run docker:up` / `--env-file .env` so Compose can interpolate `${POSTGRES_*}` overrides; `.env` is also attached to `app`/`migrate` via `env_file`.
 - The app/migration containers default to `DATABASE_URL=postgresql://…@pgbouncer:5432/…`.
 - For direct SQL from host tools, continue using `localhost:5432` (Postgres) or `localhost:6432` (PgBouncer).
 - The runtime image is built from Next.js standalone output, so it only copies the files needed to serve the app.
@@ -93,6 +97,8 @@ Docker-specific notes:
 | `npm run build` | Production build. |
 | `npm run start` | Run the production build. |
 | `npm run lint` | ESLint (must be clean). |
+| `npm run typecheck` | TypeScript (`tsc --noEmit`). |
+| `npm run test` | Unit tests (`tsx --test` on `lib/**/*.test.ts`). |
 | `npm run db:generate` | Generate a Drizzle migration. |
 | `npm run db:push` | Push schema to the dev DB without a migration. |
 | `npm run db:migrate` | Apply pending migrations. |

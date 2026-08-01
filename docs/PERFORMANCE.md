@@ -4,7 +4,7 @@ Use this doc to verify regressions after changes that affect bundles, data fetch
 
 ## Frontend
 
-1. **Production build** (from `apps/`):
+1. **Production build**:
 
    ```bash
    npm run build

@@ -14,9 +14,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-money}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-money}
+      POSTGRES_DB: ${POSTGRES_DB:-money}
     # postgres:18+ — mount parent dir only (see https://github.com/docker-library/postgres/pull/1259).
     volumes:
       - money_pg_data:/var/lib/postgresql
@@ -34,11 +34,11 @@ services:
     ports:
       - "6432:5432"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-money}:${POSTGRES_PASSWORD:-money}@db:5432/${POSTGRES_DB:-money}
       POOL_MODE: transaction
       MAX_CLIENT_CONN: "1000"
       DEFAULT_POOL_SIZE: "25"
-      ADMIN_USERS: ${POSTGRES_USER}
+      ADMIN_USERS: ${POSTGRES_USER:-money}
       AUTH_TYPE: plain
     depends_on:
       db:
@@ -48,9 +48,13 @@ services:
   migrate:
     build:
       context: .
+      dockerfile: Dockerfile
       target: migrator
+    env_file:
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}}
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://${POSTGRES_USER:-money}:${POSTGRES_PASSWORD:-money}@pgbouncer:5432/${POSTGRES_DB:-money}}
     depends_on:
       pgbouncer:
         condition: service_started
@@ -59,18 +63,20 @@ services:
   app:
     build:
       context: .
+      dockerfile: Dockerfile
       target: runner
     ports:
       - "3000:3000"
+    env_file:
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}}
+      # Override host-oriented DATABASE_URL from .env for in-compose networking.
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://${POSTGRES_USER:-money}:${POSTGRES_PASSWORD:-money}@pgbouncer:5432/${POSTGRES_DB:-money}}
       PG_STARTUP_TIMEOUTS: "0"
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-      AUTH_SECRET: ${AUTH_SECRET}
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
-      AUTH_POCKET_ID_ISSUER: ${AUTH_POCKET_ID_ISSUER:-https://id.example.com}
-      AUTH_POCKET_ID_ID: ${AUTH_POCKET_ID_ID:-}
-      AUTH_POCKET_ID_SECRET: ${AUTH_POCKET_ID_SECRET:-}
+      # AUTH_SECRET and AUTH_POCKET_ID_* come from .env (env_file).
     depends_on:
       migrate:
         condition: service_completed_successfully

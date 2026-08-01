@@ -1523,7 +1523,7 @@ export const apiHelpSections: ApiHelpSection[] = [
         id: "export-schema",
         label: "Export schema (from repo root)",
         language: "bash",
-        body: "npm run api:export-schema\n# → apps/docs/money.graphql",
+        body: "npm run api:export-schema\n# → docs/money.graphql",
       },
     ],
     bullets: [

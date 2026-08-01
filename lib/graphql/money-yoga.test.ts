@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { sql } from "drizzle-orm";
-import { db, runInWorkspace } from "@/db";
 import { responseCacheSessionKey } from "@/lib/graphql/money-yoga";
 
 describe("responseCacheSessionKey", () => {
@@ -39,6 +38,7 @@ describe("workspace RLS context", () => {
     "keeps app.workspace_id isolated per runInWorkspace call",
     { skip: !hasDb },
     async () => {
+      const { db, runInWorkspace } = await import("@/db");
       const wsA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
       const wsB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 

@@ -1,4 +1,6 @@
 # syntax=docker/dockerfile:1.7
+# Example: docker build --target runner .
+# Or: npm run docker:up
 
 FROM node:22-bookworm-slim AS base
 ENV NEXT_TELEMETRY_DISABLED=1
