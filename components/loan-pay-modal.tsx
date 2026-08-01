@@ -3,6 +3,7 @@
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { useNotify } from "@/components/notification-provider";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -25,6 +26,7 @@ import { loansKeys } from "@/lib/loans-query-options";
 import { invalidateMoneyWorkspaceQueries } from "@/lib/money-query-options";
 import { findSystemAccountId } from "@/lib/money-seed-defaults";
 import { moneyBootstrapQueryOptions } from "@/lib/money-query-options";
+import { moneyCategoryLabel, moneyCategoryById } from "@/lib/money-category-ui";
 
 export function LoanPayModal({
   open,
@@ -58,6 +60,23 @@ export function LoanPayModal({
     () =>
       moneyBootstrap.data?.categories.filter((c) => c.kind === "expense") ?? [],
     [moneyBootstrap.data?.categories],
+  );
+  const categoryById = useMemo(
+    () => moneyCategoryById(categories),
+    [categories],
+  );
+  const accountQuickItems = useMemo(
+    () => accounts.map((a) => ({ id: a.id, label: a.name, usageCount: 0 })),
+    [accounts],
+  );
+  const categoryQuickItems = useMemo(
+    () =>
+      categories.map((c) => ({
+        id: c.id,
+        label: moneyCategoryLabel(c, categoryById),
+        usageCount: 0,
+      })),
+    [categories, categoryById],
   );
 
   const resolvedDefaultAccountId = useMemo(() => {
@@ -168,34 +187,26 @@ export function LoanPayModal({
             </InputGroupAddon>
           </InputGroup>
         </Field>
-        <Field label="Account">
-          <select
-            className="w-full rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2 text-sm"
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
-          >
-            <option value="">Select account</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Category">
-          <select
-            className="w-full rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2 text-sm"
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-          >
-            <option value="">—</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <MoneyUsageQuickPick
+          legend="Account"
+          ariaLabel="Account"
+          items={accountQuickItems}
+          selectedId={accountId}
+          onSelect={setAccountId}
+          otherLabel="Other account"
+          emptyMessage="No accounts yet."
+        />
+        <MoneyUsageQuickPick
+          legend="Category"
+          ariaLabel="Category"
+          items={categoryQuickItems}
+          selectedId={categoryId}
+          onSelect={setCategoryId}
+          otherLabel="Select other category"
+          allowEmpty
+          emptyLabel="—"
+          emptyMessage="No categories yet."
+        />
         <Field label="Notes">
           <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>

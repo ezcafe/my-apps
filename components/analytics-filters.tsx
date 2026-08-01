@@ -15,10 +15,11 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { MultiSelect, type MultiSelectItem } from "@/components/ui/multi-select";
 import { Select } from "@/components/ui/select";
+import { MoneyDateQuickPick } from "@/components/money-date-quick-pick";
+import { MoneyUsageMultiQuickPick } from "@/components/money-usage-multi-quick-pick";
 import { MoneyFilterToolbar } from "@/components/money-page-header";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cn } from "@/lib/cn";
@@ -28,6 +29,7 @@ import {
   moneyCategoryGroupsByKind,
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
+import type { UsageRankedItem } from "@/lib/money-usage-quick-pick";
 
 export type {
   AnalyticsFiltersValue,
@@ -576,26 +578,38 @@ function AnalyticsFiltersPrimaryFields({
         <DirectionRadios direction={direction} onSelect={setDirection} />
       </div>
 
-      <Field label="Accounts">
-        <FilterCheckboxList
-          items={accountItems}
-          value={value.accountIds}
-          onChange={(next) => onChange({ ...value, accountIds: next })}
-          emptyHint="No accounts"
-          aria-label="Filter by accounts"
-        />
-      </Field>
+      <MoneyUsageMultiQuickPick
+        legend="Accounts"
+        ariaLabel="Filter by accounts"
+        items={accountItems.map(
+          (i): UsageRankedItem => ({
+            id: i.id,
+            label: i.label,
+            usageCount: 0,
+          }),
+        )}
+        value={value.accountIds}
+        onChange={(next) => onChange({ ...value, accountIds: next })}
+        otherLabel="Other accounts"
+        emptyMessage="No accounts"
+      />
 
       {direction === "transfer" ? null : (
-        <Field label="Categories">
-          <FilterCheckboxList
-            items={categoryItems}
-            value={value.categoryIds}
-            onChange={(next) => onChange({ ...value, categoryIds: next })}
-            emptyHint="No categories"
-            aria-label="Filter by categories"
-          />
-        </Field>
+        <MoneyUsageMultiQuickPick
+          legend="Categories"
+          ariaLabel="Filter by categories"
+          items={categoryItems.map(
+            (i): UsageRankedItem => ({
+              id: i.id,
+              label: i.label,
+              usageCount: 0,
+            }),
+          )}
+          value={value.categoryIds}
+          onChange={(next) => onChange({ ...value, categoryIds: next })}
+          otherLabel="Other categories"
+          emptyMessage="No categories"
+        />
       )}
     </div>
   );
@@ -629,31 +643,35 @@ function AnalyticsFiltersSecondaryFields({
           : "[grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]",
       )}
     >
-      <Field label="From">
-        <Input
-          type="date"
-          value={value.fromDate}
-          onChange={(e) => onChange({ ...value, fromDate: e.target.value })}
-        />
-      </Field>
+      <MoneyDateQuickPick
+        legend="From"
+        ariaLabel="From date"
+        value={value.fromDate}
+        onChange={(fromDate) => onChange({ ...value, fromDate })}
+      />
 
-      <Field label="To">
-        <Input
-          type="date"
-          value={value.toDate}
-          onChange={(e) => onChange({ ...value, toDate: e.target.value })}
-        />
-      </Field>
+      <MoneyDateQuickPick
+        legend="To"
+        ariaLabel="To date"
+        value={value.toDate}
+        onChange={(toDate) => onChange({ ...value, toDate })}
+      />
 
-      <Field label="Merchants">
-        <FilterCheckboxList
-          items={merchantItems}
-          value={value.merchantIds}
-          onChange={(next) => onChange({ ...value, merchantIds: next })}
-          emptyHint="No merchants"
-          aria-label="Filter by merchants"
-        />
-      </Field>
+      <MoneyUsageMultiQuickPick
+        legend="Merchants"
+        ariaLabel="Filter by merchants"
+        items={merchantItems.map(
+          (i): UsageRankedItem => ({
+            id: i.id,
+            label: i.label,
+            usageCount: 0,
+          }),
+        )}
+        value={value.merchantIds}
+        onChange={(next) => onChange({ ...value, merchantIds: next })}
+        otherLabel="Other merchants"
+        emptyMessage="No merchants"
+      />
 
       <Field label="Tags" hint="Must have all selected">
         <FilterCheckboxList
@@ -1064,14 +1082,22 @@ export function AnalyticsFiltersBar({
             activeCount={value.accountIds.length}
             openMenu={openMenu}
             onOpenMenu={onOpenMenu}
-            panelClassName="min-w-[min(100vw-2rem,20rem)]"
+            panelClassName="min-w-[min(100vw-2rem,22rem)]"
           >
-            <FilterCheckboxList
-              items={accountItems}
+            <MoneyUsageMultiQuickPick
+              legend="Accounts"
+              ariaLabel="Filter by accounts"
+              items={accountItems.map(
+                (i): UsageRankedItem => ({
+                  id: i.id,
+                  label: i.label,
+                  usageCount: 0,
+                }),
+              )}
               value={value.accountIds}
               onChange={(next) => onChange({ ...value, accountIds: next })}
-              emptyHint="No accounts"
-              aria-label="Filter by accounts"
+              otherLabel="Other accounts"
+              emptyMessage="No accounts"
             />
           </FilterMenu>
 
@@ -1082,14 +1108,22 @@ export function AnalyticsFiltersBar({
               activeCount={value.categoryIds.length}
               openMenu={openMenu}
               onOpenMenu={onOpenMenu}
-              panelClassName="min-w-[min(100vw-2rem,20rem)]"
+              panelClassName="min-w-[min(100vw-2rem,22rem)]"
             >
-              <FilterCheckboxList
-                items={categoryItems}
+              <MoneyUsageMultiQuickPick
+                legend="Categories"
+                ariaLabel="Filter by categories"
+                items={categoryItems.map(
+                  (i): UsageRankedItem => ({
+                    id: i.id,
+                    label: i.label,
+                    usageCount: 0,
+                  }),
+                )}
                 value={value.categoryIds}
                 onChange={(next) => onChange({ ...value, categoryIds: next })}
-                emptyHint="No categories"
-                aria-label="Filter by categories"
+                otherLabel="Other categories"
+                emptyMessage="No categories"
               />
             </FilterMenu>
           )}

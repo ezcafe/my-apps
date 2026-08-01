@@ -3,6 +3,12 @@
 import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  joinDateTimeLocal,
+  MoneyDateQuickPick,
+  splitDateTimeLocal,
+} from "@/components/money-date-quick-pick";
+import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
@@ -80,6 +86,15 @@ export function MoneySettingsRecurrenceSection() {
   const visibleAccounts = useMemo(
     () => accounts.filter((a) => !a.archived),
     [accounts],
+  );
+  const accountQuickItems = useMemo(
+    () =>
+      visibleAccounts.map((a) => ({
+        id: a.id,
+        label: a.name,
+        usageCount: 0,
+      })),
+    [visibleAccounts],
   );
   const editCadenceOptions = useMemo(() => {
     const standard: MoneyCadence[] = [
@@ -300,26 +315,25 @@ export function MoneySettingsRecurrenceSection() {
                           ))}
                         </Select>
                       </Field>
-                      <Field label="Next run">
-                        <Input
-                          type="datetime-local"
-                          value={editNext}
-                          onChange={(e) => setEditNext(e.target.value)}
-                        />
-                      </Field>
-                      <Field label="Account">
-                        <Select
-                          value={editAccountId}
-                          onChange={(e) => setEditAccountId(e.target.value)}
-                        >
-                          <option value="">Template account</option>
-                          {visibleAccounts.map((a) => (
-                            <option key={a.id} value={a.id}>
-                              {a.name}
-                            </option>
-                          ))}
-                        </Select>
-                      </Field>
+                      <MoneyDateQuickPick
+                        legend="Next run"
+                        ariaLabel="Next run date"
+                        value={splitDateTimeLocal(editNext).date}
+                        onChange={(date) => {
+                          const { time } = splitDateTimeLocal(editNext);
+                          setEditNext(joinDateTimeLocal(date, time));
+                        }}
+                      />
+                      <MoneyUsageQuickPick
+                        legend="Account"
+                        ariaLabel="Account"
+                        required
+                        items={accountQuickItems}
+                        selectedId={editAccountId}
+                        onSelect={setEditAccountId}
+                        otherLabel="Other account"
+                        emptyMessage="No accounts yet."
+                      />
                       <Field label="Kind">
                         <Select
                           value={editKind}

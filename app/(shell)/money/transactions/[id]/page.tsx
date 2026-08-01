@@ -1,4 +1,5 @@
 import { PageHeading } from "@/components/page-heading";
+import { MoneyAppMenu } from "@/components/money-section-tabs";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { TransactionEditFormLazy } from "@/components/transaction-edit-form-lazy";
 
@@ -16,6 +17,7 @@ export default async function MoneyTransactionEditPage({
     <>
       <PageHeading
         className={MONEY_FULL_SPAN}
+        leading={<MoneyAppMenu />}
         title="Edit transaction"
         description="Update fields for this workspace transaction."
       />

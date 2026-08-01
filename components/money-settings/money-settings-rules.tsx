@@ -2,12 +2,12 @@
 
 import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
   MONEY_LIST_ACCOUNTS_QUERY,
@@ -144,24 +144,26 @@ export function MoneySettingsRulesSection() {
           className="mb-8"
         />
       ) : null}
-      <RulesKindSection
-        kind="expense"
-        rules={rules}
-        merchants={merchants}
-        accounts={visibleAccounts}
-        categories={categories}
-        notify={notify}
-        reloadRules={loadRules}
-      />
-      <RulesKindSection
-        kind="income"
-        rules={rules}
-        merchants={merchants}
-        accounts={visibleAccounts}
-        categories={categories}
-        notify={notify}
-        reloadRules={loadRules}
-      />
+      <div className="space-y-6">
+        <RulesKindSection
+          kind="expense"
+          rules={rules}
+          merchants={merchants}
+          accounts={visibleAccounts}
+          categories={categories}
+          notify={notify}
+          reloadRules={loadRules}
+        />
+        <RulesKindSection
+          kind="income"
+          rules={rules}
+          merchants={merchants}
+          accounts={visibleAccounts}
+          categories={categories}
+          notify={notify}
+          reloadRules={loadRules}
+        />
+      </div>
     </>
   );
 }
@@ -194,6 +196,29 @@ function RulesKindSection({
   const categoryById = useMemo(
     () => moneyCategoryById(visibleCategories),
     [visibleCategories],
+  );
+  const merchantQuickItems = useMemo(
+    () => [
+      { id: "", label: "Any merchant", usageCount: 1_000_000 },
+      ...merchants.map((m) => ({ id: m.id, label: m.name, usageCount: 0 })),
+    ],
+    [merchants],
+  );
+  const accountQuickItems = useMemo(
+    () => [
+      { id: "", label: "Any account", usageCount: 1_000_000 },
+      ...accounts.map((a) => ({ id: a.id, label: a.name, usageCount: 0 })),
+    ],
+    [accounts],
+  );
+  const categoryQuickItems = useMemo(
+    () =>
+      visibleCategories.map((c) => ({
+        id: c.id,
+        label: moneyCategoryLabel(c, categoryById),
+        usageCount: 0,
+      })),
+    [visibleCategories, categoryById],
   );
   const visibleRules = useMemo(
     () => rules.filter((r) => r.kind === kind),
@@ -338,45 +363,34 @@ function RulesKindSection({
             onChange={(e) => setRulePriority(Number(e.target.value))}
           />
         </Field>
-        <Field label="Merchant">
-          <Select
-            value={ruleMerchantId}
-            onChange={(e) => setRuleMerchantId(e.target.value)}
-          >
-            <option value="">Any merchant</option>
-            {merchants.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Account">
-          <Select
-            value={ruleAccountId}
-            onChange={(e) => setRuleAccountId(e.target.value)}
-          >
-            <option value="">Any account</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Category">
-          <Select
-            value={ruleCategoryId}
-            onChange={(e) => setRuleCategoryId(e.target.value)}
-          >
-            <option value="">Set category…</option>
-            {visibleCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {moneyCategoryLabel(c, categoryById)}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <MoneyUsageQuickPick
+          legend="Merchant"
+          ariaLabel="Merchant"
+          items={merchantQuickItems}
+          selectedId={ruleMerchantId}
+          onSelect={setRuleMerchantId}
+          otherLabel="Select other merchant"
+          emptyMessage="No merchants yet."
+        />
+        <MoneyUsageQuickPick
+          legend="Account"
+          ariaLabel="Account"
+          items={accountQuickItems}
+          selectedId={ruleAccountId}
+          onSelect={setRuleAccountId}
+          otherLabel="Select other account"
+          emptyMessage="No accounts yet."
+        />
+        <MoneyUsageQuickPick
+          legend="Category"
+          ariaLabel="Category"
+          required
+          items={categoryQuickItems}
+          selectedId={ruleCategoryId}
+          onSelect={setRuleCategoryId}
+          otherLabel="Select other category"
+          emptyMessage="No categories yet."
+        />
         <Button type="submit" variant="primary" className="self-start">
           Save rule
         </Button>
@@ -406,45 +420,34 @@ function RulesKindSection({
                         onChange={(e) => setEditPriority(Number(e.target.value))}
                       />
                     </Field>
-                    <Field label="Merchant">
-                      <Select
-                        value={editMerchantId}
-                        onChange={(e) => setEditMerchantId(e.target.value)}
-                      >
-                        <option value="">Any merchant</option>
-                        {merchants.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                    <Field label="Account">
-                      <Select
-                        value={editAccountId}
-                        onChange={(e) => setEditAccountId(e.target.value)}
-                      >
-                        <option value="">Any account</option>
-                        {accounts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                    <Field label="Category">
-                      <Select
-                        value={editCategoryId}
-                        onChange={(e) => setEditCategoryId(e.target.value)}
-                      >
-                        <option value="">Set category…</option>
-                        {visibleCategories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {moneyCategoryLabel(c, categoryById)}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
+                    <MoneyUsageQuickPick
+                      legend="Merchant"
+                      ariaLabel="Merchant"
+                      items={merchantQuickItems}
+                      selectedId={editMerchantId}
+                      onSelect={setEditMerchantId}
+                      otherLabel="Select other merchant"
+                      emptyMessage="No merchants yet."
+                    />
+                    <MoneyUsageQuickPick
+                      legend="Account"
+                      ariaLabel="Account"
+                      items={accountQuickItems}
+                      selectedId={editAccountId}
+                      onSelect={setEditAccountId}
+                      otherLabel="Select other account"
+                      emptyMessage="No accounts yet."
+                    />
+                    <MoneyUsageQuickPick
+                      legend="Category"
+                      ariaLabel="Category"
+                      required
+                      items={categoryQuickItems}
+                      selectedId={editCategoryId}
+                      onSelect={setEditCategoryId}
+                      otherLabel="Select other category"
+                      emptyMessage="No categories yet."
+                    />
                     <label className="flex items-center gap-2 text-sm text-muted">
                       <input
                         type="checkbox"

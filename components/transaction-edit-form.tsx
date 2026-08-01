@@ -6,19 +6,22 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
+import {
+  joinDateTimeLocal,
+  MoneyDateQuickPick,
+  splitDateTimeLocal,
+} from "@/components/money-date-quick-pick";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
@@ -407,17 +410,14 @@ export function TransactionEditForm({
     }
   }
 
-  const dateTimeLocalCls =
-    "[&::-webkit-datetime-edit]:font-sans [&::-webkit-datetime-edit-fields-wrapper]:font-sans";
-
   if (loading) {
     return (
       <div className={isModal ? "space-y-4" : "min-w-0 max-w-4xl space-y-6"}>
         {!isModal ? <TransactionEditBreadcrumbs returnTo={returnTo} /> : null}
         <Card className="p-5">
-          <header className="mb-4">
+          <header className="mb-4 flex items-baseline justify-between gap-3">
             <Skeleton className="h-6 w-40 rounded-[var(--radius-sm)]" />
-            <Skeleton className="mt-2 h-3 w-12 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-3 w-10 rounded-[var(--radius-sm)]" />
           </header>
           <div
             className="grid min-w-0 gap-4"
@@ -426,11 +426,27 @@ export function TransactionEditForm({
                 "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))",
             }}
           >
-            <Skeleton className="h-10 w-full rounded-[var(--radius-md)] [grid-column:1/-1]" />
-            <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
-            <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
-            <Skeleton className="h-24 w-full rounded-[var(--radius-md)] [grid-column:1/-1]" />
-            <Skeleton className="h-11 w-40 rounded-[var(--radius-md)]" />
+            <div className="[grid-column:1/-1] space-y-1.5">
+              <Skeleton className="h-3 w-12 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-10 w-full max-w-xs rounded-[var(--radius-md)]" />
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-16 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+            </div>
+            <div className="[grid-column:1/-1] space-y-1.5">
+              <Skeleton className="h-3 w-16 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+            </div>
+            <div className="[grid-column:1/-1] space-y-1.5">
+              <Skeleton className="h-3 w-20 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+            </div>
+            <Skeleton className="h-20 w-full rounded-[var(--radius-md)] [grid-column:1/-1]" />
+            <div className="flex flex-wrap gap-2 [grid-column:1/-1]">
+              <Skeleton className="h-11 w-36 rounded-[var(--radius-md)]" />
+              <Skeleton className="h-11 w-24 rounded-[var(--radius-md)]" />
+            </div>
           </div>
         </Card>
       </div>
@@ -548,25 +564,35 @@ export function TransactionEditForm({
           />
 
           {kind === "transfer" ? (
-            <Field label="To Account" required className="[grid-column:1/-1]">
-              {toAccountOptions.length === 0 ? (
+            toAccountOptions.length === 0 ? (
+              <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
+                <legend className="text-muted">
+                  <span className="text-foreground" aria-hidden>
+                    *
+                  </span>{" "}
+                  To Account
+                </legend>
                 <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
                   Add another account to create transfers.
                 </p>
-              ) : (
-                <Select
-                  value={effectiveToAccountId}
-                  onChange={(e) => setToAccountId(e.target.value)}
-                  required
-                >
-                  {toAccountOptions.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
+              </fieldset>
+            ) : (
+              <MoneyUsageQuickPick
+                legend="To Account"
+                ariaLabel="To Account"
+                required
+                className="[grid-column:1/-1]"
+                items={toAccountOptions.map((a) => ({
+                  id: a.id,
+                  label: a.name,
+                  usageCount: a.usageCount,
+                }))}
+                selectedId={effectiveToAccountId}
+                onSelect={setToAccountId}
+                otherLabel="Other account"
+                emptyMessage="Add another account to create transfers."
+              />
+            )
           ) : (
             <MoneyUsageQuickPick
               legend="Category"
@@ -597,14 +623,16 @@ export function TransactionEditForm({
             emptyMessage="No merchants yet. Add one in Settings."
           />
 
-          <Field label="When">
-            <Input
-              type="datetime-local"
-              className={dateTimeLocalCls}
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-            />
-          </Field>
+          <MoneyDateQuickPick
+            legend="When"
+            ariaLabel="Transaction date"
+            className="[grid-column:1/-1]"
+            value={splitDateTimeLocal(occurredAt).date}
+            onChange={(date) => {
+              const { time } = splitDateTimeLocal(occurredAt);
+              setOccurredAt(joinDateTimeLocal(date, time));
+            }}
+          />
 
           <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
             <legend className="text-muted">Tags</legend>

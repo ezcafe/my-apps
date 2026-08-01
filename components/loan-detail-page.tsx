@@ -11,6 +11,7 @@ import {
 } from "@/components/analytics-chart-layout";
 import { LoanDetailOptionsMenu } from "@/components/loan-detail-options-menu";
 import { LoanPayActions } from "@/components/loan-pay-actions";
+import { MoneyAppMenu } from "@/components/money-section-tabs";
 import { ChartLegendList } from "@/components/charts/chart-legend-list";
 import {
   loanProgressSeriesColors,
@@ -32,6 +33,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { toggleSetKey } from "@/lib/chart-legend-toggle";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { loanDetailQueryOptions, type LoanDetail } from "@/lib/loans-query-options";
 import { cn } from "@/lib/cn";
 
@@ -56,8 +58,10 @@ const LoanProgressChart = dynamic(
   },
 );
 
-const LOAN_DETAIL_GRID_CLASS =
-  "grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3";
+const LOAN_DETAIL_GRID_CLASS = cn(
+  MONEY_FULL_SPAN,
+  "grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3",
+);
 
 function todayIso(): string {
   const d = new Date();
@@ -180,7 +184,7 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
 
   if (detailQuery.isError || !loan) {
     return (
-      <div className="col-span-2 md:col-span-6 lg:col-span-12">
+      <div className={MONEY_FULL_SPAN}>
         <Alert
           variant="error"
           title="Couldn’t load loan"
@@ -208,29 +212,26 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
 
   return (
     <>
-      <header className="col-span-2 md:col-span-6 lg:col-span-12 fx-fade-in">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <LoanDetailBreadcrumb loanName={loan.name} />
-            <div className="mt-4 flex min-w-0 items-center gap-2">
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                {loan.name}
-              </h1>
-              <AboutDisclosure label={`About ${loan.name}`}>
-                <p>
-                  Track payoff progress, record payments, and review your
-                  amortization schedule. Payments can be posted to Money or marked
-                  paid without a ledger entry.
-                </p>
-              </AboutDisclosure>
-            </div>
-          </div>
-          <LoanDetailOptionsMenu
-            loanId={loan.id}
-            loanName={loan.name}
-            status={loan.status}
-          />
+      <header className={cn(MONEY_FULL_SPAN, "relative z-40 fx-fade-in")}>
+        <LoanDetailBreadcrumb loanName={loan.name} />
+        <div className="mt-4 flex min-w-0 items-center gap-3">
+          <MoneyAppMenu />
+          <h1 className="min-w-0 truncate text-3xl font-semibold tracking-tight sm:text-4xl">
+            {loan.name}
+          </h1>
+          <AboutDisclosure label={`About ${loan.name}`}>
+            <p>
+              Track payoff progress, record payments, and review your
+              amortization schedule. Payments can be posted to Money or marked
+              paid without a ledger entry.
+            </p>
+          </AboutDisclosure>
         </div>
+        <LoanDetailOptionsMenu
+          loanId={loan.id}
+          loanName={loan.name}
+          status={loan.status}
+        />
       </header>
 
       <div className={LOAN_DETAIL_GRID_CLASS}>

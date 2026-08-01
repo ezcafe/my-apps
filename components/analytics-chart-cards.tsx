@@ -958,8 +958,8 @@ export const SpendByTagCard = memo(function SpendByTagCard({
             />
           ) : (
             <AnalyticsEmptyState
-              title="No tagged spend in this range"
-              description="Tag expenses or adjust filters for this range."
+              title="No tag spend in this range"
+              description="Add expenses or widen the range."
               minHeightClass="min-h-0"
               className={CHART_SLOT_CLASS}
               {...CHART_EMPTY_TRANSACTION_ACTIONS}
@@ -1036,7 +1036,7 @@ export const TopMerchantsCard = memo(function TopMerchantsCard({
           ) : (
             <AnalyticsEmptyState
               title="No merchant spend in this range"
-              description="Add expenses with merchants or widen the range."
+              description="Add expenses or widen the range."
               minHeightClass="min-h-0"
               className={CHART_SLOT_CLASS}
               {...CHART_EMPTY_TRANSACTION_ACTIONS}

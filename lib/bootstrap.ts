@@ -10,6 +10,8 @@ import {
 import {
   ensureDefaultSystemAccounts,
   MONEY_SEED_BILLS,
+  MONEY_SEED_FINANCIAL_FREEDOM,
+  MONEY_SEED_LOANS,
   MONEY_SEED_NECESSITIES,
 } from "@/lib/money-seed-defaults";
 
@@ -33,7 +35,7 @@ export async function seedMoneyWorkspaceDefaults(
     .returning({ id: moneyCategory.id });
 
   await tx.insert(moneyCategory).values([
-    { workspaceId, name: "Financial Freedom", kind: "expense" },
+    { workspaceId, name: MONEY_SEED_FINANCIAL_FREEDOM, kind: "expense" },
     { workspaceId, name: "Long-term Savings", kind: "expense" },
     { workspaceId, name: "Education", kind: "expense" },
     { workspaceId, name: "Play", kind: "expense" },
@@ -52,6 +54,12 @@ export async function seedMoneyWorkspaceDefaults(
     {
       workspaceId,
       name: MONEY_SEED_BILLS,
+      kind: "expense",
+      parentId: necessities.id,
+    },
+    {
+      workspaceId,
+      name: MONEY_SEED_LOANS,
       kind: "expense",
       parentId: necessities.id,
     },

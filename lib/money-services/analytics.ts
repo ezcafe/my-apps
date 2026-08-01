@@ -122,7 +122,7 @@ type PieRow = {
 export type LabelValueRow = {
   label: string;
   valueMinor: number;
-  tagId?: string;
+  tagId?: string | null;
   merchantId?: string | null;
 };
 
@@ -875,7 +875,7 @@ export async function computeMoneyAnalyticsLeaders(
           valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
         })
         .from(moneyTransaction)
-        .innerJoin(
+        .leftJoin(
           moneyTransactionTag,
           eq(moneyTransactionTag.transactionId, moneyTransaction.id),
         )
@@ -903,7 +903,9 @@ export async function computeMoneyAnalyticsLeaders(
   const merchantIds = merchantSpendRows
     .map((row) => row.merchantId)
     .filter((id): id is string => id != null);
-  const tagIds = tagSpendRows.map((row) => row.tagId);
+  const tagIds = tagSpendRows
+    .map((row) => row.tagId)
+    .filter((id): id is string => id != null);
   const templateIds = recurringSpendRows
     .map((row) => row.templateId)
     .filter((id): id is string => id != null);
@@ -966,13 +968,11 @@ export async function computeMoneyAnalyticsLeaders(
   const tagsSpend: LabelValueRow[] = tagSpendRows.flatMap((row) => {
     const valueMinor = Number(row.valueMinor);
     if (valueMinor <= 0) return [];
-    return [
-      {
-        label: tagNameById.get(row.tagId) ?? "Tag",
-        valueMinor,
-        tagId: row.tagId,
-      },
-    ];
+    const label =
+      row.tagId == null
+        ? "No tags"
+        : (tagNameById.get(row.tagId) ?? "Tag");
+    return [{ label, valueMinor, tagId: row.tagId }];
   });
 
   const recurringSpend: RecurringSpendRow[] = recurringSpendRows

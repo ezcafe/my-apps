@@ -5,6 +5,8 @@ import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 
 export const MONEY_SEED_NECESSITIES = "Necessities";
 export const MONEY_SEED_BILLS = "Bills";
+export const MONEY_SEED_LOANS = "Loans";
+export const MONEY_SEED_FINANCIAL_FREEDOM = "Financial Freedom";
 
 export const MONEY_SYSTEM_ACCOUNT_KEYS = [
   "credit",
@@ -50,17 +52,60 @@ export const MONEY_SYSTEM_ACCOUNT_SEEDS: readonly MoneySystemAccountSeed[] = [
   },
 ] as const;
 
-/** Resolve seeded Bills category (child of Necessities) from loaded category rows. */
-export function findSeedBillsCategoryId(
-  categories: ReadonlyArray<Pick<MoneyCategoryRow, "id" | "name" | "parentId">>,
+type SeedCategoryRef = Pick<MoneyCategoryRow, "id" | "name" | "parentId">;
+
+/** Resolve a seeded Necessities child category from loaded category rows. */
+export function findSeedNecessitiesChildCategoryId(
+  categories: ReadonlyArray<SeedCategoryRef>,
+  childName: string,
 ): string | undefined {
   const necessities = categories.find(
     (c) => c.name === MONEY_SEED_NECESSITIES && c.parentId == null,
   );
   if (!necessities) return undefined;
   return categories.find(
-    (c) => c.name === MONEY_SEED_BILLS && c.parentId === necessities.id,
+    (c) => c.name === childName && c.parentId === necessities.id,
   )?.id;
+}
+
+/** Resolve seeded Bills category (child of Necessities) from loaded category rows. */
+export function findSeedBillsCategoryId(
+  categories: ReadonlyArray<SeedCategoryRef>,
+): string | undefined {
+  return findSeedNecessitiesChildCategoryId(categories, MONEY_SEED_BILLS);
+}
+
+/** Resolve seeded Loans category (child of Necessities) from loaded category rows. */
+export function findSeedLoansCategoryId(
+  categories: ReadonlyArray<SeedCategoryRef>,
+): string | undefined {
+  return findSeedNecessitiesChildCategoryId(categories, MONEY_SEED_LOANS);
+}
+
+/** Resolve seeded Financial Freedom root category from loaded category rows. */
+export function findSeedFinancialFreedomCategoryId(
+  categories: ReadonlyArray<SeedCategoryRef>,
+): string | undefined {
+  return categories.find(
+    (c) => c.name === MONEY_SEED_FINANCIAL_FREEDOM && c.parentId == null,
+  )?.id;
+}
+
+/**
+ * Preferred expense category when the user has not picked one yet:
+ * Investments/Savings → Financial Freedom; Loans → Loans (under Necessities).
+ */
+export function preferredExpenseCategoryIdForAccountType(
+  accountType: string | undefined | null,
+  categories: ReadonlyArray<SeedCategoryRef>,
+): string | undefined {
+  if (accountType === "investment" || accountType === "savings") {
+    return findSeedFinancialFreedomCategoryId(categories);
+  }
+  if (accountType === "loan") {
+    return findSeedLoansCategoryId(categories);
+  }
+  return undefined;
 }
 
 /** Resolve a seeded system account id from loaded account rows. */
@@ -73,10 +118,11 @@ export function findSystemAccountId(
 
 type MoneyTx = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
 
-/** Idempotent: ensure Bills exists under Necessities (creates Necessities if missing). */
-export async function ensureBillsCategory(
+/** Idempotent: ensure a child category under Necessities (creates Necessities if missing). */
+export async function ensureNecessitiesChildCategory(
   tx: MoneyTx,
   workspaceId: string,
+  childName: string,
 ): Promise<string> {
   let [necessities] = await tx
     .select({ id: moneyCategory.id })
@@ -102,29 +148,45 @@ export async function ensureBillsCategory(
       .returning({ id: moneyCategory.id });
   }
 
-  const [existingBills] = await tx
+  const [existing] = await tx
     .select({ id: moneyCategory.id })
     .from(moneyCategory)
     .where(
       and(
         eq(moneyCategory.workspaceId, workspaceId),
-        eq(moneyCategory.name, MONEY_SEED_BILLS),
+        eq(moneyCategory.name, childName),
         eq(moneyCategory.parentId, necessities!.id),
       ),
     )
     .limit(1);
-  if (existingBills) return existingBills.id;
+  if (existing) return existing.id;
 
   const [inserted] = await tx
     .insert(moneyCategory)
     .values({
       workspaceId,
-      name: MONEY_SEED_BILLS,
+      name: childName,
       kind: "expense",
       parentId: necessities!.id,
     })
     .returning({ id: moneyCategory.id });
   return inserted!.id;
+}
+
+/** Idempotent: ensure Bills exists under Necessities (creates Necessities if missing). */
+export async function ensureBillsCategory(
+  tx: MoneyTx,
+  workspaceId: string,
+): Promise<string> {
+  return ensureNecessitiesChildCategory(tx, workspaceId, MONEY_SEED_BILLS);
+}
+
+/** Idempotent: ensure Loans exists under Necessities (creates Necessities if missing). */
+export async function ensureLoansCategory(
+  tx: MoneyTx,
+  workspaceId: string,
+): Promise<string> {
+  return ensureNecessitiesChildCategory(tx, workspaceId, MONEY_SEED_LOANS);
 }
 
 export async function ensureBillsCategoryForWorkspace(
@@ -133,6 +195,26 @@ export async function ensureBillsCategoryForWorkspace(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     await ensureBillsCategory(tx, workspaceId);
+  });
+}
+
+export async function ensureLoansCategoryForWorkspace(
+  db: AppDatabase,
+  workspaceId: string,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await ensureLoansCategory(tx, workspaceId);
+  });
+}
+
+/** Ensure Bills + Loans under Necessities in one transaction. */
+export async function ensureNecessitiesSeedCategoriesForWorkspace(
+  db: AppDatabase,
+  workspaceId: string,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await ensureBillsCategory(tx, workspaceId);
+    await ensureLoansCategory(tx, workspaceId);
   });
 }
 

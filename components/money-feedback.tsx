@@ -83,9 +83,12 @@ export function MoneyStatCard({
 export function MoneyListSkeleton({
   variant,
   className,
+  tileCount = 3,
 }: {
-  variant: "summaryTiles" | "cardGrid" | "tableRows" | "panelCards";
+  variant: "summaryTiles" | "cardGrid" | "tableRows" | "panelCards" | "loansTable";
   className?: string;
+  /** Number of summary tiles (default 3). Use 1 for portfolio value. */
+  tileCount?: number;
 }) {
   if (variant === "summaryTiles") {
     return (
@@ -96,7 +99,7 @@ export function MoneyListSkeleton({
         )}
         aria-hidden
       >
-        {Array.from({ length: 3 }, (_, i) => (
+        {Array.from({ length: tileCount }, (_, i) => (
           <Card
             key={`summary-tile-${i}`}
             className="relative overflow-hidden p-4"
@@ -112,6 +115,61 @@ export function MoneyListSkeleton({
             <Skeleton className="mt-2 h-7 w-24 rounded-[var(--radius-sm)]" />
           </Card>
         ))}
+      </div>
+    );
+  }
+
+  if (variant === "loansTable") {
+    return (
+      <div className={cn("space-y-4", className)} aria-hidden>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Skeleton className="h-5 w-24 rounded-[var(--radius-sm)]" />
+          <div className="inline-flex gap-1 rounded-[var(--radius-sm)] border border-border p-0.5">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton
+                key={`loan-filter-${i}`}
+                className="h-7 w-16 rounded-[var(--radius-sm)]"
+              />
+            ))}
+          </div>
+        </div>
+        <Card className="w-full min-w-0 p-4">
+          <div className="overflow-hidden rounded-[var(--radius-md)] border border-border">
+            <div
+              className="grid gap-3 bg-muted-surface px-3 py-2"
+              style={{
+                gridTemplateColumns:
+                  "minmax(0,1.4fr) minmax(0,0.8fr) minmax(0,0.9fr) minmax(0,0.8fr) minmax(0,0.8fr) minmax(0,0.6fr) minmax(0,1.1fr)",
+              }}
+            >
+              {Array.from({ length: 7 }, (_, i) => (
+                <Skeleton
+                  key={`loan-table-head-${i}`}
+                  className="h-4 w-full rounded-[var(--radius-sm)]"
+                />
+              ))}
+            </div>
+            <div className="divide-y divide-border px-3">
+              {Array.from({ length: 4 }, (_, row) => (
+                <div
+                  key={`loan-table-row-${row}`}
+                  className="grid gap-3 py-3"
+                  style={{
+                    gridTemplateColumns:
+                      "minmax(0,1.4fr) minmax(0,0.8fr) minmax(0,0.9fr) minmax(0,0.8fr) minmax(0,0.8fr) minmax(0,0.6fr) minmax(0,1.1fr)",
+                  }}
+                >
+                  {Array.from({ length: 7 }, (_, col) => (
+                    <Skeleton
+                      key={`loan-table-row-${row}-col-${col}`}
+                      className="h-4 w-full rounded-[var(--radius-sm)]"
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -171,13 +229,38 @@ export function MoneyListSkeleton({
             <Skeleton className="h-6 w-28 rounded-[var(--radius-sm)]" />
             <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
           </div>
-          <div className="space-y-2">
-            {Array.from({ length: 4 }, (_, i) => (
-              <Skeleton
-                key={`panel-row-${i}`}
-                className="h-10 w-full rounded-[var(--radius-sm)]"
-              />
-            ))}
+          <div className="overflow-x-auto">
+            <div
+              className="grid gap-3 border-b border-border pb-2 text-xs"
+              style={{
+                gridTemplateColumns:
+                  "minmax(0,0.8fr) minmax(0,1.4fr) minmax(0,0.7fr) minmax(0,0.9fr)",
+              }}
+            >
+              {Array.from({ length: 4 }, (_, i) => (
+                <Skeleton
+                  key={`holdings-head-${i}`}
+                  className="h-3 w-12 rounded-[var(--radius-sm)]"
+                />
+              ))}
+            </div>
+            <div className="divide-y divide-border">
+              {Array.from({ length: 4 }, (_, row) => (
+                <div
+                  key={`holdings-row-${row}`}
+                  className="grid gap-3 py-2.5"
+                  style={{
+                    gridTemplateColumns:
+                      "minmax(0,0.8fr) minmax(0,1.4fr) minmax(0,0.7fr) minmax(0,0.9fr)",
+                  }}
+                >
+                  <Skeleton className="h-6 w-14 rounded-[var(--radius-sm)]" />
+                  <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
+                  <Skeleton className="ms-auto h-4 w-10 rounded-[var(--radius-sm)]" />
+                  <Skeleton className="ms-auto h-4 w-16 rounded-[var(--radius-sm)]" />
+                </div>
+              ))}
+            </div>
           </div>
         </Card>
       </div>

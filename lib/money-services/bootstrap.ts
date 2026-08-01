@@ -4,6 +4,10 @@ import { workspace } from "@/db/schema/workspace";
 import { ensureUserBootstrap } from "@/lib/bootstrap";
 import { isDbUnreachable } from "@/lib/db-errors";
 import {
+  ensureDefaultSystemAccountsForWorkspace,
+  ensureNecessitiesSeedCategoriesForWorkspace,
+} from "@/lib/money-seed-defaults";
+import {
   fetchMoneyLookups,
   fetchWorkspacesForUser,
   type MoneyWorkspaceCoreData,
@@ -40,18 +44,13 @@ export async function fetchMoneyWorkspaceStatePayload(
   };
 }
 
-import {
-  ensureBillsCategoryForWorkspace,
-  ensureDefaultSystemAccountsForWorkspace,
-} from "@/lib/money-seed-defaults";
-
 export async function fetchMoneyBootstrapPayload(
   userSub: string,
 ): Promise<MoneyWorkspaceBootstrapData> {
   const workspaceState = await fetchMoneyWorkspaceStatePayload(userSub);
   const workspaceCurrency = workspaceState.defaultCurrency ?? "USD";
   await Promise.all([
-    ensureBillsCategoryForWorkspace(db, workspaceState.workspaceId),
+    ensureNecessitiesSeedCategoriesForWorkspace(db, workspaceState.workspaceId),
     ensureDefaultSystemAccountsForWorkspace(
       db,
       workspaceState.workspaceId,

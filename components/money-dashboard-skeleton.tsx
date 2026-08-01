@@ -126,7 +126,7 @@ export function MoneyTagsFieldSkeleton({
 export function MoneyDashboardSkeleton() {
   return (
     <div
-      className="min-w-0 max-w-4xl space-y-6"
+      className="min-w-0 space-y-6"
       role="status"
       aria-busy="true"
       aria-live="polite"
@@ -185,12 +185,6 @@ export function MoneyDashboardSkeleton() {
             className="[grid-column:1/-1]"
           />
 
-          <MoneyLookupQuickPickSkeleton
-            legend="Merchant"
-            chips={2}
-            otherChipLabel="Select other merchant"
-          />
-
           <fieldset className="grid min-w-0 gap-1.5 text-sm">
             <legend className="text-muted">When</legend>
             <div className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1">
@@ -200,7 +194,11 @@ export function MoneyDashboardSkeleton() {
             </div>
           </fieldset>
 
-          <MoneyTagsFieldSkeleton className="[grid-column:1/-1]" />
+          <div className="[grid-column:1/-1]">
+            <Button type="button" variant="ghost" size="sm" disabled>
+              More details
+            </Button>
+          </div>
 
           <Field label="Notes" className="[grid-column:1/-1]">
             <Textarea rows={3} value="" disabled />

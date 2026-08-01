@@ -57,7 +57,7 @@ const AnalyticsTransactionsTableLazy = dynamic(
     import("@/components/analytics-transactions-table").then((m) => ({
       default: m.AnalyticsTransactionsTable,
     })),
-  { loading: () => <MoneyAnalyticsTransactionsTableSkeleton /> },
+  { loading: () => <MoneyAnalyticsTransactionsTableSkeleton selectable /> },
 );
 
 export function MoneyTransactionsPage({
@@ -326,7 +326,7 @@ export function MoneyTransactionsPage({
     return (
       <>
         <MoneyAnalyticsFiltersBarSkeleton />
-        <MoneyAnalyticsTransactionsTableSkeleton />
+        <MoneyAnalyticsTransactionsTableSkeleton selectable />
       </>
     );
   }
@@ -396,7 +396,7 @@ export function MoneyTransactionsPage({
           emptyState={preset?.emptyState}
         />
       ) : (
-        <MoneyAnalyticsTransactionsTableSkeleton />
+        <MoneyAnalyticsTransactionsTableSkeleton selectable />
       )}
     </>
   );

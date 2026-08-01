@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   findSeedBillsCategoryId,
+  findSeedFinancialFreedomCategoryId,
+  findSeedLoansCategoryId,
   findSystemAccountId,
   MONEY_SEED_BILLS,
+  MONEY_SEED_FINANCIAL_FREEDOM,
+  MONEY_SEED_LOANS,
   MONEY_SEED_NECESSITIES,
   MONEY_SYSTEM_ACCOUNT_KEYS,
   MONEY_SYSTEM_ACCOUNT_SEEDS,
+  preferredExpenseCategoryIdForAccountType,
   systemAccountSeedsToCreate,
 } from "./money-seed-defaults";
 
@@ -25,6 +30,71 @@ describe("findSeedBillsCategoryId", () => {
       { id: "n1", name: MONEY_SEED_NECESSITIES, parentId: null },
     ];
     assert.equal(findSeedBillsCategoryId(categories), undefined);
+  });
+});
+
+describe("findSeedLoansCategoryId", () => {
+  it("returns Loans under Necessities", () => {
+    const categories = [
+      { id: "n1", name: MONEY_SEED_NECESSITIES, parentId: null },
+      { id: "l1", name: MONEY_SEED_LOANS, parentId: "n1" },
+      { id: "b1", name: MONEY_SEED_BILLS, parentId: "n1" },
+    ];
+    assert.equal(findSeedLoansCategoryId(categories), "l1");
+  });
+
+  it("returns undefined when Loans is missing", () => {
+    const categories = [
+      { id: "n1", name: MONEY_SEED_NECESSITIES, parentId: null },
+    ];
+    assert.equal(findSeedLoansCategoryId(categories), undefined);
+  });
+});
+
+describe("findSeedFinancialFreedomCategoryId", () => {
+  it("returns the Financial Freedom root", () => {
+    const categories = [
+      { id: "ff", name: MONEY_SEED_FINANCIAL_FREEDOM, parentId: null },
+      { id: "n1", name: MONEY_SEED_NECESSITIES, parentId: null },
+    ];
+    assert.equal(findSeedFinancialFreedomCategoryId(categories), "ff");
+  });
+});
+
+describe("preferredExpenseCategoryIdForAccountType", () => {
+  const categories = [
+    { id: "ff", name: MONEY_SEED_FINANCIAL_FREEDOM, parentId: null },
+    { id: "n1", name: MONEY_SEED_NECESSITIES, parentId: null },
+    { id: "l1", name: MONEY_SEED_LOANS, parentId: "n1" },
+  ];
+
+  it("maps investment and savings to Financial Freedom", () => {
+    assert.equal(
+      preferredExpenseCategoryIdForAccountType("investment", categories),
+      "ff",
+    );
+    assert.equal(
+      preferredExpenseCategoryIdForAccountType("savings", categories),
+      "ff",
+    );
+  });
+
+  it("maps loan to Loans under Necessities", () => {
+    assert.equal(
+      preferredExpenseCategoryIdForAccountType("loan", categories),
+      "l1",
+    );
+  });
+
+  it("returns undefined for other account types", () => {
+    assert.equal(
+      preferredExpenseCategoryIdForAccountType("checking", categories),
+      undefined,
+    );
+    assert.equal(
+      preferredExpenseCategoryIdForAccountType("credit", categories),
+      undefined,
+    );
   });
 });
 

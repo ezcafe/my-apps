@@ -6,12 +6,16 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNotify } from "@/components/notification-provider";
 import { useLoansWorkspace } from "@/components/loans-workspace-provider";
+import {
+  localDateString,
+  MoneyDateQuickPick,
+} from "@/components/money-date-quick-pick";
+import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { formatMinor, parseMajorToMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import {
@@ -22,13 +26,7 @@ import {
 import { loansGraphQLRequest } from "@/lib/loans-gql-client";
 import { LOAN_CREATE_MUTATION } from "@/lib/loans-gql-documents";
 import { moneyBootstrapQueryOptions } from "@/lib/money-query-options";
-
-function localDateString(d = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+import { moneyCategoryById, moneyCategoryLabel } from "@/lib/money-category-ui";
 
 function formatLtvPercent(principalMinor: number, collateralMinor: number): string {
   const pct = (principalMinor / collateralMinor) * 100;
@@ -70,9 +68,38 @@ export function LoanCreateForm() {
     useState(true);
   const [saving, setSaving] = useState(false);
 
-  const accounts = moneyBootstrap.data?.accounts ?? [];
-  const categories =
-    moneyBootstrap.data?.categories.filter((c) => c.kind === "expense") ?? [];
+  const accounts = moneyBootstrap.data?.accounts;
+  const categories = moneyBootstrap.data?.categories;
+  const expenseCategories = useMemo(
+    () => categories?.filter((c) => c.kind === "expense") ?? [],
+    [categories],
+  );
+  const categoryById = useMemo(
+    () => moneyCategoryById(expenseCategories),
+    [expenseCategories],
+  );
+  const accountQuickItems = useMemo(
+    () => [
+      { id: "", label: "—", usageCount: 1_000_000 },
+      ...(accounts ?? []).map((a) => ({
+        id: a.id,
+        label: a.name,
+        usageCount: 0,
+      })),
+    ],
+    [accounts],
+  );
+  const categoryQuickItems = useMemo(
+    () => [
+      { id: "", label: "—", usageCount: 1_000_000 },
+      ...expenseCategories.map((c) => ({
+        id: c.id,
+        label: moneyCategoryLabel(c, categoryById),
+        usageCount: 0,
+      })),
+    ],
+    [expenseCategories, categoryById],
+  );
 
   const parsedInputs = useMemo(() => {
     const principalMinor = parseMajorToMinor(principal, defaultCurrency);
@@ -554,14 +581,13 @@ export function LoanCreateForm() {
           ) : null}
 
           <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
-            <Field label="Start date">
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
-            </Field>
+            <MoneyDateQuickPick
+              legend="Start date"
+              ariaLabel="Start date"
+              required
+              value={startDate}
+              onChange={setStartDate}
+            />
             <Field label="Due day of month (1–28)">
               <Input
                 value={dueDay}
@@ -696,32 +722,24 @@ export function LoanCreateForm() {
               ).
             </p>
             <div className="mt-3 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
-              <Field label="Pay from account">
-                <Select
-                  value={moneyAccountId}
-                  onChange={(e) => setMoneyAccountId(e.target.value)}
-                >
-                  <option value="">—</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Category">
-                <Select
-                  value={moneyCategoryId}
-                  onChange={(e) => setMoneyCategoryId(e.target.value)}
-                >
-                  <option value="">—</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+              <MoneyUsageQuickPick
+                legend="Pay from account"
+                ariaLabel="Pay from account"
+                items={accountQuickItems}
+                selectedId={moneyAccountId}
+                onSelect={setMoneyAccountId}
+                otherLabel="Other account"
+                emptyMessage="No accounts yet."
+              />
+              <MoneyUsageQuickPick
+                legend="Category"
+                ariaLabel="Category"
+                items={categoryQuickItems}
+                selectedId={moneyCategoryId}
+                onSelect={setMoneyCategoryId}
+                otherLabel="Select other category"
+                emptyMessage="No categories yet."
+              />
             </div>
           </div>
 

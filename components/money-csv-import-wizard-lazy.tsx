@@ -2,8 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { MoneyImportKind } from "@/lib/money-import-kinds";
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { MoneyCsvImportWizardSkeleton } from "@/components/money-csv-import-wizard-skeleton";
 
 const MoneyCsvImportWizard = dynamic(
   () =>
@@ -12,14 +11,7 @@ const MoneyCsvImportWizard = dynamic(
     ),
   {
     ssr: false,
-    loading: () => (
-      <Card className="space-y-3 p-5">
-        <Skeleton className="h-6 w-44 rounded-[var(--radius-sm)]" />
-        <Skeleton className="h-3 w-12 rounded-[var(--radius-sm)]" />
-        <Skeleton className="h-32 w-full rounded-[var(--radius-sm)]" />
-        <Skeleton className="h-10 w-36 rounded-[var(--radius-md)]" />
-      </Card>
-    ),
+    loading: () => <MoneyCsvImportWizardSkeleton />,
   },
 );
 

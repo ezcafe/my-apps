@@ -4,24 +4,46 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function FormPageSkeleton() {
   return (
-    <div className="min-w-0 max-w-4xl space-y-4">
-      <div>
-        <Skeleton className="h-7 w-48 rounded-[var(--radius-sm)]" />
-        <Skeleton className="mt-2 h-3 w-12 rounded-[var(--radius-sm)]" />
-      </div>
-      <Card className="p-5">
-        <div
-          className="grid min-w-0 gap-4"
-          style={{
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))",
-          }}
-        >
-          <Skeleton className="h-10 w-full rounded-[var(--radius-md)] [grid-column:1/-1]" />
-          <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
-          <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
-          <Skeleton className="h-24 w-full rounded-[var(--radius-md)] [grid-column:1/-1]" />
-          <Skeleton className="h-11 w-40 rounded-[var(--radius-md)]" />
+    <div className="col-span-2 min-w-0 md:col-span-6 lg:col-span-12">
+      <Card className="p-6">
+        <div className="space-y-5">
+          <div className="space-y-1.5">
+            <Skeleton className="h-3 w-20 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+          </div>
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-24 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-28 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-24 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+            </div>
+          </div>
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-20 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-16 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+            </div>
+          </div>
+          <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 p-4">
+            <Skeleton className="h-4 w-40 rounded-[var(--radius-sm)]" />
+            <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
+              <Skeleton className="h-12 w-full rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-12 w-full rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-12 w-full rounded-[var(--radius-sm)]" />
+            </div>
+          </div>
+          <Skeleton className="h-11 w-36 rounded-[var(--radius-md)]" />
         </div>
       </Card>
     </div>

@@ -2,14 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
 import { useState, type ReactNode, type SVGProps } from "react";
 import { Popover } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
+import {
+  isShellNavActive,
+  shellNavItems,
+  type ShellNavIconId,
+  type ShellNavItem,
+} from "@/lib/features/registry";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import {
   useMoneySectionTabVisibility,
   type MoneyOptionalSectionTabKey,
 } from "@/lib/money-section-tab-visibility";
+import {
+  isMoneyDetailChromePath,
+} from "@/lib/money-tabs-chrome-path";
+import { useMoneyMenuPageActions } from "@/lib/money-menu-page-actions";
 
 type MoneySectionTabIconId =
   | "new"
@@ -181,6 +193,87 @@ function IconSettings(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+function IconHelp(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M8 8h8M8 12h5M8 16h8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconHome(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V9.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconMoney(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="14"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M3 10h18M7 15h2m2 0h2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconSignIn(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconSignOut(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 const moneySectionTabIcons: Record<
   MoneySectionTabIconId,
   (props: SVGProps<SVGSVGElement>) => ReactNode
@@ -196,6 +289,27 @@ const moneySectionTabIcons: Record<
   settings: IconSettings,
 };
 
+const shellMenuIcons: Record<
+  ShellNavIconId,
+  (props: SVGProps<SVGSVGElement>) => ReactNode
+> = {
+  home: IconHome,
+  money: IconMoney,
+  savings: IconSavings,
+  investment: IconAnalytics,
+  loans: IconLoans,
+  help: IconHelp,
+  settings: IconSettings,
+};
+
+const menuItemClassName = (active: boolean) =>
+  cn(
+    "flex min-h-10 items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2.5 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    active
+      ? "bg-muted-surface text-foreground"
+      : "text-muted hover:bg-muted-surface hover:text-foreground",
+  );
+
 const tabs: Array<{
   href: string;
   label: string;
@@ -205,7 +319,7 @@ const tabs: Array<{
   visibilityKey?: MoneyOptionalSectionTabKey;
 }> = [
   { href: "/money/analytics", label: "Insights", icon: "analytics", exact: false },
-  { href: "/money/new", label: "Add", icon: "new", exact: true },
+  { href: "/money/new", label: "Add transaction", icon: "new", exact: true },
   { href: "/money/spending", label: "Spending", icon: "spending", exact: false },
   {
     href: "/money/bills",
@@ -237,13 +351,23 @@ const tabs: Array<{
   },
   {
     href: "/money/import",
-    label: "Import",
+    label: "Import data",
     icon: "import",
     exact: false,
     visibilityKey: "import",
   },
-  { href: "/money/settings", label: "Settings", icon: "settings", exact: false },
+  {
+    href: "/money/settings",
+    label: "Money settings",
+    icon: "settings",
+    exact: false,
+  },
 ];
+
+/** Shell/core items shown under the Money sections (skip Money itself). */
+const moneyMenuShellItems: ShellNavItem[] = shellNavItems.filter(
+  (item) => item.kind === "core",
+);
 
 function isTabActive(
   pathname: string,
@@ -255,18 +379,169 @@ function isTabActive(
     : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function MoneyMenuShellLink({
+  item,
+  onNavigate,
+}: {
+  item: ShellNavItem;
+  onNavigate: () => void;
+}) {
+  const pathname = usePathname();
+  const active = isShellNavActive(item, pathname);
+  const Icon = shellMenuIcons[item.icon];
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={menuItemClassName(active)}
+    >
+      <Icon className="size-5 shrink-0" />
+      {item.label}
+    </Link>
+  );
+}
+
+function MoneyMenuAuth({ onNavigate }: { onNavigate: () => void }) {
+  const { status } = useSession();
+
+  if (status === "authenticated") {
+    return (
+      <button
+        type="button"
+        className={cn(menuItemClassName(false), "w-full text-left")}
+        onClick={() => {
+          onNavigate();
+          signOut({ redirectTo: "/login" });
+        }}
+      >
+        <IconSignOut className="size-5 shrink-0" />
+        Sign out
+      </button>
+    );
+  }
+
+  return (
+    <Link href="/login" onClick={onNavigate} className={menuItemClassName(false)}>
+      <IconSignIn className="size-5 shrink-0" />
+      Sign in
+    </Link>
+  );
+}
+
 /**
- * Page title for the active Money section + a Menu popover of section links.
+ * Merged Money + workspace menu (icon-only trigger).
+ * Page-specific actions (e.g. Delete loan) render at the top when registered.
  */
-export function MoneySectionTabs() {
+export function MoneyAppMenu() {
   const pathname = usePathname();
   const { isTabVisible } = useMoneySectionTabVisibility();
+  const pageActions = useMoneyMenuPageActions();
   const [open, setOpen] = useState(false);
   const [menuPath, setMenuPath] = useState(pathname);
 
   if (pathname !== menuPath) {
     setMenuPath(pathname);
     if (open) setOpen(false);
+  }
+
+  const close = () => setOpen(false);
+
+  const visibleTabs = tabs.filter(({ visibilityKey }) =>
+    isTabVisible(visibilityKey),
+  );
+
+  return (
+    <Popover
+      align="start"
+      aria-label="Open menu"
+      open={open}
+      onOpenChange={setOpen}
+      trigger={<IconMenu className="size-5" />}
+      triggerClassName="fx-hit-40 size-10 shrink-0 p-0"
+      className="min-w-[min(100vw-2rem,18rem)] p-1.5"
+    >
+      {pageActions.length > 0 ? (
+        <>
+          <div className="flex flex-col" role="group" aria-label="Page actions">
+            {pageActions.map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                className={cn(
+                  menuItemClassName(false),
+                  "w-full text-left",
+                  action.variant === "danger" &&
+                    "text-[var(--destructive-muted-text)] hover:bg-[var(--destructive-muted-bg)] hover:text-[var(--destructive-muted-text)]",
+                )}
+                onClick={() => {
+                  close();
+                  action.onSelect();
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+          <div
+            role="separator"
+            aria-hidden
+            className="my-1.5 border-t border-border"
+          />
+        </>
+      ) : null}
+
+      <nav className="flex flex-col" aria-label="Money sections">
+        {visibleTabs.map(({ href, label, icon, exact }) => {
+          const active = isTabActive(pathname, href, exact);
+          const Icon = moneySectionTabIcons[icon];
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              onClick={close}
+              className={menuItemClassName(active)}
+            >
+              <Icon className="size-5 shrink-0" />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div
+        role="separator"
+        aria-hidden
+        className="my-1.5 border-t border-border"
+      />
+
+      <nav className="flex flex-col" aria-label="Workspace">
+        {moneyMenuShellItems.map((item) => (
+          <MoneyMenuShellLink
+            key={item.id}
+            item={item}
+            onNavigate={close}
+          />
+        ))}
+        <MoneyMenuAuth onNavigate={close} />
+      </nav>
+    </Popover>
+  );
+}
+
+/**
+ * Page title for the active Money section + merged menu.
+ * Detail pages own their title row and render {@link MoneyAppMenu} themselves.
+ */
+export function MoneySectionTabs() {
+  const pathname = usePathname();
+  const { isTabVisible } = useMoneySectionTabVisibility();
+
+  if (isMoneyDetailChromePath(pathname)) {
+    return null;
   }
 
   const visibleTabs = tabs.filter(({ visibilityKey }) =>
@@ -277,54 +552,30 @@ export function MoneySectionTabs() {
     visibleTabs[0];
 
   return (
-    <header
-      className={cn(
-        MONEY_FULL_SPAN,
-        "flex items-center justify-between gap-4",
-      )}
-    >
-      <h1 className="min-w-0 truncate text-3xl font-semibold tracking-tight sm:text-4xl">
+    <header className={cn(MONEY_FULL_SPAN, "relative z-40 flex items-center gap-3")}>
+      <MoneyAppMenu />
+      <h1 className="min-w-0 flex-1 truncate text-3xl font-semibold tracking-tight sm:text-4xl">
         {activeTab?.label ?? "Money"}
       </h1>
-      <Popover
-        align="end"
-        aria-label="Open Money menu"
-        open={open}
-        onOpenChange={setOpen}
-        trigger={
-          <span className="inline-flex items-center gap-1.5">
-            <IconMenu className="size-5" />
-            <span>Menu</span>
-          </span>
-        }
-        triggerClassName="h-10 w-auto gap-1.5 px-2.5"
-        className="min-w-[min(100vw-2rem,16rem)] p-1.5"
-      >
-        <nav className="flex flex-col" aria-label="Money sections">
-          {visibleTabs.map(({ href, label, icon, exact }) => {
-            const active = isTabActive(pathname, href, exact);
-            const Icon = moneySectionTabIcons[icon];
-
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                  active
-                    ? "bg-muted-surface text-foreground"
-                    : "text-muted hover:bg-muted-surface hover:text-foreground",
-                )}
-              >
-                <Icon className="size-5 shrink-0" />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-      </Popover>
     </header>
+  );
+}
+
+/** Loading placeholder matching {@link MoneySectionTabs} (icon menu + optional title). */
+export function MoneySectionChromeSkeleton({
+  showTitle = true,
+}: {
+  showTitle?: boolean;
+}) {
+  return (
+    <div
+      className={cn(MONEY_FULL_SPAN, "flex items-center gap-3")}
+      aria-hidden
+    >
+      <Skeleton className="size-10 shrink-0 rounded-[var(--radius-md)]" />
+      {showTitle ? (
+        <Skeleton className="h-9 min-w-0 flex-1 max-w-[12rem] rounded-[var(--radius-sm)] sm:h-10 sm:max-w-[14rem]" />
+      ) : null}
+    </div>
   );
 }

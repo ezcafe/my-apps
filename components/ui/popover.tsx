@@ -4,12 +4,19 @@ import {
   type ReactNode,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 
-/** Lightweight anchored panel — outside click closes */
+const subscribeNoop = () => () => {};
+
+/** Lightweight anchored panel — outside click closes.
+ *  Panel portals to `document.body` so it isn’t clipped by ancestor
+ *  `transform` / stacking (e.g. shell `<main className="fx-fade-in">`). */
 export function Popover({
   trigger,
   triggerClassName,
@@ -40,29 +47,88 @@ export function Popover({
   };
 
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const id = useId();
   const onOpenChangeRef = useRef(onOpenChange);
+  const [pos, setPos] = useState<{ top: number; left: number; right: number } | null>(
+    null,
+  );
+
+  const mounted = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  );
 
   useEffect(() => {
     onOpenChangeRef.current = onOpenChange;
   }, [onOpenChange]);
 
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    const updatePos = () => {
+      const triggerEl = triggerRef.current;
+      if (!triggerEl) return;
+      const rect = triggerEl.getBoundingClientRect();
+      setPos({
+        top: rect.bottom + 8,
+        left: rect.left,
+        right: rect.right,
+      });
+    };
+
+    updatePos();
+    window.addEventListener("resize", updatePos);
+    window.addEventListener("scroll", updatePos, true);
+    return () => {
+      window.removeEventListener("resize", updatePos);
+      window.removeEventListener("scroll", updatePos, true);
+    };
+  }, [open, align]);
+
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      const el = rootRef.current;
-      if (!el?.contains(e.target as Node)) {
-        if (isControlled) onOpenChangeRef.current?.(false);
-        else setUncontrolledOpen(false);
-      }
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      if (isControlled) onOpenChangeRef.current?.(false);
+      else setUncontrolledOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open, isControlled]);
 
+  const panel = (
+    <div
+      ref={panelRef}
+      id={id}
+      role="dialog"
+      aria-modal="false"
+      data-open={open}
+      inert={!open}
+      style={
+        pos
+          ? align === "end"
+            ? { top: pos.top, right: `calc(100vw - ${pos.right}px)` }
+            : { top: pos.top, left: pos.left }
+          : undefined
+      }
+      className={cn(
+        "pointer-events-none fixed z-[100] min-w-[min(100vw-2rem,18rem)] -translate-y-1 rounded-[var(--radius-md)] border border-border bg-surface p-3 opacity-0 shadow-[var(--shadow-md)] transition-[opacity,transform] duration-200 ease-out data-[open=true]:pointer-events-auto data-[open=true]:translate-y-0 data-[open=true]:opacity-100 motion-reduce:transition-none",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+
   return (
     <div ref={rootRef} className="relative inline-flex">
       <button
+        ref={triggerRef}
         type="button"
         aria-expanded={open}
         aria-controls={id}
@@ -75,23 +141,7 @@ export function Popover({
       >
         {trigger}
       </button>
-      {/* Mount the panel always so exit animation can play. `inert`
-          (HTML attribute) hides it from a11y + tab order when closed,
-          and CSS targets [data-open=true|false] to drive the fade. */}
-      <div
-        id={id}
-        role="dialog"
-        aria-modal="false"
-        data-open={open}
-        inert={!open}
-        className={cn(
-          "pointer-events-none absolute top-[calc(100%+0.5rem)] z-50 min-w-[min(100vw-2rem,18rem)] -translate-y-1 rounded-[var(--radius-md)] border border-border bg-surface p-3 opacity-0 shadow-[var(--shadow-md)] transition-[opacity,transform] duration-200 ease-out data-[open=true]:pointer-events-auto data-[open=true]:translate-y-0 data-[open=true]:opacity-100 motion-reduce:transition-none",
-          align === "end" ? "end-0" : "start-0",
-          className,
-        )}
-      >
-        {children}
-      </div>
+      {mounted ? createPortal(panel, document.body) : null}
     </div>
   );
 }

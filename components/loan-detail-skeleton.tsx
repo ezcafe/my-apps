@@ -4,9 +4,13 @@ import {
 } from "@/components/analytics-chart-layout";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { cn } from "@/lib/cn";
 
-const LOAN_DETAIL_GRID_CLASS =
-  "grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3";
+const LOAN_DETAIL_GRID_CLASS = cn(
+  MONEY_FULL_SPAN,
+  "grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3",
+);
 
 const LEGEND_GRID_COMPACT_SKELETON =
   "grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] gap-2 md:grid-rows-1 md:[grid-template-columns:minmax(0,5.5rem)_minmax(0,1fr)] md:gap-3";
@@ -41,9 +45,8 @@ function LoanDetailNextPaymentSkeleton() {
         </div>
         <Skeleton className="h-8 w-28 rounded-[var(--radius-sm)]" />
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Skeleton className="h-10 w-36 rounded-[var(--radius-md)]" />
-        <Skeleton className="h-10 w-40 rounded-[var(--radius-md)]" />
+      <div className="mt-4">
+        <Skeleton className="h-10 w-64 max-w-full rounded-[var(--radius-md)]" />
       </div>
     </Card>
   );
@@ -79,8 +82,8 @@ function LoanDetailTableSkeleton() {
         </div>
       </div>
       <div className="overflow-hidden rounded-[var(--radius-md)] border border-border">
-        <div className="grid grid-cols-6 gap-3 bg-muted-surface px-3 py-2">
-          {Array.from({ length: 6 }, (_, index) => (
+        <div className="grid grid-cols-7 gap-3 bg-muted-surface px-3 py-2">
+          {Array.from({ length: 7 }, (_, index) => (
             <Skeleton
               key={`loan-table-head-${index}`}
               className="h-4 w-full rounded-[var(--radius-sm)]"
@@ -89,8 +92,8 @@ function LoanDetailTableSkeleton() {
         </div>
         <div className="divide-y divide-border px-3">
           {Array.from({ length: 6 }, (_, rowIndex) => (
-            <div key={`loan-table-row-${rowIndex}`} className="grid grid-cols-6 gap-3 py-3">
-              {Array.from({ length: 6 }, (_, colIndex) => (
+            <div key={`loan-table-row-${rowIndex}`} className="grid grid-cols-7 gap-3 py-3">
+              {Array.from({ length: 7 }, (_, colIndex) => (
                 <Skeleton
                   key={`loan-table-row-${rowIndex}-col-${colIndex}`}
                   className="h-4 w-full rounded-[var(--radius-sm)]"
@@ -107,14 +110,12 @@ function LoanDetailTableSkeleton() {
 export function LoanDetailPageSkeleton() {
   return (
     <>
-      <header className="col-span-2 md:col-span-6 lg:col-span-12">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <Skeleton className="mb-4 h-4 w-32 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-9 w-56 max-w-full rounded-[var(--radius-sm)] sm:h-10" />
-            <Skeleton className="mt-2 h-3 w-12 rounded-[var(--radius-sm)]" />
-          </div>
+      <header className={MONEY_FULL_SPAN}>
+        <Skeleton className="mb-4 h-4 w-32 rounded-[var(--radius-sm)]" />
+        <div className="flex min-w-0 items-center gap-3">
           <Skeleton className="size-10 shrink-0 rounded-[var(--radius-md)]" />
+          <Skeleton className="h-9 min-w-0 flex-1 max-w-[14rem] rounded-[var(--radius-sm)] sm:h-10" />
+          <Skeleton className="size-4 shrink-0 rounded-full" />
         </div>
       </header>
       <div className={LOAN_DETAIL_GRID_CLASS}>

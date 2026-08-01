@@ -13,6 +13,7 @@ import {
   shellNavItems,
 } from "@/lib/features/registry";
 import { cn } from "@/lib/cn";
+import { isMoneyTabsChromePath } from "@/lib/money-tabs-chrome-path";
 
 function IconHome(props: SVGProps<SVGSVGElement>) {
   return (
@@ -209,13 +210,7 @@ function ShellMobileMenu() {
       className="pointer-events-auto min-w-[min(100vw-2rem,22rem)] p-4"
     >
       <div className="pointer-events-auto flex flex-col gap-4">
-        <p className="truncate font-display text-base font-semibold tracking-tight">
-          Workspace
-        </p>
         <nav className="flex flex-col gap-1" aria-label="Primary">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">
-            Navigation
-          </p>
           {shellNavItems.map((item) => (
             <NavLinkMenu key={item.id} item={item} onNavigate={close} />
           ))}
@@ -369,37 +364,51 @@ function AuthActionsRail() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const onMoneyChrome = isMoneyTabsChromePath(pathname);
+  const showShellMobileMenu = !onMoneyChrome;
+  const showShellAside = !onMoneyChrome;
 
   return (
-    <div className="grid min-h-dvh grid-cols-1 grid-rows-1 bg-background text-foreground lg:h-dvh lg:max-h-dvh lg:overflow-hidden lg:grid-cols-[4.5rem_minmax(0,1fr)] lg:grid-rows-1">
-      <div
-        className="pointer-events-none fixed z-30 lg:hidden"
-        style={{
-          top: "max(0.75rem, env(safe-area-inset-top))",
-          right: "max(0.75rem, env(safe-area-inset-right))",
-        }}
-      >
-        <div className="pointer-events-auto">
-          <ShellMobileMenu />
-        </div>
-      </div>
-
-      <aside className="hidden border-border bg-surface/80 backdrop-blur-sm lg:flex lg:h-full lg:min-h-0 lg:w-full lg:max-w-full lg:flex-col lg:items-center lg:border-e lg:px-0 lg:py-4">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] font-display text-sm font-bold tracking-tight text-foreground ring-1 ring-border">
-          W
-        </span>
-        <nav
-          className="mt-4 flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto"
-          aria-label="Primary"
+    <div
+      className={cn(
+        "grid min-h-dvh grid-cols-1 grid-rows-1 bg-background text-foreground lg:h-dvh lg:max-h-dvh lg:overflow-hidden lg:grid-rows-1",
+        showShellAside
+          ? "lg:grid-cols-[4.5rem_minmax(0,1fr)]"
+          : "lg:grid-cols-1",
+      )}
+    >
+      {showShellMobileMenu ? (
+        <div
+          className="pointer-events-none fixed z-30 lg:hidden"
+          style={{
+            top: "max(0.75rem, env(safe-area-inset-top))",
+            right: "max(0.75rem, env(safe-area-inset-right))",
+          }}
         >
-          {shellNavItems.map((item) => (
-            <NavLinkRail key={item.id} item={item} />
-          ))}
-        </nav>
-        <div className="mt-auto flex shrink-0 flex-col items-center gap-2 border-t border-border pt-3">
-          <AuthActionsRail />
+          <div className="pointer-events-auto">
+            <ShellMobileMenu />
+          </div>
         </div>
-      </aside>
+      ) : null}
+
+      {showShellAside ? (
+        <aside className="hidden border-border bg-surface/80 backdrop-blur-sm lg:flex lg:h-full lg:min-h-0 lg:w-full lg:max-w-full lg:flex-col lg:items-center lg:border-e lg:px-0 lg:py-4">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] font-display text-sm font-bold tracking-tight text-foreground ring-1 ring-border">
+            W
+          </span>
+          <nav
+            className="mt-4 flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto"
+            aria-label="Primary"
+          >
+            {shellNavItems.map((item) => (
+              <NavLinkRail key={item.id} item={item} />
+            ))}
+          </nav>
+          <div className="mt-auto flex shrink-0 flex-col items-center gap-2 border-t border-border pt-3">
+            <AuthActionsRail />
+          </div>
+        </aside>
+      ) : null}
 
       <main
         key={pathname}

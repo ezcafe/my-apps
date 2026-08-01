@@ -2,6 +2,7 @@
 
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/cn";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
+import type { UsageRankedItem } from "@/lib/money-usage-quick-pick";
 import {
   MONEY_ACCOUNT_CREATE_MUTATION,
   MONEY_CATEGORY_CREATE_MUTATION,
@@ -137,38 +139,75 @@ const FK_CATEGORY_OPTGROUP_LABEL: Record<"expense" | "income", string> = {
   income: "Income categories",
 };
 
-function FkSelectOptions({
-  entities,
-  categoryGroups,
-}: {
-  entities: FkEntityRow[];
-  categoryGroups: { kind: "expense" | "income"; rows: FkEntityRow[] }[] | null;
-}) {
+function fkEntityQuickItems(
+  entities: FkEntityRow[],
+  categoryGroups: { kind: "expense" | "income"; rows: FkEntityRow[] }[] | null,
+): UsageRankedItem[] {
   if (categoryGroups) {
-    return (
-      <>
-        {categoryGroups.map((g) =>
-          g.rows.length === 0 ? null : (
-            <optgroup key={g.kind} label={FK_CATEGORY_OPTGROUP_LABEL[g.kind]}>
-              {g.rows.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </optgroup>
-          ),
-        )}
-      </>
+    return categoryGroups.flatMap((g) =>
+      g.rows.map((e) => ({
+        id: e.id,
+        label: `${FK_CATEGORY_OPTGROUP_LABEL[g.kind]} · ${e.name}`,
+        usageCount: 0,
+      })),
     );
   }
+  return entities.map((e) => ({
+    id: e.id,
+    label: e.name,
+    usageCount: 0,
+  }));
+}
+
+function CsvFkQuickPick({
+  selectedId,
+  onSelect,
+  entities,
+  categoryGroups,
+  emptyLabel,
+  extraItems = [],
+  ariaLabel = "Map value",
+}: {
+  selectedId: string;
+  onSelect: (id: string) => void;
+  entities: FkEntityRow[];
+  categoryGroups: { kind: "expense" | "income"; rows: FkEntityRow[] }[] | null;
+  emptyLabel: string;
+  extraItems?: readonly { id: string; label: string }[];
+  ariaLabel?: string;
+}) {
+  const items = useMemo(
+    () => fkEntityQuickItems(entities, categoryGroups),
+    [entities, categoryGroups],
+  );
+  const pickerItems = useMemo(
+    () => [
+      ...extraItems.map((x) => ({
+        id: x.id,
+        label: x.label,
+        usageCount: 0,
+      })),
+      ...items,
+    ],
+    [extraItems, items],
+  );
+
   return (
-    <>
-      {entities.map((e) => (
-        <option key={e.id} value={e.id}>
-          {e.name}
-        </option>
-      ))}
-    </>
+    <MoneyUsageQuickPick
+      legend=""
+      hideLegend
+      compact
+      ariaLabel={ariaLabel}
+      items={items}
+      pickerItems={pickerItems}
+      selectedId={selectedId}
+      onSelect={onSelect}
+      otherLabel="Choose…"
+      allowEmpty
+      emptyLabel={emptyLabel}
+      emptySelectedOnOther={selectedId === ""}
+      emptyMessage="No options"
+    />
   );
 }
 
@@ -816,7 +855,7 @@ export function MoneyCsvImportWizard({
   }, [headers, parsedRows, preview]);
 
   return (
-    <div className="min-w-0 max-w-4xl">
+    <div className="min-w-0">
       <ImportProgress current={step} onStepClick={goToStep} />
 
       {step === "type" ? (
@@ -827,7 +866,7 @@ export function MoneyCsvImportWizard({
           </p>
           <ul
             role="list"
-            className="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-[var(--radius-md)] bg-border shadow-[var(--shadow-sm)] sm:grid-cols-2 lg:grid-cols-3"
+            className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-px overflow-hidden rounded-[var(--radius-md)] bg-border shadow-[var(--shadow-sm)]"
             aria-label="Import types"
           >
             {KINDS_ORDER.map((k) => (
@@ -1036,38 +1075,42 @@ export function MoneyCsvImportWizard({
                                   ) : null}
                                   <td className="py-2 align-top">
                                     <div className="flex flex-col gap-2">
-                                      <Select
-                                        value={selectValue || ""}
-                                        onChange={(e) => {
-                                          const v = e.target.value;
+                                      <CsvFkQuickPick
+                                        selectedId={selectValue || ""}
+                                        emptyLabel={
+                                          isAutoFallback
+                                            ? "(auto match)"
+                                            : "— choose —"
+                                        }
+                                        entities={entitiesForSelect}
+                                        categoryGroups={categoryGroupsForSelect}
+                                        extraItems={[
+                                          {
+                                            id: VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP,
+                                            label: "Top-level (root)",
+                                          },
+                                        ]}
+                                        ariaLabel="Parent category"
+                                        onSelect={(v) => {
                                           setValuePicksByField((prev) => {
                                             const cur = { ...(prev[f.key] ?? {}) };
                                             if (
-                                              v === VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP
+                                              v ===
+                                                VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP
                                             ) {
                                               cur[pickKey] = { kind: "ignore" };
                                             } else if (v) {
-                                              cur[pickKey] = { kind: "entity", entityId: v };
+                                              cur[pickKey] = {
+                                                kind: "entity",
+                                                entityId: v,
+                                              };
+                                            } else {
+                                              delete cur[pickKey];
                                             }
                                             return { ...prev, [f.key]: cur };
                                           });
                                         }}
-                                      >
-                                        <option value="">
-                                          {isAutoFallback
-                                            ? "(auto match)"
-                                            : "— choose —"}
-                                        </option>
-                                        <FkSelectOptions
-                                          entities={entitiesForSelect}
-                                          categoryGroups={categoryGroupsForSelect}
-                                        />
-                                        <option
-                                          value={VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP}
-                                        >
-                                          Top-level (root)
-                                        </option>
-                                      </Select>
+                                      />
                                     </div>
                                   </td>
                                 </tr>
@@ -1171,13 +1214,42 @@ export function MoneyCsvImportWizard({
                                 <td className="py-2 pr-2 align-top font-mono">{csvLabel}</td>
                                 <td className="py-2 align-top">
                                   <div className="flex flex-col gap-2">
-                                    <Select
-                                      value={selectValue || ""}
-                                      onChange={(e) => {
-                                        const v = e.target.value;
+                                    <CsvFkQuickPick
+                                      selectedId={selectValue || ""}
+                                      emptyLabel={
+                                        isAutoFallback
+                                          ? "(auto match)"
+                                          : "— choose —"
+                                      }
+                                      entities={entitiesForSelect}
+                                      categoryGroups={categoryGroupsForSelect}
+                                      extraItems={
+                                        categoriesImportParentField
+                                          ? [
+                                              {
+                                                id: VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP,
+                                                label: "Top-level (root)",
+                                              },
+                                            ]
+                                          : [
+                                              {
+                                                id: VALUE_PICK_SELECT_ADD_NEW,
+                                                label: "Add new…",
+                                              },
+                                              {
+                                                id: VALUE_PICK_SELECT_IGNORE,
+                                                label: "Ignore",
+                                              },
+                                            ]
+                                      }
+                                      ariaLabel={`Map ${f.label}`}
+                                      onSelect={(v) => {
                                         setValuePicksByField((prev) => {
                                           const cur = { ...(prev[f.key] ?? {}) };
-                                          if (v === VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP) {
+                                          if (
+                                            v ===
+                                            VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP
+                                          ) {
                                             cur[csvKey] = { kind: "ignore" };
                                           } else if (v === VALUE_PICK_SELECT_IGNORE) {
                                             cur[csvKey] = { kind: "ignore" };
@@ -1193,34 +1265,17 @@ export function MoneyCsvImportWizard({
                                                 : {}),
                                             };
                                           } else if (v) {
-                                            cur[csvKey] = { kind: "entity", entityId: v };
+                                            cur[csvKey] = {
+                                              kind: "entity",
+                                              entityId: v,
+                                            };
+                                          } else {
+                                            delete cur[csvKey];
                                           }
                                           return { ...prev, [f.key]: cur };
                                         });
                                       }}
-                                    >
-                                      <option value="">
-                                        {isAutoFallback ? "(auto match)" : "— choose —"}
-                                      </option>
-                                      <FkSelectOptions
-                                        entities={entitiesForSelect}
-                                        categoryGroups={categoryGroupsForSelect}
-                                      />
-                                      {categoriesImportParentField ? (
-                                        <option
-                                          value={VALUE_PICK_SELECT_CATEGORY_IMPORT_PARENT_TOP}
-                                        >
-                                          Top-level (root)
-                                        </option>
-                                      ) : (
-                                        <>
-                                          <option value={VALUE_PICK_SELECT_ADD_NEW}>
-                                            Add new…
-                                          </option>
-                                          <option value={VALUE_PICK_SELECT_IGNORE}>Ignore</option>
-                                        </>
-                                      )}
-                                    </Select>
+                                    />
                                     {showNewDetails && f.fk === "account" ? (
                                       <div className="flex flex-wrap gap-2">
                                         <Field label="Name" className="min-w-[12rem] flex-1">
@@ -1321,21 +1376,39 @@ export function MoneyCsvImportWizard({
                                           />
                                         </Field>
                                         <Field label="Under parent">
-                                          <Select
-                                            value={
+                                          <CsvFkQuickPick
+                                            selectedId={
                                               pick.parentCategoryId === undefined
                                                 ? ""
                                                 : pick.parentCategoryId === null
                                                   ? VALUE_PICK_CATEGORY_PARENT_TOP
                                                   : pick.parentCategoryId
                                             }
-                                            onChange={(e) => {
-                                              const v = e.target.value;
+                                            emptyLabel="— choose parent —"
+                                            entities={rootCategories.map((c) => ({
+                                              id: c.id,
+                                              name: c.name,
+                                            }))}
+                                            categoryGroups={fkCategoryGroupsForField(
+                                              rootCategories,
+                                              "category_root",
+                                            )}
+                                            extraItems={[
+                                              {
+                                                id: VALUE_PICK_CATEGORY_PARENT_TOP,
+                                                label: "Top category (root)",
+                                              },
+                                            ]}
+                                            ariaLabel="Under parent category"
+                                            onSelect={(v) => {
                                               setValuePicksByField((prev) => {
                                                 const cur = { ...(prev[f.key] ?? {}) };
                                                 const p = cur[csvKey];
                                                 if (p?.kind !== "new") return { ...prev };
-                                                let parentCategoryId: string | null | undefined;
+                                                let parentCategoryId:
+                                                  | string
+                                                  | null
+                                                  | undefined;
                                                 if (v === "") parentCategoryId = undefined;
                                                 else if (v === VALUE_PICK_CATEGORY_PARENT_TOP)
                                                   parentCategoryId = null;
@@ -1344,22 +1417,7 @@ export function MoneyCsvImportWizard({
                                                 return { ...prev, [f.key]: cur };
                                               });
                                             }}
-                                          >
-                                            <option value="">— choose parent —</option>
-                                            <option value={VALUE_PICK_CATEGORY_PARENT_TOP}>
-                                              Top category (root)
-                                            </option>
-                                            <FkSelectOptions
-                                              entities={rootCategories.map((c) => ({
-                                                id: c.id,
-                                                name: c.name,
-                                              }))}
-                                              categoryGroups={fkCategoryGroupsForField(
-                                                rootCategories,
-                                                "category_root",
-                                              )}
-                                            />
-                                          </Select>
+                                          />
                                         </Field>
                                       </div>
                                     ) : null}

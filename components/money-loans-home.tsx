@@ -17,7 +17,7 @@ const MoneyTransactionsPageLazy = dynamic(
     loading: () => (
       <>
         <MoneyAnalyticsFiltersBarSkeleton />
-        <MoneyAnalyticsTransactionsTableSkeleton />
+        <MoneyAnalyticsTransactionsTableSkeleton selectable />
       </>
     ),
   },

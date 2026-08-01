@@ -6,6 +6,10 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotify } from "@/components/notification-provider";
 import { useInvestmentWorkspace } from "@/components/investment-workspace-provider";
+import {
+  localDateString,
+  MoneyDateQuickPick,
+} from "@/components/money-date-quick-pick";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
@@ -21,13 +25,6 @@ import {
   investmentInstrumentsQueryOptions,
   investmentKeys,
 } from "@/lib/investment-query-options";
-
-function localDateString(d = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 const ACTIVITY_TYPES = [
   "buy",
@@ -209,13 +206,13 @@ export function InvestmentActivityForm() {
             </>
           ) : null}
 
-          <Field label="Date" required>
-            <Input
-              type="date"
-              value={activityDate}
-              onChange={(e) => setActivityDate(e.target.value)}
-            />
-          </Field>
+          <MoneyDateQuickPick
+            legend="Date"
+            ariaLabel="Activity date"
+            required
+            value={activityDate}
+            onChange={setActivityDate}
+          />
 
           <Field label="Type" required>
             <Select

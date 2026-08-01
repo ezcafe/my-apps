@@ -2,6 +2,7 @@
 
 import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
@@ -139,6 +140,48 @@ export function MoneySettingsBudgetsSection() {
     const parentGroups = groups.filter((g) => g.type === "group");
     return { singleRoots, parentGroups };
   }, [visibleCategories]);
+
+  const budgetCategoryQuickItems = useMemo(() => {
+    const items: {
+      id: string;
+      label: string;
+      usageCount: number;
+      isChild?: boolean;
+    }[] = [];
+    for (const g of budgetCategorySelectGroups.singleRoots) {
+      items.push({
+        id: g.category.id,
+        label: categoryOptionLabel(g.category, categoryById),
+        usageCount: 0,
+      });
+    }
+    for (const g of budgetCategorySelectGroups.parentGroups) {
+      items.push({
+        id: g.parent.id,
+        label: `${moneyCategoryLabel(g.parent, categoryById)} (all) (${KIND_TAG[g.parent.kind]})`,
+        usageCount: 0,
+      });
+      for (const child of g.children) {
+        items.push({
+          id: child.id,
+          label: categoryOptionLabel(child, categoryById),
+          usageCount: 0,
+          isChild: true,
+        });
+      }
+    }
+    return items;
+  }, [budgetCategorySelectGroups, categoryById]);
+
+  const budgetAccountQuickItems = useMemo(
+    () =>
+      visibleAccounts.map((a) => ({
+        id: a.id,
+        label: a.name,
+        usageCount: 0,
+      })),
+    [visibleAccounts],
+  );
 
   const loadCategories = useCallback(async () => {
     const res = await moneyGraphQLRequest<{ moneyCategories: Category[] }>(
@@ -296,54 +339,28 @@ export function MoneySettingsBudgetsSection() {
           </Select>
         </Field>
         {scopeType === "category" ? (
-          <Field label="Category" required>
-            <Select
-              id={`${idPrefix}-scope-cat`}
-              value={scopeId}
-              onChange={(e) => onScopeId(e.target.value)}
-              required
-            >
-              <option value="">Select category</option>
-              {budgetCategorySelectGroups.singleRoots.length > 0 ? (
-                <optgroup label="No parent">
-                  {budgetCategorySelectGroups.singleRoots.map((g) => (
-                    <option key={g.category.id} value={g.category.id}>
-                      {categoryOptionLabel(g.category, categoryById)}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-              {budgetCategorySelectGroups.parentGroups.map((g) => (
-                <optgroup key={`parent-${g.parent.id}`} label={g.parent.name}>
-                  <option value={g.parent.id}>
-                    {`${moneyCategoryLabel(g.parent, categoryById)} (all) (${KIND_TAG[g.parent.kind]})`}
-                  </option>
-                  {g.children.map((child) => (
-                    <option key={child.id} value={child.id}>
-                      {categoryOptionLabel(child, categoryById)}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </Select>
-          </Field>
+          <MoneyUsageQuickPick
+            legend="Category"
+            ariaLabel="Category"
+            required
+            items={budgetCategoryQuickItems}
+            selectedId={scopeId}
+            onSelect={onScopeId}
+            otherLabel="Select other category"
+            emptyMessage="No categories yet."
+          />
         ) : null}
         {scopeType === "account" ? (
-          <Field label="Account" required>
-            <Select
-              id={`${idPrefix}-scope-acct`}
-              value={scopeId}
-              onChange={(e) => onScopeId(e.target.value)}
-              required
-            >
-              <option value="">Select account</option>
-              {visibleAccounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <MoneyUsageQuickPick
+            legend="Account"
+            ariaLabel="Account"
+            required
+            items={budgetAccountQuickItems}
+            selectedId={scopeId}
+            onSelect={onScopeId}
+            otherLabel="Select other account"
+            emptyMessage="No accounts yet."
+          />
         ) : null}
         {scopeType === "tag" ? (
           <Field label="Tag" required>

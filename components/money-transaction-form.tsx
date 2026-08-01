@@ -9,12 +9,15 @@ import {
   MoneyTagsFieldSkeleton,
 } from "@/components/money-dashboard-skeleton";
 import {
+  joinDateTimeLocal,
+  localDateString,
+  MoneyDateQuickPick,
+  splitDateTimeLocal,
+} from "@/components/money-date-quick-pick";
+import {
   BudgetUtilizationFillLayer,
   budgetFillTitle,
   MoneyUsageQuickPick,
-  MoneyUsageQuickPickOtherChipContent,
-  moneyUsageQuickPickChipCls,
-  moneyUsageQuickPickOtherChipCls,
 } from "@/components/money-usage-quick-pick";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
@@ -30,7 +33,6 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Select } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
 import {
@@ -39,7 +41,6 @@ import {
   minorToMajorInput,
   parseMajorToMinor,
 } from "@/lib/format-money";
-import { useFormatDate } from "@/lib/format-date";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
   MONEY_SET_ACTIVE_WORKSPACE_MUTATION,
@@ -70,6 +71,7 @@ import {
   type MoneyCategoryLookup,
   type MoneyTagLookup,
 } from "@/lib/money-query-options";
+import { preferredExpenseCategoryIdForAccountType } from "@/lib/money-seed-defaults";
 import { mostUsedPickId, topUsageItems, usageOrZero } from "@/lib/money-usage-quick-pick";
 import {
   getRecurrenceFormCadences,
@@ -88,14 +90,6 @@ const KIND_OPTIONS = [
 
 type KindValue = (typeof KIND_OPTIONS)[number]["value"];
 
-type WhenMode = "today" | "yesterday" | "custom";
-
-const WHEN_OPTIONS: ReadonlyArray<{ id: WhenMode; label: string }> = [
-  { id: "today", label: "Today" },
-  { id: "yesterday", label: "Yesterday" },
-  { id: "custom", label: "Select custom date" },
-];
-
 export type MoneyTransactionFormMode = "transaction" | "recurrence";
 
 export type MoneyTransactionFormProps = {
@@ -103,21 +97,8 @@ export type MoneyTransactionFormProps = {
   onSuccess?: () => void;
 };
 
-function localDateString(d: Date = new Date()): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function yesterdayDateString(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return localDateString(d);
-}
-
 function dateToOccurredAt(date: string): string {
-  return `${date}T00:00`;
+  return joinDateTimeLocal(date, "00:00");
 }
 
 function defaultAccountId(
@@ -140,6 +121,7 @@ function defaultCategoryPick(
   transactionKind: KindValue,
   selectedId: string,
   emptySelectedOnOther: boolean,
+  preferredCategoryId?: string,
 ): { id: string; emptyOnOther: boolean } {
   if (transactionKind === "transfer") {
     return { id: "", emptyOnOther: false };
@@ -150,6 +132,12 @@ function defaultCategoryPick(
   }
   if (emptySelectedOnOther && selectedId === "") {
     return { id: "", emptyOnOther: true };
+  }
+  if (
+    preferredCategoryId &&
+    visible.some((c) => c.id === preferredCategoryId)
+  ) {
+    return { id: preferredCategoryId, emptyOnOther: false };
   }
   return {
     id: mostUsedPickId(
@@ -234,7 +222,6 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
   const userSub = session?.user?.id;
   const notify = useNotify();
   const queryClient = useQueryClient();
-  const { formatDate } = useFormatDate();
   const {
     defaultCurrency,
     needsCurrencySetup,
@@ -288,9 +275,6 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
   const [occurredAt, setOccurredAt] = useState(() =>
     dateToOccurredAt(localDateString()),
   );
-  const [whenMode, setWhenMode] = useState<WhenMode>("today");
-  const [customDate, setCustomDate] = useState<string>("");
-  const customDateInputRef = useRef<HTMLInputElement>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [categoryEmptyOnOther, setCategoryEmptyOnOther] = useState(false);
   const [selectedMerchantId, setSelectedMerchantId] = useState("");
@@ -411,6 +395,20 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     [workspaceSyncPending, loadedMerchants],
   );
   const accountId = defaultAccountId(loadedAccounts, selectedAccountId);
+  const selectedAccount = useMemo(
+    () => loadedAccounts.find((a) => a.id === accountId),
+    [loadedAccounts, accountId],
+  );
+  const preferredCategoryId = useMemo(
+    () =>
+      kind === "expense"
+        ? preferredExpenseCategoryIdForAccountType(
+            selectedAccount?.type,
+            loadedCategories,
+          )
+        : undefined,
+    [kind, selectedAccount?.type, loadedCategories],
+  );
   const categorySelection = useMemo(
     () =>
       defaultCategoryPick(
@@ -418,8 +416,15 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
         kind,
         selectedCategoryId,
         categoryEmptyOnOther,
+        preferredCategoryId,
       ),
-    [loadedCategories, kind, selectedCategoryId, categoryEmptyOnOther],
+    [
+      loadedCategories,
+      kind,
+      selectedCategoryId,
+      categoryEmptyOnOther,
+      preferredCategoryId,
+    ],
   );
   const categoryId = categorySelection.id;
   const categoryOtherSelected = categorySelection.emptyOnOther;
@@ -782,38 +787,6 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     }
   }
 
-  const pickWhenMode = (when: WhenMode) => {
-    if (when === "today") {
-      setWhenMode("today");
-      setOccurredAt(dateToOccurredAt(localDateString()));
-      return;
-    }
-    if (when === "yesterday") {
-      setWhenMode("yesterday");
-      setOccurredAt(dateToOccurredAt(yesterdayDateString()));
-      return;
-    }
-    const input = customDateInputRef.current;
-    if (!input) return;
-    try {
-      if (typeof input.showPicker === "function") {
-        input.showPicker();
-        return;
-      }
-    } catch {
-      // showPicker can throw NotAllowedError without user activation; fall through to click()
-    }
-    input.focus();
-    input.click();
-  };
-
-  const handleCustomDateChange = (value: string) => {
-    if (!value) return;
-    setCustomDate(value);
-    setWhenMode("custom");
-    setOccurredAt(dateToOccurredAt(value));
-  };
-
   const submitDisabled =
     submitting ||
     !workspaceReady ||
@@ -1032,31 +1005,47 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
           )}
 
           {kind === "transfer" ? (
-            <Field label="To Account" required className="[grid-column:1/-1]">
-              {lookupSkeletonVisible ? (
-                <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
-              ) : !accountsReady ? (
+            lookupSkeletonVisible ? (
+              <MoneyLookupQuickPickSkeleton
+                legend="To Account"
+                required
+                className="[grid-column:1/-1]"
+              />
+            ) : !accountsReady ? (
+              <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
+                <legend className="text-muted">
+                  <span className="text-foreground" aria-hidden>
+                    *
+                  </span>{" "}
+                  To Account
+                </legend>
                 <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
                   Loading accounts...
                 </p>
-              ) : toAccountOptions.length === 0 ? (
-                <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
-                  Add another account to create transfers.
-                </p>
-              ) : (
-                <Select
-                  value={effectiveToAccountId}
-                  onChange={(e) => setToAccountId(e.target.value)}
-                  required
-                >
-                  {toAccountOptions.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} · {formatMinor(a.balanceMinor, defaultCurrency)}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
+              </fieldset>
+            ) : (
+              <MoneyUsageQuickPick
+                legend="To Account"
+                ariaLabel="To Account"
+                required
+                className="[grid-column:1/-1]"
+                items={toAccountOptions.map((a) => ({
+                  id: a.id,
+                  label: a.name,
+                  usageCount: a.usageCount,
+                }))}
+                selectedId={effectiveToAccountId}
+                onSelect={setToAccountId}
+                otherLabel="Other account"
+                emptyMessage="Add another account to create transfers."
+                renderPickerRow={(item) =>
+                  formatMinor(
+                    accountBalanceById.get(item.id) ?? 0,
+                    defaultCurrency,
+                  )
+                }
+              />
+            )
           ) : null}
 
           {kind !== "transfer" ? (
@@ -1086,52 +1075,16 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             )
           ) : null}
 
-          <fieldset className="grid min-w-0 gap-1.5 text-sm">
-            <legend className="text-muted">When</legend>
-            <div
-              role="radiogroup"
-              aria-label="Transaction date"
-              className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
-            >
-              {WHEN_OPTIONS.map((opt) => {
-                const active = whenMode === opt.id;
-                const isCustom = opt.id === "custom";
-                const label =
-                  isCustom && customDate
-                    ? formatDate(customDate, { omitYearIfCurrent: true })
-                    : opt.label;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => pickWhenMode(opt.id)}
-                    className={
-                      isCustom
-                        ? moneyUsageQuickPickOtherChipCls(active)
-                        : moneyUsageQuickPickChipCls(active)
-                    }
-                  >
-                    {isCustom ? (
-                      <MoneyUsageQuickPickOtherChipContent label={label} />
-                    ) : (
-                      label
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <input
-              ref={customDateInputRef}
-              type="date"
-              value={customDate}
-              onChange={(e) => handleCustomDateChange(e.target.value)}
-              className="sr-only"
-              aria-hidden="true"
-              tabIndex={-1}
-            />
-          </fieldset>
+          <MoneyDateQuickPick
+            legend="When"
+            ariaLabel="Transaction date"
+            className="[grid-column:1/-1]"
+            value={splitDateTimeLocal(occurredAt).date}
+            onChange={(date) => {
+              const { time } = splitDateTimeLocal(occurredAt);
+              setOccurredAt(joinDateTimeLocal(date, time));
+            }}
+          />
 
           {!showMoreDetails ? (
             <div className="[grid-column:1/-1]">

@@ -73,7 +73,11 @@ export function InvestmentDashboard() {
     <div className="min-w-0 space-y-6">
       {loading ? (
         <>
-          <MoneyListSkeleton variant="summaryTiles" className="max-w-md" />
+          <MoneyListSkeleton
+            variant="summaryTiles"
+            tileCount={1}
+            className="max-w-md"
+          />
           <MoneyListSkeleton variant="panelCards" />
         </>
       ) : null}

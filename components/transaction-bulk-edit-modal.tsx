@@ -4,12 +4,11 @@ import { presentClientError } from "@/lib/user-facing-error";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import type { AnalyticsLookupAccount } from "@/components/analytics-filters";
+import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
@@ -27,6 +26,7 @@ import {
 } from "@/lib/money-query-options";
 
 const NO_CHANGE = "";
+const CLEAR = "__none__";
 
 type BulkPatch = {
   accountId?: string;
@@ -116,13 +116,60 @@ export function TransactionBulkEditModal({
     [merchantsQuery.data?.moneyMerchants],
   );
 
-  const categoryByKind = useMemo(
-    () => moneyCategoryGroupsByKind(categories),
-    [categories],
-  );
   const categoryById = useMemo(
     () => moneyCategoryById(categories),
     [categories],
+  );
+
+  const accountQuickItems = useMemo(
+    () => [
+      { id: NO_CHANGE, label: "No change", usageCount: 1_000_000 },
+      ...accounts.map((a) => ({ id: a.id, label: a.name, usageCount: 0 })),
+    ],
+    [accounts],
+  );
+
+  const categoryQuickItems = useMemo(() => {
+    const items: { id: string; label: string; usageCount: number; isChild?: boolean }[] =
+      [
+        { id: NO_CHANGE, label: "No change", usageCount: 1_000_000 },
+        { id: CLEAR, label: "Clear category", usageCount: 999_999 },
+      ];
+    for (const { groups } of moneyCategoryGroupsByKind(categories)) {
+      for (const g of groups) {
+        if (g.type === "single") {
+          items.push({
+            id: g.category.id,
+            label: moneyCategoryLabel(g.category, categoryById),
+            usageCount: 0,
+          });
+        } else {
+          items.push({
+            id: g.parent.id,
+            label: `${moneyCategoryLabel(g.parent, categoryById)} (all)`,
+            usageCount: 0,
+          });
+          for (const child of g.children) {
+            items.push({
+              id: child.id,
+              label: moneyCategoryLabel(child, categoryById),
+              usageCount: 0,
+              isChild: true,
+            });
+          }
+        }
+      }
+    }
+    return items;
+  }, [categories, categoryById]);
+
+  const merchantQuickItems = useMemo(
+    () => [
+      { id: NO_CHANGE, label: "No change", usageCount: 1_000_000 },
+      { id: CLEAR, label: "Clear merchant", usageCount: 999_999 },
+      ...merchants.map((m) => ({ id: m.id, label: m.name, usageCount: 0 })),
+    ],
+    [merchants],
   );
 
   const transferCount = useMemo(
@@ -162,10 +209,10 @@ export function TransactionBulkEditModal({
     const bulkPatch: BulkPatch = {};
     if (accountId !== NO_CHANGE) bulkPatch.accountId = accountId;
     if (categoryId !== NO_CHANGE) {
-      bulkPatch.categoryId = categoryId === "__none__" ? null : categoryId;
+      bulkPatch.categoryId = categoryId === CLEAR ? null : categoryId;
     }
     if (merchantId !== NO_CHANGE) {
-      bulkPatch.merchantId = merchantId === "__none__" ? null : merchantId;
+      bulkPatch.merchantId = merchantId === CLEAR ? null : merchantId;
     }
     if (updateTags) bulkPatch.tagIds = selectedTagIds;
     if (updateNotes) bulkPatch.notes = notes.trim() ? notes.trim() : null;
@@ -181,7 +228,7 @@ export function TransactionBulkEditModal({
 
     if (
       categoryId !== NO_CHANGE &&
-      categoryId !== "__none__" &&
+      categoryId !== CLEAR &&
       categoryById.get(categoryId)?.kind
     ) {
       const catKind = categoryById.get(categoryId)?.kind;
@@ -249,70 +296,39 @@ export function TransactionBulkEditModal({
             : null}
         </p>
 
-        <Field label="Account">
-          <Select
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
-          >
-            <option value={NO_CHANGE}>No change</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <MoneyUsageQuickPick
+          legend="Account"
+          ariaLabel="Account"
+          items={accountQuickItems}
+          selectedId={accountId}
+          onSelect={setAccountId}
+          otherLabel="Select other account"
+          emptyMessage="No accounts yet."
+        />
 
-        <Field label="Category">
-          <Select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-          >
-            <option value={NO_CHANGE}>No change</option>
-            <option value="__none__">Clear category</option>
-            {categoryByKind.map(({ kind, groups }) => (
-              <optgroup
-                key={kind}
-                label={kind === "expense" ? "Expense" : "Income"}
-              >
-                {groups.map((g) =>
-                  g.type === "single" ? (
-                    <option key={g.category.id} value={g.category.id}>
-                      {moneyCategoryLabel(g.category, categoryById)}
-                    </option>
-                  ) : (
-                    [
-                      <option key={g.parent.id} value={g.parent.id}>
-                        {moneyCategoryLabel(g.parent, categoryById)} (all)
-                      </option>,
-                      ...g.children.map((child) => (
-                        <option key={child.id} value={child.id}>
-                          {moneyCategoryLabel(child, categoryById)}
-                        </option>
-                      )),
-                    ]
-                  ),
-                )}
-              </optgroup>
-            ))}
-          </Select>
-        </Field>
+        <MoneyUsageQuickPick
+          legend="Category"
+          ariaLabel="Category"
+          items={categoryQuickItems}
+          selectedId={categoryId}
+          onSelect={setCategoryId}
+          otherLabel="Select other category"
+          emptyMessage="No categories yet."
+        />
 
-        <Field label="Merchant">
-          <Select
-            value={merchantId}
-            onChange={(e) => setMerchantId(e.target.value)}
-            disabled={merchantsQuery.isLoading}
-          >
-            <option value={NO_CHANGE}>No change</option>
-            <option value="__none__">Clear merchant</option>
-            {merchants.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <MoneyUsageQuickPick
+          legend="Merchant"
+          ariaLabel="Merchant"
+          items={merchantQuickItems}
+          selectedId={merchantId}
+          onSelect={setMerchantId}
+          otherLabel="Select other merchant"
+          emptyMessage={
+            merchantsQuery.isLoading
+              ? "Loading merchants…"
+              : "No merchants yet."
+          }
+        />
 
         <fieldset className="grid min-w-0 gap-2 text-sm">
           <div className="flex items-start gap-2">

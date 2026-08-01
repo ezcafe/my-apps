@@ -130,11 +130,16 @@ export function MoneyUsageQuickPick({
   onSelect,
   otherLabel,
   allowEmpty = false,
+  emptyLabel = "—",
   emptyCountsAsOther = false,
   emptySelectedOnOther = false,
   emptyMessage = "No options yet.",
   renderPickerRow,
   chipBudgetProgressPct,
+  /** Show only the Other chip + searchable list (dense tables / CSV rows). */
+  compact = false,
+  /** Hide the legend (useful when nested inside an existing Field). */
+  hideLegend = false,
   className,
 }: {
   legend: ReactNode;
@@ -148,6 +153,8 @@ export function MoneyUsageQuickPick({
   onSelect: (id: string) => void;
   otherLabel: string;
   allowEmpty?: boolean;
+  /** Label for the empty (`""`) picker row when `allowEmpty`. */
+  emptyLabel?: string;
   /** When ≤5 items, include a “No category” (etc.) quick chip from picker items. */
   emptyCountsAsOther?: boolean;
   /** When true with `selectedId === ""`, Other chip shows the empty option label. */
@@ -157,6 +164,8 @@ export function MoneyUsageQuickPick({
   renderPickerRow?: (item: UsageRankedItem) => ReactNode;
   /** Budget utilization % per item id (fills chip from the left). */
   chipBudgetProgressPct?: (id: string) => number | undefined;
+  compact?: boolean;
+  hideLegend?: boolean;
   className?: string;
 }) {
   const listboxId = useId();
@@ -164,13 +173,13 @@ export function MoneyUsageQuickPick({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const showOtherOnly = items.length === 0 && allowEmpty;
+  const showOtherOnly = compact || (items.length === 0 && allowEmpty);
 
   const quickItems = useMemo(
-    () => topUsageItems(items, QUICK_PICK_N),
-    [items],
+    () => (showOtherOnly ? [] : topUsageItems(items, QUICK_PICK_N)),
+    [items, showOtherOnly],
   );
-  const showOther = items.length > QUICK_PICK_N || showOtherOnly;
+  const showOther = showOtherOnly || items.length > QUICK_PICK_N;
   const chipItems = useMemo(() => {
     if (showOther) return quickItems;
     if (!emptyCountsAsOther) return quickItems;
@@ -186,36 +195,47 @@ export function MoneyUsageQuickPick({
     for (const item of [...items, ...allPickerItems]) {
       byId.set(item.id, item);
     }
+    if (allowEmpty && !byId.has("")) {
+      byId.set("", { id: "", label: emptyLabel, usageCount: 0 });
+    }
     return [...byId.values()];
-  }, [items, allPickerItems]);
+  }, [items, allPickerItems, allowEmpty, emptyLabel]);
 
   const otherActive =
     showOther &&
-    isOtherSelection(
-      selectedId,
-      quickIds,
-      items.length,
-      QUICK_PICK_N,
-      emptySelectedOnOther,
-    );
-  const otherLabelText = otherChipLabel(
-    selectedId,
-    labelLookupItems,
-    quickIds,
-    items.length,
-    otherLabel,
-    QUICK_PICK_N,
-    emptySelectedOnOther,
-  );
+    (showOtherOnly
+      ? selectedId !== "" || emptySelectedOnOther
+      : isOtherSelection(
+          selectedId,
+          quickIds,
+          items.length,
+          QUICK_PICK_N,
+          emptySelectedOnOther,
+        ));
+  const otherLabelText = showOtherOnly
+    ? selectedId
+      ? (labelLookupItems.find((i) => i.id === selectedId)?.label ?? otherLabel)
+      : emptySelectedOnOther
+        ? emptyLabel
+        : otherLabel
+    : otherChipLabel(
+        selectedId,
+        labelLookupItems,
+        quickIds,
+        items.length,
+        otherLabel,
+        QUICK_PICK_N,
+        emptySelectedOnOther,
+      );
 
   const pickerItems = useMemo(() => {
     const base = allowEmpty
-      ? [{ id: "", label: "—", usageCount: 0 }, ...allPickerItems]
+      ? [{ id: "", label: emptyLabel, usageCount: 0 }, ...allPickerItems]
       : [...allPickerItems];
     const q = searchQuery.trim().toLowerCase();
     if (!q) return base;
     return base.filter((i) => i.label.toLowerCase().includes(q));
-  }, [allPickerItems, allowEmpty, searchQuery]);
+  }, [allPickerItems, allowEmpty, emptyLabel, searchQuery]);
 
   useEffect(() => {
     if (!pickerOpen) return;
@@ -244,21 +264,25 @@ export function MoneyUsageQuickPick({
     closePicker();
   };
 
-  if (items.length === 0 && !allowEmpty) {
+  const legendNode = hideLegend ? null : (
+    <legend className="text-muted">
+      {required ? (
+        <>
+          <span className="text-foreground" aria-hidden>
+            *
+          </span>{" "}
+          {legend}
+        </>
+      ) : (
+        legend
+      )}
+    </legend>
+  );
+
+  if (items.length === 0 && !allowEmpty && allPickerItems.length === 0) {
     return (
       <fieldset className={cn("grid min-w-0 gap-1.5 text-sm", className)}>
-        <legend className="text-muted">
-          {required ? (
-            <>
-              <span className="text-foreground" aria-hidden>
-                *
-              </span>{" "}
-              {legend}
-            </>
-          ) : (
-            legend
-          )}
-        </legend>
+        {legendNode}
         <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
           {emptyMessage}
         </p>
@@ -268,18 +292,7 @@ export function MoneyUsageQuickPick({
 
   return (
     <fieldset className={cn("grid min-w-0 gap-1.5 text-sm", className)}>
-      <legend className="text-muted">
-        {required ? (
-          <>
-            <span className="text-foreground" aria-hidden>
-              *
-            </span>{" "}
-            {legend}
-          </>
-        ) : (
-          legend
-        )}
-      </legend>
+      {legendNode}
       <div
         role="radiogroup"
         aria-label={ariaLabel}

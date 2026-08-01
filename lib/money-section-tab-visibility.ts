@@ -36,7 +36,7 @@ export const MONEY_OPTIONAL_SECTION_TAB_LABELS: Record<
   savings: "Savings",
   loans: "Loans",
   investments: "Investments",
-  import: "Import",
+  import: "Import data",
 };
 
 const CHANGE_EVENT = "money-section-tabs-change";

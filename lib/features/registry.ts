@@ -55,7 +55,7 @@ const shellNavItemsSource: ShellNavItem[] = [
   {
     kind: "core",
     id: "help",
-    label: "Help",
+    label: "API help",
     href: "/help",
     order: 15,
     icon: "help",
@@ -64,7 +64,7 @@ const shellNavItemsSource: ShellNavItem[] = [
   {
     kind: "core",
     id: "settings",
-    label: "Settings",
+    label: "App settings",
     href: "/settings",
     order: 20,
     icon: "settings",
