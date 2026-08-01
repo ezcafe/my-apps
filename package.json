@@ -2,14 +2,18 @@
   "name": "my-apps",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
+    "npm": ">=12"
+  },
   "scripts": {
     "dev": "node scripts/stop-prior-next-dev.mjs && next dev --webpack",
     "dev:turbo": "node scripts/stop-prior-next-dev.mjs && next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "NODE_OPTIONS='--require ./scripts/resolve-typescript6.cjs' eslint",
     "test": "tsx --import ./scripts/test-env.mjs --test \"lib/**/*.test.ts\"",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node ./node_modules/typescript/lib/tsc.js --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:reset": "node scripts/reset-local-db-schema.mjs",
     "db:baseline": "node scripts/baseline-drizzle-migrations.mjs",
@@ -56,17 +60,27 @@
     "@next/swc-darwin-arm64": "16.2.12"
   },
   "devDependencies": {
+    "@eslint/compat": "^2.1.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@types/web-push": "^3.6.4",
+    "@typescript/typescript6": "^6.0.2",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^9.39.5",
+    "eslint": "10.8.0",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.1",
-    "typescript": "~6.0.3"
+    "typescript": "^7.0.2"
+  },
+  "allowScripts": {
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.1": true,
+    "fsevents@2.3.3": true,
+    "sharp@0.34.5": true,
+    "unrs-resolver@1.12.2": true
   }
 }

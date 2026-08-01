@@ -6,7 +6,10 @@ Multi-feature Next.js workspace built around a small **shell** and a unified **M
 
 ## Stack
 
+- Node.js `^22.22.2 || ^24.15.0 || >=26` and **npm 12+** (Node 25 is not supported by npm 12)
 - Next.js 16 (App Router) + React 19
+- TypeScript 7 (native `tsc`; Next uses `experimental.useTypeScriptCli`)
+- ESLint 10.8 with `eslint-config-next`
 - Tailwind CSS v4 with `@theme inline` token bridge
 - Drizzle ORM + PostgreSQL 18
 - next-auth v5 (Pocket ID OIDC provider)
@@ -24,6 +27,8 @@ npm run docker:db
 # or: docker compose -f docker-compose-db.yml up -d
 
 # install + apply schema
+# npm 12 blocks dependency install scripts by default; this repo commits an
+# allowScripts allowlist in package.json (esbuild, sharp, unrs-resolver, …).
 npm install
 npm run db:push
 
@@ -97,7 +102,7 @@ Docker-specific notes:
 | `npm run build` | Production build. |
 | `npm run start` | Run the production build. |
 | `npm run lint` | ESLint (must be clean). |
-| `npm run typecheck` | TypeScript (`tsc --noEmit`). |
+| `npm run typecheck` | TypeScript 7 (`tsc --noEmit` via project-local native compiler). |
 | `npm run test` | Unit tests (`tsx --test` on `lib/**/*.test.ts`). |
 | `npm run db:generate` | Generate a Drizzle migration. |
 | `npm run db:push` | Push schema to the dev DB without a migration. |

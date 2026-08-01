@@ -2,11 +2,13 @@
 # Example: docker build --target runner .
 # Or: npm run docker:up
 
-FROM node:22-bookworm-slim AS base
+FROM node:22.22-bookworm-slim AS base
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 
 FROM base AS deps
+# npm 12 requires Node ^22.22.2 || ^24.15.0 || >=26; pin CLI for allowScripts defaults
+RUN npm install -g npm@12
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 

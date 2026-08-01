@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["yahoo-finance2"],
   experimental: {
+    // TypeScript 7 has no JS Compiler API; run project-local native tsc instead.
+    useTypeScriptCli: true,
     optimizePackageImports: [
       "@tanstack/react-query",
       "@visx/curve",
