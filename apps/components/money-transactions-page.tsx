@@ -16,7 +16,6 @@ import {
   defaultAnalyticsFilters,
   type AnalyticsFiltersValue,
   type AnalyticsFilterViewConfig,
-  type AnalyticsLookupAccount,
   type AnalyticsLookupMerchant,
   type AnalyticsLookupRecurrence,
   type AnalyticsLookupTag,
@@ -24,10 +23,15 @@ import {
 } from "@/components/analytics-filters";
 import { MoneyAnalyticsFiltersBarSkeleton, MoneyAnalyticsTransactionsTableSkeleton } from "@/components/money-analytics-skeleton";
 import { MoneyLedgerTrendCard } from "@/components/money-ledger-trend-card";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import { buildQuery } from "@/lib/analytics-build-query";
-import { mergeLedgerPresetQuery, resolveLedgerPresetCategoryIds } from "@/lib/money-ledger-presets";
+import {
+  defaultFiltersForLedgerPreset,
+  mergeLedgerPresetQuery,
+  resolveLedgerPresetCategoryIds,
+} from "@/lib/money-ledger-presets";
 import { analyticsFiltersEqual } from "@/lib/analytics-graphql-filters";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_SET_ACTIVE_WORKSPACE_MUTATION } from "@/lib/money-gql-documents";
@@ -36,7 +40,8 @@ import {
   moneyAnalyticsChartLookupsQueryOptions,
   moneyAnalyticsMerchantLookupsQueryOptions,
   moneyAnalyticsRecurrenceLookupsQueryOptions,
-  moneyWorkspaceStateQueryOptions,
+  moneyBootstrapQueryOptions,
+  type MoneyAccountLookup,
 } from "@/lib/money-query-options";
 
 const AnalyticsFiltersBar = dynamic(
@@ -60,6 +65,7 @@ export function MoneyTransactionsPage({
   authenticated,
   preset,
   viewNav,
+  variant = "page",
 }: {
   userSub?: string;
   authenticated: boolean;
@@ -71,8 +77,14 @@ export function MoneyTransactionsPage({
     defaultValue?: string;
     options: ReadonlyArray<{ id: string; label: string; href: string }>;
   };
+  /**
+   * `page` — full ledger chrome (title from preset, optional View nav, trend chart).
+   * `section` — embed under another surface (Activity heading, no View nav / trend).
+   */
+  variant?: "page" | "section";
 }) {
   const router = useRouter();
+  const isSection = variant === "section";
   const {
     workspaceId: coreWorkspaceId,
     defaultCurrency,
@@ -82,7 +94,7 @@ export function MoneyTransactionsPage({
   const canRunMoneyQueries = authenticated && typeof window !== "undefined";
 
   const viewFilter = useMemo((): AnalyticsFilterViewConfig | undefined => {
-    if (!viewNav) return undefined;
+    if (isSection || !viewNav) return undefined;
     return {
       menuLabel: viewNav.menuLabel ?? "View",
       value: viewNav.value,
@@ -93,11 +105,17 @@ export function MoneyTransactionsPage({
         if (href) router.push(href);
       },
     };
-  }, [router, viewNav]);
+  }, [isSection, router, viewNav]);
+
+  const sectionTitle = isSection ? "Activity" : (preset?.title ?? "Transactions");
+  const sectionDescription =
+    preset?.description ??
+    "Browse and edit workspace transactions. Default range is the current calendar month — apply to refresh.";
 
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(
     null,
   );
+  const [advancedFilterLookups, setAdvancedFilterLookups] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<AnalyticsFiltersValue>(() =>
     defaultAnalyticsFilters(),
@@ -107,15 +125,15 @@ export function MoneyTransactionsPage({
   );
   const [isFilterPending, startFilterTransition] = useTransition();
 
-  const workspaceStateQuery = useQuery({
-    ...moneyWorkspaceStateQueryOptions(),
+  const bootstrapQuery = useQuery({
+    ...moneyBootstrapQueryOptions(),
     enabled: canRunMoneyQueries,
   });
 
   const workspaces = useMemo(
     () =>
-      (workspaceStateQuery.data?.workspaces ?? []) as AnalyticsWorkspaceRow[],
-    [workspaceStateQuery.data?.workspaces],
+      (bootstrapQuery.data?.workspaces ?? []) as AnalyticsWorkspaceRow[],
+    [bootstrapQuery.data?.workspaces],
   );
   const resolvedWorkspaceId = useMemo(() => {
     let resolvedId = coreWorkspaceId ?? "";
@@ -147,7 +165,8 @@ export function MoneyTransactionsPage({
       canRunMoneyQueries &&
       workspaceReady &&
       !workspaceSyncPending &&
-      Boolean(activeWorkspaceId),
+      Boolean(activeWorkspaceId) &&
+      advancedFilterLookups,
   });
   const recurrenceLookupsQuery = useQuery({
     ...moneyAnalyticsRecurrenceLookupsQueryOptions(activeWorkspaceId),
@@ -155,14 +174,15 @@ export function MoneyTransactionsPage({
       canRunMoneyQueries &&
       workspaceReady &&
       !workspaceSyncPending &&
-      Boolean(activeWorkspaceId),
+      Boolean(activeWorkspaceId) &&
+      advancedFilterLookups,
   });
 
   const accounts = useMemo(
     () =>
       (workspaceSyncPending
         ? []
-        : (chartLookupsQuery.data?.moneyAccounts ?? [])) as AnalyticsLookupAccount[],
+        : (chartLookupsQuery.data?.moneyAccounts ?? [])) as MoneyAccountLookup[],
     [workspaceSyncPending, chartLookupsQuery.data?.moneyAccounts],
   );
   const categories = useMemo(
@@ -200,6 +220,11 @@ export function MoneyTransactionsPage({
     [preset, categories],
   );
 
+  const pageDefaultFilters = useCallback(
+    () => defaultFiltersForLedgerPreset(preset, accounts, categories),
+    [preset, accounts, categories],
+  );
+
   const dirty = !analyticsFiltersEqual(draft, applied);
   const filterQuery = useMemo(
     () =>
@@ -214,6 +239,17 @@ export function MoneyTransactionsPage({
   );
 
   const autoSyncedWorkspaceRef = useRef<string | null>(null);
+  const seededFiltersKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!lookupsReady || !preset) return;
+    const key = `${activeWorkspaceId}:${preset.title}`;
+    if (seededFiltersKeyRef.current === key) return;
+    seededFiltersKeyRef.current = key;
+    const next = pageDefaultFilters();
+    setDraft(next);
+    setApplied(next);
+  }, [activeWorkspaceId, lookupsReady, pageDefaultFilters, preset]);
 
   useEffect(() => {
     if (!resolvedWorkspaceId || resolvedWorkspaceId === (coreWorkspaceId ?? "")) {
@@ -259,6 +295,7 @@ export function MoneyTransactionsPage({
           workspaceId: next,
         });
         await refreshWorkspaceCurrency();
+        seededFiltersKeyRef.current = null;
         const fresh = defaultAnalyticsFilters();
         setDraft(fresh);
         setApplied(fresh);
@@ -278,27 +315,23 @@ export function MoneyTransactionsPage({
   }, [draft]);
 
   const handleReset = useCallback(() => {
-    const fresh = defaultAnalyticsFilters();
+    const fresh = pageDefaultFilters();
     setDraft(fresh);
     setApplied(fresh);
-  }, []);
+  }, [pageDefaultFilters]);
 
   const loadError =
     error ??
-    (queryErrorMessage(workspaceStateQuery.error)) ??
+    (queryErrorMessage(bootstrapQuery.error)) ??
     (queryErrorMessage(chartLookupsQuery.error)) ??
     (queryErrorMessage(merchantLookupsQuery.error)) ??
     (queryErrorMessage(recurrenceLookupsQuery.error));
 
-  if (!workspaceReady && !workspaceStateQuery.data && !workspaceStateQuery.error) {
+  if (!workspaceReady && !bootstrapQuery.data && !bootstrapQuery.error) {
     return (
       <>
         <MoneyAnalyticsFiltersBarSkeleton />
-        <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3">
-          <div className="col-span-2 md:col-span-6 lg:col-span-12">
-            <MoneyAnalyticsTransactionsTableSkeleton />
-          </div>
-        </div>
+        <MoneyAnalyticsTransactionsTableSkeleton />
       </>
     );
   }
@@ -306,11 +339,8 @@ export function MoneyTransactionsPage({
   return (
     <>
       <AnalyticsFiltersBar
-        title={preset?.title ?? "Transactions"}
-        description={
-          preset?.description ??
-          "Browse and edit workspace transactions. Default range is the current calendar month — apply to refresh."
-        }
+        title={sectionTitle}
+        description={sectionDescription}
         viewFilter={viewFilter}
         value={draft}
         onChange={setDraft}
@@ -328,6 +358,7 @@ export function MoneyTransactionsPage({
         onWorkspaceChange={handleWorkspaceChange}
         switchingWorkspace={workspaceSyncPending}
         userSub={userSub}
+        onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
       />
 
       {loadError ? (
@@ -335,7 +366,7 @@ export function MoneyTransactionsPage({
           variant="error"
           title="Couldn’t load transactions"
           description={loadError}
-          className="mb-3"
+          className={`${MONEY_FULL_SPAN} mb-3`}
         />
       ) : null}
 
@@ -346,38 +377,34 @@ export function MoneyTransactionsPage({
           variant="warning"
           title="Bills category missing"
           description='Add a "Bills" category under "Necessities" in Settings → Categories, or reload after the app creates it automatically.'
-          className="mb-3"
+          className={`${MONEY_FULL_SPAN} mb-3`}
         />
       ) : null}
 
-      <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3">
-        {preset && lookupsReady && activeWorkspaceId ? (
-          <MoneyLedgerTrendCard
-            preset={preset}
-            filterQuery={filterQuery}
-            workspaceId={activeWorkspaceId}
-            defaultCurrency={defaultCurrency}
-            enabled={!isFilterPending}
-          />
-        ) : null}
-        {lookupsReady && activeWorkspaceId ? (
-          <AnalyticsTransactionsTableLazy
-            filterQuery={filterQuery}
-            activeWorkspaceId={activeWorkspaceId}
-            accounts={accounts}
-            categories={categories}
-            tags={tags}
-            currency={defaultCurrency}
-            deferFetchUntilVisible={false}
-            variant="standalone"
-            emptyState={preset?.emptyState}
-          />
-        ) : (
-          <div className="col-span-2 md:col-span-6 lg:col-span-12">
-            <MoneyAnalyticsTransactionsTableSkeleton />
-          </div>
-        )}
-      </div>
+      {!isSection && preset && lookupsReady && activeWorkspaceId ? (
+        <MoneyLedgerTrendCard
+          preset={preset}
+          filterQuery={filterQuery}
+          workspaceId={activeWorkspaceId}
+          defaultCurrency={defaultCurrency}
+          enabled={!isFilterPending}
+        />
+      ) : null}
+      {lookupsReady && activeWorkspaceId ? (
+        <AnalyticsTransactionsTableLazy
+          filterQuery={filterQuery}
+          activeWorkspaceId={activeWorkspaceId}
+          accounts={accounts}
+          categories={categories}
+          tags={tags}
+          currency={defaultCurrency}
+          deferFetchUntilVisible={isSection}
+          variant="standalone"
+          emptyState={preset?.emptyState}
+        />
+      ) : (
+        <MoneyAnalyticsTransactionsTableSkeleton />
+      )}
     </>
   );
 }

@@ -39,7 +39,6 @@ import {
   CHART_CARD_HEIGHT_HALF,
   CHART_CARD_HEIGHT_TALL,
   CHART_CARD_LAYOUT,
-  CHART_CARD_MIN_HEIGHT_HALF_PX,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
 
@@ -54,7 +53,7 @@ export {
 
 const CHART_EMPTY_TRANSACTION_ACTIONS = {
   action: { href: "/money/spending", label: "View transactions" },
-  secondaryAction: { href: "/money", label: "Add transaction" },
+  secondaryAction: { href: "/money/new", label: "Add transaction" },
 } as const;
 
 const LineChart = dynamic(
@@ -384,7 +383,7 @@ export const IncomeVsExpenseCard = memo(function IncomeVsExpenseCard({
 }) {
   return (
     <Card
-      className={`col-span-2 w-full min-w-0 p-4 md:col-span-3 lg:col-span-6 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
+      className={`w-full min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
     >
       <h2 className="mb-2 font-display text-lg font-medium">Income vs expenses</h2>
       <p className="mb-2 text-xs text-muted">Totals for the selected filter range.</p>
@@ -425,7 +424,7 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
   baseFilterQuery,
   onDrilldown,
 }: {
-  cardRef: Ref<HTMLDivElement | null>;
+  cardRef?: Ref<HTMLDivElement | null>;
   inView: boolean;
   distribution: MoneyAnalyticsDistributionPayload | null;
   pieSpendHasData: boolean;
@@ -814,11 +813,8 @@ export const BudgetVsActualCard = memo(function BudgetVsActualCard({
 }) {
   return (
     <Card
-      className={`col-span-2 w-full min-w-0 p-4 md:col-span-3 lg:col-span-6 ${CHART_CARD_LAYOUT}`}
+      className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
       ref={cardRef}
-      style={{
-        height: Math.max(CHART_CARD_MIN_HEIGHT_HALF_PX, budgetChartRows.length * 36),
-      }}
     >
       <h2 className="mb-2 font-display text-lg font-medium">Budget vs actual</h2>
       <p className="mb-2 text-xs text-muted">

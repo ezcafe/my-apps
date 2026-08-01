@@ -36,7 +36,7 @@ export function ThemeSettings({ embedded }: { embedded?: boolean }) {
         <h2 className="font-display text-lg font-medium tracking-tight">Appearance</h2>
       ) : null}
       <p className="text-sm text-muted">
-        Catppuccin Latte in light mode, Mocha in dark.
+        Facebook palette in light mode, Catppuccin Mocha in dark.
         System follows <code className="font-mono text-xs">prefers-color-scheme</code>.
       </p>
       {showResolved ? (

@@ -3,7 +3,6 @@
 import { presentClientError, queryErrorMessage } from "@/lib/user-facing-error";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
-import type { Ref } from "react";
 import {
   useCallback,
   useEffect,
@@ -20,7 +19,7 @@ import {
 import {
   MoneyAnalyticsChartsSkeleton,
   MoneyAnalyticsPageSkeleton,
-  MoneyAnalyticsTransactionsTableSkeleton,
+  ANALYTICS_GRID_CLASS,
 } from "@/components/money-analytics-skeleton";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,10 +27,10 @@ import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { AnalyticsStats } from "@/components/analytics-stats";
 import { useTheme } from "@/components/theme-provider";
 import { Alert } from "@/components/ui/alert";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import {
   defaultAnalyticsFilters,
   type AnalyticsFiltersValue,
-  type AnalyticsLookupAccount,
   type AnalyticsLookupMerchant,
   type AnalyticsLookupRecurrence,
   type AnalyticsLookupTag,
@@ -51,11 +50,13 @@ import {
   moneyAnalyticsChartLookupsQueryOptions,
   moneyAnalyticsDistributionQueryOptions,
   moneyAnalyticsLeadersQueryOptions,
-  moneyAnalyticsDashboardQueryOptions,
   moneyAnalyticsMerchantLookupsQueryOptions,
+  moneyAnalyticsOverviewQueryOptions,
   moneyAnalyticsRecurrenceLookupsQueryOptions,
   moneyAnalyticsSankeyQueryOptions,
-  moneyWorkspaceStateQueryOptions,
+  moneyAnalyticsSummaryQueryOptions,
+  moneyBootstrapQueryOptions,
+  type MoneyAccountLookup,
 } from "@/lib/money-query-options";
 import { useFormatDate } from "@/lib/format-date";
 import type {
@@ -69,6 +70,7 @@ import type {
 import { useInViewOnce } from "@/lib/use-in-view-once";
 import {
   buildMoneyAnalyticsFilterQuery,
+  defaultFiltersForLedgerPreset,
   MONEY_LEDGER_SCOPES,
   moneyLedgerScopeDescription,
   moneyLedgerScopePreset,
@@ -76,6 +78,7 @@ import {
   type MoneyLedgerScopeId,
 } from "@/lib/money-ledger-presets";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 const chartCardLoading = () => (
   <Card
@@ -116,7 +119,7 @@ const BudgetVsActualCard = dynamic(
     import("@/components/analytics-chart-cards").then((m) => ({
       default: m.BudgetVsActualCard,
     })),
-  { loading: chartCardLoadingHalf, ssr: false },
+  { ssr: false },
 );
 const MoneyFlowSankeyCard = dynamic(
   () =>
@@ -183,38 +186,12 @@ const AnalyticsFiltersBar = dynamic(
   { ssr: false },
 );
 
-const AnalyticsTransactionsTableLazy = dynamic(
-  () =>
-    import("@/components/analytics-transactions-table").then((m) => ({
-      default: m.AnalyticsTransactionsTable,
-    })),
-  { loading: () => <MoneyAnalyticsTransactionsTableSkeleton /> },
-);
-
-type AnalyticsStagesProps = {
+type AnalyticsInsightsBodyProps = {
   filterQuery: string;
   workspaceKey: string;
   defaultCurrency: string;
-  budgetRef: Ref<HTMLDivElement | null>;
-  sankeyRef: Ref<HTMLDivElement | null>;
-  spendByCategoryRef: Ref<HTMLDivElement | null>;
-  monthlyColumnsRef: Ref<HTMLDivElement | null>;
-  netFlowRef: Ref<HTMLDivElement | null>;
-  merchantsRef: Ref<HTMLDivElement | null>;
-  recurringRef: Ref<HTMLDivElement | null>;
-  tagsRef: Ref<HTMLDivElement | null>;
-  categoryTrendRef: Ref<HTMLDivElement | null>;
-  transactionsRef: Ref<HTMLDivElement | null>;
-  budgetInView: boolean;
-  sankeyInView: boolean;
-  spendByCategoryInView: boolean;
-  monthlyColumnsInView: boolean;
-  netFlowInView: boolean;
-  merchantsInView: boolean;
-  recurringInView: boolean;
-  tagsInView: boolean;
-  categoryTrendInView: boolean;
-  transactionsInView: boolean;
+  moreInsights: boolean;
+  onExpandMoreInsights: () => void;
   resolved: ReturnType<typeof useTheme>["resolved"];
   style: ReturnType<typeof useTheme>["style"];
   lookupsReady: boolean;
@@ -222,78 +199,138 @@ type AnalyticsStagesProps = {
   accounts: AnalyticsLookupAccount[];
   tags: AnalyticsLookupTag[];
   onChartDrilldown: (payload: AnalyticsChartDrilldownPayload) => void;
-  analyticsEmptyState?: import("@/lib/money-ledger-presets").MoneyLedgerEmptyState;
 };
 
-function AnalyticsSummaryShell(props: AnalyticsStagesProps) {
-  const { data } = useQuery(
-    moneyAnalyticsDashboardQueryOptions(props.workspaceKey, props.filterQuery),
-  );
-  const summary = data?.moneyAnalyticsSummary as
+function AnalyticsInsightsBody({
+  filterQuery,
+  workspaceKey,
+  defaultCurrency,
+  moreInsights,
+  onExpandMoreInsights,
+  resolved,
+  style,
+  lookupsReady,
+  categories,
+  accounts,
+  tags,
+  onChartDrilldown,
+}: AnalyticsInsightsBodyProps) {
+  const summaryQuery = useQuery({
+    ...moneyAnalyticsSummaryQueryOptions(workspaceKey, filterQuery),
+    enabled: Boolean(workspaceKey),
+  });
+  const distributionQuery = useQuery({
+    ...moneyAnalyticsDistributionQueryOptions(workspaceKey, filterQuery),
+    enabled: Boolean(workspaceKey),
+  });
+  const overviewQuery = useQuery({
+    ...moneyAnalyticsOverviewQueryOptions(workspaceKey, filterQuery),
+    enabled: moreInsights && Boolean(workspaceKey),
+  });
+
+  const summary = summaryQuery.data?.moneyAnalyticsSummary as
     | MoneyAnalyticsSummaryPayload
     | undefined;
-  const overview = data?.moneyAnalyticsOverview as
+  const distribution = distributionQuery.data?.moneyAnalyticsDistribution as
+    | MoneyAnalyticsDistributionPayload
+    | undefined;
+  const overview = overviewQuery.data?.moneyAnalyticsOverview as
     | MoneyAnalyticsOverviewPayload
     | undefined;
 
-  if (!summary || !overview) {
+  if (!summary) {
     return <MoneyAnalyticsChartsSkeleton />;
   }
 
   return (
-    <AnalyticsChartsView summary={summary} overview={overview} {...props} />
+    <AnalyticsChartsView
+      summary={summary}
+      distribution={distribution ?? null}
+      distributionLoading={distributionQuery.isLoading}
+      overview={overview ?? null}
+      overviewReady={moreInsights && overview != null}
+      moreInsights={moreInsights}
+      onExpandMoreInsights={onExpandMoreInsights}
+      filterQuery={filterQuery}
+      workspaceKey={workspaceKey}
+      defaultCurrency={defaultCurrency}
+      resolved={resolved}
+      style={style}
+      lookupsReady={lookupsReady}
+      categories={categories}
+      accounts={accounts}
+      tags={tags}
+      onChartDrilldown={onChartDrilldown}
+    />
   );
 }
 
-type AnalyticsChartsViewProps = AnalyticsStagesProps & {
+type AnalyticsChartsViewProps = {
   summary: MoneyAnalyticsSummaryPayload;
-  overview: MoneyAnalyticsOverviewPayload;
+  distribution: MoneyAnalyticsDistributionPayload | null;
+  distributionLoading: boolean;
+  overview: MoneyAnalyticsOverviewPayload | null;
+  overviewReady: boolean;
+  moreInsights: boolean;
+  onExpandMoreInsights: () => void;
+  filterQuery: string;
+  workspaceKey: string;
+  defaultCurrency: string;
+  resolved: ReturnType<typeof useTheme>["resolved"];
+  style: ReturnType<typeof useTheme>["style"];
+  lookupsReady: boolean;
+  categories: MoneyCategoryRow[];
+  accounts: AnalyticsLookupAccount[];
+  tags: AnalyticsLookupTag[];
+  onChartDrilldown: (payload: AnalyticsChartDrilldownPayload) => void;
 };
 
 function AnalyticsChartsView({
   summary,
+  distribution,
+  distributionLoading,
   overview,
-  ...rest
+  overviewReady,
+  moreInsights,
+  onExpandMoreInsights,
+  filterQuery,
+  workspaceKey,
+  defaultCurrency,
+  resolved,
+  style,
+  lookupsReady,
+  categories,
+  accounts,
+  tags,
+  onChartDrilldown,
 }: AnalyticsChartsViewProps) {
   const {
-    filterQuery,
-    workspaceKey,
-    budgetRef,
-    sankeyRef,
-    spendByCategoryRef,
-    monthlyColumnsRef,
-    netFlowRef,
-    merchantsRef,
-    recurringRef,
-    tagsRef,
-    categoryTrendRef,
-    transactionsRef,
-    budgetInView,
-    sankeyInView,
-    spendByCategoryInView,
-    monthlyColumnsInView,
-    netFlowInView,
-    merchantsInView,
-    recurringInView,
-    tagsInView,
-    categoryTrendInView,
-    transactionsInView,
-    resolved,
-    style,
-    lookupsReady,
-    categories,
-    accounts,
-    tags,
-    defaultCurrency,
-    onChartDrilldown,
-    analyticsEmptyState,
-  } = rest;
-
-  const overviewReady = true;
+    ref: budgetRef,
+    isInView: budgetInView,
+  } = useInViewOnce("96px 0px");
+  const { ref: sankeyRef, isInView: sankeyInView } = useInViewOnce();
+  const {
+    ref: monthlyColumnsRef,
+    isInView: monthlyColumnsInView,
+  } = useInViewOnce();
+  const { ref: netFlowRef, isInView: netFlowInView } = useInViewOnce();
+  const {
+    ref: merchantsRef,
+    isInView: merchantsInView,
+  } = useInViewOnce("144px 0px");
+  const {
+    ref: recurringRef,
+    isInView: recurringInView,
+  } = useInViewOnce("160px 0px");
+  const { ref: tagsRef, isInView: tagsInView } = useInViewOnce("144px 0px");
+  const {
+    ref: categoryTrendRef,
+    isInView: categoryTrendInView,
+  } = useInViewOnce("144px 0px");
 
   const { data: budgetsResponse } = useQuery({
     ...moneyAnalyticsBudgetsQueryOptions(workspaceKey, filterQuery),
-    enabled: budgetInView && lookupsReady && Boolean(workspaceKey),
+    enabled: moreInsights && budgetInView && lookupsReady && Boolean(workspaceKey),
   });
   const budgets =
     (budgetsResponse?.moneyAnalyticsBudgets as
@@ -302,33 +339,23 @@ function AnalyticsChartsView({
 
   const { data: sankeyResponse } = useQuery({
     ...moneyAnalyticsSankeyQueryOptions(workspaceKey, filterQuery),
-    enabled: sankeyInView && Boolean(workspaceKey),
+    enabled: moreInsights && sankeyInView && Boolean(workspaceKey),
   });
   const sankeyPayload =
     (sankeyResponse?.moneyAnalyticsSankey as
       | MoneyAnalyticsSankeyPayload
       | undefined) ?? null;
-  const distributionStageInView = spendByCategoryInView || categoryTrendInView;
 
-  const { data: distributionResponse } = useQuery({
-    ...moneyAnalyticsDistributionQueryOptions(workspaceKey, filterQuery),
-    enabled: distributionStageInView && Boolean(workspaceKey),
-  });
-  const distribution =
-    (distributionResponse?.moneyAnalyticsDistribution as
-      | MoneyAnalyticsDistributionPayload
-      | undefined) ?? null;
   const leadersStageInView = merchantsInView || recurringInView || tagsInView;
-
   const { data: leadersResponse } = useQuery({
     ...moneyAnalyticsLeadersQueryOptions(workspaceKey, filterQuery),
-    enabled: leadersStageInView && Boolean(workspaceKey),
+    enabled: moreInsights && leadersStageInView && Boolean(workspaceKey),
   });
   const leaders =
     (leadersResponse?.moneyAnalyticsLeaders as
       | MoneyAnalyticsLeadersPayload
       | undefined) ?? null;
-  const incomeByCategoryInView = spendByCategoryInView;
+
   const summaryStats = summary.stats;
   const summaryRange = summary.range;
   const overviewColumn = useMemo(() => overview?.column ?? [], [overview?.column]);
@@ -421,56 +448,27 @@ function AnalyticsChartsView({
     [defaultCurrency],
   );
 
+  const spendReady = distribution != null && !distributionLoading;
+
   return (
     <>
       <AnalyticsStats
         stats={summaryStats}
-        column={overviewColumn}
+        column={moreInsights ? overviewColumn : undefined}
         range={summaryRange}
         currency={defaultCurrency}
       />
 
-      <NetCumulativeFlowCard
-        cardRef={netFlowRef}
-        inView={netFlowInView}
-        overviewReady={overviewReady}
-        overview={overview}
-        lineHasData={lineHasData}
-        lineCompareLabel={lineCompareLabel}
-        isCurrentMonthCompare={isCurrentMonthCompare}
-        defaultCurrency={defaultCurrency}
-        theme={theme}
-      />
-
-      <IncomeVsExpenseCard
-        overviewReady={overviewReady}
-        summaryStats={summaryStats}
-        divergingHasData={divergingHasData}
-        formatChartValue={formatChartValue}
-      />
-
-      <BudgetVsActualCard
-        cardRef={budgetRef}
-        inView={budgetInView}
-        lookupsReady={lookupsReady}
-        budgets={budgets}
-        budgetChartRows={budgetChartRows}
-        budgetChartHasData={budgetChartHasData}
-        formatChartValue={formatChartValue}
-      />
-
-      <MoneyFlowSankeyCard
-        cardRef={sankeyRef}
-        inView={sankeyInView}
-        sankeyPayload={sankeyPayload}
-        sankeyHasData={sankeyHasData}
-        defaultCurrency={defaultCurrency}
-      />
-
-      <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:gap-3 lg:col-span-12 lg:grid-cols-3 lg:gap-3">
+      <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:grid-cols-2 md:gap-3 lg:col-span-12">
+        <IncomeVsExpenseCard
+          overviewReady
+          summaryStats={summaryStats}
+          divergingHasData={divergingHasData}
+          formatChartValue={formatChartValue}
+        />
         <SpendByCategoryCard
-          cardRef={spendByCategoryRef}
-          inView={spendByCategoryInView}
+          cardRef={undefined}
+          inView={spendReady || distributionLoading}
           distribution={distribution}
           pieSpendHasData={pieSpendHasData}
           pieSpendTotal={pieSpendTotal}
@@ -480,90 +478,120 @@ function AnalyticsChartsView({
           baseFilterQuery={filterQuery}
           onDrilldown={onChartDrilldown}
         />
-        <IncomeByCategoryCard
-          inView={incomeByCategoryInView}
-          distribution={distribution}
-          pieIncomeHasData={pieIncomeHasData}
-          pieIncomeTotal={pieIncomeTotal}
-          formatChartValue={formatChartValue}
-          theme={theme}
-          defaultCurrency={defaultCurrency}
-          baseFilterQuery={filterQuery}
-          onDrilldown={onChartDrilldown}
-        />
-        <MonthlyColumnsCard
-          cardRef={monthlyColumnsRef}
-          inView={monthlyColumnsInView}
-          overviewReady={overviewReady}
-          overviewColumn={overviewColumn}
-          columnHasFlow={columnHasFlow}
-          columnExpenseTotal={columnExpenseTotal}
-          columnIncomeTotal={columnIncomeTotal}
-          formatChartValue={formatChartValue}
-          theme={theme}
-          defaultCurrency={defaultCurrency}
-        />
-        <CategorySpendTrendCard
-          cardRef={categoryTrendRef}
-          inView={categoryTrendInView}
-          distribution={distribution}
-          categoryTrendHasData={categoryTrendHasData}
-          formatChartValue={formatChartValue}
-          theme={theme}
-        />
-        <SpendByTagCard
-          cardRef={tagsRef}
-          inView={tagsInView}
-          leaders={leaders}
-          tagsHasData={tagsHasData}
-          formatChartValue={formatChartValue}
-          baseFilterQuery={filterQuery}
-          onDrilldown={onChartDrilldown}
-        />
-        <TopMerchantsCard
-          cardRef={merchantsRef}
-          inView={merchantsInView}
-          leaders={leaders}
-          merchantsHasData={merchantsHasData}
-          formatChartValue={formatChartValue}
-          baseFilterQuery={filterQuery}
-          onDrilldown={onChartDrilldown}
-        />
       </div>
 
-      <RecurringSpendCard
-        cardRef={recurringRef}
-        inView={recurringInView}
-        leaders={leaders}
-        recurringHasData={recurringHasData}
-        formatChartValue={formatChartValue}
-        baseFilterQuery={filterQuery}
-        onDrilldown={onChartDrilldown}
-      />
+      {!moreInsights ? (
+        <div className="col-span-2 flex flex-wrap justify-end gap-3 md:col-span-6 lg:col-span-12">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onExpandMoreInsights}
+          >
+            More insights
+          </Button>
+        </div>
+      ) : null}
 
-      <div
-        ref={transactionsRef}
-        className="col-span-2 md:col-span-6 lg:col-span-12"
-      >
-        {transactionsInView && lookupsReady && overviewReady ? (
-          <AnalyticsTransactionsTableLazy
-            filterQuery={filterQuery}
-            activeWorkspaceId={workspaceKey}
-            accounts={accounts}
-            categories={categories}
-            currency={defaultCurrency}
-            deferFetchUntilVisible={false}
-            emptyState={analyticsEmptyState}
+      {moreInsights ? (
+        <>
+          <NetCumulativeFlowCard
+            cardRef={netFlowRef}
+            inView={netFlowInView}
+            overviewReady={overviewReady}
+            overview={overview}
+            lineHasData={lineHasData}
+            lineCompareLabel={lineCompareLabel}
+            isCurrentMonthCompare={isCurrentMonthCompare}
+            defaultCurrency={defaultCurrency}
+            theme={theme}
           />
-        ) : (
-          <MoneyAnalyticsTransactionsTableSkeleton />
-        )}
-      </div>
+
+          <MoneyFlowSankeyCard
+            cardRef={sankeyRef}
+            inView={sankeyInView}
+            sankeyPayload={sankeyPayload}
+            sankeyHasData={sankeyHasData}
+            defaultCurrency={defaultCurrency}
+          />
+
+          <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:gap-3 lg:col-span-12 lg:grid-cols-3 lg:gap-3">
+            <IncomeByCategoryCard
+              inView={Boolean(distribution)}
+              distribution={distribution}
+              pieIncomeHasData={pieIncomeHasData}
+              pieIncomeTotal={pieIncomeTotal}
+              formatChartValue={formatChartValue}
+              theme={theme}
+              defaultCurrency={defaultCurrency}
+              baseFilterQuery={filterQuery}
+              onDrilldown={onChartDrilldown}
+            />
+            <MonthlyColumnsCard
+              cardRef={monthlyColumnsRef}
+              inView={monthlyColumnsInView}
+              overviewReady={overviewReady}
+              overviewColumn={overviewColumn}
+              columnHasFlow={columnHasFlow}
+              columnExpenseTotal={columnExpenseTotal}
+              columnIncomeTotal={columnIncomeTotal}
+              formatChartValue={formatChartValue}
+              theme={theme}
+              defaultCurrency={defaultCurrency}
+            />
+            <CategorySpendTrendCard
+              cardRef={categoryTrendRef}
+              inView={categoryTrendInView}
+              distribution={distribution}
+              categoryTrendHasData={categoryTrendHasData}
+              formatChartValue={formatChartValue}
+              theme={theme}
+            />
+            <SpendByTagCard
+              cardRef={tagsRef}
+              inView={tagsInView}
+              leaders={leaders}
+              tagsHasData={tagsHasData}
+              formatChartValue={formatChartValue}
+              baseFilterQuery={filterQuery}
+              onDrilldown={onChartDrilldown}
+            />
+            <TopMerchantsCard
+              cardRef={merchantsRef}
+              inView={merchantsInView}
+              leaders={leaders}
+              merchantsHasData={merchantsHasData}
+              formatChartValue={formatChartValue}
+              baseFilterQuery={filterQuery}
+              onDrilldown={onChartDrilldown}
+            />
+            <BudgetVsActualCard
+              cardRef={budgetRef}
+              inView={budgetInView}
+              lookupsReady={lookupsReady}
+              budgets={budgets}
+              budgetChartRows={budgetChartRows}
+              budgetChartHasData={budgetChartHasData}
+              formatChartValue={formatChartValue}
+            />
+          </div>
+
+          <RecurringSpendCard
+            cardRef={recurringRef}
+            inView={recurringInView}
+            leaders={leaders}
+            recurringHasData={recurringHasData}
+            formatChartValue={formatChartValue}
+            baseFilterQuery={filterQuery}
+            onDrilldown={onChartDrilldown}
+          />
+        </>
+      ) : null}
     </>
   );
 }
 
-function AnalyticsDashboardLoaded({
+export function AnalyticsDashboard({
   userSub,
   authenticated,
 }: {
@@ -597,30 +625,9 @@ function AnalyticsDashboardLoaded({
     [pathname, router, searchParams],
   );
 
-  const {
-    ref: budgetRef,
-    isInView: budgetInView,
-  } = useInViewOnce("96px 0px");
-  const {
-    ref: sankeyRef,
-    isInView: sankeyInView,
-  } = useInViewOnce();
-  const {
-    ref: spendByCategoryRef,
-    isInView: spendByCategoryInView,
-  } = useInViewOnce("144px 0px");
-  const {
-    ref: monthlyColumnsRef,
-    isInView: monthlyColumnsInView,
-  } = useInViewOnce();
-  const { ref: netFlowRef, isInView: netFlowInView } = useInViewOnce();
-  const { ref: merchantsRef, isInView: merchantsInView } = useInViewOnce("144px 0px");
-  const { ref: recurringRef, isInView: recurringInView } = useInViewOnce("160px 0px");
-  const { ref: tagsRef, isInView: tagsInView } = useInViewOnce("144px 0px");
-  const { ref: categoryTrendRef, isInView: categoryTrendInView } =
-    useInViewOnce("144px 0px");
-  const { ref: transactionsRef, isInView: transactionsInView } =
-    useInViewOnce("240px 0px");
+  const [moreInsights, setMoreInsights] = useState(false);
+  const [advancedFilterLookups, setAdvancedFilterLookups] = useState(false);
+  const needAdvancedLookups = moreInsights || advancedFilterLookups;
 
   const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(
     null,
@@ -647,15 +654,15 @@ function AnalyticsDashboardLoaded({
   );
   const [isFilterPending, startFilterTransition] = useTransition();
 
-  const workspaceStateQuery = useQuery({
-    ...moneyWorkspaceStateQueryOptions(),
+  const bootstrapQuery = useQuery({
+    ...moneyBootstrapQueryOptions(),
     enabled: canRunMoneyQueries,
   });
 
   const workspaces = useMemo(
     () =>
-      (workspaceStateQuery.data?.workspaces ?? []) as AnalyticsWorkspaceRow[],
-    [workspaceStateQuery.data?.workspaces],
+      (bootstrapQuery.data?.workspaces ?? []) as AnalyticsWorkspaceRow[],
+    [bootstrapQuery.data?.workspaces],
   );
   const resolvedWorkspaceId = useMemo(() => {
     let resolvedId = coreWorkspaceId ?? "";
@@ -687,7 +694,8 @@ function AnalyticsDashboardLoaded({
       canRunMoneyQueries &&
       workspaceReady &&
       !workspaceSyncPending &&
-      Boolean(activeWorkspaceId),
+      Boolean(activeWorkspaceId) &&
+      needAdvancedLookups,
   });
   const recurrenceLookupsQuery = useQuery({
     ...moneyAnalyticsRecurrenceLookupsQueryOptions(activeWorkspaceId),
@@ -695,14 +703,15 @@ function AnalyticsDashboardLoaded({
       canRunMoneyQueries &&
       workspaceReady &&
       !workspaceSyncPending &&
-      Boolean(activeWorkspaceId),
+      Boolean(activeWorkspaceId) &&
+      needAdvancedLookups,
   });
 
   const accounts = useMemo(
     () =>
       (workspaceSyncPending
         ? []
-        : (chartLookupsQuery.data?.moneyAccounts ?? [])) as AnalyticsLookupAccount[],
+        : (chartLookupsQuery.data?.moneyAccounts ?? [])) as MoneyAccountLookup[],
     [workspaceSyncPending, chartLookupsQuery.data?.moneyAccounts],
   );
   const categories = useMemo(
@@ -735,24 +744,21 @@ function AnalyticsDashboardLoaded({
   );
   const lookupsReady = !workspaceSyncPending && chartLookupsQuery.isSuccess;
 
+  const ledgerPreset = useMemo(
+    () => moneyLedgerScopePreset(ledgerScope),
+    [ledgerScope],
+  );
+
+  const pageDefaultFilters = useCallback(
+    () => defaultFiltersForLedgerPreset(ledgerPreset, accounts, categories),
+    [ledgerPreset, accounts, categories],
+  );
+
   const dirty = !analyticsFiltersEqual(draft, applied);
   const analyticsFilterQuery = useMemo(
     () => buildMoneyAnalyticsFilterQuery(applied, ledgerScope, categories),
     [applied, ledgerScope, categories],
   );
-
-  const analyticsEmptyState = useMemo(() => {
-    const preset = moneyLedgerScopePreset(ledgerScope);
-    if (preset) return preset.emptyState;
-    return {
-      title: "No transactions for this view",
-      description:
-        "Adjust filters or widen the date range. With scope All, spending, bills, savings, loans, and investments are included.",
-      icon: "table" as const,
-      accentChartIndex: 1,
-      primaryAction: { href: "/money", label: "Add transaction" },
-    };
-  }, [ledgerScope]);
 
   const filtersDescription = useMemo(() => {
     const scopeLine = moneyLedgerScopeDescription(ledgerScope);
@@ -760,6 +766,49 @@ function AnalyticsDashboardLoaded({
   }, [ledgerScope]);
 
   const autoSyncedWorkspaceRef = useRef<string | null>(null);
+  const seededFiltersKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!lookupsReady) return;
+    const key = `${activeWorkspaceId}:${ledgerScope}`;
+    if (seededFiltersKeyRef.current === key) return;
+    const hadPriorSeed = seededFiltersKeyRef.current != null;
+    seededFiltersKeyRef.current = key;
+
+    // First paint with Ledger "All": keep empty month defaults.
+    if (!ledgerPreset && !hadPriorSeed) return;
+
+    const next = pageDefaultFilters();
+    if (hadPriorSeed) {
+      setDraft((d) => ({
+        ...next,
+        fromDate: d.fromDate,
+        toDate: d.toDate,
+        merchantIds: d.merchantIds,
+        tagIds: d.tagIds,
+        recurrence: d.recurrence,
+        recurrenceSourceIds: d.recurrenceSourceIds,
+      }));
+      setApplied((a) => ({
+        ...next,
+        fromDate: a.fromDate,
+        toDate: a.toDate,
+        merchantIds: a.merchantIds,
+        tagIds: a.tagIds,
+        recurrence: a.recurrence,
+        recurrenceSourceIds: a.recurrenceSourceIds,
+      }));
+    } else {
+      setDraft(next);
+      setApplied(next);
+    }
+  }, [
+    activeWorkspaceId,
+    ledgerPreset,
+    ledgerScope,
+    lookupsReady,
+    pageDefaultFilters,
+  ]);
 
   useEffect(() => {
     if (!resolvedWorkspaceId || resolvedWorkspaceId === (coreWorkspaceId ?? "")) {
@@ -805,6 +854,7 @@ function AnalyticsDashboardLoaded({
           workspaceId: next,
         });
         await refreshWorkspaceCurrency();
+        seededFiltersKeyRef.current = null;
         const fresh = defaultAnalyticsFilters();
         setDraft(fresh);
         setApplied(fresh);
@@ -825,6 +875,7 @@ function AnalyticsDashboardLoaded({
   }, [draft]);
 
   const handleReset = useCallback(() => {
+    seededFiltersKeyRef.current = null;
     const fresh = defaultAnalyticsFilters();
     setDraft(fresh);
     setApplied(fresh);
@@ -833,19 +884,19 @@ function AnalyticsDashboardLoaded({
 
   const loadError =
     error ??
-    (queryErrorMessage(workspaceStateQuery.error)) ??
+    (queryErrorMessage(bootstrapQuery.error)) ??
     (queryErrorMessage(chartLookupsQuery.error)) ??
     (queryErrorMessage(merchantLookupsQuery.error)) ??
     (queryErrorMessage(recurrenceLookupsQuery.error));
 
-  if (!workspaceReady && !workspaceStateQuery.data && !workspaceStateQuery.error) {
+  if (!workspaceReady && !bootstrapQuery.data && !bootstrapQuery.error) {
     return <MoneyAnalyticsPageSkeleton />;
   }
 
   return (
     <>
       <AnalyticsFiltersBar
-        title="Analysis"
+        title="Insights"
         description={filtersDescription}
         viewFilter={{
           menuLabel: "Ledger",
@@ -870,45 +921,27 @@ function AnalyticsDashboardLoaded({
         onWorkspaceChange={handleWorkspaceChange}
         switchingWorkspace={workspaceSyncPending}
         userSub={userSub}
+        onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
       />
 
-      <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3">
-        {loadError ? (
-          <div className="col-span-2 md:col-span-6 lg:col-span-12">
-            <Alert
-              variant="error"
-              title="Couldn’t load analytics"
-              description={loadError}
-            />
-          </div>
-        ) : null}
+      {loadError ? (
+        <div className={MONEY_FULL_SPAN}>
+          <Alert
+            variant="error"
+            title="Couldn’t load analytics"
+            description={loadError}
+          />
+        </div>
+      ) : null}
 
-        {activeWorkspaceId && !workspaceSyncPending ? (
-          <AnalyticsSummaryShell
+      {activeWorkspaceId && !workspaceSyncPending ? (
+        <div className={ANALYTICS_GRID_CLASS}>
+          <AnalyticsInsightsBody
             filterQuery={analyticsFilterQuery}
-            analyticsEmptyState={analyticsEmptyState}
             workspaceKey={activeWorkspaceId}
             defaultCurrency={defaultCurrency}
-            budgetRef={budgetRef}
-            sankeyRef={sankeyRef}
-            spendByCategoryRef={spendByCategoryRef}
-            monthlyColumnsRef={monthlyColumnsRef}
-            netFlowRef={netFlowRef}
-            merchantsRef={merchantsRef}
-            recurringRef={recurringRef}
-            tagsRef={tagsRef}
-            categoryTrendRef={categoryTrendRef}
-            transactionsRef={transactionsRef}
-            budgetInView={budgetInView}
-            sankeyInView={sankeyInView}
-            spendByCategoryInView={spendByCategoryInView}
-            monthlyColumnsInView={monthlyColumnsInView}
-            netFlowInView={netFlowInView}
-            merchantsInView={merchantsInView}
-            recurringInView={recurringInView}
-            tagsInView={tagsInView}
-            categoryTrendInView={categoryTrendInView}
-            transactionsInView={transactionsInView}
+            moreInsights={moreInsights}
+            onExpandMoreInsights={() => setMoreInsights(true)}
             resolved={resolved}
             style={style}
             lookupsReady={lookupsReady}
@@ -917,10 +950,10 @@ function AnalyticsDashboardLoaded({
             tags={tags}
             onChartDrilldown={handleChartDrilldown}
           />
-        ) : (
-          <MoneyAnalyticsChartsSkeleton />
-        )}
-      </div>
+        </div>
+      ) : (
+        <MoneyAnalyticsChartsSkeleton />
+      )}
 
       <AnalyticsChartDrilldownModal
         open={chartDrilldown != null}
@@ -942,14 +975,3 @@ function AnalyticsDashboardLoaded({
   );
 }
 
-export function AnalyticsDashboard({
-  userSub,
-  authenticated,
-}: {
-  userSub?: string;
-  authenticated: boolean;
-}) {
-  return (
-    <AnalyticsDashboardLoaded userSub={userSub} authenticated={authenticated} />
-  );
-}

@@ -1,5 +1,5 @@
-import { MoneyDashboardSkeleton } from "@/components/money-dashboard-skeleton";
+import { MoneyOverviewSkeleton } from "@/components/money-overview-skeleton";
 
 export default function MoneyTabsLoading() {
-  return <MoneyDashboardSkeleton />;
+  return <MoneyOverviewSkeleton />;
 }

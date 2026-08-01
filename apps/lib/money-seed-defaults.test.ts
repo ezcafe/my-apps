@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   findSeedBillsCategoryId,
+  findSystemAccountId,
   MONEY_SEED_BILLS,
   MONEY_SEED_NECESSITIES,
   MONEY_SYSTEM_ACCOUNT_KEYS,
@@ -24,6 +25,23 @@ describe("findSeedBillsCategoryId", () => {
       { id: "n1", name: MONEY_SEED_NECESSITIES, parentId: null },
     ];
     assert.equal(findSeedBillsCategoryId(categories), undefined);
+  });
+});
+
+describe("findSystemAccountId", () => {
+  it("returns the Loans system account id", () => {
+    const accounts = [
+      { id: "a-check", systemKey: null },
+      { id: "a-loan", systemKey: "loan" },
+    ];
+    assert.equal(findSystemAccountId(accounts, "loan"), "a-loan");
+  });
+
+  it("returns undefined when the system account is missing", () => {
+    assert.equal(
+      findSystemAccountId([{ id: "a-check", systemKey: null }], "loan"),
+      undefined,
+    );
   });
 });
 

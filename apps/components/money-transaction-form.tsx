@@ -61,6 +61,7 @@ import {
   moneyCategorySelectGroups,
 } from "@/lib/money-category-ui";
 import {
+  invalidateMoneyWorkspaceQueries,
   moneyFormBudgetStatusQueryOptions,
   moneyFormLookupsQueryOptions,
   moneyWorkspaceStateQueryOptions,
@@ -302,6 +303,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
   const [recurrenceEnabled, setRecurrenceEnabled] = useState(isRecurrenceMode);
   const [recurrenceCadence, setRecurrenceCadence] =
     useState<RecurrenceFormCadence>("monthly");
+  const [showMoreDetails, setShowMoreDetails] = useState(isRecurrenceMode);
 
   const [submitting, setSubmitting] = useState(false);
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
@@ -747,6 +749,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
         input: body,
       });
 
+        await invalidateMoneyWorkspaceQueries(queryClient);
       if (kind === "expense") {
         await refetchMoneyFormBudgetStatus(queryClient, activeWorkspaceId);
       }
@@ -1083,25 +1086,6 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             )
           ) : null}
 
-          {lookupSkeletonVisible ? (
-            <MoneyLookupQuickPickSkeleton
-              legend="Merchant"
-              chips={2}
-              otherChipLabel="Select other merchant"
-            />
-          ) : (
-            <MoneyUsageQuickPick
-              legend="Merchant"
-              ariaLabel="Merchant"
-              items={merchantQuickItems}
-              selectedId={merchantId}
-              onSelect={setSelectedMerchantId}
-              otherLabel="Select other merchant"
-              allowEmpty={merchantPickerReady}
-              emptyMessage={merchantEmptyMessage}
-            />
-          )}
-
           <fieldset className="grid min-w-0 gap-1.5 text-sm">
             <legend className="text-muted">When</legend>
             <div
@@ -1148,6 +1132,38 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
               tabIndex={-1}
             />
           </fieldset>
+
+          {!showMoreDetails ? (
+            <div className="[grid-column:1/-1]">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMoreDetails(true)}
+              >
+                More details
+              </Button>
+            </div>
+          ) : (
+            <>
+          {lookupSkeletonVisible ? (
+            <MoneyLookupQuickPickSkeleton
+              legend="Merchant"
+              chips={2}
+              otherChipLabel="Select other merchant"
+            />
+          ) : (
+            <MoneyUsageQuickPick
+              legend="Merchant"
+              ariaLabel="Merchant"
+              items={merchantQuickItems}
+              selectedId={merchantId}
+              onSelect={setSelectedMerchantId}
+              otherLabel="Select other merchant"
+              allowEmpty={merchantPickerReady}
+              emptyMessage={merchantEmptyMessage}
+            />
+          )}
 
           {lookupSkeletonVisible ? (
             <MoneyTagsFieldSkeleton className="[grid-column:1/-1]" />
@@ -1276,7 +1292,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             />
           </Field>
 
-          <div className="rounded-[var(--radius-md)] border border-border bg-surface-raised p-4 [grid-column:1/-1]">
+          <div className="rounded-[var(--radius-md)] border border-border bg-muted-surface/40 p-4 [grid-column:1/-1]">
             <div className="flex items-start gap-2">
               <Checkbox
                 checked={excludeFromAnalyticsAndBudget}
@@ -1288,10 +1304,10 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
               />
               <div className="min-w-0 flex-1">
                 <span className="text-sm font-medium text-foreground">
-                  Exclude from Analytics and budget
+                  Exclude from Insights and budget
                 </span>
                 <p className="mt-0.5 text-xs text-muted">
-                  Still updates account balance. Hidden from analytics charts and
+                  Still updates account balance. Hidden from insights charts and
                   budget spend.
                 </p>
               </div>
@@ -1299,7 +1315,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
           </div>
 
           {kind !== "transfer" ? (
-            <div className="grid min-w-0 gap-3 rounded-[var(--radius-md)] border border-border bg-surface-raised p-4 [grid-column:1/-1]">
+            <div className="grid min-w-0 gap-3 rounded-[var(--radius-md)] border border-border bg-muted-surface/40 p-4 [grid-column:1/-1]">
               {!isRecurrenceMode ? (
                 <div className="flex items-start gap-2">
                   <Checkbox
@@ -1350,6 +1366,8 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
               Recurring transfers are not supported yet.
             </p>
           ) : null}
+            </>
+          )}
 
           <div className="flex flex-wrap items-center gap-3 [grid-column:1/-1]">
             <Button

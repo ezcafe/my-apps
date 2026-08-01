@@ -42,6 +42,8 @@ export type DueInstallmentRow = {
   dueDate: string;
   paymentMinor: number;
   currency: string;
+  moneyAccountId: string | null;
+  moneyCategoryId: string | null;
 };
 
 export async function listDueInstallments(
@@ -57,6 +59,8 @@ export async function listDueInstallments(
       dueDate: loanScheduleInstallment.dueDate,
       paymentMinor: loanScheduleInstallment.paymentMinor,
       currency: loan.currency,
+      moneyAccountId: loan.moneyAccountId,
+      moneyCategoryId: loan.moneyCategoryId,
     })
     .from(loanInstallmentStatus)
     .innerJoin(

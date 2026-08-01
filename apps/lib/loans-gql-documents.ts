@@ -33,6 +33,10 @@ export const LOANS_LIST_QUERY = /* GraphQL */ `
       percentComplete
       remainingMinor
       nextDueDate
+      nextScheduleInstallmentId
+      nextInstallmentNumber
+      moneyAccountId
+      moneyCategoryId
     }
   }
 `;
@@ -60,6 +64,8 @@ export const LOAN_DETAIL_QUERY = /* GraphQL */ `
       percentComplete
       remainingMinor
       nextDueDate
+      nextScheduleInstallmentId
+      nextInstallmentNumber
       summary {
         totalPaidMinor
         remainingMinor
@@ -100,6 +106,8 @@ export const LOANS_DUE_QUERY = /* GraphQL */ `
       dueDate
       paymentMinor
       currency
+      moneyAccountId
+      moneyCategoryId
     }
   }
 `;

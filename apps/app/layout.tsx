@@ -21,7 +21,7 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Workspace",
   description:
-    "Household workspace — Money, analytics, and more. Quiet Ink UI with Catppuccin Latte (light) and Mocha (dark).",
+    "Household workspace — Money, analytics, and more. Quiet Ink UI with Facebook light and Catppuccin Mocha (dark).",
 };
 
 export default function RootLayout({

@@ -75,6 +75,10 @@ export const loansTypeDefs = /* GraphQL */ `
     percentComplete: Float!
     remainingMinor: BigInt!
     nextDueDate: String
+    nextScheduleInstallmentId: ID
+    nextInstallmentNumber: Int
+    moneyAccountId: ID
+    moneyCategoryId: ID
   }
 
   type LoanDetail {
@@ -90,6 +94,8 @@ export const loansTypeDefs = /* GraphQL */ `
     percentComplete: Float!
     remainingMinor: BigInt!
     nextDueDate: String
+    nextScheduleInstallmentId: ID
+    nextInstallmentNumber: Int
     startDate: String!
     dueDayOfMonth: Int!
     initialRateMonths: Int
@@ -111,6 +117,8 @@ export const loansTypeDefs = /* GraphQL */ `
     dueDate: String!
     paymentMinor: BigInt!
     currency: String!
+    moneyAccountId: ID
+    moneyCategoryId: ID
   }
 
   input LoanCreateInput {

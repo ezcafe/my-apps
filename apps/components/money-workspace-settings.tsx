@@ -23,6 +23,7 @@ import {
 import { MoneySettingsResetSection } from "@/components/money-settings/money-settings-reset";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 
 type WorkspaceRow = {
   id: string;
@@ -100,7 +101,7 @@ export function MoneyWorkspaceSettings() {
   }, [refreshMoneyWorkspaceContext]);
 
   return (
-    <div className="col-span-2 min-w-0 md:col-span-6 lg:col-span-12">
+    <div className={MONEY_FULL_SPAN}>
       {bootstrapErr ? (
         <Alert
           variant="error"

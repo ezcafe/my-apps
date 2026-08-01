@@ -5,6 +5,7 @@ import {
   CHART_CARD_LAYOUT,
 } from "@/components/analytics-chart-layout";
 import { MoneyFilterToolbar } from "@/components/money-page-header";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
@@ -17,17 +18,16 @@ const LEGEND_GRID_SKELETON =
 
 export function MoneyAnalyticsFiltersBarSkeleton() {
   return (
-    <section className="@container mb-4 min-w-0" aria-hidden>
-      <div className="min-w-0">
+    <section className={cn(MONEY_FULL_SPAN, "@container mb-4")} aria-hidden>
+      <div className="flex items-center gap-1.5">
         <Skeleton className="h-7 w-36 rounded-[var(--radius-sm)]" />
-        <Skeleton className="mt-2 h-3 w-12 rounded-[var(--radius-sm)]" />
+        <Skeleton className="size-4 shrink-0 rounded-full" />
       </div>
-
       <div className="mt-4 flex justify-end @md:hidden">
         <Skeleton className="h-10 w-24 shrink-0 rounded-[var(--radius-md)]" />
       </div>
 
-      <MoneyFilterToolbar className="mt-4 hidden @md:block">
+      <MoneyFilterToolbar className="mt-4 hidden @md:flex">
         {Array.from({ length: FILTER_TRIGGER_COUNT }, (_, index) => (
           <Skeleton
             key={`analytics-filter-trigger-${index}`}
@@ -43,8 +43,11 @@ export function MoneyAnalyticsFiltersBarSkeleton() {
   );
 }
 
-const ANALYTICS_GRID_CLASS =
-  "grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3";
+const ANALYTICS_INNER_GRID =
+  "grid grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3";
+
+/** Full-width shell cell that hosts the Insights chart grid. */
+export const ANALYTICS_GRID_CLASS = cn(MONEY_FULL_SPAN, ANALYTICS_INNER_GRID);
 
 function AnalyticsStatsSkeleton() {
   return (
@@ -101,8 +104,8 @@ export function MoneyAnalyticsTransactionsTableSkeleton() {
       <Skeleton className="mb-3 h-6 w-32 rounded-[var(--radius-sm)]" />
       <Skeleton className="mb-3 h-3 w-80 max-w-full rounded-[var(--radius-sm)]" />
       <div className="overflow-hidden rounded-[var(--radius-md)] border border-border">
-        <div className="grid grid-cols-[minmax(6rem,1fr)_minmax(8rem,1.2fr)_minmax(8rem,1.2fr)_minmax(8rem,1fr)_minmax(6rem,0.8fr)_minmax(10rem,1.5fr)_4rem] gap-3 bg-muted-surface px-3 py-2">
-          {Array.from({ length: 7 }, (_, index) => (
+        <div className="grid grid-cols-[minmax(6rem,1fr)_minmax(8rem,1.2fr)_minmax(8rem,1.2fr)_minmax(6rem,0.8fr)_minmax(10rem,1.5fr)_4rem] gap-3 bg-muted-surface px-3 py-2">
+          {Array.from({ length: 6 }, (_, index) => (
             <Skeleton
               key={`analytics-table-head-${index}`}
               className="h-4 w-full rounded-[var(--radius-sm)]"
@@ -113,9 +116,9 @@ export function MoneyAnalyticsTransactionsTableSkeleton() {
           {Array.from({ length: 5 }, (_, rowIndex) => (
             <div
               key={`analytics-table-row-${rowIndex}`}
-              className="grid grid-cols-[minmax(6rem,1fr)_minmax(8rem,1.2fr)_minmax(8rem,1.2fr)_minmax(8rem,1fr)_minmax(6rem,0.8fr)_minmax(10rem,1.5fr)_4rem] gap-3 py-3"
+              className="grid grid-cols-[minmax(6rem,1fr)_minmax(8rem,1.2fr)_minmax(8rem,1.2fr)_minmax(6rem,0.8fr)_minmax(10rem,1.5fr)_4rem] gap-3 py-3"
             >
-              {Array.from({ length: 7 }, (_, colIndex) => (
+              {Array.from({ length: 6 }, (_, colIndex) => (
                 <Skeleton
                   key={`analytics-table-row-${rowIndex}-col-${colIndex}`}
                   className="h-4 w-full rounded-[var(--radius-sm)]"
@@ -136,18 +139,10 @@ export function MoneyAnalyticsTransactionsTableSkeleton() {
   );
 }
 
-function AnalyticsGridContent({ includeTable }: { includeTable: boolean }) {
+function AnalyticsGridContent() {
   return (
     <>
       <AnalyticsStatsSkeleton />
-
-      <AnalyticsChartCardSkeleton
-        className="col-span-2 w-full md:col-span-6 lg:col-span-12"
-        heightClass={CHART_CARD_HEIGHT_TALL}
-        titleWidthClass="w-48"
-        descriptionWidthClass="w-72 max-w-full"
-        showLegend
-      />
 
       <AnalyticsChartCardSkeleton
         className="col-span-2 w-full md:col-span-3 lg:col-span-6"
@@ -161,6 +156,15 @@ function AnalyticsGridContent({ includeTable }: { includeTable: boolean }) {
         heightClass={CHART_CARD_HEIGHT_HALF}
         titleWidthClass="w-40"
         descriptionWidthClass="w-56 max-w-full"
+        showLegend
+      />
+
+      <AnalyticsChartCardSkeleton
+        className="col-span-2 w-full md:col-span-6 lg:col-span-12"
+        heightClass={CHART_CARD_HEIGHT_TALL}
+        titleWidthClass="w-48"
+        descriptionWidthClass="w-72 max-w-full"
+        showLegend
       />
 
       <AnalyticsChartCardSkeleton
@@ -209,9 +213,8 @@ function AnalyticsGridContent({ includeTable }: { includeTable: boolean }) {
         <AnalyticsChartCardSkeleton
           className="w-full"
           heightClass={CHART_CARD_HEIGHT_HALF}
-          titleWidthClass="w-32"
-          descriptionWidthClass="w-40"
-          showLegend
+          titleWidthClass="w-36"
+          descriptionWidthClass="w-52 max-w-full"
         />
       </div>
 
@@ -221,42 +224,39 @@ function AnalyticsGridContent({ includeTable }: { includeTable: boolean }) {
         titleWidthClass="w-36"
         descriptionWidthClass="w-56 max-w-full"
       />
-
-      {includeTable ? <MoneyAnalyticsTransactionsTableSkeleton /> : null}
     </>
   );
 }
 
 export function MoneyAnalyticsPageSkeleton() {
   return (
-    <div
-      className="min-w-0"
-      role="status"
-      aria-busy="true"
-      aria-live="polite"
-      aria-label="Loading analytics page"
-    >
+    <>
       <MoneyAnalyticsFiltersBarSkeleton />
-
-      <div className={ANALYTICS_GRID_CLASS}>
-        <AnalyticsGridContent includeTable />
+      <div
+        className={ANALYTICS_GRID_CLASS}
+        role="status"
+        aria-busy="true"
+        aria-live="polite"
+        aria-label="Loading analytics page"
+      >
+        <AnalyticsGridContent />
       </div>
-    </div>
+    </>
   );
 }
 
 /** Filters bar + transactions table — used by ledger routes (spending, bills, savings). */
 export function MoneyLedgerPageSkeleton() {
   return (
-    <div
-      className="min-w-0"
-      role="status"
-      aria-busy="true"
-      aria-live="polite"
-      aria-label="Loading ledger"
-    >
+    <>
       <MoneyAnalyticsFiltersBarSkeleton />
-      <div className={ANALYTICS_GRID_CLASS}>
+      <div
+        className={ANALYTICS_GRID_CLASS}
+        role="status"
+        aria-busy="true"
+        aria-live="polite"
+        aria-label="Loading ledger"
+      >
         <AnalyticsChartCardSkeleton
           className="col-span-2 w-full md:col-span-6 lg:col-span-12"
           heightClass={CHART_CARD_HEIGHT_TALL}
@@ -266,20 +266,20 @@ export function MoneyLedgerPageSkeleton() {
         />
         <MoneyAnalyticsTransactionsTableSkeleton />
       </div>
-    </div>
+    </>
   );
 }
 
 export function MoneyAnalyticsChartsSkeleton() {
   return (
     <div
-      className={`col-span-2 md:col-span-6 lg:col-span-12 ${ANALYTICS_GRID_CLASS}`}
+      className={cn(MONEY_FULL_SPAN, ANALYTICS_INNER_GRID)}
       role="status"
       aria-busy="true"
       aria-live="polite"
       aria-label="Loading analytics charts"
     >
-      <AnalyticsGridContent includeTable={false} />
+      <AnalyticsGridContent />
     </div>
   );
 }

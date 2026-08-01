@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode, SVGProps } from "react";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cn } from "@/lib/cn";
 import {
   useMoneySectionTabVisibility,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/money-section-tab-visibility";
 
 type MoneySectionTabIconId =
+  | "home"
   | "new"
   | "analytics"
   | "spending"
@@ -19,6 +21,19 @@ type MoneySectionTabIconId =
   | "investments"
   | "import"
   | "settings";
+
+function IconHome(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 function IconNew(props: SVGProps<SVGSVGElement>) {
   return (
@@ -170,6 +185,7 @@ const moneySectionTabIcons: Record<
   MoneySectionTabIconId,
   (props: SVGProps<SVGSVGElement>) => ReactNode
 > = {
+  home: IconHome,
   new: IconNew,
   analytics: IconAnalytics,
   spending: IconSpending,
@@ -181,35 +197,24 @@ const moneySectionTabIcons: Record<
   settings: IconSettings,
 };
 
-const CHART_DOT = [
-  "bg-chart-0",
-  "bg-chart-1",
-  "bg-chart-2",
-  "bg-chart-3",
-  "bg-chart-4",
-  "bg-chart-5",
-  "bg-chart-6",
-  "bg-chart-7",
-] as const;
-
 const tabs: Array<{
   href: string;
   label: string;
   icon: MoneySectionTabIconId;
   exact: boolean;
-  accentIndex: number;
   /** When set, tab is hidden unless user enabled it in Settings. */
   visibilityKey?: MoneyOptionalSectionTabKey;
 }> = [
-  { href: "/money", label: "New", icon: "new", exact: true, accentIndex: 0 },
-  { href: "/money/analytics", label: "Analytics", icon: "analytics", exact: false, accentIndex: 1 },
-  { href: "/money/spending", label: "Spending", icon: "spending", exact: false, accentIndex: 0 },
-  { href: "/money/bills", label: "Bills", icon: "bills", exact: false, accentIndex: 5, visibilityKey: "bills" },
-  { href: "/money/savings", label: "Savings", icon: "savings", exact: false, accentIndex: 3, visibilityKey: "savings" },
-  { href: "/money/loans", label: "Loans", icon: "loans", exact: false, accentIndex: 6, visibilityKey: "loans" },
-  { href: "/money/investments", label: "Invest", icon: "investments", exact: false, accentIndex: 4, visibilityKey: "investments" },
-  { href: "/money/import", label: "Import", icon: "import", exact: false, accentIndex: 2, visibilityKey: "import" },
-  { href: "/money/settings", label: "Settings", icon: "settings", exact: false, accentIndex: 7 },
+  { href: "/money", label: "Home", icon: "home", exact: true },
+  { href: "/money/new", label: "Add", icon: "new", exact: true },
+  { href: "/money/analytics", label: "Insights", icon: "analytics", exact: false },
+  { href: "/money/spending", label: "Spending", icon: "spending", exact: false },
+  { href: "/money/bills", label: "Bills", icon: "bills", exact: false, visibilityKey: "bills" },
+  { href: "/money/savings", label: "Savings", icon: "savings", exact: false, visibilityKey: "savings" },
+  { href: "/money/loans", label: "Loans", icon: "loans", exact: false, visibilityKey: "loans" },
+  { href: "/money/investments", label: "Invest", icon: "investments", exact: false, visibilityKey: "investments" },
+  { href: "/money/import", label: "Import", icon: "import", exact: false, visibilityKey: "import" },
+  { href: "/money/settings", label: "Settings", icon: "settings", exact: false },
 ];
 
 /**
@@ -226,16 +231,18 @@ export function MoneySectionTabs() {
     <nav
       role="tablist"
       aria-label="Money sections"
-      className="-mx-1 flex min-w-0 gap-0.5 overflow-x-auto border-b border-border px-1 pb-px [scrollbar-width:thin]"
+      className={cn(
+        MONEY_FULL_SPAN,
+        "-mx-1 flex gap-0.5 overflow-x-auto border-b border-border px-1 pb-px [scrollbar-width:thin]",
+      )}
     >
       {tabs
         .filter(({ visibilityKey }) => isTabVisible(visibilityKey))
-        .map(({ href, label, icon, exact, accentIndex }) => {
+        .map(({ href, label, icon, exact }) => {
           const active = exact
-            ? pathname === "/money"
+            ? pathname === href
             : pathname === href || pathname.startsWith(`${href}/`);
           const Icon = moneySectionTabIcons[icon];
-          const dotClass = CHART_DOT[accentIndex] ?? CHART_DOT[0];
 
           return (
             <Link
@@ -250,16 +257,7 @@ export function MoneySectionTabs() {
                   : "border-transparent text-muted hover:border-border hover:text-foreground",
               )}
             >
-              <span className="relative">
-                <Icon className="size-5 shrink-0" />
-                <span
-                  className={cn(
-                    "absolute -end-0.5 -top-0.5 size-1.5 rounded-full ring-1 ring-background md:hidden",
-                    dotClass,
-                  )}
-                  aria-hidden
-                />
-              </span>
+              <Icon className="size-5 shrink-0" />
               <span className="max-w-[4.5rem] truncate text-[10px] font-medium leading-tight md:hidden">
                 {label}
               </span>

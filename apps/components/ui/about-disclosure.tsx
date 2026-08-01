@@ -1,50 +1,57 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId } from "react";
 import { cn } from "@/lib/cn";
 
-/** Collapsed-by-default help / description disclosure (“About”). */
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden
+      className={className}
+    >
+      <path
+        fillRule="evenodd"
+        d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM9.25 7.25a.75.75 0 0 0 1.5 0 .75.75 0 0 0-1.5 0ZM10 9a.75.75 0 0 0-.75.75v3.5a.75.75 0 0 0 1.5 0v-3.5A.75.75 0 0 0 10 9Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Page/section help: info icon beside the title; description appears in a
+ * hover/focus tooltip (keyboard via focus-within; tap focuses on touch).
+ */
 export function AboutDisclosure({
   children,
-  label = "About",
+  label = "About this page",
   className,
 }: {
   children: ReactNode;
   label?: string;
   className?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const tooltipId = useId();
 
   return (
-    <div className={cn("mt-1", className)}>
+    <span className={cn("group relative inline-flex shrink-0", className)}>
       <button
         type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1 text-xs font-medium text-muted transition-colors duration-200 hover:text-foreground fx-press"
+        aria-label={label}
+        aria-describedby={tooltipId}
+        className="inline-flex size-7 items-center justify-center rounded-[var(--radius-sm)] text-muted transition-colors duration-200 hover:bg-muted-surface hover:text-foreground focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-hit-40 fx-press"
       >
-        {label}
-        <svg
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          aria-hidden
-          className={cn(
-            "size-3.5 shrink-0 transition-transform duration-200",
-            open && "rotate-180",
-          )}
-        >
-          <path
-            fillRule="evenodd"
-            d="M5.22 7.22a.75.75 0 0 1 1.06 0L10 10.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.28a.75.75 0 0 1 0-1.06Z"
-            clipRule="evenodd"
-          />
-        </svg>
+        <InfoIcon className="size-4" />
       </button>
-      {open ? (
-        <div className="mt-2 max-w-prose text-sm leading-6 text-muted fx-fade-in">
-          {children}
-        </div>
-      ) : null}
-    </div>
+      <span
+        id={tooltipId}
+        role="tooltip"
+        className="pointer-events-none absolute left-0 top-full z-50 mt-1.5 w-max max-w-[min(20rem,calc(100vw-2rem))] rounded-[var(--radius-md)] border border-border bg-surface px-3 py-2 text-left text-sm leading-5 text-muted shadow-[var(--shadow-md)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        {children}
+      </span>
+    </span>
   );
 }

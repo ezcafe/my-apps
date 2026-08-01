@@ -36,6 +36,10 @@ export type LoanListItem = {
   percentComplete: number;
   remainingMinor: number;
   nextDueDate: string | null;
+  nextScheduleInstallmentId: string | null;
+  nextInstallmentNumber: number | null;
+  moneyAccountId: string | null;
+  moneyCategoryId: string | null;
 };
 
 export type LoanDetail = LoanListItem & {
@@ -45,8 +49,6 @@ export type LoanDetail = LoanListItem & {
   rateAfterInitialBps: number | null;
   paymentAfterRateChangeMinor: number | null;
   collateralValueMinor: number | null;
-  moneyAccountId: string | null;
-  moneyCategoryId: string | null;
   summary: {
     totalPaidMinor: number;
     remainingMinor: number;
@@ -83,6 +85,8 @@ export type DueInstallment = {
   dueDate: string;
   paymentMinor: number;
   currency: string;
+  moneyAccountId: string | null;
+  moneyCategoryId: string | null;
 };
 
 export const loansKeys = {

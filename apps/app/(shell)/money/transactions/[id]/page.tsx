@@ -1,5 +1,5 @@
 import { PageHeading } from "@/components/page-heading";
-import { MoneyWorkspaceProvider } from "@/components/money-workspace-provider";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { TransactionEditFormLazy } from "@/components/transaction-edit-form-lazy";
 
 export default async function MoneyTransactionEditPage({
@@ -15,14 +15,12 @@ export default async function MoneyTransactionEditPage({
   return (
     <>
       <PageHeading
-        className="col-span-2 md:col-span-6 lg:col-span-12"
+        className={MONEY_FULL_SPAN}
         title="Edit transaction"
         description="Update fields for this workspace transaction."
       />
-      <div className="col-span-2 md:col-span-6 lg:col-span-12">
-        <MoneyWorkspaceProvider>
-          <TransactionEditFormLazy transactionId={id} returnTo={returnTo} />
-        </MoneyWorkspaceProvider>
+      <div className={MONEY_FULL_SPAN}>
+        <TransactionEditFormLazy transactionId={id} returnTo={returnTo} />
       </div>
     </>
   );

@@ -12,14 +12,14 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(payload.title ?? "Loan payment due", {
       body: payload.body,
       icon: "/favicon.ico",
-      data: { url: payload.url ?? "/loans" },
+      data: { url: payload.url ?? "/money/loans" },
     }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url ?? "/loans";
+  const url = event.notification.data?.url ?? "/money/loans";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {

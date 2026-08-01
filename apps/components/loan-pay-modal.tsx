@@ -1,7 +1,7 @@
 "use client";
 
 import { toUserFacingMessage } from "@/lib/user-facing-error";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotify } from "@/components/notification-provider";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
 import { loansGraphQLRequest } from "@/lib/loans-gql-client";
 import { LOAN_INSTALLMENT_PAY_MUTATION } from "@/lib/loans-gql-documents";
 import { loansKeys } from "@/lib/loans-query-options";
+import { findSystemAccountId } from "@/lib/money-seed-defaults";
 import { moneyBootstrapQueryOptions } from "@/lib/money-query-options";
 
 export function LoanPayModal({
@@ -52,10 +53,22 @@ export function LoanPayModal({
   const categories =
     moneyBootstrap.data?.categories.filter((c) => c.kind === "expense") ?? [];
 
+  const resolvedDefaultAccountId = useMemo(() => {
+    const loansAccountId = findSystemAccountId(accounts, "loan");
+    if (loansAccountId) return loansAccountId;
+    if (
+      defaultAccountId &&
+      accounts.some((account) => account.id === defaultAccountId)
+    ) {
+      return defaultAccountId;
+    }
+    return defaultAccountId ?? "";
+  }, [accounts, defaultAccountId]);
+
   const syncKey = open
     ? [
         scheduleInstallmentId,
-        defaultAccountId ?? "",
+        resolvedDefaultAccountId,
         defaultCategoryId ?? "",
         String(paymentMinor),
         currency,
@@ -65,7 +78,7 @@ export function LoanPayModal({
     : null;
 
   const [formKey, setFormKey] = useState(syncKey);
-  const [accountId, setAccountId] = useState(defaultAccountId ?? "");
+  const [accountId, setAccountId] = useState(resolvedDefaultAccountId);
   const [categoryId, setCategoryId] = useState(defaultCategoryId ?? "");
   const [amountMajor, setAmountMajor] = useState(() =>
     minorToMajorInput(paymentMinor, currency),
@@ -75,7 +88,7 @@ export function LoanPayModal({
 
   if (open && syncKey !== formKey) {
     setFormKey(syncKey);
-    setAccountId(defaultAccountId ?? "");
+    setAccountId(resolvedDefaultAccountId);
     setCategoryId(defaultCategoryId ?? "");
     setAmountMajor(minorToMajorInput(paymentMinor, currency));
     setNotes(`Loan: ${loanName} #${installmentNumber}`);

@@ -1,14 +1,14 @@
 import dynamic from "next/dynamic";
-import { MoneyDashboardSkeleton } from "@/components/money-dashboard-skeleton";
+import { MoneyOverviewSkeleton } from "@/components/money-overview-skeleton";
 
-const MoneyDashboardLazy = dynamic(
+const MoneyOverviewLazy = dynamic(
   () =>
-    import("@/components/money-dashboard").then((mod) => ({
-      default: mod.MoneyDashboard,
+    import("@/components/money-overview").then((mod) => ({
+      default: mod.MoneyOverview,
     })),
-  { loading: () => <MoneyDashboardSkeleton /> },
+  { loading: () => <MoneyOverviewSkeleton /> },
 );
 
 export default function MoneyPage() {
-  return <MoneyDashboardLazy />;
+  return <MoneyOverviewLazy />;
 }

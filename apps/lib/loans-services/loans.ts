@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db, runInWorkspace } from "@/db";
 import {
   loan,
@@ -38,6 +38,10 @@ export type SerializedLoanListItem = {
   percentComplete: number;
   remainingMinor: number;
   nextDueDate: string | null;
+  nextScheduleInstallmentId: string | null;
+  nextInstallmentNumber: number | null;
+  moneyAccountId: string | null;
+  moneyCategoryId: string | null;
 };
 
 export type SerializedLoanDetail = SerializedLoanListItem & {
@@ -47,8 +51,6 @@ export type SerializedLoanDetail = SerializedLoanListItem & {
   rateAfterInitialBps: number | null;
   paymentAfterRateChangeMinor: number | null;
   collateralValueMinor: number | null;
-  moneyAccountId: string | null;
-  moneyCategoryId: string | null;
   summary: {
     totalPaidMinor: number;
     remainingMinor: number;
@@ -349,7 +351,11 @@ async function loadInstallmentStates(loanId: string) {
 function serializeListItem(
   row: typeof loan.$inferSelect,
   summary: ReturnType<typeof computeLoanSummary>,
-  nextDueDate: string | null,
+  nextPending: {
+    dueDate: string;
+    scheduleInstallmentId: string;
+    installmentNumber: number;
+  } | null,
 ): SerializedLoanListItem {
   return {
     id: row.id,
@@ -363,7 +369,11 @@ function serializeListItem(
     status: row.status,
     percentComplete: summary.percentComplete,
     remainingMinor: summary.remainingMinor,
-    nextDueDate,
+    nextDueDate: nextPending?.dueDate ?? null,
+    nextScheduleInstallmentId: nextPending?.scheduleInstallmentId ?? null,
+    nextInstallmentNumber: nextPending?.installmentNumber ?? null,
+    moneyAccountId: row.moneyAccountId,
+    moneyCategoryId: row.moneyCategoryId,
   };
 }
 
@@ -374,7 +384,10 @@ export async function listLoans(
     .select()
     .from(loan)
     .where(
-      and(eq(loan.workspaceId, ctx.workspaceId), eq(loan.status, "active")),
+      and(
+        eq(loan.workspaceId, ctx.workspaceId),
+        inArray(loan.status, ["active", "paid_off"]),
+      ),
     )
     .orderBy(asc(loan.name));
 
@@ -395,7 +408,17 @@ export async function listLoans(
     });
     const nextPending = installments.find((i) => i.status === "pending");
     out.push(
-      serializeListItem(row, summary, nextPending?.dueDate ?? null),
+      serializeListItem(
+        row,
+        summary,
+        nextPending
+          ? {
+              dueDate: nextPending.dueDate,
+              scheduleInstallmentId: nextPending.scheduleInstallmentId,
+              installmentNumber: nextPending.installmentNumber,
+            }
+          : null,
+      ),
     );
   }
   return out;
@@ -433,7 +456,17 @@ export async function getLoanDetail(
   });
 
   const nextPending = installments.find((i) => i.status === "pending");
-  const base = serializeListItem(row, summary, nextPending?.dueDate ?? null);
+  const base = serializeListItem(
+    row,
+    summary,
+    nextPending
+      ? {
+          dueDate: nextPending.dueDate,
+          scheduleInstallmentId: nextPending.scheduleInstallmentId,
+          installmentNumber: nextPending.installmentNumber,
+        }
+      : null,
+  );
 
   return {
     ...base,
@@ -443,8 +476,6 @@ export async function getLoanDetail(
     rateAfterInitialBps: row.rateAfterInitialBps,
     paymentAfterRateChangeMinor: row.paymentAfterRateChangeMinor,
     collateralValueMinor: row.collateralValueMinor,
-    moneyAccountId: row.moneyAccountId,
-    moneyCategoryId: row.moneyCategoryId,
     summary: {
       totalPaidMinor: summary.totalPaidMinor,
       remainingMinor: summary.remainingMinor,

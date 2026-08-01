@@ -61,6 +61,17 @@ const nextConfig: NextConfig = {
       { source: "/loans", destination: "/money/loans", permanent: true },
       { source: "/loans/new", destination: "/money/loans/new", permanent: true },
       { source: "/loans/settings", destination: "/money/loans/settings", permanent: true },
+      { source: "/loans/manage", destination: "/money/loans", permanent: true },
+      {
+        source: "/money/loans/manage",
+        destination: "/money/loans",
+        permanent: true,
+      },
+      {
+        source: "/money/investments/portfolio",
+        destination: "/money/investments",
+        permanent: true,
+      },
       { source: "/money/transactions", destination: "/money/spending", permanent: true },
       { source: "/money/transactions/:path*", destination: "/money/spending", permanent: true },
     ];

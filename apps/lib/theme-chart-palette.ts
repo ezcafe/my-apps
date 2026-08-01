@@ -3,14 +3,14 @@ import type { StylePreset } from "@/components/theme-provider";
 /** Chart series colors — mirror CSS `--chart-0` … `--chart-7` in app/globals.css */
 
 export const CHART_PALETTE_QUIET_LIGHT = [
-  "#1e66f5", // blue
-  "#179299", // teal
-  "#fe640b", // peach
-  "#40a02b", // green
-  "#8839ef", // mauve
-  "#d20f39", // red
-  "#04a5e5", // sky
-  "#9ca0b0", // overlay0
+  "#1877f2", // blue
+  "#00b2ff", // cyan
+  "#f7923b", // orange
+  "#31a24c", // green
+  "#8b5cf6", // violet
+  "#f02849", // red
+  "#54c7ec", // sky
+  "#8a8d91", // gray
 ] as const;
 
 export const CHART_PALETTE_QUIET_DARK = [
@@ -57,12 +57,12 @@ export function colorByIndex(
   return pal[index % pal.length] ?? pal[0];
 }
 
-/** Catppuccin red for expense series (e.g. cumulative flow). */
+/** Expense-series red (e.g. cumulative flow). */
 const EXPENSE_HOT_PASTEL: Record<
   StylePreset,
   { light: string; dark: string }
 > = {
-  quiet: { light: "#d20f39", dark: "#f38ba8" },
+  quiet: { light: "#f02849", dark: "#f38ba8" },
 };
 
 export function chartExpenseHotPastel(

@@ -229,18 +229,18 @@ export function MoneySettingsRecurrenceSection() {
       <SettingsSection
         id="money-settings-recurrence-page"
         title="Recurrence"
-        description="Manage existing recurring schedules. New ones are created from the Money page."
+        description="Manage existing recurring schedules. New ones are created from Add."
       >
         <div className="rounded-[var(--radius-md)] border border-border bg-background px-4 py-4 text-sm leading-6 text-muted">
           <p>
-            To add a recurring transaction, open the{" "}
+            To add a recurring transaction, open{" "}
             <Link
-              href="/money"
+              href="/money/new"
               className="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors duration-150 hover:decoration-foreground"
             >
-              Money
+              Add
             </Link>{" "}
-            page and:
+            and:
           </p>
           <ol className="mt-2 list-decimal space-y-1 pl-5">
             <li>Fill in the transaction details (amount, account, category, and so on).</li>
@@ -248,8 +248,8 @@ export function MoneySettingsRecurrenceSection() {
             <li>Choose how often it repeats (daily, monthly, or yearly).</li>
             <li>Save — the first entry is recorded and future runs are scheduled automatically.</li>
           </ol>
-          <Link href="/money" className={`${primaryBtnCls} mt-4`}>
-            Go to Money
+          <Link href="/money/new" className={`${primaryBtnCls} mt-4`}>
+            Go to Add
           </Link>
         </div>
 
@@ -262,10 +262,10 @@ export function MoneySettingsRecurrenceSection() {
             <p className="mt-5 text-sm text-muted">
               No recurring schedules yet.{" "}
               <Link
-                href="/money"
+                href="/money/new"
                 className="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors duration-150 hover:decoration-foreground"
               >
-                Add one on the Money page
+                Add one from Add
               </Link>
               .
             </p>

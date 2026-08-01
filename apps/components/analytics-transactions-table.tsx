@@ -126,10 +126,6 @@ export function AnalyticsTransactionsTable({
     [accounts],
   );
   const categoryById = useMemo(() => moneyCategoryById(categories), [categories]);
-  const tagById = useMemo(
-    () => new Map(tags.map((t) => [t.id, t])),
-    [tags],
-  );
 
   const transactionsQuery = useQuery({
     ...moneyTransactionsQueryOptions(
@@ -170,7 +166,7 @@ export function AnalyticsTransactionsTable({
   const somePageSelected =
     !allPageSelected && pageIds.some((id) => selectedIds.has(id));
 
-  const columnCount = 7;
+  const columnCount = selectable ? 7 : 6;
 
   const toggleRow = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -313,19 +309,6 @@ export function AnalyticsTransactionsTable({
             ) : null}
           </div>
         </td>
-        <td className="max-w-[12rem] px-3 py-2">
-          {tx.tagIds.length === 0 ? (
-            <span className="text-muted">—</span>
-          ) : (
-            <div className="flex flex-wrap gap-1">
-              {tx.tagIds.map((tagId) => {
-                const tag = tagById.get(tagId);
-                if (!tag) return null;
-                return <Tag key={tagId}>{tag.name}</Tag>;
-              })}
-            </div>
-          )}
-        </td>
         <td
           className="whitespace-nowrap px-3 py-2 text-right tabular-nums"
           style={
@@ -337,21 +320,19 @@ export function AnalyticsTransactionsTable({
         <td className="max-w-[14rem] truncate px-3 py-2 text-muted">
           {truncateNote(tx.notes)}
         </td>
-        {!selectable ? (
-          <td className="whitespace-nowrap px-3 py-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="font-medium text-foreground underline-offset-2 hover:underline"
-              onMouseEnter={preloadTransactionEditForm}
-              onFocus={preloadTransactionEditForm}
-              onClick={() => setEditTransactionId(tx.id)}
-            >
-              Edit
-            </Button>
-          </td>
-        ) : null}
+        <td className="whitespace-nowrap px-3 py-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="font-medium text-foreground underline-offset-2 hover:underline"
+            onMouseEnter={preloadTransactionEditForm}
+            onFocus={preloadTransactionEditForm}
+            onClick={() => setEditTransactionId(tx.id)}
+          >
+            Edit
+          </Button>
+        </td>
       </tr>
     );
   }
@@ -363,6 +344,7 @@ export function AnalyticsTransactionsTable({
       cat != null ? moneyCategoryLabel(cat, categoryById) : "—";
     const amountLabel = formatMinor(tx.amountMinor, currency);
     const dateLabel = formatDate(tx.occurredAt, { omitYear: true });
+    const noteLabel = truncateNote(tx.notes);
     const isSelected = selectedIds.has(tx.id);
 
     return (
@@ -392,28 +374,20 @@ export function AnalyticsTransactionsTable({
             <span className="shrink-0 text-xs text-muted tabular-nums">{dateLabel}</span>
           </div>
           <p className="mt-1 truncate text-sm">{categoryLabel}</p>
-          {tx.tagIds.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {tx.tagIds.map((tagId) => {
-                const tag = tagById.get(tagId);
-                if (!tag) return null;
-                return <Tag key={tagId}>{tag.name}</Tag>;
-              })}
-            </div>
+          {noteLabel !== "—" ? (
+            <p className="mt-1 truncate text-sm text-muted">{noteLabel}</p>
           ) : null}
-          {!selectable ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="md"
-              className="mt-3 w-full"
-              onMouseEnter={preloadTransactionEditForm}
-              onFocus={preloadTransactionEditForm}
-              onClick={() => setEditTransactionId(tx.id)}
-            >
-              Edit
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            className="mt-3 w-full"
+            onMouseEnter={preloadTransactionEditForm}
+            onFocus={preloadTransactionEditForm}
+            onClick={() => setEditTransactionId(tx.id)}
+          >
+            Edit
+          </Button>
         </div>
       </div>
     );
@@ -441,7 +415,7 @@ export function AnalyticsTransactionsTable({
     description: "Adjust filters or add transactions on the ledger.",
     action:
       variant === "standalone"
-        ? { href: "/money", label: "Add transaction" }
+        ? { href: "/money/new", label: "Add transaction" }
         : { href: "/money/spending", label: "View transactions" },
   };
 
@@ -461,7 +435,7 @@ export function AnalyticsTransactionsTable({
         accentChartIndex: undefined as number | undefined,
         primaryAction:
           variant === "standalone"
-            ? { href: "/money", label: "Add transaction" }
+            ? { href: "/money/new", label: "Add transaction" }
             : undefined,
         secondaryAction:
           variant === "analytics"
@@ -580,9 +554,6 @@ export function AnalyticsTransactionsTable({
                           <th scope="col" className="px-3 py-2 font-medium">
                             Category
                           </th>
-                          <th scope="col" className="px-3 py-2 font-medium">
-                            Tags
-                          </th>
                           <th
                             scope="col"
                             className="px-3 py-2 font-medium text-right"
@@ -600,11 +571,9 @@ export function AnalyticsTransactionsTable({
                           <th scope="col" className="px-3 py-2 font-medium">
                             Note
                           </th>
-                          {!selectable ? (
-                            <th scope="col" className="px-3 py-2 font-medium">
-                              <span className="sr-only">Actions</span>
-                            </th>
-                          ) : null}
+                          <th scope="col" className="px-3 py-2 font-medium">
+                            <span className="sr-only">Actions</span>
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">

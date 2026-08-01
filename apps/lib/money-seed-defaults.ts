@@ -63,6 +63,14 @@ export function findSeedBillsCategoryId(
   )?.id;
 }
 
+/** Resolve a seeded system account id from loaded account rows. */
+export function findSystemAccountId(
+  accounts: ReadonlyArray<{ id: string; systemKey?: string | null }>,
+  systemKey: MoneySystemAccountKey,
+): string | undefined {
+  return accounts.find((a) => a.systemKey === systemKey)?.id;
+}
+
 type MoneyTx = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
 
 /** Idempotent: ensure Bills exists under Necessities (creates Necessities if missing). */

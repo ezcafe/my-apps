@@ -20,6 +20,7 @@ import { Modal } from "@/components/ui/modal";
 import { MultiSelect, type MultiSelectItem } from "@/components/ui/multi-select";
 import { Select } from "@/components/ui/select";
 import { MoneyFilterToolbar, MoneyPageHeader } from "@/components/money-page-header";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cn } from "@/lib/cn";
 import {
   moneyCategoryById,
@@ -74,6 +75,8 @@ export type AnalyticsLookupAccount = {
   id: string;
   name: string;
   currency?: string;
+  /** Present on chart/form lookups; used to pre-select ledger page defaults. */
+  type?: string;
 };
 export type AnalyticsLookupMerchant = { id: string; name: string };
 export type AnalyticsLookupTag = { id: string; name: string };
@@ -742,6 +745,7 @@ export function AnalyticsFiltersBar({
   onWorkspaceChange,
   switchingWorkspace,
   userSub,
+  onAdvancedFiltersNeeded,
 }: {
   title: string;
   description: string;
@@ -763,17 +767,27 @@ export function AnalyticsFiltersBar({
   onWorkspaceChange: (workspaceId: string) => void;
   switchingWorkspace: boolean;
   userSub: string | undefined;
+  /** Fires once when Date/Merchants/Tags/Recurrence (More) is opened. */
+  onAdvancedFiltersNeeded?: () => void;
 }) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [morePanelMounted, setMorePanelMounted] = useState(false);
+  const advancedFiltersSignaled = useRef(false);
   const categoryById = useMemo(() => moneyCategoryById(categories), [categories]);
   const categoryGroupsByKind = useMemo(
     () => moneyCategoryGroupsByKind(categories),
     [categories],
   );
   const direction = deriveDirection(value.kinds);
+
+  useEffect(() => {
+    if (advancedFiltersSignaled.current) return;
+    if (!morePanelMounted && !mobileMoreOpen) return;
+    advancedFiltersSignaled.current = true;
+    onAdvancedFiltersNeeded?.();
+  }, [mobileMoreOpen, morePanelMounted, onAdvancedFiltersNeeded]);
 
   const accountItems = useMemo<MultiSelectItem[]>(
     () => accounts.map((a) => ({ id: a.id, label: a.name })),
@@ -902,7 +916,7 @@ export function AnalyticsFiltersBar({
 
   return (
     <section
-      className="@container mb-4 fx-fade-in"
+      className={cn(MONEY_FULL_SPAN, "@container mb-4 fx-fade-in")}
       aria-label="Analytics filters"
       aria-labelledby="analytics-filters-heading"
     >
@@ -1018,7 +1032,7 @@ export function AnalyticsFiltersBar({
         </Modal>
       ) : null}
 
-      <MoneyFilterToolbar className="mt-4 hidden @md:block">
+      <MoneyFilterToolbar className="mt-4 hidden @md:flex">
           {viewFilter ? (
             <FilterMenu
               id="view"
@@ -1180,7 +1194,7 @@ export function MoneyViewFiltersBar({
 
   return (
     <section
-      className="@container mb-4 fx-fade-in"
+      className={cn(MONEY_FULL_SPAN, "@container mb-4 fx-fade-in")}
       aria-label={`${viewFilter.menuLabel} filters`}
     >
       <MoneyPageHeader title={title} description={description} />

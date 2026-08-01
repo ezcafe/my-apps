@@ -3,8 +3,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
-  Design tokens: Quiet Ink structure + Catppuccin palettes
-  (Latte light / Mocha dark). Hexes from https://github.com/catppuccin/palette
+  Design tokens: Quiet Ink structure + Facebook light / Catppuccin Mocha dark.
+  Light hexes mirror Meta/Facebook UI (brand blue #1877F2, wash #F0F2F5).
+  Dark hexes from https://github.com/catppuccin/palette (Mocha).
   Chart hexes mirror lib/theme-chart-palette.ts (chartPaletteFor).
   Default (SSR / no JS): data-style="quiet" — matches FOUC script + ThemeProvider.
 */
@@ -14,61 +15,61 @@
   --font-plex-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
-/* ---- Catppuccin Latte (light) ---- */
+/* ---- Facebook (light) ---- */
 :root[data-style="quiet"],
 :root:not([data-style]) {
   color-scheme: light;
   --radius: 0.75rem;
   --radius-inner: 0.4375rem;
-  --shadow-sm: 0 1px 2px rgb(76 79 105 / 0.06), 0 4px 12px -4px rgb(76 79 105 / 0.1);
-  --shadow-md: 0 1px 2px rgb(76 79 105 / 0.06), 0 8px 24px -12px rgb(76 79 105 / 0.14);
+  --shadow-sm: 0 1px 2px rgb(28 30 33 / 0.06), 0 4px 12px -4px rgb(28 30 33 / 0.1);
+  --shadow-md: 0 1px 2px rgb(28 30 33 / 0.06), 0 8px 24px -12px rgb(28 30 33 / 0.14);
   --font-heading: var(--font-plex-sans);
   --font-body: var(--font-plex-sans);
   --space-step: 0.5rem;
 
-  --background: #eff1f5; /* base */
-  --foreground: #4c4f69; /* text */
-  --muted: #6c6f85; /* subtext0 */
-  --surface: #e6e9ef; /* mantle */
-  --border: #bcc0cc; /* surface1 */
-  --muted-surface: #ccd0da; /* surface0 */
+  --background: #f0f2f5; /* wash */
+  --foreground: #1c1e21; /* primary text */
+  --muted: #65676b; /* secondary text */
+  --surface: #ffffff; /* card / panel */
+  --border: #ced0d4; /* divider */
+  --muted-surface: #e4e6eb; /* wash elevated */
 
-  --accent: #1e66f5; /* blue */
-  --accent-hover: #7287fd; /* lavender */
-  --accent-foreground: #eff1f5; /* base */
-  --ring: #1e66f5;
+  --accent: #1877f2; /* brand blue */
+  --accent-hover: #166fe5;
+  --accent-foreground: #ffffff;
+  --ring: #1877f2;
 
-  --destructive: #d20f39; /* red */
+  --destructive: #f02849; /* notification red */
   --danger: var(--destructive);
-  --destructive-foreground: #eff1f5;
-  --destructive-muted-bg: color-mix(in oklab, #d20f39 10%, var(--surface));
-  --destructive-muted-border: color-mix(in oklab, #d20f39 28%, var(--border));
-  --destructive-muted-text: #e64553; /* maroon */
-  --destructive-icon-bg: color-mix(in oklab, #d20f39 14%, transparent);
+  --destructive-foreground: #ffffff;
+  --destructive-muted-bg: color-mix(in oklab, #f02849 10%, var(--surface));
+  --destructive-muted-border: color-mix(in oklab, #f02849 28%, var(--border));
+  --destructive-muted-text: #e41e3f;
+  --destructive-icon-bg: color-mix(in oklab, #f02849 14%, transparent);
 
-  --alert-error-bg: color-mix(in oklab, #d20f39 8%, var(--surface));
-  --alert-error-border: color-mix(in oklab, #d20f39 28%, var(--border));
-  --alert-error-accent: #d20f39;
-  --alert-error-title: #e64553;
-  --alert-error-body: #6c6f85;
+  --alert-error-bg: color-mix(in oklab, #f02849 8%, var(--surface));
+  --alert-error-border: color-mix(in oklab, #f02849 28%, var(--border));
+  --alert-error-accent: #f02849;
+  --alert-error-title: #e41e3f;
+  --alert-error-body: #65676b;
 
-  --alert-warning-bg: color-mix(in oklab, #df8e1d 12%, var(--surface));
-  --alert-warning-border: color-mix(in oklab, #df8e1d 32%, var(--border));
-  --alert-warning-accent: #df8e1d; /* yellow */
-  --alert-warning-title: #fe640b; /* peach */
-  --alert-warning-body: #6c6f85;
+  --alert-warning-bg: color-mix(in oklab, #f7b928 12%, var(--surface));
+  --alert-warning-border: color-mix(in oklab, #f7b928 32%, var(--border));
+  --alert-warning-accent: #f7b928; /* yellow */
+  --alert-warning-title: #e67e22; /* orange */
+  --alert-warning-body: #65676b;
 
   --toast-success-bg: var(--surface);
   --toast-success-border: var(--border);
-  --toast-success-accent: #40a02b; /* green */
-  --toast-success-icon-bg: color-mix(in oklab, #40a02b 14%, transparent);
+  --toast-success-accent: #31a24c; /* green */
+  --toast-success-icon-bg: color-mix(in oklab, #31a24c 14%, transparent);
   --toast-success-title: var(--foreground);
   --toast-success-body: var(--muted);
 
   --toast-warning-bg: var(--alert-warning-bg);
   --toast-warning-border: var(--border);
   --toast-warning-accent: var(--alert-warning-accent);
-  --toast-warning-icon-bg: color-mix(in oklab, #df8e1d 14%, transparent);
+  --toast-warning-icon-bg: color-mix(in oklab, #f7b928 14%, transparent);
   --toast-warning-title: var(--alert-warning-title);
   --toast-warning-body: var(--alert-warning-body);
 
@@ -79,14 +80,14 @@
   --toast-error-title: var(--alert-error-title);
   --toast-error-body: var(--alert-error-body);
 
-  --chart-0: #1e66f5; /* blue */
-  --chart-1: #179299; /* teal */
-  --chart-2: #fe640b; /* peach */
-  --chart-3: #40a02b; /* green */
-  --chart-4: #8839ef; /* mauve */
-  --chart-5: #d20f39; /* red */
-  --chart-6: #04a5e5; /* sky */
-  --chart-7: #9ca0b0; /* overlay0 */
+  --chart-0: #1877f2; /* blue */
+  --chart-1: #00b2ff; /* cyan */
+  --chart-2: #f7923b; /* orange */
+  --chart-3: #31a24c; /* green */
+  --chart-4: #8b5cf6; /* violet */
+  --chart-5: #f02849; /* red */
+  --chart-6: #54c7ec; /* sky */
+  --chart-7: #8a8d91; /* gray */
 }
 
 /* ---- Catppuccin Mocha (dark) ---- */

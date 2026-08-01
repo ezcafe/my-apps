@@ -1,4 +1,7 @@
-import type { AnalyticsFiltersValue } from "@/components/analytics-filters";
+import {
+  defaultAnalyticsFilters,
+  type AnalyticsFiltersValue,
+} from "@/components/analytics-filters";
 import { buildQuery } from "@/lib/analytics-build-query";
 import {
   MONEY_SEED_BILLS,
@@ -71,7 +74,7 @@ export const MONEY_LEDGER_SPENDING: MoneyLedgerPreset = {
       "Try widening the date range, or add a transaction to track spending and income.",
     icon: "wallet",
     accentChartIndex: 0,
-    primaryAction: { href: "/money", label: "Add transaction" },
+    primaryAction: { href: "/money/new", label: "Add transaction" },
   },
   lockedQuery: {
     kinds: ["expense", "income", "transfer"],
@@ -95,7 +98,7 @@ export const MONEY_LEDGER_BILLS: MoneyLedgerPreset = {
       "When you categorize an expense as Bills, it will show up here. You can also widen the date range.",
     icon: "bills",
     accentChartIndex: 5,
-    primaryAction: { href: "/money", label: "Add bill expense" },
+    primaryAction: { href: "/money/new", label: "Add bill expense" },
     secondaryAction: { href: "/money/settings/categories", label: "Manage categories" },
   },
   lockedQuery: {
@@ -123,7 +126,7 @@ export const MONEY_LEDGER_SAVINGS: MoneyLedgerPreset = {
       "Transfers and interest on savings accounts appear here. Try a wider date range if you expect older entries.",
     icon: "savings",
     accentChartIndex: 3,
-    primaryAction: { href: "/money", label: "Record a transfer" },
+    primaryAction: { href: "/money/new", label: "Record a transfer" },
   },
   lockedQuery: {
     accountTypes: ["savings"],
@@ -143,12 +146,12 @@ export const MONEY_LEDGER_INVESTMENT: MoneyLedgerPreset = {
   emptyState: {
     title: "No investment account activity",
     description:
-      "Cash movements on investment accounts show here. For holdings and trades, use Portfolio overview.",
+      "Cash movements on investment accounts show here after you record a buy, sell, or dividend.",
     icon: "investment",
     accentChartIndex: 4,
     primaryAction: { href: "/money/investments/new", label: "Record activity" },
-    secondaryAction: { href: "/money/investments/portfolio", label: "View portfolio" },
   },
+
   lockedQuery: {
     accountTypes: ["investment"],
   },
@@ -167,11 +170,10 @@ export const MONEY_LEDGER_LOAN: MoneyLedgerPreset = {
   emptyState: {
     title: "No loan account transactions",
     description:
-      "Payments and adjustments on loan accounts appear here. Set up schedules under Schedules & payments.",
+      "Payments and adjustments on loan accounts appear here after you add a payment from a loan.",
     icon: "loan",
     accentChartIndex: 6,
-    primaryAction: { href: "/money/loans/manage", label: "View loan schedules" },
-    secondaryAction: { href: "/money/loans/new", label: "Create a loan" },
+    primaryAction: { href: "/money/loans/new", label: "Create a loan" },
   },
   lockedQuery: {
     accountTypes: ["loan"],
@@ -282,6 +284,43 @@ export function resolveLedgerPresetCategoryIds(
     (c) => c.name === seed.name && c.parentId === parent.id,
   );
   return child ? [child.id] : [];
+}
+
+/**
+ * UI filter defaults that mirror a ledger page’s locked query so the filter bar
+ * shows matching Accounts / Categories / Direction on first load and Reset.
+ * Silent query locks in {@link mergeLedgerPresetQuery} still apply.
+ */
+export function defaultFiltersForLedgerPreset(
+  preset: MoneyLedgerPreset | undefined,
+  accounts: ReadonlyArray<{ id: string; type?: string | null }>,
+  categories: ReadonlyArray<
+    Pick<MoneyCategoryRow, "id" | "name" | "parentId">
+  >,
+): AnalyticsFiltersValue {
+  const base = defaultAnalyticsFilters();
+  if (!preset) return base;
+
+  const { lockedQuery } = preset;
+  if (lockedQuery.kinds?.length) {
+    base.kinds = [...lockedQuery.kinds];
+  }
+
+  if (lockedQuery.accountTypes?.length) {
+    const types = new Set(lockedQuery.accountTypes);
+    base.accountIds = accounts
+      .filter((a) => a.type != null && types.has(a.type))
+      .map((a) => a.id);
+  }
+
+  const categoryIds = resolveLedgerPresetCategoryIds(preset, categories);
+  if (categoryIds.length > 0) {
+    base.categoryIds = categoryIds;
+  } else if (lockedQuery.categoryIds?.length) {
+    base.categoryIds = [...lockedQuery.categoryIds];
+  }
+
+  return base;
 }
 
 export function mergeLedgerPresetQuery(

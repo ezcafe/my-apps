@@ -27,12 +27,14 @@ export function SettingsSubsectionHeading({
 }) {
   return (
     <div className="border-b border-border pb-5">
-      <h3 className="font-display text-base font-semibold leading-6 text-foreground">
-        {title}
-      </h3>
-      <AboutDisclosure>
-        <p>{description}</p>
-      </AboutDisclosure>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <h3 className="font-display text-base font-semibold leading-6 text-foreground">
+          {title}
+        </h3>
+        <AboutDisclosure label={`About ${title}`}>
+          <p>{description}</p>
+        </AboutDisclosure>
+      </div>
     </div>
   );
 }
@@ -55,18 +57,20 @@ export function SettingsSection({
       className="scroll-mt-24 rounded-[var(--radius-md)] border border-border bg-surface shadow-[var(--shadow-sm)] fx-fade-in"
     >
       <div className="p-5">
-        <h2 className="font-display text-base font-semibold leading-6 text-foreground">
-          {title}
-        </h2>
-        {description != null && description !== "" ? (
-          <AboutDisclosure>
-            {typeof description === "string" ? (
-              <p>{description}</p>
-            ) : (
-              description
-            )}
-          </AboutDisclosure>
-        ) : null}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <h2 className="font-display text-base font-semibold leading-6 text-foreground">
+            {title}
+          </h2>
+          {description != null && description !== "" ? (
+            <AboutDisclosure label={`About ${title}`}>
+              {typeof description === "string" ? (
+                <p>{description}</p>
+              ) : (
+                description
+              )}
+            </AboutDisclosure>
+          ) : null}
+        </div>
         <div className="mt-4">{children}</div>
       </div>
     </section>

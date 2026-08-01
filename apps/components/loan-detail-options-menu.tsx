@@ -40,7 +40,7 @@ export function LoanDetailOptionsMenu({
       notify.success("Loan deleted", `${loanName} was removed from your overview.`);
       setConfirmOpen(false);
       setMenuOpen(false);
-      router.push("/loans");
+      router.push("/money/loans");
     } catch (e) {
       notify.error(
         "Could not delete loan",

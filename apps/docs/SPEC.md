@@ -2,32 +2,37 @@
 
 ## Objective
 
-Replace the previous Apple × Atom One / Nord look with a cohesive **Quiet Ink** minimal identity, codify minimal-UI principles into the design system, bring every UI surface into compliance, and apply **progressive disclosure** (primary chrome only; secondary under More / About) with faster first paint via code-splitting.
+Replace the previous Apple × Atom One / Nord look with a cohesive **Quiet Ink** minimal identity, codify minimal-UI principles into the design system, bring every UI surface into compliance, and apply **progressive disclosure** (primary chrome only; secondary under More / About) with faster first paint via code-splitting and **load-on-demand** data fetching matched to the day-to-day spender Money IA.
 
 ## Users / Audience
 
-All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analytics.
+All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analytics. Money defaults target the **day-to-day spender** (capture + “where did it go?”); household-CFO surfaces stay optional / disclosed.
 
 ## Success criteria
 
-- Quiet Ink tokens (Catppuccin Latte light / Mocha dark) and IBM Plex type load in both modes; Atom One / Nord are no longer the brand palette.
-- [`DESIGN_GUIDE.md`](DESIGN_GUIDE.md) is the single source of truth, including distilled minimal-UI rules and progressive disclosure.
+- Quiet Ink tokens (Facebook light / Catppuccin Mocha dark) and IBM Plex type load in both modes; Atom One / Nord are no longer the brand palette.
+- [`DESIGN_GUIDE.md`](DESIGN_GUIDE.md) is the single source of truth, including distilled minimal-UI rules, default spender IA, and progressive disclosure.
 - Every route under `app/**/page.tsx` and shared components use semantic tokens + `components/ui/*` only — no raw hex, Tailwind radius/shadow presets, or non-token status colors in feature JSX.
+- Money tabs: **Home** (overview), **Add**, **Insights**, **Spending**, **Settings**; optional tabs remain off by default.
 - Money filter toolbars show Direction, Accounts, Categories, Apply/Reset (plus Workspace/View when present); Date, Merchants, Tags, Recurrence live under **More**.
-- Primary CTAs stay visible; secondary actions use [`MoreMenu`](../components/ui/more-menu.tsx); help copy uses [`AboutDisclosure`](../components/ui/about-disclosure.tsx).
+- Primary CTAs stay visible; secondary actions use [`MoreMenu`](../components/ui/more-menu.tsx); help copy uses [`AboutDisclosure`](../components/ui/about-disclosure.tsx) (info icon + tooltip).
+- Default Insights shows KPIs + spend-by-category + income vs expense; remaining charts behind **More insights** (unmounted until expanded).
+- **Home first paint:** bootstrap + analytics summary + distribution + short recent transactions — no form lookups / merchant+recurrence analytics lookups / full overview.
+- **Default Insights first paint:** summary + distribution only — not full overview, budgets, sankey, or leaders until More insights.
 - Heavy chart/modal modules load via `next/dynamic` (chart cards, DivergingBar, LoanProgressChart, bulk-edit modal).
 - `npm run lint` and `npm run build` pass; light + dark verified via `/settings`.
 
 ## Test plan
 
 - **Static:** grep for forbidden `#hex`, `rounded-md|lg|xl|2xl`, `shadow-sm|md|lg` Tailwind presets outside token sources.
-- **Visual:** light + dark on login, money home, transactions, analytics, loan detail, investments, settings.
-- **Disclosure:** Analytics/Spending desktop strip = Direction/Accounts/Categories/More/Apply; More opens date + merchants + tags + recurrence; About collapses descriptions.
+- **Visual:** light + dark on login, money home (overview), Add, Spending, Insights, loan detail, investments, settings.
+- **Disclosure:** Analytics/Spending desktop strip = Direction/Accounts/Categories/More/Apply; More opens date + merchants + tags + recurrence; page help is an info-icon tooltip; Insights More insights reveals advanced charts.
+- **Network:** Home and default Insights omit formLookups / full overview / leaders until Add or More insights.
 - **Loan:** primary “Add payment to Money”; mark-paid via More; delete via header More.
 - **Investments settings:** Refresh quotes in More; create instrument behind “Add instrument”.
 - **A11y:** focus rings on new accent; contrast of accent text; `prefers-reduced-motion` disables `fx-*`.
 - **Regression:** charts recolor via `colorByIndex(resolved, i, style)` with `style === "quiet"`.
-- **Perf smoke:** analytics chart-cards chunk loads after shell; secondary filter fields mount when More opens.
+- **Perf smoke:** analytics chart-cards chunk loads after shell; secondary filter fields mount when More opens; deferred analytics queries stay idle until More insights.
 
 ## Out of scope
 

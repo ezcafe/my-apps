@@ -1,15 +1,17 @@
 # Loans feature
 
-Workspace-backed loan tracking with SC spreadsheet amortization, progress charts, and payment reminders.
+Workspace-backed loan tracking with SC spreadsheet amortization, progress charts, and payment reminders. Shipped as a **Money module** (not a separate shell app).
 
 ## Routes
 
 | Path | Purpose |
 |------|---------|
-| `/loans` | Overview, due banner, loan cards |
-| `/loans/new` | Create amortized loan |
-| `/loans/settings` | Browser push + Money workspace note |
-| `/loans/[id]` | Detail, chart, pay actions, schedule |
+| `/money/loans` | Home: due panel, summary, loans table, then loan-account Activity |
+| `/money/loans/new` | Create amortized loan |
+| `/money/loans/settings` | Browser push + Money workspace note |
+| `/money/loans/[id]` | Detail, chart, pay actions, schedule |
+
+Legacy `/loans/*` and `/money/loans/manage` redirect to the Money paths above.
 
 GraphQL: `POST /api/graphql/loans` (cookie `ctx_workspace_loans`).
 
@@ -47,8 +49,8 @@ Loan optional fields `moneyAccountId` / `moneyCategoryId` are validated against 
 
 ### In-app
 
-- Due banner on overview (`loansDueInstallments`)
-- Tab badge on Overview when `dueCount > 0`
+- Due banner on loans home (`loansDueInstallments`) with inline Pay
+- Tab badge when `dueCount > 0`
 - One toast per session when opening Loans tabs layout
 
 ### Browser push
@@ -59,7 +61,7 @@ Loan optional fields `moneyAccountId` / `moneyCategoryId` are validated against 
    - `VAPID_SUBJECT` (e.g. `mailto:you@example.com`)
 2. Set client:
    - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (same as public key)
-3. User enables notifications under `/loans/settings`
+3. User enables notifications under `/money/loans/settings`
 4. Cron: `POST /api/cron/loan-reminders` with `Authorization: Bearer $CRON_SECRET`
 
 Service worker: [`public/sw.js`](../../public/sw.js).
@@ -67,13 +69,15 @@ Service worker: [`public/sw.js`](../../public/sw.js).
 ## Manual test checklist
 
 - [ ] Create loan (12 months, 5%) → 12 schedule rows
-- [ ] Overview shows progress % and remaining
+- [ ] Home shows progress %, remaining, and next due in the table
+- [ ] Pay from due banner or table row → Money transaction + progress update
 - [ ] Detail chart: scheduled vs paid vs projected
-- [ ] Pay with Money → transaction on `/money/transactions`
 - [ ] Mark paid without transaction → no Money tx, progress updates
 - [ ] Due installment → banner + badge; toast on first visit
+- [ ] Activity section lists loan-account transactions
+- [ ] `/money/loans/manage` redirects to `/money/loans`
 - [ ] Push (with VAPID): cron sends notification; click opens loan
-- [ ] Light and dark mode on charts and tabs
+- [ ] Light and dark mode on charts and table
 
 ## Workspace key
 

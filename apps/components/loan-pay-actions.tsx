@@ -20,6 +20,7 @@ export function LoanPayActions({
   currency,
   moneyAccountId,
   moneyCategoryId,
+  variant = "full",
 }: {
   scheduleInstallmentId: string;
   loanName: string;
@@ -28,6 +29,8 @@ export function LoanPayActions({
   currency: string;
   moneyAccountId: string | null;
   moneyCategoryId: string | null;
+  /** `compact` for list/due rows; `full` for loan detail. */
+  variant?: "full" | "compact";
 }) {
   const notify = useNotify();
   const queryClient = useQueryClient();
@@ -35,6 +38,7 @@ export function LoanPayActions({
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [marking, setMarking] = useState(false);
+  const compact = variant === "compact";
 
   async function markPaidWithoutTransaction() {
     setMarking(true);
@@ -46,10 +50,7 @@ export function LoanPayActions({
       notify.success("Marked paid", "No Money transaction was created.");
       setConfirmOpen(false);
     } catch (e) {
-      notify.error(
-        "Could not update",
-        toUserFacingMessage(e),
-      );
+      notify.error("Could not update", toUserFacingMessage(e));
     } finally {
       setMarking(false);
     }
@@ -57,9 +58,18 @@ export function LoanPayActions({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" onClick={() => setPayOpen(true)}>
-          Add payment to Money
+      <div
+        className="flex flex-wrap items-center gap-2"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <Button
+          type="button"
+          size={compact ? "sm" : undefined}
+          variant={compact ? "secondary" : undefined}
+          onClick={() => setPayOpen(true)}
+        >
+          {compact ? "Pay" : "Add payment to Money"}
         </Button>
         <MoreMenu
           aria-label="More payment options"

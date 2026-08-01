@@ -72,7 +72,7 @@ function LoanDetailBreadcrumb({ loanName }: { loanName: string }) {
     <nav aria-label="Breadcrumb">
       <ol className="flex flex-wrap items-center gap-2">
         <li>
-          <Link href="/money/loans/manage" className={itemCls}>
+          <Link href="/money/loans" className={itemCls}>
             Loans
           </Link>
         </li>
@@ -189,7 +189,7 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
           }
         />
         <Link
-          href="/money/loans/manage"
+          href="/money/loans"
           className={buttonClassName({
             variant: "secondary",
             size: "md",
@@ -212,16 +212,18 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <LoanDetailBreadcrumb loanName={loan.name} />
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-              {loan.name}
-            </h1>
-            <AboutDisclosure>
-              <p>
-                Track payoff progress, record payments, and review your
-                amortization schedule. Payments can be posted to Money or marked
-                paid without a ledger entry.
-              </p>
-            </AboutDisclosure>
+            <div className="mt-4 flex min-w-0 items-center gap-2">
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                {loan.name}
+              </h1>
+              <AboutDisclosure label={`About ${loan.name}`}>
+                <p>
+                  Track payoff progress, record payments, and review your
+                  amortization schedule. Payments can be posted to Money or marked
+                  paid without a ledger entry.
+                </p>
+              </AboutDisclosure>
+            </div>
           </div>
           <LoanDetailOptionsMenu
             loanId={loan.id}

@@ -21,24 +21,37 @@ Distilled from modern minimal / clean UI practice. Clarity beats decoration.
 |------|----------------------|
 | **Whitespace as hierarchy** | Use `.shell-main` padding and section gaps; do not pack chrome. Dense tables stay tight; page chrome breathes. |
 | **One type family** | IBM Plex Sans for UI + headings (weight hierarchy). IBM Plex Mono for code/mono. Never add a third family. |
-| **Three color roles** | Neutrals (background/surface/muted) + one Catppuccin blue **accent** + **destructive**. No rainbow chrome. |
+| **Three color roles** | Neutrals (background/surface/muted) + one brand blue **accent** + **destructive**. No rainbow chrome. |
 | **One primary action per view** | Prefer a single `Button` `primary` per screen region; secondary/ghost for the rest. |
 | **Alignment & consistency** | Same padding, radius, and component styles everywhere; no one-off card treatments. |
 | **Simple navigation** | Shell nav from [`registry.ts`](../lib/features/registry.ts) only; do not stuff menus. |
 | **Subtle motion only** | `fx-*` utilities — feedback without clutter. |
 | **Never hide essentials** | Minimal ≠ incomplete. Keep required actions visible and labeled. |
-| **Progressive disclosure** | Primary chrome only: one primary CTA + essential filters (e.g. Direction, Accounts, Categories, Apply). Secondary filters/actions and help copy live behind [`MoreMenu`](../components/ui/more-menu.tsx) or an About disclosure. Never hide Workspace, View, Apply, or the primary CTA. |
+| **Progressive disclosure** | Primary chrome only: one primary CTA + essential filters (e.g. Direction, Accounts, Categories, Apply). Secondary filters/actions and help copy live behind [`MoreMenu`](../components/ui/more-menu.tsx) or an info-icon tooltip ([`AboutDisclosure`](../components/ui/about-disclosure.tsx)). Never hide Workspace, View, Apply, or the primary CTA. |
+| **Load only what the viewport shows** | Home and default Insights must not fetch form lookups, full analytics overview, budgets, sankey, or leaders until Add / More insights / advanced filters need them. |
+
+## Default spender experience (Money)
+
+Default audience is the **day-to-day spender**: log a spend quickly, then see where money went. Power tools (loans, investments, import, advanced charts) stay reachable but out of the default path.
+
+| Tab / route | Job |
+|-------------|-----|
+| **Home** `/money` | Calm overview: period KPIs, top categories, recent transactions, primary **Add** CTA. |
+| **Add** `/money/new` | Capture a transaction (form lookups load here, not on Home). |
+| **Insights** `/money/analytics` | Default: KPIs + spend-by-category + income vs expense. Remaining charts behind **More insights**. |
+| **Spending** `/money/spending` | Full ledger. |
+| **Settings** `/money/settings` | Workspace config; optional section tabs (Bills, Savings, Loans, Invest, Import) stay off by default. |
 
 Avoid: purple gradients, cream+terracotta marketing looks, broadsheet density, glow, decorative `rounded-full` pill clusters, Inter/system-only stacks.
 
 ## Style architecture
 
-Fixed **Quiet Ink** structure with **Catppuccin** appearance palettes ([style guide](https://github.com/catppuccin/catppuccin/blob/main/docs/style-guide.md)):
+Fixed **Quiet Ink** structure with a **Facebook** light palette and **Catppuccin Mocha** dark ([Catppuccin style guide](https://github.com/catppuccin/catppuccin/blob/main/docs/style-guide.md)):
 
 | Axis    | Where it lives                                           | Values |
 |---------|-----------------------------------------------------------|--------|
 | `style` | `<html data-style="quiet">` (set by [`ThemeProvider`](../components/theme-provider.tsx)) | `quiet` only |
-| `mode`  | `<html class="dark">` toggled by `ThemeProvider`         | light (**Latte**) or dark (**Mocha**) |
+| `mode`  | `<html class="dark">` toggled by `ThemeProvider`         | light (**Facebook**) or dark (**Mocha**) |
 
 The user picks appearance in **`/settings`** ([`ThemeSettings`](../components/theme-settings.tsx)). Token sets live in [`app/globals.css`](../app/globals.css) under `:root[data-style="quiet"]` and `.dark`. FOUC is prevented by a pre-paint script in [`app/layout.tsx`](../app/layout.tsx).
 
@@ -46,7 +59,7 @@ The user picks appearance in **`/settings`** ([`ThemeSettings`](../components/th
 flowchart LR
   Settings["/settings"] --> ThemeProvider
   ThemeProvider -- "data-style=quiet + class=dark" --> HtmlRoot["html"]
-  HtmlRoot --> Tokens["globals.css Latte / Mocha"]
+  HtmlRoot --> Tokens["globals.css Facebook / Mocha"]
   Tokens --> Primitives["components/ui"]
   Tokens --> Charts["chartPaletteFor"]
   Primitives --> Surfaces["Feature pages"]
@@ -54,12 +67,12 @@ flowchart LR
 
 ### Identity tokens (reference)
 
-| Role | Latte (light) | Mocha (dark) |
-|------|---------------|--------------|
-| Background | `#eff1f5` (base) | `#1e1e2e` (base) |
-| Surface | `#e6e9ef` (mantle) | `#313244` (surface0) |
-| Foreground | `#4c4f69` (text) | `#cdd6f4` (text) |
-| Accent (blue) | `#1e66f5` | `#89b4fa` |
+| Role | Facebook (light) | Mocha (dark) |
+|------|------------------|--------------|
+| Background | `#f0f2f5` (wash) | `#1e1e2e` (base) |
+| Surface | `#ffffff` (card) | `#313244` (surface0) |
+| Foreground | `#1c1e21` (primary text) | `#cdd6f4` (text) |
+| Accent (blue) | `#1877f2` | `#89b4fa` |
 | Radius | `--radius` `0.75rem` / `--radius-inner` `0.4375rem` | same |
 
 ## Tokens you must use
@@ -94,7 +107,7 @@ If inner padding around a child exceeds 24px, treat it as its own surface.
 Shadows: `shadow-[var(--shadow-sm)]` and `shadow-[var(--shadow-md)]`. Never `shadow-md`/`shadow-lg`. Prefer soft shadow + 1px `border-border` over thick borders for elevation.
 
 ### Status colors
-- **Positive / desirable:** `text-accent` / `bg-accent` (Catppuccin blue — not a separate green on chrome).
+- **Positive / desirable:** `text-accent` / `bg-accent` (brand blue — not a separate green on chrome).
 - **Negative / undesirable:** `text-destructive` / `bg-destructive`.
 - **Flat / neutral:** `text-muted`.
 - Toast success green and chart series greens are **not** brand chrome — do not use them for nav, buttons, or page accents.
@@ -123,7 +136,7 @@ Never hard-code chart hexes; never read only `resolved`.
 | `Modal` | [`modal.tsx`](../components/ui/modal.tsx) | Native `<dialog>` + `fx-overlay`. |
 | `Popover` | [`popover.tsx`](../components/ui/popover.tsx) | Anchored panel with entry/exit. |
 | `MoreMenu` | [`more-menu.tsx`](../components/ui/more-menu.tsx) | Secondary actions / overflow (ellipsis + optional dirty dot). Use `MoreMenuItem` for rows; `variant="danger"` for destructive. |
-| `AboutDisclosure` | [`about-disclosure.tsx`](../components/ui/about-disclosure.tsx) | Collapsed-by-default help copy under titles (“About”). |
+| `AboutDisclosure` | [`about-disclosure.tsx`](../components/ui/about-disclosure.tsx) | Info icon beside a title; page/section help in a hover/focus tooltip. |
 | `Tabs` | [`tabs.tsx`](../components/ui/tabs.tsx) | Radio tablist with `:has()` underline. |
 | `Badge` / `Tag` | [`badge.tsx`](../components/ui/badge.tsx), [`tag.tsx`](../components/ui/tag.tsx) | Inline status chips. |
 | `IconSwap` | [`icon-swap.tsx`](../components/ui/icon-swap.tsx) | Stateful icon cross-fade. |

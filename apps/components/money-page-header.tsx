@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { AboutDisclosure } from "@/components/ui/about-disclosure";
 import { cn } from "@/lib/cn";
 
-/** Page title + optional description (collapsed behind About by default). */
+/** Page title + optional description (info icon tooltip beside the title). */
 export function MoneyPageHeader({
   title,
   description,
@@ -15,7 +15,7 @@ export function MoneyPageHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("min-w-0", className)}>
+    <div className={cn("flex min-w-0 items-center gap-1.5", className)}>
       <h2
         id={titleId}
         className="font-display text-lg font-medium tracking-tight"
@@ -23,7 +23,7 @@ export function MoneyPageHeader({
         {title}
       </h2>
       {description ? (
-        <AboutDisclosure>
+        <AboutDisclosure label={`About ${title}`}>
           <p>{description}</p>
         </AboutDisclosure>
       ) : null}
@@ -42,14 +42,17 @@ export function MoneyFilterToolbar({
   className?: string;
 }) {
   return (
-    <div className={cn("border-b border-border", className)}>
-      <div
-        className="flex flex-nowrap items-center gap-0 overflow-x-auto pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        role="toolbar"
-        aria-label={ariaLabel}
-      >
-        {children}
-      </div>
+    <div
+      className={cn(
+        // Keep flex on the same node as any `hidden @md:flex` visibility — `@md:block` would
+        // override flex and stack filter tabs vertically.
+        "flex w-full min-w-0 flex-nowrap items-center gap-0 overflow-x-auto border-b border-border pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        className,
+      )}
+      role="toolbar"
+      aria-label={ariaLabel}
+    >
+      {children}
     </div>
   );
 }

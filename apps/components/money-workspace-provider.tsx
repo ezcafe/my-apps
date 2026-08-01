@@ -51,7 +51,7 @@ const WorkspaceCurrencyContext = createContext<WorkspaceCurrencyContextValue>({
   refreshWorkspaceCurrency: async () => {},
 });
 
-/** Money workspace + default currency; only mount under `/money` (see `money/layout.tsx`). */
+/** Money workspace + default currency; only mount under `/money` (see `MoneyRouteLayout`). */
 export function useWorkspaceCurrency() {
   return useContext(WorkspaceCurrencyContext);
 }

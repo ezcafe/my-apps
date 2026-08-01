@@ -36,7 +36,7 @@ Other shell routes (e.g. `/settings`) **do not** call `/api/money/workspace/init
 
 ## Analytics and Money
 
-Money analytics live under **`/money/analytics`**, so they inherit `MoneyWorkspaceProvider`. If you add top-level routes that need Money currency context, keep them under the `money` segment **or** refactor to a neutral API that does not require `useWorkspaceCurrency` without the provider.
+Money insights live under **`/money/analytics`**, so they inherit `MoneyWorkspaceProvider`. If you add top-level routes that need Money currency context, keep them under the `money` segment **or** refactor to a neutral API that does not require `useWorkspaceCurrency` without the provider.
 
 ## Feature registry
 
