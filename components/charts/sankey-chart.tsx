@@ -41,11 +41,17 @@ function pointerPayload(
   return { label, valueText, clientX: e.clientX, clientY: e.clientY };
 }
 
+export type SankeyChartItemClickPayload = {
+  nodeId: string;
+  label: string;
+};
+
 export function SankeyChart({
   nodes,
   links,
   currency = "USD",
   animate = true,
+  onItemClick,
 }: {
   nodes: {
     id: string;
@@ -57,6 +63,7 @@ export function SankeyChart({
   links: Link[];
   currency?: string;
   animate?: boolean;
+  onItemClick?: (item: SankeyChartItemClickPayload) => void;
 }) {
   const { resolved, style } = useTheme();
   return (
@@ -75,6 +82,7 @@ export function SankeyChart({
                 currency={currency}
                 animate={animate}
                 tooltipApi={tooltipApi}
+                onItemClick={onItemClick}
               />
             ) : null
           }
@@ -94,6 +102,7 @@ function SankeyInner({
   currency,
   animate,
   tooltipApi,
+  onItemClick,
 }: {
   width: number;
   height: number;
@@ -114,6 +123,7 @@ function SankeyInner({
     moveTooltip: (p: ChartTooltipPayload) => void;
     hideTooltip: () => void;
   };
+  onItemClick?: (item: SankeyChartItemClickPayload) => void;
 }) {
   if (!rawLinks.length) {
     return (
@@ -318,7 +328,7 @@ function SankeyInner({
                           all
                           fill={colorByIndex(resolved, i, stylePreset)}
                           opacity={0.88}
-                          className="cursor-default"
+                          className={onItemClick ? "cursor-pointer" : "cursor-default"}
                           onPointerEnter={(e) =>
                             tooltipApi.showTooltip(
                               pointerPayload(e, tipLabel, tipValue),
@@ -330,6 +340,10 @@ function SankeyInner({
                             )
                           }
                           onPointerLeave={() => tooltipApi.hideTooltip()}
+                          onClick={() => {
+                            if (!onItemClick) return;
+                            onItemClick({ nodeId: nd.name, label: nd.label });
+                          }}
                         />
                         <text
                           x={labelOnLeft ? x0 + 6 : x1 - 6}

@@ -27,18 +27,26 @@ function pointerPayload(
   return { label, valueText, clientX: e.clientX, clientY: e.clientY };
 }
 
+export type StackedAreaItemClickPayload = {
+  month: string;
+  key: string;
+  label: string;
+};
+
 export function StackedAreaChart({
   data,
   hiddenKeys,
   formatValue,
   formatMonthLabel: formatMonthLabelProp,
   animate = true,
+  onItemClick,
 }: {
   data: StackedMonthSeries[];
   hiddenKeys?: Set<string>;
   formatValue: (minor: number) => string;
   formatMonthLabel?: (yyyyMm: string) => string;
   animate?: boolean;
+  onItemClick?: (item: StackedAreaItemClickPayload) => void;
 }) {
   const { formatMonthYear } = useFormatDate();
   const formatMonthLabel = formatMonthLabelProp ?? formatMonthYear;
@@ -62,6 +70,7 @@ export function StackedAreaChart({
                 animate={animate}
                 formatValue={formatValue}
                 tooltipApi={tooltipApi}
+                onItemClick={onItemClick}
               />
             ) : null
           }
@@ -80,6 +89,7 @@ function StackedAreaInner({
   animate,
   formatValue,
   tooltipApi,
+  onItemClick,
 }: {
   width: number;
   height: number;
@@ -93,6 +103,7 @@ function StackedAreaInner({
     moveTooltip: (p: ChartTooltipPayload) => void;
     hideTooltip: () => void;
   };
+  onItemClick?: (item: StackedAreaItemClickPayload) => void;
 }) {
   const { resolved, style } = useTheme();
   const stylePreset = style as StylePreset;
@@ -157,6 +168,7 @@ function StackedAreaInner({
 
   const singleMonth = stackData.length === 1;
   const singleRow = singleMonth ? stackData[0] : null;
+  const hitHalfWidth = Math.min(18, Math.max(10, innerW / Math.max(xDomain.length, 1) / 2));
 
   return (
     <svg
@@ -181,6 +193,7 @@ function StackedAreaInner({
             formatValue={formatValue}
             animate={animate}
             tooltipApi={tooltipApi}
+            onItemClick={onItemClick}
           />
         ) : (
           <>
@@ -209,29 +222,51 @@ function StackedAreaInner({
             {stackData.map((row) => {
               const x = xScale(row.month);
               if (x == null) return null;
-              const monthLabel = formatMonthLabel(row.month);
-              const total = keys.reduce((s, k) => s + (Number(row[k]) || 0), 0);
+              const month = String(row.month);
+              const monthLabel = formatMonthLabel(month);
+              let cumSum = 0;
               return (
-                <rect
-                  key={`hit-${row.month}`}
-                  x={x - 12}
-                  y={0}
-                  width={24}
-                  height={innerH}
-                  fill="transparent"
-                  className="cursor-default"
-                  onPointerEnter={(ev) =>
-                    tooltipApi.showTooltip(
-                      pointerPayload(ev, monthLabel, formatValue(total)),
-                    )
-                  }
-                  onPointerMove={(ev) =>
-                    tooltipApi.moveTooltip(
-                      pointerPayload(ev, monthLabel, formatValue(total)),
-                    )
-                  }
-                  onPointerLeave={() => tooltipApi.hideTooltip()}
-                />
+                <g key={`hit-${month}`}>
+                  {keys.map((key) => {
+                    const value = Number(row[key]) || 0;
+                    if (value <= 0) return null;
+                    const yTop = yScale(cumSum + value) ?? 0;
+                    const yBottom = yScale(cumSum) ?? innerH;
+                    cumSum += value;
+                    const categoryLabel = labelByKey.get(key) ?? key;
+                    const tipLabel = `${monthLabel} · ${categoryLabel}`;
+                    return (
+                      <rect
+                        key={`${month}-${key}`}
+                        x={x - hitHalfWidth}
+                        y={yTop}
+                        width={hitHalfWidth * 2}
+                        height={Math.max(yBottom - yTop, 4)}
+                        fill="transparent"
+                        className={onItemClick ? "cursor-pointer" : "cursor-default"}
+                        onPointerEnter={(ev) =>
+                          tooltipApi.showTooltip(
+                            pointerPayload(ev, tipLabel, formatValue(value)),
+                          )
+                        }
+                        onPointerMove={(ev) =>
+                          tooltipApi.moveTooltip(
+                            pointerPayload(ev, tipLabel, formatValue(value)),
+                          )
+                        }
+                        onPointerLeave={() => tooltipApi.hideTooltip()}
+                        onClick={() => {
+                          if (!onItemClick) return;
+                          onItemClick({
+                            month,
+                            key,
+                            label: categoryLabel,
+                          });
+                        }}
+                      />
+                    );
+                  })}
+                </g>
               );
             })}
             {xDomain.map((month) => {
@@ -268,6 +303,7 @@ function StackedSingleMonthColumn({
   formatValue,
   animate,
   tooltipApi,
+  onItemClick,
 }: {
   row: StackDatum;
   keys: string[];
@@ -284,6 +320,7 @@ function StackedSingleMonthColumn({
     moveTooltip: (p: ChartTooltipPayload) => void;
     hideTooltip: () => void;
   };
+  onItemClick?: (item: StackedAreaItemClickPayload) => void;
 }) {
   const month = String(row.month);
   const monthLabel = formatMonthLabel(month);
@@ -326,7 +363,7 @@ function StackedSingleMonthColumn({
               width={barWidth}
               height={seg.h}
               fill="transparent"
-              className="cursor-default"
+              className={onItemClick ? "cursor-pointer" : "cursor-default"}
               onPointerEnter={(ev) =>
                 tooltipApi.showTooltip(
                   pointerPayload(ev, tipLabel, formatValue(seg.value)),
@@ -338,6 +375,14 @@ function StackedSingleMonthColumn({
                 )
               }
               onPointerLeave={() => tooltipApi.hideTooltip()}
+              onClick={() => {
+                if (!onItemClick) return;
+                onItemClick({
+                  month,
+                  key: seg.key,
+                  label: categoryLabel,
+                });
+              }}
             />
           </g>
         );

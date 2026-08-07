@@ -71,6 +71,11 @@ function pointerPayload(
   return { label, valueText, clientX: e.clientX, clientY: e.clientY };
 }
 
+export type ColumnChartItemClickPayload = {
+  month: string;
+  series: "income" | "expense";
+};
+
 export function ColumnChart({
   data,
   hiddenSeries,
@@ -78,6 +83,7 @@ export function ColumnChart({
   formatValue,
   formatMonthLabel: formatMonthLabelProp,
   showNetLine = false,
+  onItemClick,
 }: {
   data: Row[];
   hiddenSeries?: Set<"expense" | "income">;
@@ -85,6 +91,7 @@ export function ColumnChart({
   formatValue: (minor: number) => string;
   formatMonthLabel?: (yyyyMm: string) => string;
   showNetLine?: boolean;
+  onItemClick?: (item: ColumnChartItemClickPayload) => void;
 }) {
   const { resolved, style } = useTheme();
   const { formatMonthYear } = useFormatDate();
@@ -118,6 +125,7 @@ export function ColumnChart({
                 formatValue={formatValue}
                 showNetLine={showNetLine}
                 tooltipApi={tooltipApi}
+                onItemClick={onItemClick}
               />
             ) : null
           }
@@ -140,6 +148,7 @@ function ColumnInner({
   formatValue,
   showNetLine,
   tooltipApi,
+  onItemClick,
 }: {
   width: number;
   height: number;
@@ -157,6 +166,7 @@ function ColumnInner({
     moveTooltip: (p: ChartTooltipPayload) => void;
     hideTooltip: () => void;
   };
+  onItemClick?: (item: ColumnChartItemClickPayload) => void;
 }) {
   const margin = { top: 12, right: 8, bottom: 36, left: 44 };
   const innerW = width - margin.left - margin.right;
@@ -247,7 +257,7 @@ function ColumnInner({
                     width={barW}
                     height={hExpense}
                     fill="transparent"
-                    className="cursor-default"
+                    className={onItemClick ? "cursor-pointer" : "cursor-default"}
                     onPointerEnter={(ev) =>
                       tooltipApi.showTooltip(
                         pointerPayload(
@@ -267,6 +277,10 @@ function ColumnInner({
                       )
                     }
                     onPointerLeave={() => tooltipApi.hideTooltip()}
+                    onClick={() => {
+                      if (!onItemClick) return;
+                      onItemClick({ month: d.month, series: "expense" });
+                    }}
                   />
                 </g>
               ) : null}
@@ -285,7 +299,7 @@ function ColumnInner({
                     width={barW}
                     height={hIncome}
                     fill="transparent"
-                    className="cursor-default"
+                    className={onItemClick ? "cursor-pointer" : "cursor-default"}
                     onPointerEnter={(ev) =>
                       tooltipApi.showTooltip(
                         pointerPayload(
@@ -305,6 +319,10 @@ function ColumnInner({
                       )
                     }
                     onPointerLeave={() => tooltipApi.hideTooltip()}
+                    onClick={() => {
+                      if (!onItemClick) return;
+                      onItemClick({ month: d.month, series: "income" });
+                    }}
                   />
                 </g>
               ) : null}

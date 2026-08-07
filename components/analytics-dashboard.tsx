@@ -465,6 +465,8 @@ function AnalyticsChartsView({
           summaryStats={summaryStats}
           divergingHasData={divergingHasData}
           formatChartValue={formatChartValue}
+          baseFilterQuery={filterQuery}
+          onDrilldown={onChartDrilldown}
         />
         <SpendByCategoryCard
           cardRef={undefined}
@@ -505,6 +507,8 @@ function AnalyticsChartsView({
             isCurrentMonthCompare={isCurrentMonthCompare}
             defaultCurrency={defaultCurrency}
             theme={theme}
+            baseFilterQuery={filterQuery}
+            onDrilldown={onChartDrilldown}
           />
 
           <MoneyFlowSankeyCard
@@ -513,6 +517,8 @@ function AnalyticsChartsView({
             sankeyPayload={sankeyPayload}
             sankeyHasData={sankeyHasData}
             defaultCurrency={defaultCurrency}
+            baseFilterQuery={filterQuery}
+            onDrilldown={onChartDrilldown}
           />
 
           <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:gap-3 lg:col-span-12 lg:grid-cols-3 lg:gap-3">
@@ -538,6 +544,8 @@ function AnalyticsChartsView({
               formatChartValue={formatChartValue}
               theme={theme}
               defaultCurrency={defaultCurrency}
+              baseFilterQuery={filterQuery}
+              onDrilldown={onChartDrilldown}
             />
             <CategorySpendTrendCard
               cardRef={categoryTrendRef}
@@ -546,6 +554,8 @@ function AnalyticsChartsView({
               categoryTrendHasData={categoryTrendHasData}
               formatChartValue={formatChartValue}
               theme={theme}
+              baseFilterQuery={filterQuery}
+              onDrilldown={onChartDrilldown}
             />
             <SpendByTagCard
               cardRef={tagsRef}
@@ -573,6 +583,8 @@ function AnalyticsChartsView({
               budgetChartRows={budgetChartRows}
               budgetChartHasData={budgetChartHasData}
               formatChartValue={formatChartValue}
+              baseFilterQuery={filterQuery}
+              onDrilldown={onChartDrilldown}
             />
           </div>
 

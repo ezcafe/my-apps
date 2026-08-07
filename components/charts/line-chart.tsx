@@ -67,6 +67,11 @@ function pointerPayload(
   return { label, valueText, clientX: e.clientX, clientY: e.clientY };
 }
 
+export type LineChartItemClickPayload = {
+  date: string;
+  series: "primary";
+};
+
 export function LineChart({
   data,
   comparison,
@@ -76,6 +81,7 @@ export function LineChart({
   hiddenSeries,
   animate = true,
   emptyMessage = "All series hidden — click legend to show",
+  onItemClick,
 }: {
   data: NetFlowPoint[];
   comparison?: NetFlowComparison;
@@ -85,6 +91,7 @@ export function LineChart({
   hiddenSeries?: Set<"primary" | "compare">;
   animate?: boolean;
   emptyMessage?: string;
+  onItemClick?: (item: LineChartItemClickPayload) => void;
 }) {
   const { resolved, style } = useTheme();
   const { formatChartDateTick } = useFormatDate();
@@ -118,6 +125,7 @@ export function LineChart({
                 hideCompare={hideCompare}
                 animate={animate}
                 tooltipApi={tooltipApi}
+                onItemClick={onItemClick}
               />
             ) : null
           }
@@ -142,6 +150,7 @@ function LineInner({
   hideCompare,
   animate,
   tooltipApi,
+  onItemClick,
 }: {
   width: number;
   height: number;
@@ -161,6 +170,7 @@ function LineInner({
     moveTooltip: (p: ChartTooltipPayload) => void;
     hideTooltip: () => void;
   };
+  onItemClick?: (item: LineChartItemClickPayload) => void;
 }) {
   const yAxisLabelGutter = 52;
   const yAxisTitleOffset = 22;
@@ -401,7 +411,7 @@ function LineInner({
                 cy={p.y}
                 r={8}
                 fill="transparent"
-                className="cursor-default"
+                className={onItemClick ? "cursor-pointer" : "cursor-default"}
                 onPointerEnter={(ev) =>
                   tooltipApi.showTooltip(
                     pointerPayload(ev, tickLabel(p.key), formatY(p.net)),
@@ -413,6 +423,10 @@ function LineInner({
                   )
                 }
                 onPointerLeave={() => tooltipApi.hideTooltip()}
+                onClick={() => {
+                  if (!onItemClick) return;
+                  onItemClick({ date: p.key, series: "primary" });
+                }}
               />
               <circle
                 cx={p.x}

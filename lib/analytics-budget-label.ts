@@ -44,5 +44,7 @@ export function budgetRowsForChart(
     valueMinor: budget.spentAmountMinor,
     limitMinor: budget.effectiveLimitAmountMinor ?? budget.limitAmountMinor,
     overLimit: budget.overBudget,
+    scopeType: budget.scopeType,
+    scopeId: budget.scopeId,
   }));
 }

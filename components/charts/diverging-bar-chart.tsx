@@ -20,16 +20,22 @@ function pointerPayload(
   return { label, valueText, clientX: e.clientX, clientY: e.clientY };
 }
 
+export type DivergingBarItemClickPayload = {
+  kind: "income" | "expense";
+};
+
 export function DivergingBarChart({
   incomeMinor,
   expenseMinor,
   formatValue,
   animate = true,
+  onItemClick,
 }: {
   incomeMinor: number;
   expenseMinor: number;
   formatValue: (minor: number) => string;
   animate?: boolean;
+  onItemClick?: (item: DivergingBarItemClickPayload) => void;
 }) {
   const isEmpty = incomeMinor <= 0 && expenseMinor <= 0;
 
@@ -47,6 +53,7 @@ export function DivergingBarChart({
                 animate={animate}
                 formatValue={formatValue}
                 tooltipApi={tooltipApi}
+                onItemClick={onItemClick}
               />
             ) : null
           }
@@ -64,6 +71,7 @@ function DivergingInner({
   animate,
   formatValue,
   tooltipApi,
+  onItemClick,
 }: {
   width: number;
   height: number;
@@ -76,6 +84,7 @@ function DivergingInner({
     moveTooltip: (p: ChartTooltipPayload) => void;
     hideTooltip: () => void;
   };
+  onItemClick?: (item: DivergingBarItemClickPayload) => void;
 }) {
   const { resolved, style } = useTheme();
   const stylePreset = style as StylePreset;
@@ -142,7 +151,7 @@ function DivergingInner({
             width={Math.max(incomeW, 8)}
             height={barH}
             fill="transparent"
-            className="cursor-default"
+            className={onItemClick ? "cursor-pointer" : "cursor-default"}
             onPointerEnter={(ev) =>
               tooltipApi.showTooltip(
                 pointerPayload(ev, "Income", formatValue(incomeMinor)),
@@ -154,6 +163,10 @@ function DivergingInner({
               )
             }
             onPointerLeave={() => tooltipApi.hideTooltip()}
+            onClick={() => {
+              if (!onItemClick) return;
+              onItemClick({ kind: "income" });
+            }}
           />
         </g>
         <text
@@ -184,7 +197,7 @@ function DivergingInner({
             width={Math.max(expenseW, 8)}
             height={barH}
             fill="transparent"
-            className="cursor-default"
+            className={onItemClick ? "cursor-pointer" : "cursor-default"}
             onPointerEnter={(ev) =>
               tooltipApi.showTooltip(
                 pointerPayload(ev, "Expenses", formatValue(expenseMinor)),
@@ -196,6 +209,10 @@ function DivergingInner({
               )
             }
             onPointerLeave={() => tooltipApi.hideTooltip()}
+            onClick={() => {
+              if (!onItemClick) return;
+              onItemClick({ kind: "expense" });
+            }}
           />
         </g>
         <text

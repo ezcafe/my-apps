@@ -25,8 +25,13 @@ import type {
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import { budgetRowsForChart } from "@/lib/analytics-budget-label";
 import {
+  calendarDayBounds,
+  calendarMonthBounds,
   categoryIdForDrilldown,
+  linePointDateForDrilldown,
   mergeDrilldownQuery,
+  sankeyCategoryNodeFromId,
+  seriesCategoryKeyForDrilldown,
   type AnalyticsChartDrilldownPayload,
 } from "@/lib/analytics-build-query";
 import type { StylePreset } from "@/components/theme-provider";
@@ -208,6 +213,8 @@ type ThemeSlice = {
   style: StylePreset;
 };
 
+export type ChartDrilldownHandler = (payload: AnalyticsChartDrilldownPayload) => void;
+
 export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
   cardRef,
   inView,
@@ -222,6 +229,8 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
   description,
   compareDescription,
   emptyState,
+  baseFilterQuery,
+  onDrilldown,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
@@ -241,6 +250,8 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
     primaryAction?: { href: string; label: string };
     secondaryAction?: { href: string; label: string };
   };
+  baseFilterQuery?: string;
+  onDrilldown?: ChartDrilldownHandler;
 }) {
   const { resolved, style } = theme;
   const overviewLine = useMemo(() => overview?.line ?? [], [overview?.line]);
@@ -249,6 +260,23 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
   const [hiddenLineSeries, setHiddenLineSeries] = useState(
     () => new Set<"primary" | "compare">(),
   );
+
+  const handleLineClick = useMemo(() => {
+    if (!baseFilterQuery || !onDrilldown) return undefined;
+    return (item: { date: string; series: "primary" }) => {
+      const day = linePointDateForDrilldown(
+        item.date,
+        overviewLineMode,
+        baseFilterQuery,
+      );
+      if (!day) return;
+      const bounds = calendarDayBounds(day);
+      onDrilldown({
+        title: `${day} · Net flow`,
+        filterQuery: mergeDrilldownQuery(baseFilterQuery, bounds),
+      });
+    };
+  }, [baseFilterQuery, onDrilldown, overviewLineMode]);
 
   const linePrimaryColor = useMemo(() => {
     const last = overviewLine[overviewLine.length - 1]?.netMinor ?? 0;
@@ -343,6 +371,7 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
               formatY={(minor) => formatMinor(minor, defaultCurrency)}
               hiddenSeries={hiddenLineSeries}
               animate={inView}
+              onItemClick={handleLineClick}
             />
           ) : (
             <AnalyticsEmptyState
@@ -375,12 +404,28 @@ export const IncomeVsExpenseCard = memo(function IncomeVsExpenseCard({
   summaryStats,
   divergingHasData,
   formatChartValue,
+  baseFilterQuery,
+  onDrilldown,
 }: {
   overviewReady: boolean;
   summaryStats: MoneyAnalyticsSummaryPayload["stats"];
   divergingHasData: boolean;
   formatChartValue: (minor: number) => string;
+  baseFilterQuery?: string;
+  onDrilldown?: ChartDrilldownHandler;
 }) {
+  const handleDivergingClick = useMemo(() => {
+    if (!baseFilterQuery || !onDrilldown) return undefined;
+    return (item: { kind: "income" | "expense" }) => {
+      onDrilldown({
+        title: item.kind === "income" ? "Income" : "Expenses",
+        filterQuery: mergeDrilldownQuery(baseFilterQuery, {
+          kinds: [item.kind],
+        }),
+      });
+    };
+  }, [baseFilterQuery, onDrilldown]);
+
   return (
     <Card
       className={`w-full min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
@@ -395,6 +440,7 @@ export const IncomeVsExpenseCard = memo(function IncomeVsExpenseCard({
             incomeMinor={summaryStats.incomeMinor}
             expenseMinor={summaryStats.expenseMinor}
             formatValue={formatChartValue}
+            onItemClick={handleDivergingClick}
           />
         ) : (
           <AnalyticsEmptyState
@@ -409,8 +455,6 @@ export const IncomeVsExpenseCard = memo(function IncomeVsExpenseCard({
     </Card>
   );
 });
-
-export type ChartDrilldownHandler = (payload: AnalyticsChartDrilldownPayload) => void;
 
 export const SpendByCategoryCard = memo(function SpendByCategoryCard({
   cardRef,
@@ -620,6 +664,8 @@ export const MonthlyColumnsCard = memo(function MonthlyColumnsCard({
   formatChartValue,
   theme,
   defaultCurrency,
+  baseFilterQuery,
+  onDrilldown,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
@@ -631,6 +677,8 @@ export const MonthlyColumnsCard = memo(function MonthlyColumnsCard({
   formatChartValue: (minor: number) => string;
   theme: ThemeSlice;
   defaultCurrency: string;
+  baseFilterQuery?: string;
+  onDrilldown?: ChartDrilldownHandler;
 }) {
   const { resolved, style } = theme;
   const [hiddenColumnSeries, setHiddenColumnSeries] = useState(
@@ -654,6 +702,20 @@ export const MonthlyColumnsCard = memo(function MonthlyColumnsCard({
     ],
     [resolved, style, columnExpenseTotal, columnIncomeTotal, defaultCurrency],
   );
+
+  const handleColumnClick = useMemo(() => {
+    if (!baseFilterQuery || !onDrilldown) return undefined;
+    return (item: { month: string; series: "income" | "expense" }) => {
+      const bounds = calendarMonthBounds(item.month);
+      onDrilldown({
+        title: `${item.month} · ${item.series === "income" ? "Income" : "Expense"}`,
+        filterQuery: mergeDrilldownQuery(baseFilterQuery, {
+          ...bounds,
+          kinds: [item.series],
+        }),
+      });
+    };
+  }, [baseFilterQuery, onDrilldown]);
 
   return (
     <Card
@@ -689,6 +751,7 @@ export const MonthlyColumnsCard = memo(function MonthlyColumnsCard({
               animate={inView}
               formatValue={formatChartValue}
               showNetLine
+              onItemClick={handleColumnClick}
             />
           ) : (
             <AnalyticsEmptyState
@@ -714,6 +777,8 @@ export const CategorySpendTrendCard = memo(function CategorySpendTrendCard({
   categoryTrendHasData,
   formatChartValue,
   theme,
+  baseFilterQuery,
+  onDrilldown,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
@@ -721,6 +786,8 @@ export const CategorySpendTrendCard = memo(function CategorySpendTrendCard({
   categoryTrendHasData: boolean;
   formatChartValue: (minor: number) => string;
   theme: ThemeSlice;
+  baseFilterQuery?: string;
+  onDrilldown?: ChartDrilldownHandler;
 }) {
   const { resolved, style } = theme;
   const [hiddenCategoryTrendKeys, setHiddenCategoryTrendKeys] = useState(
@@ -746,6 +813,23 @@ export const CategorySpendTrendCard = memo(function CategorySpendTrendCard({
       };
     });
   }, [distribution, resolved, style]);
+
+  const handleTrendClick = useMemo(() => {
+    if (!baseFilterQuery || !onDrilldown) return undefined;
+    return (item: { month: string; key: string; label: string }) => {
+      const categoryId = seriesCategoryKeyForDrilldown(item.key);
+      if (!categoryId) return;
+      const bounds = calendarMonthBounds(item.month);
+      onDrilldown({
+        title: `${item.label} · ${item.month}`,
+        filterQuery: mergeDrilldownQuery(baseFilterQuery, {
+          ...bounds,
+          categoryIds: [categoryId],
+          kinds: ["expense"],
+        }),
+      });
+    };
+  }, [baseFilterQuery, onDrilldown]);
 
   return (
     <Card
@@ -776,6 +860,7 @@ export const CategorySpendTrendCard = memo(function CategorySpendTrendCard({
               hiddenKeys={hiddenCategoryTrendKeys}
               formatValue={formatChartValue}
               animate={inView}
+              onItemClick={handleTrendClick}
             />
           ) : (
             <AnalyticsEmptyState
@@ -802,6 +887,8 @@ export const BudgetVsActualCard = memo(function BudgetVsActualCard({
   budgetChartRows,
   budgetChartHasData,
   formatChartValue,
+  baseFilterQuery,
+  onDrilldown,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
@@ -810,7 +897,38 @@ export const BudgetVsActualCard = memo(function BudgetVsActualCard({
   budgetChartRows: ReturnType<typeof budgetRowsForChart>;
   budgetChartHasData: boolean;
   formatChartValue: (minor: number) => string;
+  baseFilterQuery?: string;
+  onDrilldown?: ChartDrilldownHandler;
 }) {
+  const handleBudgetClick = useMemo(() => {
+    if (!baseFilterQuery || !onDrilldown) return undefined;
+    return (item: { key: string; label: string }) => {
+      const row = budgetChartRows.find((d) => d.key === item.key);
+      if (!row) return;
+      const extra =
+        row.scopeType === "category" && row.scopeId
+          ? {
+              categoryIds: [categoryIdForDrilldown(row.scopeId)],
+              kinds: ["expense" as const],
+            }
+          : row.scopeType === "account" && row.scopeId
+            ? {
+                accountIds: [row.scopeId],
+                kinds: ["expense" as const],
+              }
+            : row.scopeType === "tag" && row.scopeId
+              ? {
+                  tagIds: [row.scopeId],
+                  kinds: ["expense" as const],
+                }
+              : { kinds: ["expense" as const] };
+      onDrilldown({
+        title: `${item.label} · Budget`,
+        filterQuery: mergeDrilldownQuery(baseFilterQuery, extra),
+      });
+    };
+  }, [baseFilterQuery, onDrilldown, budgetChartRows]);
+
   return (
     <Card
       className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
@@ -830,6 +948,7 @@ export const BudgetVsActualCard = memo(function BudgetVsActualCard({
             data={budgetChartRows}
             formatValue={formatChartValue}
             variant="budget"
+            onItemClick={handleBudgetClick}
           />
         ) : (
           <AnalyticsEmptyState
@@ -851,13 +970,34 @@ export const MoneyFlowSankeyCard = memo(function MoneyFlowSankeyCard({
   sankeyPayload,
   sankeyHasData,
   defaultCurrency,
+  baseFilterQuery,
+  onDrilldown,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
   sankeyPayload: MoneyAnalyticsSankeyPayload | null;
   sankeyHasData: boolean;
   defaultCurrency: string;
+  baseFilterQuery?: string;
+  onDrilldown?: ChartDrilldownHandler;
 }) {
+  const handleSankeyClick = useMemo(() => {
+    if (!baseFilterQuery || !onDrilldown) return undefined;
+    return (item: { nodeId: string; label: string }) => {
+      const parsed = sankeyCategoryNodeFromId(item.nodeId);
+      if (!parsed) return;
+      const categoryId = seriesCategoryKeyForDrilldown(parsed.categoryId);
+      if (!categoryId) return;
+      onDrilldown({
+        title: `${item.label} · Money flow`,
+        filterQuery: mergeDrilldownQuery(baseFilterQuery, {
+          categoryIds: [categoryId],
+          kinds: [parsed.kind],
+        }),
+      });
+    };
+  }, [baseFilterQuery, onDrilldown]);
+
   return (
     <Card
       className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
@@ -880,6 +1020,7 @@ export const MoneyFlowSankeyCard = memo(function MoneyFlowSankeyCard({
             links={sankeyPayload.sankey.links}
             currency={defaultCurrency}
             animate={inView}
+            onItemClick={handleSankeyClick}
           />
         ) : (
           <AnalyticsEmptyState

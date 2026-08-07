@@ -10,10 +10,10 @@ import {
 } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
 import { useNotify } from "@/components/notification-provider";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
+import { ShellMainPage } from "@/components/shell-main-page";
 import {
   API_HELP_BASE_URL_PLACEHOLDER,
   apiHelpSections,
@@ -116,7 +116,7 @@ function HelpQuickStartCard({
   baseUrl: string;
 }) {
   return (
-    <Card className="p-5">
+    <div className="min-w-0">
       <h3 className="font-display text-base font-semibold text-foreground">
         {section.title}
       </h3>
@@ -167,7 +167,7 @@ function HelpQuickStartCard({
           </Link>
         </p>
       ) : null}
-    </Card>
+    </div>
   );
 }
 
@@ -191,7 +191,7 @@ function HelpCatalogPanel({
   baseUrl: string;
 }) {
   return (
-    <Card className="p-5">
+    <div className="min-w-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-mono text-sm font-semibold text-foreground">
@@ -245,7 +245,7 @@ function HelpCatalogPanel({
       ) : null}
 
       <HelpCodeBlock sample={sample} baseUrl={baseUrl} />
-    </Card>
+    </div>
   );
 }
 
@@ -475,102 +475,92 @@ export function ApiHelp() {
   );
 
   return (
-    <div className="shell-main grid grid-cols-2 gap-x-2 gap-y-6 py-8 md:grid-cols-6 md:gap-x-4 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-8">
-      <header className="col-span-2 md:col-span-6 lg:col-span-12">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Help
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
-          API reference for personal Bearer tokens, GraphQL queries, and import
-          workflows. Each tab explains the purpose of an endpoint, when to use
-          it, what inputs it expects, and shows a copy-ready example.
-        </p>
-      </header>
-
-      <div className="col-span-2 min-w-0 space-y-6 md:col-span-6 lg:col-span-12">
-        <SettingsSection
-          id="help-quick-start"
-          title="Quick start"
-          description="Create a token, send it on every request, then choose the query you need."
+    <ShellMainPage
+      title="Help"
+      subtitle="API reference for personal Bearer tokens, GraphQL queries, and import workflows. Each tab explains the purpose of an endpoint, when to use it, what inputs it expects, and shows a copy-ready example."
+    >
+      <SettingsSection
+        id="help-quick-start"
+        title="Quick start"
+        description="Create a token, send it on every request, then choose the query you need."
+      >
+        <div
+          className="grid gap-6"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))",
+          }}
         >
-          <div
-            className="grid gap-4"
-            style={{
-              gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))",
-            }}
-          >
-            {quickStartSections.map((section) => (
-              <HelpQuickStartCard
-                key={section.id}
-                section={section}
-                baseUrl={resolvedBase}
-              />
-            ))}
-          </div>
+          {quickStartSections.map((section) => (
+            <HelpQuickStartCard
+              key={section.id}
+              section={section}
+              baseUrl={resolvedBase}
+            />
+          ))}
+        </div>
+      </SettingsSection>
+
+      {querySection ? (
+        <SettingsSection
+          id={`help-${querySection.id}`}
+          title="Query reference"
+          description="Choose a query tab, review its purpose and inputs, then copy the example usage."
+        >
+          <HelpTabbedCatalog
+            name="help-queries"
+            items={querySection.graphqlQueries ?? []}
+            getLabel={(example) => example.tabLabel ?? example.field}
+            renderPanel={(example) => (
+              <HelpGraphqlExample example={example} baseUrl={resolvedBase} />
+            )}
+          />
         </SettingsSection>
+      ) : null}
 
-        {querySection ? (
-          <SettingsSection
-            id={`help-${querySection.id}`}
-            title="Query reference"
-            description="Choose a query tab, review its purpose and inputs, then copy the example usage."
-          >
-            <HelpTabbedCatalog
-              name="help-queries"
-              items={querySection.graphqlQueries ?? []}
-              getLabel={(example) => example.tabLabel ?? example.field}
-              renderPanel={(example) => (
-                <HelpGraphqlExample example={example} baseUrl={resolvedBase} />
-              )}
-            />
-          </SettingsSection>
-        ) : null}
+      {mutationSection ? (
+        <SettingsSection
+          id={`help-${mutationSection.id}`}
+          title="Mutation reference"
+          description="Choose a mutation tab to see whether it works with API tokens or only browser sessions, then copy the example payload."
+        >
+          <HelpTabbedCatalog
+            name="help-mutations"
+            items={mutationSection.graphqlMutations ?? []}
+            getLabel={(example) => example.tabLabel ?? example.field}
+            renderPanel={(example) => (
+              <HelpGraphqlExample example={example} baseUrl={resolvedBase} />
+            )}
+          />
+        </SettingsSection>
+      ) : null}
 
-        {mutationSection ? (
-          <SettingsSection
-            id={`help-${mutationSection.id}`}
-            title="Mutation reference"
-            description="Choose a mutation tab to see whether it works with API tokens or only browser sessions, then copy the example payload."
-          >
-            <HelpTabbedCatalog
-              name="help-mutations"
-              items={mutationSection.graphqlMutations ?? []}
-              getLabel={(example) => example.tabLabel ?? example.field}
-              renderPanel={(example) => (
-                <HelpGraphqlExample example={example} baseUrl={resolvedBase} />
-              )}
-            />
-          </SettingsSection>
-        ) : null}
+      {restSection ? (
+        <SettingsSection
+          id={`help-${restSection.id}`}
+          title="REST API reference"
+          description="Choose a REST endpoint tab to see its auth model, request shape, and example usage."
+        >
+          <HelpTabbedCatalog
+            name="help-rest"
+            items={restSection.restApis ?? []}
+            getLabel={(example) => example.tabLabel}
+            renderPanel={(example) => (
+              <HelpRestApiExample example={example} baseUrl={resolvedBase} />
+            )}
+          />
+        </SettingsSection>
+      ) : null}
 
-        {restSection ? (
-          <SettingsSection
-            id={`help-${restSection.id}`}
-            title="REST API reference"
-            description="Choose a REST endpoint tab to see its auth model, request shape, and example usage."
-          >
-            <HelpTabbedCatalog
-              name="help-rest"
-              items={restSection.restApis ?? []}
-              getLabel={(example) => example.tabLabel}
-              renderPanel={(example) => (
-                <HelpRestApiExample example={example} baseUrl={resolvedBase} />
-              )}
-            />
-          </SettingsSection>
-        ) : null}
-
-        {referenceSections.map((section) => (
-          <SettingsSection
-            key={section.id}
-            id={`help-${section.id}`}
-            title={section.title}
-            description={section.description}
-          >
-            <HelpSectionBody section={section} baseUrl={resolvedBase} />
-          </SettingsSection>
-        ))}
-      </div>
-    </div>
+      {referenceSections.map((section) => (
+        <SettingsSection
+          key={section.id}
+          id={`help-${section.id}`}
+          title={section.title}
+          description={section.description}
+        >
+          <HelpSectionBody section={section} baseUrl={resolvedBase} />
+        </SettingsSection>
+      ))}
+    </ShellMainPage>
   );
 }
