@@ -59,7 +59,7 @@ export function TransactionEditModal({
       onClose={onClose}
       bare
       labelledBy={labelledBy}
-      className="w-[min(100vw-2rem,72rem)] max-h-[calc(100dvh-2rem)] overflow-hidden p-0"
+      className="w-[min(100vw-2rem,72rem)] max-h-[calc(100dvh-2rem)] p-0"
     >
       {transactionId ? (
         <div className="px-4 py-4">
