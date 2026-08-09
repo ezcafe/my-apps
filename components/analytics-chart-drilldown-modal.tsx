@@ -212,7 +212,15 @@ function DrilldownRow({
   categoryById: Map<string, MoneyCategoryRow>;
   currency: string;
   incomeAmountColor: string;
-  formatDate: (iso: string, opts?: { omitYear?: boolean }) => string;
+  formatDate: (
+    iso: string,
+    opts?: {
+      omitYear?: boolean;
+      omitYearIfCurrent?: boolean;
+      relativeDay?: boolean;
+      shortYear?: boolean;
+    },
+  ) => string;
   onEdit: () => void;
 }) {
   const acc = accountById.get(tx.accountId);
@@ -224,7 +232,11 @@ function DrilldownRow({
   return (
     <tr className="border-b border-border/60 transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]">
       <td className="whitespace-nowrap px-3 py-2 text-muted">
-        {formatDate(tx.occurredAt, { omitYear: true })}
+        {formatDate(tx.occurredAt, {
+          omitYearIfCurrent: true,
+          relativeDay: true,
+          shortYear: true,
+        })}
       </td>
       <td className="max-w-[8rem] truncate px-3 py-2">{acc?.name ?? "—"}</td>
       <td className="max-w-[8rem] truncate px-3 py-2">{categoryLabel}</td>

@@ -278,7 +278,11 @@ export function AnalyticsTransactionsTable({
     const categoryLabel =
       cat != null ? moneyCategoryLabel(cat, categoryById) : "—";
     const amountLabel = formatMinor(tx.amountMinor, currency);
-    const dateLabel = formatDate(tx.occurredAt, { omitYear: true });
+    const dateLabel = formatDate(tx.occurredAt, {
+      omitYearIfCurrent: true,
+      relativeDay: true,
+      shortYear: true,
+    });
     const isSelected = selectedIds.has(tx.id);
 
     return (
@@ -343,7 +347,11 @@ export function AnalyticsTransactionsTable({
     const categoryLabel =
       cat != null ? moneyCategoryLabel(cat, categoryById) : "—";
     const amountLabel = formatMinor(tx.amountMinor, currency);
-    const dateLabel = formatDate(tx.occurredAt, { omitYear: true });
+    const dateLabel = formatDate(tx.occurredAt, {
+      omitYearIfCurrent: true,
+      relativeDay: true,
+      shortYear: true,
+    });
     const noteLabel = truncateNote(tx.notes);
     const isSelected = selectedIds.has(tx.id);
 

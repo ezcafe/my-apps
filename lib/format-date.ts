@@ -13,6 +13,10 @@ export type FormatDisplayDateOptions = {
   omitYearIfCurrent?: boolean;
   /** Always omit the year (short month + day). */
   omitYear?: boolean;
+  /** Show "Today" / "Yesterday" for those calendar days (local). */
+  relativeDay?: boolean;
+  /** Use a 2-digit year when the year is included (e.g. "7 Aug 25"). */
+  shortYear?: boolean;
 };
 
 function pad2(n: number): string {
@@ -72,6 +76,10 @@ function intlDate(
   return new Intl.DateTimeFormat(localeTag(format), options).format(d);
 }
 
+function startOfLocalDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
 export function formatDisplayDate(
   input: string | Date,
   format: DateFormat,
@@ -81,13 +89,24 @@ export function formatDisplayDate(
   if (!d) return typeof input === "string" ? input : "";
 
   const now = new Date();
+  if (opts?.relativeDay) {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const delta = startOfLocalDay(d) - startOfLocalDay(now);
+    if (delta === 0) return "Today";
+    if (delta === -dayMs) return "Yesterday";
+  }
+
   const omitYear =
     opts?.omitYear === true ||
     (opts?.omitYearIfCurrent === true && d.getFullYear() === now.getFullYear());
+  const yearStyle = opts?.shortYear ? "2-digit" : "numeric";
 
   if (format === "ymd") {
     if (omitYear) {
       return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    }
+    if (opts?.shortYear) {
+      return `${pad2(d.getFullYear() % 100)}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
     }
     return formatYmdNumeric(d);
   }
@@ -97,7 +116,7 @@ export function formatDisplayDate(
   }
 
   return intlDate(d, format, {
-    year: "numeric",
+    year: yearStyle,
     month: "short",
     day: "numeric",
   });
