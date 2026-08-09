@@ -47,8 +47,14 @@ export const ANALYTICS_GRID_CLASS = cn(MONEY_FULL_SPAN, ANALYTICS_INNER_GRID);
 
 export function AnalyticsStatsSkeleton() {
   return (
-    <div className="col-span-2 grid gap-2 border-b border-border pb-4 md:col-span-6 lg:col-span-12">
-      <Skeleton className="h-3 w-40 rounded-[var(--radius-sm)]" />
+    <div
+      className="col-span-2 grid gap-2 border-b border-border pb-4 md:col-span-6 lg:col-span-12"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Loading summary totals"
+    >
+      <Skeleton className="h-3 w-52 max-w-full rounded-[var(--radius-sm)]" />
       <div
         className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-x-6 gap-y-3"
         aria-hidden
@@ -56,10 +62,7 @@ export function AnalyticsStatsSkeleton() {
         {Array.from({ length: 4 }, (_, index) => (
           <div key={`analytics-stat-${index}`}>
             <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
-            <Skeleton className="mt-1 h-8 w-28 rounded-[var(--radius-sm)]" />
-            {index === 1 ? (
-              <Skeleton className="mt-1 h-3 w-24 rounded-[var(--radius-sm)]" />
-            ) : null}
+            <Skeleton className="mt-1 h-8 w-32 max-w-full rounded-[var(--radius-sm)]" />
           </div>
         ))}
       </div>
