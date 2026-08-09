@@ -21,7 +21,8 @@ import {
   type AnalyticsLookupTag,
   type AnalyticsWorkspaceRow,
 } from "@/components/analytics-filters";
-import { MoneyAnalyticsFiltersBarSkeleton, MoneyAnalyticsTransactionsTableSkeleton } from "@/components/money-analytics-skeleton";
+import { MoneyAnalyticsFiltersBarSkeleton, AnalyticsStatsSkeleton, MoneyAnalyticsTransactionsTableSkeleton } from "@/components/money-analytics-skeleton";
+import { MoneyLedgerSummaryStats } from "@/components/money-ledger-summary-stats";
 import { MoneyLedgerTrendCard } from "@/components/money-ledger-trend-card";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
@@ -66,6 +67,7 @@ export function MoneyTransactionsPage({
   preset,
   viewNav,
   variant = "page",
+  showSummaryStats = false,
 }: {
   userSub?: string;
   authenticated: boolean;
@@ -82,9 +84,12 @@ export function MoneyTransactionsPage({
    * `section` — embed under another surface (no View nav / trend).
    */
   variant?: "page" | "section";
+  /** Income / Expenses / Net / Savings rate strip (Analytics-style). */
+  showSummaryStats?: boolean;
 }) {
   const router = useRouter();
   const isSection = variant === "section";
+  const showStats = !isSection && showSummaryStats;
   const {
     workspaceId: coreWorkspaceId,
     defaultCurrency,
@@ -326,6 +331,7 @@ export function MoneyTransactionsPage({
     return (
       <>
         <MoneyAnalyticsFiltersBarSkeleton />
+        {showStats ? <AnalyticsStatsSkeleton /> : null}
         <MoneyAnalyticsTransactionsTableSkeleton selectable />
       </>
     );
@@ -372,6 +378,17 @@ export function MoneyTransactionsPage({
           description='Add a "Bills" category under "Necessities" in Settings → Categories, or reload after the app creates it automatically.'
           className={`${MONEY_FULL_SPAN} mb-3`}
         />
+      ) : null}
+
+      {showStats && lookupsReady && activeWorkspaceId ? (
+        <MoneyLedgerSummaryStats
+          filterQuery={filterQuery}
+          workspaceId={activeWorkspaceId}
+          currency={defaultCurrency}
+          enabled={!isFilterPending}
+        />
+      ) : showStats ? (
+        <AnalyticsStatsSkeleton />
       ) : null}
 
       {!isSection &&

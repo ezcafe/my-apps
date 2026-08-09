@@ -10,7 +10,9 @@ export default async function MoneySpendingPage() {
   const userSub = session?.user?.id;
   const queryClient = getQueryClient();
   if (userSub) {
-    await prefetchMoneyLedger(queryClient, MONEY_LEDGER_SPENDING, userSub);
+    await prefetchMoneyLedger(queryClient, MONEY_LEDGER_SPENDING, userSub, {
+      includeSummary: true,
+    });
   }
 
   return (
@@ -19,6 +21,7 @@ export default async function MoneySpendingPage() {
         userSub={userSub}
         authenticated={Boolean(userSub)}
         preset={MONEY_LEDGER_SPENDING}
+        showSummaryStats
       />
     </HydrationBoundary>
   );

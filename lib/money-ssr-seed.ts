@@ -189,6 +189,7 @@ export async function seedMoneyLedgerPage(
   queryClient: QueryClient,
   userSub: string,
   preset: MoneyLedgerPreset,
+  options?: { includeSummary?: boolean },
 ): Promise<void> {
   const boot = await seedMoneyBootstrap(queryClient, userSub);
   if (!boot?.workspaceId) return;
@@ -236,6 +237,26 @@ export async function seedMoneyLedgerPage(
         page: list.page,
         pageSize: list.pageSize,
       },
+    );
+  } catch {
+    // Client GraphQL fills in.
+  }
+
+  if (!options?.includeSummary) return;
+
+  const filters = parseAnalyticsFilters(filterQuery);
+  if (!filters) return;
+
+  try {
+    const summary = await runInWorkspace(boot.workspaceId, () =>
+      computeMoneyAnalyticsSummary(boot.workspaceId, filters),
+    );
+    const payload: MoneyAnalyticsSummaryQueryResult = {
+      moneyAnalyticsSummary: summary,
+    };
+    queryClient.setQueryData(
+      moneyAnalyticsSummaryQueryOptions(boot.workspaceId, filterQuery).queryKey,
+      payload,
     );
   } catch {
     // Client GraphQL fills in.

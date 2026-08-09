@@ -45,7 +45,7 @@ const ANALYTICS_INNER_GRID =
 /** Full-width shell cell that hosts the Insights chart grid. */
 export const ANALYTICS_GRID_CLASS = cn(MONEY_FULL_SPAN, ANALYTICS_INNER_GRID);
 
-function AnalyticsStatsSkeleton() {
+export function AnalyticsStatsSkeleton() {
   return (
     <div className="col-span-2 grid gap-2 border-b border-border pb-4 md:col-span-6 lg:col-span-12">
       <Skeleton className="h-3 w-40 rounded-[var(--radius-sm)]" />
@@ -273,15 +273,18 @@ export function MoneyAnalyticsPageSkeleton() {
   );
 }
 
-/** Filters + optional net-flow chart + table as shell siblings (ledger routes). */
+/** Filters + optional stats/chart + table as shell siblings (ledger routes). */
 export function MoneyLedgerPageSkeleton({
   showChart = true,
+  showSummaryStats = false,
 }: {
   showChart?: boolean;
+  showSummaryStats?: boolean;
 } = {}) {
   return (
     <>
       <MoneyAnalyticsFiltersBarSkeleton />
+      {showSummaryStats ? <AnalyticsStatsSkeleton /> : null}
       {showChart ? (
         <AnalyticsChartCardSkeleton
           className={cn(MONEY_FULL_SPAN, "w-full")}

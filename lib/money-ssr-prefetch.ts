@@ -22,8 +22,9 @@ export async function prefetchMoneyLedger(
   queryClient: QueryClient,
   preset: MoneyLedgerPreset,
   userSub: string,
+  options?: { includeSummary?: boolean },
 ) {
-  await seedMoneyLedgerPage(queryClient, userSub, preset);
+  await seedMoneyLedgerPage(queryClient, userSub, preset, options);
 }
 
 /**
