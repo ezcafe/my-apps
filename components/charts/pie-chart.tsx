@@ -2,7 +2,7 @@
 
 import { Group } from "@visx/group";
 import { Pie } from "@visx/shape";
-import { ParentSize } from "@visx/responsive";
+import { ChartParentSize } from "@/components/charts/chart-parent-size";
 import { useMemo } from "react";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { ChartShell } from "@/components/charts/chart-shell";
@@ -61,27 +61,25 @@ export function PieByCategoryChart({
   return (
     <ChartShell isEmpty={allHidden} emptyMessage={emptyMessage}>
       {(tooltipApi) => (
-        <ParentSize className="size-full min-h-0 min-w-0">
-          {({ width, height }) =>
-            width > 0 && height > 0 ? (
-              <PieInner
-                width={width}
-                height={height}
-                data={visibleData}
-                allData={data}
-                resolved={resolved}
-                stylePreset={style}
-                hoveredLabel={hoveredLabel}
-                animate={animate}
-                formatValue={formatValue}
-                centerTotalMinor={centerTotalMinor}
-                centerLabel={centerLabel}
-                tooltipApi={tooltipApi}
-                onItemClick={onItemClick}
-              />
-            ) : null
-          }
-        </ParentSize>
+        <ChartParentSize>
+          {({ width, height }) => (
+            <PieInner
+              width={width}
+              height={height}
+              data={visibleData}
+              allData={data}
+              resolved={resolved}
+              stylePreset={style}
+              hoveredLabel={hoveredLabel}
+              animate={animate}
+              formatValue={formatValue}
+              centerTotalMinor={centerTotalMinor}
+              centerLabel={centerLabel}
+              tooltipApi={tooltipApi}
+              onItemClick={onItemClick}
+            />
+          )}
+        </ChartParentSize>
       )}
     </ChartShell>
   );

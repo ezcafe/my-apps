@@ -28,16 +28,19 @@ export function AnalyticsChartContainer({
   legendLayout?: "default" | "compact";
   children: ReactNode;
 }) {
+  /* Flex fill (not absolute inset-0): Safari often reports 0 height for
+     percentage/absolute descendants inside size-contained or grid 1fr rows,
+     which leaves visx ParentSize blank. */
   const chartSlot = (
     <div
       className={[
-        "relative h-full min-h-0 min-w-0 place-self-center overflow-hidden w-full",
+        "relative flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden place-self-stretch",
         legend ? "order-1 md:order-2" : null,
       ]
         .filter(Boolean)
         .join(" ")}
     >
-      <div className="absolute inset-0 min-h-0 min-w-0">{children}</div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
     </div>
   );
 

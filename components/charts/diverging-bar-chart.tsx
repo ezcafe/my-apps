@@ -1,7 +1,7 @@
 "use client";
 
 import { Group } from "@visx/group";
-import { ParentSize } from "@visx/responsive";
+import { ChartParentSize } from "@/components/charts/chart-parent-size";
 import { scaleLinear } from "@visx/scale";
 import {
   chartExpenseColor,
@@ -42,22 +42,20 @@ export function DivergingBarChart({
   return (
     <ChartShell isEmpty={isEmpty} emptyMessage="No income or expenses in this range">
       {(tooltipApi) => (
-        <ParentSize className="size-full min-h-0 min-w-0">
-          {({ width, height }) =>
-            width > 0 && height > 0 ? (
-              <DivergingInner
-                width={width}
-                height={height}
-                incomeMinor={incomeMinor}
-                expenseMinor={expenseMinor}
-                animate={animate}
-                formatValue={formatValue}
-                tooltipApi={tooltipApi}
-                onItemClick={onItemClick}
-              />
-            ) : null
-          }
-        </ParentSize>
+        <ChartParentSize>
+          {({ width, height }) => (
+            <DivergingInner
+              width={width}
+              height={height}
+              incomeMinor={incomeMinor}
+              expenseMinor={expenseMinor}
+              animate={animate}
+              formatValue={formatValue}
+              tooltipApi={tooltipApi}
+              onItemClick={onItemClick}
+            />
+          )}
+        </ChartParentSize>
       )}
     </ChartShell>
   );

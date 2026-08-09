@@ -3,7 +3,7 @@
 import { curveMonotoneX } from "@visx/curve";
 import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
-import { ParentSize } from "@visx/responsive";
+import { ChartParentSize } from "@/components/charts/chart-parent-size";
 import { scaleBand, scaleLinear } from "@visx/scale";
 import {
   chartExpenseColor,
@@ -109,27 +109,25 @@ export function ColumnChart({
       emptyMessage="All series hidden — click legend to show"
     >
       {(tooltipApi) => (
-        <ParentSize className="size-full min-h-0 min-w-0">
-          {({ width, height }) =>
-            width > 0 && height > 0 ? (
-              <ColumnInner
-                width={width}
-                height={height}
-                data={data}
-                formatMonthLabel={formatMonthLabel}
-                resolved={resolved}
-                stylePreset={style}
-                hideExpense={hideExpense}
-                hideIncome={hideIncome}
-                animate={animate}
-                formatValue={formatValue}
-                showNetLine={showNetLine}
-                tooltipApi={tooltipApi}
-                onItemClick={onItemClick}
-              />
-            ) : null
-          }
-        </ParentSize>
+        <ChartParentSize>
+          {({ width, height }) => (
+            <ColumnInner
+              width={width}
+              height={height}
+              data={data}
+              formatMonthLabel={formatMonthLabel}
+              resolved={resolved}
+              stylePreset={style}
+              hideExpense={hideExpense}
+              hideIncome={hideIncome}
+              animate={animate}
+              formatValue={formatValue}
+              showNetLine={showNetLine}
+              tooltipApi={tooltipApi}
+              onItemClick={onItemClick}
+            />
+          )}
+        </ChartParentSize>
       )}
     </ChartShell>
   );

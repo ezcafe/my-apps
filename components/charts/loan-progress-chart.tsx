@@ -3,7 +3,7 @@
 import { curveMonotoneX } from "@visx/curve";
 import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
-import { ParentSize } from "@visx/responsive";
+import { ChartParentSize } from "@/components/charts/chart-parent-size";
 import { scaleLinear, scalePoint } from "@visx/scale";
 import { useId, useLayoutEffect, useMemo, useRef } from "react";
 import {
@@ -114,23 +114,21 @@ export function LoanProgressChart({
       emptyMessage="All series hidden — click legend to show"
     >
       {(tooltipApi) => (
-        <ParentSize className="size-full min-h-0 min-w-0">
-          {({ width, height }) =>
-            width > 0 && height > 0 ? (
-              <LoanProgressInner
-                width={width}
-                height={height}
-                data={data}
-                formatY={formatY}
-                colors={colors}
-                hiddenSeries={hiddenSeries}
-                clipPathId={`loan-progress-clip-${clipId}`}
-                animate={animate}
-                tooltipApi={tooltipApi}
-              />
-            ) : null
-          }
-        </ParentSize>
+        <ChartParentSize>
+          {({ width, height }) => (
+            <LoanProgressInner
+              width={width}
+              height={height}
+              data={data}
+              formatY={formatY}
+              colors={colors}
+              hiddenSeries={hiddenSeries}
+              clipPathId={`loan-progress-clip-${clipId}`}
+              animate={animate}
+              tooltipApi={tooltipApi}
+            />
+          )}
+        </ChartParentSize>
       )}
     </ChartShell>
   );
@@ -252,6 +250,7 @@ function LoanProgressInner({
 
   useLayoutEffect(() => {
     if (!animate || reducedMotion) return;
+    const clearFns: Array<() => void> = [];
     for (const meta of visibleMeta) {
       const el = pathRefs.current.get(meta.key);
       if (!el) continue;
@@ -260,12 +259,25 @@ function LoanProgressInner({
       const isDashed = meta.strokeDasharray != null;
       el.style.strokeDasharray = isDashed ? `${len}` : `${len}`;
       el.style.strokeDashoffset = `${len}`;
-      requestAnimationFrame(() => {
-        el.style.transition =
-          "stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)";
+      const finish = () => {
+        el.style.transitionProperty = "none";
+        el.style.strokeDashoffset = "0";
+      };
+      const raf = requestAnimationFrame(() => {
+        el.style.transitionProperty = "stroke-dashoffset";
+        el.style.transitionDuration = "0.8s";
+        el.style.transitionTimingFunction = "cubic-bezier(0.22, 1, 0.36, 1)";
         el.style.strokeDashoffset = "0";
       });
+      const timer = window.setTimeout(finish, 900);
+      clearFns.push(() => {
+        cancelAnimationFrame(raf);
+        window.clearTimeout(timer);
+      });
     }
+    return () => {
+      for (const clear of clearFns) clear();
+    };
   }, [animate, reducedMotion, visibleMeta, seriesPoints, width, height]);
 
   const xTicks = xTickIndices(xDomain.length, 6);

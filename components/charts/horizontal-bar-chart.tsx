@@ -1,7 +1,7 @@
 "use client";
 
 import { Group } from "@visx/group";
-import { ParentSize } from "@visx/responsive";
+import { ChartParentSize } from "@/components/charts/chart-parent-size";
 import { scaleBand, scaleLinear } from "@visx/scale";
 import { BarRounded } from "@visx/shape";
 import { colorByIndex } from "@/components/charts/chart-colors";
@@ -51,22 +51,20 @@ export function HorizontalBarChart({
   return (
     <ChartShell isEmpty={isEmpty} emptyMessage="No data to display">
       {(tooltipApi) => (
-        <ParentSize className="size-full min-h-0 min-w-0">
-          {({ width, height }) =>
-            width > 0 && height > 0 ? (
-              <HorizontalBarInner
-                width={width}
-                height={height}
-                data={visible}
-                variant={variant}
-                animate={animate}
-                formatValue={formatValue}
-                tooltipApi={tooltipApi}
-                onItemClick={onItemClick}
-              />
-            ) : null
-          }
-        </ParentSize>
+        <ChartParentSize>
+          {({ width, height }) => (
+            <HorizontalBarInner
+              width={width}
+              height={height}
+              data={visible}
+              variant={variant}
+              animate={animate}
+              formatValue={formatValue}
+              tooltipApi={tooltipApi}
+              onItemClick={onItemClick}
+            />
+          )}
+        </ChartParentSize>
       )}
     </ChartShell>
   );

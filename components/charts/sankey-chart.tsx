@@ -1,7 +1,7 @@
 "use client";
 
 import { Group } from "@visx/group";
-import { ParentSize } from "@visx/responsive";
+import { ChartParentSize } from "@/components/charts/chart-parent-size";
 import { Sankey, sankeyJustify, type SankeyNode } from "@visx/sankey";
 import { BarRounded, LinkHorizontal } from "@visx/shape";
 import { colorByIndex } from "@/components/charts/chart-colors";
@@ -69,24 +69,22 @@ export function SankeyChart({
   return (
     <ChartShell className="relative size-full min-h-0 min-w-0">
       {(tooltipApi) => (
-        <ParentSize className="size-full min-h-0 min-w-0">
-          {({ width, height }) =>
-            width > 0 && height > 0 ? (
-              <SankeyInner
-                width={width}
-                height={height}
-                nodes={nodes}
-                links={links}
-                resolved={resolved}
-                stylePreset={style}
-                currency={currency}
-                animate={animate}
-                tooltipApi={tooltipApi}
-                onItemClick={onItemClick}
-              />
-            ) : null
-          }
-        </ParentSize>
+        <ChartParentSize>
+          {({ width, height }) => (
+            <SankeyInner
+              width={width}
+              height={height}
+              nodes={nodes}
+              links={links}
+              resolved={resolved}
+              stylePreset={style}
+              currency={currency}
+              animate={animate}
+              tooltipApi={tooltipApi}
+              onItemClick={onItemClick}
+            />
+          )}
+        </ChartParentSize>
       )}
     </ChartShell>
   );

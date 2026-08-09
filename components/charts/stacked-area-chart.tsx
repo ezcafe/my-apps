@@ -2,7 +2,7 @@
 
 import { curveMonotoneX } from "@visx/curve";
 import { Group } from "@visx/group";
-import { ParentSize } from "@visx/responsive";
+import { ChartParentSize } from "@/components/charts/chart-parent-size";
 import { scaleLinear, scalePoint } from "@visx/scale";
 import { AreaStack } from "@visx/shape";
 import { useMemo } from "react";
@@ -58,23 +58,21 @@ export function StackedAreaChart({
       emptyMessage="No category spend across months in this range"
     >
       {(tooltipApi) => (
-        <ParentSize className="size-full min-h-0 min-w-0">
-          {({ width, height }) =>
-            width > 0 && height > 0 ? (
-              <StackedAreaInner
-                width={width}
-                height={height}
-                data={data}
-                hiddenKeys={hiddenKeys}
-                formatMonthLabel={formatMonthLabel}
-                animate={animate}
-                formatValue={formatValue}
-                tooltipApi={tooltipApi}
-                onItemClick={onItemClick}
-              />
-            ) : null
-          }
-        </ParentSize>
+        <ChartParentSize>
+          {({ width, height }) => (
+            <StackedAreaInner
+              width={width}
+              height={height}
+              data={data}
+              hiddenKeys={hiddenKeys}
+              formatMonthLabel={formatMonthLabel}
+              animate={animate}
+              formatValue={formatValue}
+              tooltipApi={tooltipApi}
+              onItemClick={onItemClick}
+            />
+          )}
+        </ChartParentSize>
       )}
     </ChartShell>
   );

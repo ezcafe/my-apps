@@ -3,7 +3,7 @@
 import { curveMonotoneX } from "@visx/curve";
 import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
-import { ParentSize } from "@visx/responsive";
+import { ChartParentSize } from "@/components/charts/chart-parent-size";
 import { scaleLinear, scalePoint } from "@visx/scale";
 import { useId, useLayoutEffect, useMemo, useRef } from "react";
 import {
@@ -107,29 +107,27 @@ export function LineChart({
   return (
     <ChartShell isEmpty={allHidden} emptyMessage={emptyMessage}>
       {(tooltipApi) => (
-        <ParentSize className="size-full min-h-0 min-w-0">
-          {({ width, height }) =>
-            width > 0 && height > 0 ? (
-              <LineInner
-                width={width}
-                height={height}
-                data={data}
-                comparison={comparison}
-                xMode={xMode}
-                formatY={formatY}
-                formatXTick={formatX}
-                resolved={resolved}
-                stylePreset={style}
-                clipPathId={`analytics-line-clip-${clipId}`}
-                hidePrimary={hidePrimary}
-                hideCompare={hideCompare}
-                animate={animate}
-                tooltipApi={tooltipApi}
-                onItemClick={onItemClick}
-              />
-            ) : null
-          }
-        </ParentSize>
+        <ChartParentSize>
+          {({ width, height }) => (
+            <LineInner
+              width={width}
+              height={height}
+              data={data}
+              comparison={comparison}
+              xMode={xMode}
+              formatY={formatY}
+              formatXTick={formatX}
+              resolved={resolved}
+              stylePreset={style}
+              clipPathId={`analytics-line-clip-${clipId}`}
+              hidePrimary={hidePrimary}
+              hideCompare={hideCompare}
+              animate={animate}
+              tooltipApi={tooltipApi}
+              onItemClick={onItemClick}
+            />
+          )}
+        </ChartParentSize>
       )}
     </ChartShell>
   );
@@ -281,20 +279,35 @@ function LineInner({
 
   useLayoutEffect(() => {
     if (!animate || reducedMotion) return;
+    const clearFns: Array<() => void> = [];
     const runDraw = (el: SVGPathElement | null, isDashed: boolean) => {
       if (!el) return;
       const len = el.getTotalLength();
       if (len <= 0) return;
       el.style.strokeDasharray = isDashed ? `${len}` : `${len}`;
       el.style.strokeDashoffset = `${len}`;
-      requestAnimationFrame(() => {
-        el.style.transition =
-          "stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)";
+      const finish = () => {
+        el.style.transitionProperty = "none";
         el.style.strokeDashoffset = "0";
+      };
+      const raf = requestAnimationFrame(() => {
+        el.style.transitionProperty = "stroke-dashoffset";
+        el.style.transitionDuration = "0.8s";
+        el.style.transitionTimingFunction = "cubic-bezier(0.22, 1, 0.36, 1)";
+        el.style.strokeDashoffset = "0";
+      });
+      // Safari can drop the CSS transition on SVG paths; force visible end state.
+      const timer = window.setTimeout(finish, 900);
+      clearFns.push(() => {
+        cancelAnimationFrame(raf);
+        window.clearTimeout(timer);
       });
     };
     if (!hidePrimary) runDraw(primaryPathRef.current, false);
     if (!hideCompare) runDraw(comparePathRef.current, true);
+    return () => {
+      for (const clear of clearFns) clear();
+    };
   }, [
     animate,
     reducedMotion,
