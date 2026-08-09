@@ -10,7 +10,7 @@ export default async function MoneySavingsLedgerPage() {
   const userSub = session?.user?.id;
   const queryClient = getQueryClient();
   if (userSub) {
-    await prefetchMoneyLedger(queryClient, MONEY_LEDGER_SAVINGS);
+    await prefetchMoneyLedger(queryClient, MONEY_LEDGER_SAVINGS, userSub);
   }
 
   return (

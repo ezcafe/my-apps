@@ -9,7 +9,7 @@ export default async function MoneyInvestmentsPage() {
   const userSub = session?.user?.id;
   const queryClient = getQueryClient();
   if (userSub) {
-    await prefetchMoneyInvestmentsHome(queryClient);
+    await prefetchMoneyInvestmentsHome(queryClient, userSub);
   }
 
   return (

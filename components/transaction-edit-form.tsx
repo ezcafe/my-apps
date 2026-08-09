@@ -76,7 +76,7 @@ function resolveTransactionEditReturnTo(raw: string | null): string {
   ) {
     return raw === "/money/transactions" ? "/money/spending" : raw;
   }
-  return "/money/analytics";
+  return "/money/spending";
 }
 
 function transactionEditReturnLabel(returnTo: string): string {
@@ -100,7 +100,7 @@ function TransactionEditBreadcrumbs({ returnTo }: { returnTo: string }) {
     <nav aria-label="Breadcrumb">
       <ol className="flex flex-wrap items-center gap-2">
         <li>
-          <Link href="/money/analytics" className={itemCls}>
+          <Link href="/money/spending" className={itemCls}>
             Money
           </Link>
         </li>

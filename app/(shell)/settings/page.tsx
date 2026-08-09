@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { listApiTokensForUser } from "@/lib/api-token-service";
-import { fetchWorkspacesForUser } from "@/lib/money-workspace-bootstrap-data";
+import { fetchWorkspacesForUser } from "@/lib/workspace-list";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import { ApiTokenSettings } from "@/components/api-token-settings";
 import { DateFormatSettings } from "@/components/date-format-settings";
@@ -13,14 +13,24 @@ import { isDbUnreachable } from "@/lib/db-errors";
 
 async function loadSettingsDbData(userSub: string) {
   try {
-    const [{ workspaces }, apiTokens] = await Promise.all([
+    const [{ workspaces, defaultWorkspaceId }, apiTokens] = await Promise.all([
       fetchWorkspacesForUser(userSub, "money"),
       listApiTokensForUser(userSub),
     ]);
-    return { workspaces, apiTokens, dbUnavailable: false as const };
+    return {
+      workspaces,
+      defaultWorkspaceId,
+      apiTokens,
+      dbUnavailable: false as const,
+    };
   } catch (e) {
     if (isDbUnreachable(e)) {
-      return { workspaces: [], apiTokens: [], dbUnavailable: true as const };
+      return {
+        workspaces: [],
+        defaultWorkspaceId: null,
+        apiTokens: [],
+        dbUnavailable: true as const,
+      };
     }
     throw e;
   }
@@ -29,9 +39,14 @@ async function loadSettingsDbData(userSub: string) {
 export default async function SettingsPage() {
   const session = await auth();
   const userSub = session?.user?.id;
-  const { workspaces, apiTokens, dbUnavailable } = userSub
+  const { workspaces, defaultWorkspaceId, apiTokens, dbUnavailable } = userSub
     ? await loadSettingsDbData(userSub)
-    : { workspaces: [], apiTokens: [], dbUnavailable: false as const };
+    : {
+        workspaces: [],
+        defaultWorkspaceId: null,
+        apiTokens: [],
+        dbUnavailable: false as const,
+      };
 
   return (
     <ShellMainPage title="Settings">
@@ -86,7 +101,10 @@ export default async function SettingsPage() {
         <DateFormatSettings embedded />
       </SettingsSection>
 
-      <WorkspaceSettings />
+      <WorkspaceSettings
+        initialWorkspaces={workspaces}
+        initialDefaultWorkspaceId={defaultWorkspaceId}
+      />
 
       <SettingsSection
         id="settings-api-tokens"

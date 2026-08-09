@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Money home is Insights (`/money/analytics`). */
+/** Money home is the spending ledger (`/money/spending`). */
 export default function MoneyPage() {
-  redirect("/money/analytics");
+  redirect("/money/spending");
 }

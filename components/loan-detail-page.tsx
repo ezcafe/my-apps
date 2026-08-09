@@ -39,7 +39,7 @@ import { cn } from "@/lib/cn";
 
 const AnalyticsChartContainer = dynamic(
   () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
+    import("@/components/analytics-chart-card-shared").then((m) => ({
       default: m.AnalyticsChartContainer,
     })),
   { ssr: false },

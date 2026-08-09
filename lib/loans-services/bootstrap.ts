@@ -7,7 +7,7 @@ import { countDueLoanInstallments } from "@/lib/loans-services/due";
 import {
   fetchWorkspacesForUser,
   type BootstrapWorkspaceRow,
-} from "@/lib/money-workspace-bootstrap-data";
+} from "@/lib/workspace-list";
 import { getLoansWorkspaceIdForUser } from "@/lib/workspace-loans";
 
 export type LoansWorkspaceCoreData = {
@@ -24,8 +24,11 @@ export type LoansBootstrapData = LoansWorkspaceCoreData;
 export async function fetchLoansWorkspaceStatePayload(
   userSub: string,
 ): Promise<LoansWorkspaceCoreData> {
-  await ensureUserBootstrap(userSub);
-  const workspaceId = await getLoansWorkspaceIdForUser(userSub);
+  let workspaceId = await getLoansWorkspaceIdForUser(userSub);
+  if (!workspaceId) {
+    await ensureUserBootstrap(userSub);
+    workspaceId = await getLoansWorkspaceIdForUser(userSub);
+  }
   if (!workspaceId) {
     throw new Error("Workspace unavailable");
   }

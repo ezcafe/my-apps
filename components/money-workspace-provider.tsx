@@ -51,7 +51,7 @@ const WorkspaceCurrencyContext = createContext<WorkspaceCurrencyContextValue>({
   refreshWorkspaceCurrency: async () => {},
 });
 
-/** Money workspace + default currency; only mount under `/money` (see `MoneyRouteLayout`). */
+/** Money workspace + default currency; only mount under `/money` (see `MoneyHydratedWorkspace`). */
 export function useWorkspaceCurrency() {
   return useContext(WorkspaceCurrencyContext);
 }
@@ -83,23 +83,37 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
     if (!tzName) return;
 
     let cancelled = false;
-    void (async () => {
-      try {
-        const result = await syncWorkspaceTimezone(boot.workspaceId, tzName);
-        if (cancelled || result.unchanged) return;
-        await queryClient.invalidateQueries({
-          predicate: (query) =>
-            query.queryKey[0] === "money" &&
-            typeof query.queryKey[1] === "string" &&
-            query.queryKey[1].startsWith("analytics"),
-        });
-      } catch {
-        // Non-blocking; analytics falls back to stored workspace timezone.
-      }
-    })();
+    const run = () => {
+      void (async () => {
+        try {
+          const result = await syncWorkspaceTimezone(boot.workspaceId, tzName);
+          if (cancelled || result.unchanged) return;
+          await queryClient.invalidateQueries({
+            predicate: (query) =>
+              query.queryKey[0] === "money" &&
+              typeof query.queryKey[1] === "string" &&
+              query.queryKey[1].startsWith("analytics"),
+          });
+        } catch {
+          // Non-blocking; analytics falls back to stored workspace timezone.
+        }
+      })();
+    };
+
+    let idleId: number | undefined;
+    let timeoutId: number | undefined;
+    if (typeof globalThis.requestIdleCallback === "function") {
+      idleId = globalThis.requestIdleCallback(run, { timeout: 2500 });
+    } else {
+      timeoutId = window.setTimeout(run, 1);
+    }
 
     return () => {
       cancelled = true;
+      if (idleId != null) {
+        globalThis.cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) window.clearTimeout(timeoutId);
     };
   }, [bootstrapQuery.data, queryClient]);
   const [currencyDraft, setCurrencyDraft] = useState<{

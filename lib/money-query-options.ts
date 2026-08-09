@@ -494,7 +494,7 @@ export function moneyAnalyticsLeadersQueryOptions(
   });
 }
 
-function analyticsTransactionsQueryObject(
+export function moneyTransactionsListQueryInput(
   filterQuery: string,
   page: number,
   pageSize: number,
@@ -555,7 +555,7 @@ export function moneyTransactionsQueryOptions(
       const res = await moneyGraphQLRequest<{
         moneyTransactions: MoneyTransactionsListResponse;
       }>(MONEY_TRANSACTIONS_QUERY, {
-        query: analyticsTransactionsQueryObject(
+        query: moneyTransactionsListQueryInput(
           filterQuery,
           page,
           pageSize,

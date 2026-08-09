@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
+import { auth } from "@/auth";
 import { ShellLayout } from "@/components/shell-layout";
 
-export default function ShellRouteGroupLayout({
+export default async function ShellRouteGroupLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  return <ShellLayout>{children}</ShellLayout>;
+  const session = await auth();
+  return <ShellLayout session={session}>{children}</ShellLayout>;
 }

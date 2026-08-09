@@ -25,9 +25,9 @@ Finance domains (investments, loans, savings movements) are **modules under Mone
 
 ## Money bootstrap (scoped)
 
-Money workspace bootstrap runs under [`MoneyWorkspaceProvider`](../components/money-workspace-provider.tsx), mounted from [`money/layout.tsx`](../app/(shell)/money/layout.tsx) via [`MoneyRouteLayout`](../components/money-route-layout.tsx).
+Money workspace bootstrap runs under [`MoneyWorkspaceProvider`](../components/money-workspace-provider.tsx), mounted from [`money/layout.tsx`](../app/(shell)/money/layout.tsx) via [`MoneyRouteChrome`](../components/money-route-layout.tsx) + [`MoneyHydratedWorkspace`](../components/money-route-layout.tsx).
 
-**First load (SSR):** authenticated Money layouts/pages prefetch GraphQL into a per-request TanStack Query client ([`getQueryClient`](../lib/get-query-client.ts), [`money-ssr-prefetch.ts`](../lib/money-ssr-prefetch.ts)), dehydrate, and hydrate via `HydrationBoundary` so above-the-fold data paints without a client waterfall. Cookie-forwarded GraphQL requests use [`gql-request-headers.ts`](../lib/gql-request-headers.ts).
+**First load (SSR):** authenticated Money layouts/pages seed TanStack Query from **service functions** (not HTTP GraphQL loopback) via [`money-ssr-seed.ts`](../lib/money-ssr-seed.ts) / [`money-ssr-prefetch.ts`](../lib/money-ssr-prefetch.ts) into a per-request client ([`getQueryClient`](../lib/get-query-client.ts)). Tab chrome streams immediately; bootstrap hydrates above `MoneyWorkspaceProvider`. Client `queryFn`s still use GraphQL after hydration.
 
 **After mutations (CSR):** create/edit/add invalidate React Query roots (`["money"]`, `loansKeys`, `investmentKeys`) and refetch active queries only — no full document reload.
 
@@ -36,7 +36,7 @@ Other shell routes (e.g. `/settings`) **do not** call Money bootstrap on load.
 ## Themes and providers
 
 - Root layout: [`app/layout.tsx`](../app/layout.tsx) — fonts, metadata, [`RootProviders`](../components/root-providers.tsx) (theme, toasts).
-- Authenticated chrome: [`app/(shell)/layout.tsx`](../app/(shell)/layout.tsx) → `ShellLayout` → `AppShell`.
+- Authenticated chrome: [`app/(shell)/layout.tsx`](../app/(shell)/layout.tsx) loads the session on the server and passes it into `ShellLayout` → `SessionProvider` + `AppShell`.
 
 ## Analytics and Money
 

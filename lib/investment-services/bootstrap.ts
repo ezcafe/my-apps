@@ -6,7 +6,7 @@ import { isDbUnreachable } from "@/lib/db-errors";
 import {
   fetchWorkspacesForUser,
   type BootstrapWorkspaceRow,
-} from "@/lib/money-workspace-bootstrap-data";
+} from "@/lib/workspace-list";
 import { getInvestmentWorkspaceIdForUser } from "@/lib/workspace-investment";
 import { countInvestmentInstruments } from "@/lib/investment-services/instruments";
 
@@ -24,8 +24,11 @@ export async function fetchInvestmentBootstrapSafe(userSub: string): Promise<
   | { ok: false; code: "db_unavailable" | "workspace_error"; message: string }
 > {
   try {
-    await ensureUserBootstrap(userSub);
-    const workspaceId = await getInvestmentWorkspaceIdForUser(userSub);
+    let workspaceId = await getInvestmentWorkspaceIdForUser(userSub);
+    if (!workspaceId) {
+      await ensureUserBootstrap(userSub);
+      workspaceId = await getInvestmentWorkspaceIdForUser(userSub);
+    }
     if (!workspaceId) {
       return { ok: false, code: "workspace_error", message: "Workspace unavailable" };
     }

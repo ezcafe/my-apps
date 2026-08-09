@@ -393,7 +393,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {showShellAside ? (
         <aside className="hidden border-border bg-surface/80 backdrop-blur-sm lg:flex lg:h-full lg:min-h-0 lg:w-full lg:max-w-full lg:flex-col lg:items-center lg:border-e lg:px-0 lg:py-4">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] font-display text-sm font-bold tracking-tight text-foreground ring-1 ring-border">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] font-display text-sm font-semibold tracking-tight text-foreground ring-1 ring-border">
             W
           </span>
           <nav
@@ -410,10 +410,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
       ) : null}
 
-      <main
-        key={pathname}
-        className="fx-fade-in min-h-0 min-w-0 motion-reduce:animate-none lg:h-full lg:overflow-y-auto"
-      >
+      <main className="fx-fade-in min-h-0 min-w-0 motion-reduce:animate-none lg:h-full lg:overflow-y-auto">
         {children}
       </main>
     </div>

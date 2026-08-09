@@ -20,7 +20,7 @@ Removing a feature: delete its registry row and its route/API folders; avoid edi
 ## 3. Routes and layout
 
 1. Add `app/(shell)/<feature>/**` pages (and nested layouts as needed).
-2. Add a **client** feature provider under that segment’s `layout.tsx` (same pattern as [`MoneyRouteLayout`](../components/money-route-layout.tsx) + [`MoneyWorkspaceProvider`](../components/money-workspace-provider.tsx)) for:
+2. Add a **client** feature provider under that segment’s `layout.tsx` (same pattern as [`MoneyRouteChrome`](../components/money-route-layout.tsx) + [`MoneyWorkspaceProvider`](../components/money-workspace-provider.tsx)) for:
    - optional first-time setup modals
    - client context (active workspace id, feature-specific defaults)
 3. Do **not** mount feature-specific init in [`shell-layout.tsx`](../components/shell-layout.tsx); keep the global shell free of per-feature API calls.

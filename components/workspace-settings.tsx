@@ -1,7 +1,7 @@
 "use client";
 
-import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error";
-import { useCallback, useEffect, useState } from "react";
+import { toUserFacingMessage } from "@/lib/user-facing-error";
+import { useCallback, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import { Alert } from "@/components/ui/alert";
@@ -135,11 +135,19 @@ function DefaultWorkspaceForm({
   );
 }
 
-export function WorkspaceSettings() {
+export function WorkspaceSettings({
+  initialWorkspaces = [],
+  initialDefaultWorkspaceId = null,
+}: {
+  initialWorkspaces?: WorkspaceRow[];
+  initialDefaultWorkspaceId?: string | null;
+}) {
   const notify = useNotify();
 
-  const [workspaceList, setWorkspaceList] = useState<WorkspaceRow[]>([]);
-  const [moneyDefaultPick, setMoneyDefaultPick] = useState("");
+  const [workspaceList, setWorkspaceList] = useState<WorkspaceRow[]>(initialWorkspaces);
+  const [moneyDefaultPick, setMoneyDefaultPick] = useState(
+    () => initialDefaultWorkspaceId ?? initialWorkspaces[0]?.id ?? "",
+  );
   const [newSharedName, setNewSharedName] = useState("");
   const [newSharedCurrency, setNewSharedCurrency] = useState("USD");
   const [seedMoneyOnShared, setSeedMoneyOnShared] = useState(true);
@@ -153,25 +161,9 @@ export function WorkspaceSettings() {
     setWorkspaceList(workspaces);
     const fallback = workspaces[0]?.id ?? "";
     setMoneyDefaultPick(moneyDefaultId ?? fallback);
+    setLoadErr(null);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      void (async () => {
-        try {
-          await refreshWorkspaceContext();
-        } catch (e: unknown) {
-          if (!cancelled) {
-            setLoadErr(presentClientError("workspace-settings", e));
-          }
-        }
-      })();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshWorkspaceContext]);
 
   return (
     <SettingsSection

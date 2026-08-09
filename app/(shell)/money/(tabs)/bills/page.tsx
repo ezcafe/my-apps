@@ -10,7 +10,7 @@ export default async function MoneyBillsPage() {
   const userSub = session?.user?.id;
   const queryClient = getQueryClient();
   if (userSub) {
-    await prefetchMoneyLedger(queryClient, MONEY_LEDGER_BILLS);
+    await prefetchMoneyLedger(queryClient, MONEY_LEDGER_BILLS, userSub);
   }
 
   return (

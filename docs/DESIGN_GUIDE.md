@@ -36,9 +36,9 @@ Default audience is the **day-to-day spender**: log a spend quickly, then see wh
 
 | Tab / route | Job |
 |-------------|-----|
-| **Insights** `/money/analytics` (home) | Default landing: KPIs + spend-by-category + income vs expense. Remaining charts behind **More insights**. `/money` redirects here. |
+| **Spending** `/money/spending` (home) | Default landing: full ledger. `/money` and signed-in `/` redirect here. |
 | **Add** `/money/new` | Capture a transaction (form lookups load here, not on Insights). |
-| **Spending** `/money/spending` | Full ledger. |
+| **Insights** `/money/analytics` | KPIs + spend-by-category + income vs expense. Remaining charts behind **More insights**. |
 | **Settings** `/money/settings` | Workspace config; optional section tabs (Bills, Savings, Loans, Invest, Import) stay off by default. |
 
 Avoid: purple gradients, cream+terracotta marketing looks, broadsheet density, glow, decorative `rounded-full` pill clusters, Inter/system-only stacks.

@@ -10,18 +10,36 @@ Use this doc to verify regressions after changes that affect bundles, data fetch
    npm run build
    ```
 
-2. **Chrome DevTools → Performance / Lighthouse** (mobile + desktop):
+   Next 16 Turbopack no longer prints First Load JS in the CLI route table. Use `npm run analyze` or sum `.next/server/app/**/page_client-reference-manifest.js` chunk files.
 
-   - LCP, TBT, and **JS transfer size** for `/`, `/login`, `/money/analytics`.
+   Baseline (2026-08-09 production build, gzip):
+
+   | Route | Client chunks (gzip) | Notes |
+   |-------|----------------------|--------|
+   | Shared root + polyfill | ~168 kB | All routes |
+   | `/login` | ~16 kB page + root | Static, no shell SessionProvider |
+   | `/settings` | ~33 kB page + root | Shell + settings widgets |
+   | `/money/analytics` | ~93 kB page + root | ATF dashboard; charts load as separate dynamics |
+
+2. **Bundle analyzer** (optional treemap):
+
+   ```bash
+   npm run analyze
+   ```
+
+3. **Chrome DevTools → Performance / Lighthouse** (mobile + desktop):
+
+   - LCP, TBT, and **JS transfer size** for `/login`, `/settings`, `/money/spending` (signed-in `/` redirects here), and `/money/analytics`.
    - Compare **number of requests** before first meaningful paint on Money tabs.
-   - **SSR hydration check:** on a cold load of `/money/analytics` (signed in; `/money` redirects here), Network should show GraphQL for bootstrap/summary/distribution during the document/RSC work; the client should **not** immediately re-request the same query keys while `staleTime` holds (30s default). Repeat for `/money/spending`, `/money/loans`, `/money/investments`.
+   - **SSR hydration check:** on a cold load of `/money/spending` (signed in), document/RSC work should seed bootstrap + page-1 transactions via **direct service calls** — Network should **not** show loopback `POST /api/graphql` for `MoneyBootstrap` / `MoneyTransactions` during SSR. After hydrate, the client should **not** immediately re-request the same React Query keys while `staleTime` holds (30s default; bootstrap 5m). Repeat for `/money/analytics`, `/money/loans`, `/money/investments`.
+   - **Settings:** `/settings` should not refetch `/api/workspace/list` on mount when SSR passed `initialWorkspaces`.
    - **Mutation check:** after create/edit transaction or loan pay, lists/KPIs update via React Query invalidate — no full page reload.
-
-3. **Next.js bundles**: inspect `.next` build output and route chunks after `next build` (or use `@next/bundle-analyzer` if added later).
 
 ## Backend / API
 
-1. **Money bootstrap** (single GraphQL call for workspace + chart lookups):
+SSR page seeds call [`lib/money-ssr-seed.ts`](../lib/money-ssr-seed.ts) (Postgres services + `runInWorkspace`). Browser navigations and mutations still use GraphQL:
+
+1. **Money bootstrap** (client refetch / other clients):
 
    - `POST /api/graphql` — operation `MoneyBootstrap`
    - Measure p50/p95 latency with realistic auth + data volume.

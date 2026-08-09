@@ -11,7 +11,7 @@ export default async function MoneyAnalyticsPage() {
   const userSub = session?.user?.id;
   const queryClient = getQueryClient();
   if (userSub) {
-    await prefetchMoneyAnalytics(queryClient);
+    await prefetchMoneyAnalytics(queryClient, userSub);
   }
 
   return (

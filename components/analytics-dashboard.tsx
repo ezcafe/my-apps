@@ -39,8 +39,6 @@ import {
 } from "@/components/analytics-filters";
 import { budgetRowsForChart } from "@/lib/analytics-budget-label";
 import type { AnalyticsChartDrilldownPayload } from "@/lib/analytics-build-query";
-import { AnalyticsChartDrilldownModal } from "@/components/analytics-chart-drilldown-modal";
-import { TransactionEditModal } from "@/components/transaction-edit-modal";
 import { analyticsFiltersEqual } from "@/lib/analytics-graphql-filters";
 import { formatMinor } from "@/lib/format-money";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
@@ -49,13 +47,12 @@ import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import {
   moneyAnalyticsBudgetsQueryOptions,
   moneyAnalyticsChartLookupsQueryOptions,
+  moneyAnalyticsDashboardQueryOptions,
   moneyAnalyticsDistributionQueryOptions,
   moneyAnalyticsLeadersQueryOptions,
   moneyAnalyticsMerchantLookupsQueryOptions,
-  moneyAnalyticsOverviewQueryOptions,
   moneyAnalyticsRecurrenceLookupsQueryOptions,
   moneyAnalyticsSankeyQueryOptions,
-  moneyAnalyticsSummaryQueryOptions,
   moneyBootstrapQueryOptions,
   type MoneyAccountLookup,
 } from "@/lib/money-query-options";
@@ -101,80 +98,47 @@ const chartCardLoadingHalf = () => (
 );
 
 const NetCumulativeFlowCard = dynamic(
-  () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
-      default: m.NetCumulativeFlowCard,
-    })),
+  () => import("@/components/analytics-chart-cards/net-cumulative-flow-card"),
   { loading: chartCardLoading, ssr: false },
 );
 const IncomeVsExpenseCard = dynamic(
-  () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
-      default: m.IncomeVsExpenseCard,
-    })),
+  () => import("@/components/analytics-chart-cards/income-vs-expense-card"),
   { loading: chartCardLoadingHalf, ssr: false },
 );
 const BudgetVsActualCard = dynamic(
-  () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
-      default: m.BudgetVsActualCard,
-    })),
+  () => import("@/components/analytics-chart-cards/budget-vs-actual-card"),
   { ssr: false },
 );
 const MoneyFlowSankeyCard = dynamic(
-  () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
-      default: m.MoneyFlowSankeyCard,
-    })),
+  () => import("@/components/analytics-chart-cards/money-flow-sankey-card"),
   { ssr: false },
 );
 const SpendByCategoryCard = dynamic(
-  () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
-      default: m.SpendByCategoryCard,
-    })),
+  () => import("@/components/analytics-chart-cards/spend-by-category-card"),
   { ssr: false },
 );
 const IncomeByCategoryCard = dynamic(
-  () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
-      default: m.IncomeByCategoryCard,
-    })),
+  () => import("@/components/analytics-chart-cards/income-by-category-card"),
   { ssr: false },
 );
 const MonthlyColumnsCard = dynamic(
-  () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
-      default: m.MonthlyColumnsCard,
-    })),
+  () => import("@/components/analytics-chart-cards/monthly-columns-card"),
   { ssr: false },
 );
 const CategorySpendTrendCard = dynamic(
-  () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
-      default: m.CategorySpendTrendCard,
-    })),
+  () => import("@/components/analytics-chart-cards/category-spend-trend-card"),
   { ssr: false },
 );
 const SpendByTagCard = dynamic(
-  () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
-      default: m.SpendByTagCard,
-    })),
+  () => import("@/components/analytics-chart-cards/spend-by-tag-card"),
   { ssr: false },
 );
 const TopMerchantsCard = dynamic(
-  () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
-      default: m.TopMerchantsCard,
-    })),
+  () => import("@/components/analytics-chart-cards/top-merchants-card"),
   { ssr: false },
 );
 const RecurringSpendCard = dynamic(
-  () =>
-    import("@/components/analytics-chart-cards").then((m) => ({
-      default: m.RecurringSpendCard,
-    })),
+  () => import("@/components/analytics-chart-cards/recurring-spend-card"),
   { ssr: false },
 );
 
@@ -182,6 +146,22 @@ const AnalyticsFiltersBar = dynamic(
   () =>
     import("@/components/analytics-filters").then((m) => ({
       default: m.AnalyticsFiltersBar,
+    })),
+  { ssr: false },
+);
+
+const AnalyticsChartDrilldownModal = dynamic(
+  () =>
+    import("@/components/analytics-chart-drilldown-modal").then((m) => ({
+      default: m.AnalyticsChartDrilldownModal,
+    })),
+  { ssr: false },
+);
+
+const TransactionEditModal = dynamic(
+  () =>
+    import("@/components/transaction-edit-modal").then((m) => ({
+      default: m.TransactionEditModal,
     })),
   { ssr: false },
 );
@@ -215,26 +195,22 @@ function AnalyticsInsightsBody({
   tags,
   onChartDrilldown,
 }: AnalyticsInsightsBodyProps) {
-  const summaryQuery = useQuery({
-    ...moneyAnalyticsSummaryQueryOptions(workspaceKey, filterQuery),
+  const dashboardQuery = useQuery({
+    ...moneyAnalyticsDashboardQueryOptions(workspaceKey, filterQuery),
     enabled: Boolean(workspaceKey),
   });
   const distributionQuery = useQuery({
     ...moneyAnalyticsDistributionQueryOptions(workspaceKey, filterQuery),
     enabled: Boolean(workspaceKey),
   });
-  const overviewQuery = useQuery({
-    ...moneyAnalyticsOverviewQueryOptions(workspaceKey, filterQuery),
-    enabled: moreInsights && Boolean(workspaceKey),
-  });
 
-  const summary = summaryQuery.data?.moneyAnalyticsSummary as
+  const summary = dashboardQuery.data?.moneyAnalyticsSummary as
     | MoneyAnalyticsSummaryPayload
     | undefined;
   const distribution = distributionQuery.data?.moneyAnalyticsDistribution as
     | MoneyAnalyticsDistributionPayload
     | undefined;
-  const overview = overviewQuery.data?.moneyAnalyticsOverview as
+  const overview = dashboardQuery.data?.moneyAnalyticsOverview as
     | MoneyAnalyticsOverviewPayload
     | undefined;
 

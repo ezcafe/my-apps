@@ -9,17 +9,20 @@ import {
 } from "@/lib/money-seed-defaults";
 import {
   fetchMoneyLookups,
-  fetchWorkspacesForUser,
   type MoneyWorkspaceCoreData,
   type MoneyWorkspaceBootstrapData,
 } from "@/lib/money-workspace-bootstrap-data";
+import { fetchWorkspacesForUser } from "@/lib/workspace-list";
 import { getWorkspaceIdForUser } from "@/lib/workspace";
 
 export async function fetchMoneyWorkspaceStatePayload(
   userSub: string,
 ): Promise<MoneyWorkspaceCoreData> {
-  await ensureUserBootstrap(userSub);
-  const workspaceId = await getWorkspaceIdForUser(userSub);
+  let workspaceId = await getWorkspaceIdForUser(userSub);
+  if (!workspaceId) {
+    await ensureUserBootstrap(userSub);
+    workspaceId = await getWorkspaceIdForUser(userSub);
+  }
   if (!workspaceId) {
     throw new Error("Workspace unavailable");
   }

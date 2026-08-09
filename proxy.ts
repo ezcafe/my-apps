@@ -16,6 +16,7 @@ export const config = {
   matcher: [
     "/help",
     "/help/:path*",
+    "/settings",
     "/settings/:path*",
     "/analytics/:path*",
     "/money",

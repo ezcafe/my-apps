@@ -6,24 +6,12 @@ import {
   moneyTag,
   moneyTransaction,
 } from "@/db/schema/money";
-import {
-  userWorkspaceDefault,
-  workspace,
-  workspaceMember,
-  type WorkspaceAppKey,
-} from "@/db/schema/workspace";
+import type { BootstrapWorkspaceRow } from "@/lib/workspace-list";
+
+export type { BootstrapWorkspaceRow } from "@/lib/workspace-list";
+export { fetchWorkspacesForUser } from "@/lib/workspace-list";
 
 const USAGE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
-
-export type BootstrapWorkspaceRow = {
-  id: string;
-  name: string;
-  kind: "personal" | "shared";
-  ownedByUserSub: string | null;
-  defaultCurrency: string | null;
-  role: "owner" | "member";
-  isDefault: boolean;
-};
 
 export type MoneyWorkspaceCoreData = {
   workspaceId: string;
@@ -33,46 +21,6 @@ export type MoneyWorkspaceCoreData = {
   /** User’s saved default workspace for this app (may differ from active cookie). */
   defaultWorkspaceId: string | null;
 };
-
-/** Same rows as GET /api/workspace/list?app=money */
-export async function fetchWorkspacesForUser(
-  userSub: string,
-  appKey: WorkspaceAppKey,
-): Promise<{
-  workspaces: BootstrapWorkspaceRow[];
-  defaultWorkspaceId: string | null;
-}> {
-  const rows = await db
-    .select({
-      id: workspace.id,
-      name: workspace.name,
-      kind: workspace.kind,
-      ownedByUserSub: workspace.ownedByUserSub,
-      defaultCurrency: workspace.defaultCurrency,
-      role: workspaceMember.role,
-    })
-    .from(workspaceMember)
-    .innerJoin(workspace, eq(workspace.id, workspaceMember.workspaceId))
-    .where(eq(workspaceMember.userSub, userSub));
-
-  const prefRow = await db
-    .select({ defaultWorkspaceId: userWorkspaceDefault.defaultWorkspaceId })
-    .from(userWorkspaceDefault)
-    .where(
-      and(
-        eq(userWorkspaceDefault.userSub, userSub),
-        eq(userWorkspaceDefault.appKey, appKey),
-      ),
-    )
-    .limit(1);
-  const defaultWorkspaceId = prefRow[0]?.defaultWorkspaceId ?? null;
-
-  const workspaces = rows.map((r) => ({
-    ...r,
-    isDefault: r.id === defaultWorkspaceId,
-  }));
-  return { workspaces, defaultWorkspaceId };
-}
 
 /** Accounts / categories / merchants / tags matching individual money API GET shapes. */
 export async function fetchMoneyLookups(

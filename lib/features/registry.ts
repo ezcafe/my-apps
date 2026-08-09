@@ -46,7 +46,7 @@ const shellNavItemsSource: ShellNavItem[] = [
     kind: "feature",
     id: "money",
     label: "Money",
-    href: "/money/analytics",
+    href: "/money/spending",
     matchPrefix: "/money",
     order: 0,
     workspaceAppKey: "money",

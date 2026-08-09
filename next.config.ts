@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -20,7 +25,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      { source: "/money", destination: "/money/analytics", permanent: true },
+      { source: "/money", destination: "/money/spending", permanent: true },
       { source: "/savings", destination: "/money/savings", permanent: true },
       { source: "/savings/:path*", destination: "/money/savings", permanent: true },
       { source: "/investment", destination: "/money/investments", permanent: true },
@@ -107,4 +112,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);
