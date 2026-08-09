@@ -16,7 +16,7 @@ const subscribeNoop = () => () => {};
 
 /** Lightweight anchored panel — outside click closes.
  *  Panel portals to `document.body` so it isn’t clipped by ancestor
- *  `transform` / stacking (e.g. shell `<main className="fx-fade-in">`). */
+ *  `transform` / stacking (e.g. shell scroll containers). */
 export function Popover({
   trigger,
   triggerClassName,

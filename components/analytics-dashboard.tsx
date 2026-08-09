@@ -18,6 +18,7 @@ import {
 } from "@/components/analytics-chart-layout";
 import {
   MoneyAnalyticsChartsSkeleton,
+  MoneyAnalyticsFiltersBarSkeleton,
   MoneyAnalyticsPageSkeleton,
   ANALYTICS_GRID_CLASS,
 } from "@/components/money-analytics-skeleton";
@@ -147,7 +148,10 @@ const AnalyticsFiltersBar = dynamic(
     import("@/components/analytics-filters").then((m) => ({
       default: m.AnalyticsFiltersBar,
     })),
-  { ssr: false },
+  {
+    ssr: false,
+    loading: () => <MoneyAnalyticsFiltersBarSkeleton />,
+  },
 );
 
 const AnalyticsChartDrilldownModal = dynamic(

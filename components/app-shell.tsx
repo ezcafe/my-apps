@@ -410,7 +410,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
       ) : null}
 
-      <main className="fx-fade-in min-h-0 min-w-0 motion-reduce:animate-none lg:h-full lg:overflow-y-auto">
+      <main className="min-h-0 min-w-0 lg:h-full lg:overflow-y-auto">
         {children}
       </main>
     </div>

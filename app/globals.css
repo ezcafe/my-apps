@@ -367,27 +367,18 @@ dialog::backdrop {
     }
   }
 
-  /* Single-element fade-in via @starting-style. Pair with React `key` for
-     list/route changes; for orchestrated multi-line entrances, prefer
-     `fx-stagger-children` instead. */
+  /* Intentionally no entry animation: Safari/iOS has repeatedly stuck
+     opacity at 0 for @starting-style and fill-mode:both fades on mobile,
+     which made whole routes look like they never loaded. Keep the class
+     as a stable hook for future motion that fails open to visible. */
   .fx-fade-in {
     opacity: 1;
-    transform: translateY(0);
-    transition-property: opacity, transform;
-    transition-duration: 0.28s;
-    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-
-    @starting-style {
-      opacity: 0;
-      transform: translateY(4px);
-    }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .fx-fade-in {
       opacity: 1 !important;
-      transform: none !important;
-      transition: none !important;
+      animation: none !important;
     }
   }
 
@@ -410,7 +401,9 @@ dialog::backdrop {
 
   @media (prefers-reduced-motion: no-preference) {
     .fx-stagger-children > * {
-      animation: fx-stagger-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+      /* forwards (not both): default opacity stays 1 if the animation never runs
+         (common on Safari for dynamically inserted nodes). */
+      animation: fx-stagger-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
 
     .fx-stagger-children > *:nth-child(1) {
@@ -594,31 +587,37 @@ dialog::backdrop {
     view-transition-name: money-tab-active;
   }
 
-  /* Chart mount animations */
+  /* Chart enter: visible by default; optional opacity fade with forwards only. */
   .fx-chart-enter {
     opacity: 1;
-    transform: translateY(0);
-    transition-property: opacity, transform;
-    transition-duration: 0.35s;
-    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
 
-    @starting-style {
-      opacity: 0;
-      transform: translateY(6px);
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes fx-chart-enter-anim {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .fx-chart-enter {
+      animation: fx-chart-enter-anim 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .fx-chart-enter {
       opacity: 1 !important;
-      transform: none !important;
-      transition: none !important;
+      animation: none !important;
     }
   }
 
   /* Opacity-only SVG mount animations. Safari mishandles CSS scale/transform
-     on SVG (transform-box/fill-box + fill-mode:both can leave shapes stuck
-     at scaleY(0) / opacity:0). Prefer opacity so charts always become visible. */
+     on SVG; also avoid fill-mode:both so a skipped animation cannot leave
+     shapes stuck at opacity 0. */
   @keyframes fx-chart-bar-grow {
     from {
       opacity: 0;
@@ -631,7 +630,8 @@ dialog::backdrop {
 
   @media (prefers-reduced-motion: no-preference) {
     .fx-chart-bar-grow {
-      animation: fx-chart-bar-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+      opacity: 1;
+      animation: fx-chart-bar-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
   }
 
@@ -647,7 +647,8 @@ dialog::backdrop {
 
   @media (prefers-reduced-motion: no-preference) {
     .fx-chart-arc-pop {
-      animation: fx-chart-arc-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+      opacity: 0.9;
+      animation: fx-chart-arc-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
   }
 

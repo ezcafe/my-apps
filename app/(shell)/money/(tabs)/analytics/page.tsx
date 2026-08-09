@@ -1,6 +1,7 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { AnalyticsDashboard } from "@/components/analytics-dashboard";
+import { AnalyticsErrorBoundary } from "@/components/analytics-error-boundary";
 import { MoneyAnalyticsPageSkeleton } from "@/components/money-analytics-skeleton";
 import { auth } from "@/auth";
 import { getQueryClient } from "@/lib/get-query-client";
@@ -16,9 +17,11 @@ export default async function MoneyAnalyticsPage() {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <Suspense fallback={<MoneyAnalyticsPageSkeleton />}>
-        <AnalyticsDashboard userSub={userSub} authenticated={Boolean(userSub)} />
-      </Suspense>
+      <AnalyticsErrorBoundary>
+        <Suspense fallback={<MoneyAnalyticsPageSkeleton />}>
+          <AnalyticsDashboard userSub={userSub} authenticated={Boolean(userSub)} />
+        </Suspense>
+      </AnalyticsErrorBoundary>
     </HydrationBoundary>
   );
 }

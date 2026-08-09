@@ -5,9 +5,18 @@ import { useCallback, useEffect, useState } from "react";
 const observersByMargin = new Map<string, IntersectionObserver>();
 const callbacksByElement = new Map<Element, Set<() => void>>();
 
-function getSharedObserver(rootMargin: string): IntersectionObserver {
-  let observer = observersByMargin.get(rootMargin);
-  if (!observer) {
+/** Safari historically accepts rootMargin more reliably as 4 explicit values. */
+export function normalizeRootMargin(rootMargin: string): string {
+  const margin = parseRootMarginPx(rootMargin);
+  return `${margin.top}px ${margin.right}px ${margin.bottom}px ${margin.left}px`;
+}
+
+function getSharedObserver(rootMargin: string): IntersectionObserver | null {
+  const normalized = normalizeRootMargin(rootMargin);
+  let observer = observersByMargin.get(normalized);
+  if (observer) return observer;
+  if (typeof IntersectionObserver === "undefined") return null;
+  try {
     observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -17,30 +26,38 @@ function getSharedObserver(rootMargin: string): IntersectionObserver {
           for (const cb of callbacks) cb();
         }
       },
-      { root: null, rootMargin, threshold: 0 },
+      { root: null, rootMargin: normalized, threshold: 0 },
     );
-    observersByMargin.set(rootMargin, observer);
+    observersByMargin.set(normalized, observer);
+    return observer;
+  } catch {
+    return null;
   }
-  return observer;
 }
 
 function subscribe(element: Element, rootMargin: string, onVisible: () => void) {
+  const observer = getSharedObserver(rootMargin);
+  if (!observer) {
+    onVisible();
+    return;
+  }
   let callbacks = callbacksByElement.get(element);
   if (!callbacks) {
     callbacks = new Set();
     callbacksByElement.set(element, callbacks);
-    getSharedObserver(rootMargin).observe(element);
+    observer.observe(element);
   }
   callbacks.add(onVisible);
 }
 
 function unsubscribe(element: Element, rootMargin: string, onVisible: () => void) {
+  const normalized = normalizeRootMargin(rootMargin);
   const callbacks = callbacksByElement.get(element);
   if (!callbacks) return;
   callbacks.delete(onVisible);
   if (callbacks.size > 0) return;
   callbacksByElement.delete(element);
-  getSharedObserver(rootMargin).unobserve(element);
+  observersByMargin.get(normalized)?.unobserve(element);
 }
 
 /** Parse IO rootMargin shorthand into expanded top/right/bottom/left px. */
@@ -109,6 +126,7 @@ export function rectIntersectsViewport(
  *
  * Also runs a layout/rAF visibility check because Safari/iOS can delay or skip the
  * initial IntersectionObserver delivery until a later rendering update.
+ * If IntersectionObserver is missing or throws, fails open (`isInView = true`).
  */
 export function useInViewOnce(rootMargin = "120px 0px") {
   const [target, setTarget] = useState<HTMLDivElement | null>(null);
@@ -126,7 +144,11 @@ export function useInViewOnce(rootMargin = "120px 0px") {
     subscribe(el, rootMargin, onVisible);
 
     const checkNow = () => {
-      if (rectIntersectsViewport(el.getBoundingClientRect(), rootMargin)) {
+      try {
+        if (rectIntersectsViewport(el.getBoundingClientRect(), rootMargin)) {
+          setIsInView(true);
+        }
+      } catch {
         setIsInView(true);
       }
     };

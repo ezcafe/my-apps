@@ -46,9 +46,23 @@ export function Modal({
     const el = ref.current;
     if (!el) return;
     if (open) {
-      if (!el.open) queueMicrotask(() => el.showModal());
+      if (!el.open) {
+        queueMicrotask(() => {
+          try {
+            if (!el.isConnected || el.open) return;
+            el.showModal();
+          } catch {
+            // Safari can throw InvalidStateError if the dialog was detached
+            // or already open between schedule and run — ignore.
+          }
+        });
+      }
     } else if (el.open) {
-      el.close();
+      try {
+        el.close();
+      } catch {
+        // ignore
+      }
     }
   }, [mounted, open]);
 

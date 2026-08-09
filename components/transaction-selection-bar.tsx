@@ -34,8 +34,8 @@ export function TransactionSelectionBar({
       ? "1 transaction selected"
       : `${selectedCount.toLocaleString()} transactions selected`;
 
-  // Portal past shell `<main className="fx-fade-in">` — its transform makes
-  // `position: fixed` relative to the scroll container instead of the viewport.
+  // Portal past shell `<main>` scroll/stacking contexts so `position: fixed`
+  // stays viewport-relative on mobile Safari.
   return createPortal(
     <div
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6"

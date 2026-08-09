@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  normalizeRootMargin,
   parseRootMarginPx,
   rectIntersectsViewport,
 } from "@/lib/use-in-view-once";
+
+describe("normalizeRootMargin", () => {
+  it("expands 2-value shorthand to 4 values", () => {
+    assert.equal(normalizeRootMargin("120px 0px"), "120px 0px 120px 0px");
+  });
+});
 
 describe("parseRootMarginPx", () => {
   it("expands 1-value shorthand", () => {
