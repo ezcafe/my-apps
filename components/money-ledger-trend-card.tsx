@@ -54,6 +54,7 @@ export function MoneyLedgerTrendCard({
     enabled: enabled && isInView && Boolean(workspaceId),
   });
 
+  const chart = preset.chart;
   const overview = (overviewQuery.data ?? null) as MoneyAnalyticsOverviewPayload | null;
   const overviewReady = overviewQuery.isSuccess;
   const overviewLineCompare = overview?.lineCompare;
@@ -72,9 +73,11 @@ export function MoneyLedgerTrendCard({
   const compareDescription =
     overviewLineCompare && lineCompareLabel
       ? `Solid: this month through today. Dashed: ${lineCompareLabel}.`
-      : preset.chart.compareHint;
+      : chart?.compareHint;
 
   const theme = useMemo(() => ({ resolved, style }), [resolved, style]);
+
+  if (!chart) return null;
 
   return (
     <NetCumulativeFlowCard
@@ -87,8 +90,8 @@ export function MoneyLedgerTrendCard({
       isCurrentMonthCompare={Boolean(overviewLineCompare)}
       defaultCurrency={defaultCurrency}
       theme={theme}
-      title={preset.chart.title}
-      description={preset.chart.description}
+      title={chart.title}
+      description={chart.description}
       compareDescription={compareDescription}
       emptyState={{
         title: preset.emptyState.title,

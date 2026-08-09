@@ -374,7 +374,10 @@ export function MoneyTransactionsPage({
         />
       ) : null}
 
-      {!isSection && preset && lookupsReady && activeWorkspaceId ? (
+      {!isSection &&
+      preset?.chart &&
+      lookupsReady &&
+      activeWorkspaceId ? (
         <MoneyLedgerTrendCard
           preset={preset}
           filterQuery={filterQuery}

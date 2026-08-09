@@ -273,18 +273,24 @@ export function MoneyAnalyticsPageSkeleton() {
   );
 }
 
-/** Filters + net-flow chart + table as shell siblings (ledger routes). */
-export function MoneyLedgerPageSkeleton() {
+/** Filters + optional net-flow chart + table as shell siblings (ledger routes). */
+export function MoneyLedgerPageSkeleton({
+  showChart = true,
+}: {
+  showChart?: boolean;
+} = {}) {
   return (
     <>
       <MoneyAnalyticsFiltersBarSkeleton />
-      <AnalyticsChartCardSkeleton
-        className={cn(MONEY_FULL_SPAN, "w-full")}
-        heightClass={CHART_CARD_HEIGHT_TALL}
-        titleWidthClass="w-44"
-        descriptionWidthClass="w-64 max-w-full"
-        showLegend
-      />
+      {showChart ? (
+        <AnalyticsChartCardSkeleton
+          className={cn(MONEY_FULL_SPAN, "w-full")}
+          heightClass={CHART_CARD_HEIGHT_TALL}
+          titleWidthClass="w-44"
+          descriptionWidthClass="w-64 max-w-full"
+          showLegend
+        />
+      ) : null}
       <MoneyAnalyticsTransactionsTableSkeleton selectable />
     </>
   );

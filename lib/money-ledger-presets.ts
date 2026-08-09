@@ -45,7 +45,8 @@ export type MoneyLedgerPreset = {
   title: string;
   description: string;
   emptyState: MoneyLedgerEmptyState;
-  chart: {
+  /** When omitted, the ledger page hides the net-flow trend chart. */
+  chart?: {
     title: string;
     description: string;
     compareHint?: string;
@@ -79,12 +80,6 @@ export const MONEY_LEDGER_SPENDING: MoneyLedgerPreset = {
   lockedQuery: {
     kinds: ["expense", "income", "transfer"],
     excludeAccountTypes: ["savings", "investment", "loan"],
-  },
-  chart: {
-    title: "Net cumulative flow",
-    description:
-      "Cumulative income minus expenses for everyday accounts in the selected range.",
-    compareHint: "Solid: this month through today. Dashed: prior month.",
   },
 };
 
