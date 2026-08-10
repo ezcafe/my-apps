@@ -7,6 +7,7 @@ import {
   applyMoneyBootstrapSeed,
 } from "@/lib/money-ssr-seed";
 import {
+  moneyAnalyticsAtfQueryOptions,
   moneyAnalyticsChartLookupsQueryOptions,
   moneyAnalyticsDashboardQueryOptions,
   moneyAnalyticsDistributionQueryOptions,
@@ -56,7 +57,7 @@ describe("applyMoneyBootstrapSeed", () => {
 });
 
 describe("applyMoneyAnalyticsAtfSeed", () => {
-  it("fills dashboard plus summary/overview/distribution keys", () => {
+  it("fills ATF plus summary keys and skips overview/distribution", () => {
     const qc = new QueryClient();
     const filterQuery = moneyDefaultMonthFilterQuery(FIXED);
     const summary = {
@@ -69,33 +70,20 @@ describe("applyMoneyAnalyticsAtfSeed", () => {
       },
       range: { from: "2026-08-01T00:00:00.000Z", to: "2026-08-31T23:59:59.999Z" },
     };
-    const overview = {
-      column: [],
-      line: [],
-      lineCompare: undefined,
-      lineMode: "date" as const,
-    };
-    const distribution = {
-      pieSpend: [],
-      pieIncome: [],
-      categoryByMonthStacked: [],
-    };
+    const pieSpend = [
+      { categoryId: "food", label: "Food", valueMinor: 100 },
+    ];
 
     applyMoneyAnalyticsAtfSeed(qc, boot.workspaceId, filterQuery, {
       summary,
-      overview,
-      distribution,
+      pieSpend,
     });
 
     assert.deepEqual(
       qc.getQueryData(
-        moneyAnalyticsDashboardQueryOptions(boot.workspaceId, filterQuery)
-          .queryKey,
+        moneyAnalyticsAtfQueryOptions(boot.workspaceId, filterQuery).queryKey,
       ),
-      {
-        moneyAnalyticsSummary: summary,
-        moneyAnalyticsOverview: overview,
-      },
+      { moneyAnalyticsAtf: { summary, pieSpend } },
     );
     assert.deepEqual(
       qc.getQueryData(
@@ -104,19 +92,26 @@ describe("applyMoneyAnalyticsAtfSeed", () => {
       ),
       { moneyAnalyticsSummary: summary },
     );
-    assert.deepEqual(
+    assert.equal(
+      qc.getQueryData(
+        moneyAnalyticsDashboardQueryOptions(boot.workspaceId, filterQuery)
+          .queryKey,
+      ),
+      undefined,
+    );
+    assert.equal(
       qc.getQueryData(
         moneyAnalyticsOverviewQueryOptions(boot.workspaceId, filterQuery)
           .queryKey,
       ),
-      { moneyAnalyticsOverview: overview },
+      undefined,
     );
-    assert.deepEqual(
+    assert.equal(
       qc.getQueryData(
         moneyAnalyticsDistributionQueryOptions(boot.workspaceId, filterQuery)
           .queryKey,
       ),
-      { moneyAnalyticsDistribution: distribution },
+      undefined,
     );
   });
 });

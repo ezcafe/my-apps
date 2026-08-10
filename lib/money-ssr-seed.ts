@@ -27,28 +27,21 @@ import {
 } from "@/lib/loans-query-options";
 import type { MoneyLedgerPreset } from "@/lib/money-ledger-presets";
 import {
-  computeMoneyAnalyticsDistribution,
-  computeMoneyAnalyticsOverview,
+  computeMoneyAnalyticsAtf,
   computeMoneyAnalyticsSummary,
-  type MoneyAnalyticsDistributionPayload,
-  type MoneyAnalyticsOverviewPayload,
-  type MoneyAnalyticsSummaryPayload,
+  type MoneyAnalyticsAtfPayload,
 } from "@/lib/money-services/analytics";
 import { fetchMoneyBootstrapSafe } from "@/lib/money-services/bootstrap";
 import { listMoneyTransactions } from "@/lib/money-services/transactions";
 import {
+  moneyAnalyticsAtfQueryOptions,
   moneyAnalyticsChartLookupsQueryOptions,
-  moneyAnalyticsDashboardQueryOptions,
-  moneyAnalyticsDistributionQueryOptions,
-  moneyAnalyticsOverviewQueryOptions,
   moneyAnalyticsSummaryQueryOptions,
   moneyBootstrapQueryKey,
   moneyTransactionsListQueryInput,
   moneyTransactionsQueryOptions,
+  type MoneyAnalyticsAtfQueryResult,
   type MoneyAnalyticsChartLookups,
-  type MoneyAnalyticsDashboardQueryResult,
-  type MoneyAnalyticsDistributionQueryResult,
-  type MoneyAnalyticsOverviewQueryResult,
   type MoneyAnalyticsSummaryQueryResult,
   type MoneyTransactionsListResponse,
 } from "@/lib/money-query-options";
@@ -89,41 +82,22 @@ export function applyMoneyAnalyticsAtfSeed(
   queryClient: QueryClient,
   workspaceId: string,
   filterQuery: string,
-  payloads: {
-    summary: MoneyAnalyticsSummaryPayload;
-    overview: MoneyAnalyticsOverviewPayload;
-    distribution: MoneyAnalyticsDistributionPayload;
-  },
+  payloads: MoneyAnalyticsAtfPayload,
 ) {
-  const dashboard: MoneyAnalyticsDashboardQueryResult = {
-    moneyAnalyticsSummary: payloads.summary,
-    moneyAnalyticsOverview: payloads.overview,
+  const atf: MoneyAnalyticsAtfQueryResult = {
+    moneyAnalyticsAtf: payloads,
   };
   const summary: MoneyAnalyticsSummaryQueryResult = {
     moneyAnalyticsSummary: payloads.summary,
   };
-  const overview: MoneyAnalyticsOverviewQueryResult = {
-    moneyAnalyticsOverview: payloads.overview,
-  };
-  const distribution: MoneyAnalyticsDistributionQueryResult = {
-    moneyAnalyticsDistribution: payloads.distribution,
-  };
 
   queryClient.setQueryData(
-    moneyAnalyticsDashboardQueryOptions(workspaceId, filterQuery).queryKey,
-    dashboard,
+    moneyAnalyticsAtfQueryOptions(workspaceId, filterQuery).queryKey,
+    atf,
   );
   queryClient.setQueryData(
     moneyAnalyticsSummaryQueryOptions(workspaceId, filterQuery).queryKey,
     summary,
-  );
-  queryClient.setQueryData(
-    moneyAnalyticsOverviewQueryOptions(workspaceId, filterQuery).queryKey,
-    overview,
-  );
-  queryClient.setQueryData(
-    moneyAnalyticsDistributionQueryOptions(workspaceId, filterQuery).queryKey,
-    distribution,
   );
 }
 
@@ -169,16 +143,8 @@ export async function seedMoneyAnalyticsAtf(
 
   try {
     await runInWorkspace(workspaceId, async () => {
-      const [summary, overview, distribution] = await Promise.all([
-        computeMoneyAnalyticsSummary(workspaceId, filters),
-        computeMoneyAnalyticsOverview(workspaceId, filters),
-        computeMoneyAnalyticsDistribution(workspaceId, filters),
-      ]);
-      applyMoneyAnalyticsAtfSeed(queryClient, workspaceId, filterQuery, {
-        summary,
-        overview,
-        distribution,
-      });
+      const atf = await computeMoneyAnalyticsAtf(workspaceId, filters);
+      applyMoneyAnalyticsAtfSeed(queryClient, workspaceId, filterQuery, atf);
     });
   } catch {
     // Page still renders; client GraphQL fills in.

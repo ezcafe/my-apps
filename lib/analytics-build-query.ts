@@ -1,5 +1,6 @@
 import type { AnalyticsFiltersValue } from "@/lib/analytics-default-filters";
 import { CATEGORY_FILTER_NONE } from "@/lib/analytics-category-filter";
+import { ANALYTICS_OTHER_KEY } from "@/lib/analytics-category-rollup";
 
 /** Map `<input type="date">` values (local calendar days) to UTC ISO bounds for the API. */
 export function dateRangeParams(
@@ -148,7 +149,7 @@ export function categoryIdForDrilldown(categoryId: string | null): string {
  * Returns null for rollup buckets that cannot be drilled (`__other__`).
  */
 export function seriesCategoryKeyForDrilldown(key: string): string | null {
-  if (key === "__other__") return null;
+  if (key === ANALYTICS_OTHER_KEY) return null;
   if (key === "uncategorized") return CATEGORY_FILTER_NONE;
   return key;
 }

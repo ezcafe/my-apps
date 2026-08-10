@@ -209,6 +209,8 @@ export const moneyTypeDefs = /* GraphQL */ `
     moneyWorkspaceState: MoneyWorkspaceStatePayload!
     moneyAnalyticsSummary(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsOverview(filters: AnalyticsFiltersInput!): JSONObject!
+    moneyAnalyticsAtf(filters: AnalyticsFiltersInput!): JSONObject!
+    moneyAnalyticsInsights(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsDistribution(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsBudgets(filters: AnalyticsFiltersInput!): JSONObject!
     moneyAnalyticsSankey(filters: AnalyticsFiltersInput!): JSONObject!

@@ -20,6 +20,7 @@ import type { MoneyAnalyticsDistributionPayload } from "@/lib/money-services/ana
 import {
   categoryIdForDrilldown,
   mergeDrilldownQuery,
+  seriesCategoryKeyForDrilldown,
 } from "@/lib/analytics-build-query";
 import {
   CHART_CARD_HEIGHT_HALF,
@@ -64,7 +65,7 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
 
   const legendItems = useMemo(
     () =>
-      (distribution?.pieSpend ?? []).slice(0, 8).map((p, i) => ({
+      (distribution?.pieSpend ?? []).map((p, i) => ({
         key: p.label,
         label: p.label,
         color: colorByIndex(resolved, i, style),
@@ -76,6 +77,8 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
   const handlePieClick = useMemo(() => {
     if (!baseFilterQuery || !onDrilldown) return undefined;
     return (item: { label: string; categoryId: string | null }) => {
+      const seriesKey = item.categoryId ?? "uncategorized";
+      if (seriesCategoryKeyForDrilldown(seriesKey) == null) return;
       onDrilldown({
         title: `${item.label} · Spend`,
         filterQuery: mergeDrilldownQuery(baseFilterQuery, {

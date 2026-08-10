@@ -47,6 +47,14 @@ export function resolveAnalyticsDateBounds(filters: AnalyticsFiltersData): {
   return { fromISO, toISO };
 }
 
+/** True when parent category ids must be expanded before building SQL. */
+export function analyticsFiltersNeedCategoryExpansion(
+  filters: AnalyticsFiltersData,
+): boolean {
+  if (!filters.categoryIds?.length) return false;
+  return splitCategoryFilterIds(filters.categoryIds).categoryUuids.length > 0;
+}
+
 /** Expands parent category filters to include descendant categories before querying. */
 export async function resolveAnalyticsFiltersForQuery(
   workspaceId: string,

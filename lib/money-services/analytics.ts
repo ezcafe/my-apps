@@ -10,11 +10,17 @@ import {
 } from "@/db/schema/money";
 import { workspace } from "@/db/schema/workspace";
 import {
+  ANALYTICS_OTHER_KEY,
+  ANALYTICS_OTHER_LABEL,
+  ANALYTICS_SANKEY_TOP_N,
   rollupCategoryByMonth,
+  rollupPieRows,
+  rollupSankeyInputRows,
   type StackedMonthSeries,
 } from "@/lib/analytics-category-rollup";
 import { dateRangeParams } from "@/lib/analytics-build-query";
 import {
+  analyticsFiltersNeedCategoryExpansion,
   moneyTransactionConditionsForReports,
   resolveAnalyticsDateBounds,
   resolveAnalyticsFiltersForQuery,
@@ -66,6 +72,7 @@ async function resolveFiltersForQuery(
   filters: AnalyticsFiltersData,
   loaders?: MoneyServiceLoaders,
 ) {
+  if (!analyticsFiltersNeedCategoryExpansion(filters)) return filters;
   const categories = await loadWorkspaceCategories(workspaceId, loaders);
   return resolveAnalyticsFiltersForQuery(workspaceId, filters, categories);
 }
@@ -157,6 +164,16 @@ export type MoneyAnalyticsDistributionPayload = {
   pieSpend: PieRow[];
   pieIncome: PieRow[];
   categoryByMonthStacked: StackedMonthSeries[];
+};
+
+export type MoneyAnalyticsAtfPayload = {
+  summary: MoneyAnalyticsSummaryPayload;
+  pieSpend: PieRow[];
+};
+
+export type MoneyAnalyticsInsightsPayload = {
+  overview: MoneyAnalyticsOverviewPayload;
+  distribution: MoneyAnalyticsDistributionPayload;
 };
 
 export type MoneyAnalyticsBudgetPayload = {
@@ -292,12 +309,30 @@ export function buildNetCashflowSankeyData(
     color: string | null;
   }[],
   rows: MoneyAnalyticsSankeyInputRow[],
+  topN = ANALYTICS_SANKEY_TOP_N,
 ): MoneyAnalyticsSankeyPayload {
-  const categoryRowsForSankey: CategoryRow[] = categories.map((category) => ({
-    id: category.id,
-    parentId: category.parentId ?? null,
-    name: category.name,
-  }));
+  const rolledRows = rollupSankeyInputRows(rows, topN);
+  const hasOther = rolledRows.some(
+    (row) => row.categoryId === ANALYTICS_OTHER_KEY,
+  );
+  const categoriesWithOther = hasOther
+    ? [
+        ...categories,
+        {
+          id: ANALYTICS_OTHER_KEY,
+          parentId: null,
+          name: ANALYTICS_OTHER_LABEL,
+          color: null,
+        },
+      ]
+    : categories;
+  const categoryRowsForSankey: CategoryRow[] = categoriesWithOther.map(
+    (category) => ({
+      id: category.id,
+      parentId: category.parentId ?? null,
+      name: category.name,
+    }),
+  );
   const categoryLabels = buildCategoryLabelMap(categoryRowsForSankey);
   const totalsByCategory = new Map<
     string,
@@ -306,7 +341,7 @@ export function buildNetCashflowSankeyData(
   let totalIncomeMinor = 0;
   let totalExpenseMinor = 0;
 
-  for (const row of rows) {
+  for (const row of rolledRows) {
     const categoryKey = String(row.categoryId ?? "uncategorized");
     const value = Number(row.valueMinor ?? 0);
     if (value <= 0) continue;
@@ -324,7 +359,10 @@ export function buildNetCashflowSankeyData(
     totalsByCategory.set(categoryKey, bucket);
   }
 
-  const netCategories = buildSankeyCategoryNet(categories, totalsByCategory);
+  const netCategories = buildSankeyCategoryNet(
+    categoriesWithOther,
+    totalsByCategory,
+  );
   const netById = new Map(netCategories.map((c) => [c.id, c] as const));
   const nodes: SankeyNode[] = [];
   const links: MoneyAnalyticsSankeyPayload["sankey"]["links"] = [];
@@ -528,7 +566,7 @@ function mapRawLineToNet(raw: RawCumulativeLineRow[]): {
 
 async function buildNetLineSeries(
   workspaceId: string,
-  filters: AnalyticsFiltersData,
+  resolvedFilters: AnalyticsFiltersData,
   fromISO: string,
   toISO: string,
   timezone: string,
@@ -539,7 +577,6 @@ async function buildNetLineSeries(
 }> {
   const { fromDate, toDate } = isoBoundsToLocalDates(fromISO, toISO);
 
-  const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
   const conditions = moneyTransactionConditionsForReports(
     workspaceId,
     resolvedFilters,
@@ -553,17 +590,13 @@ async function buildNetLineSeries(
       prev.toDate,
     );
     const prevFilters: AnalyticsFiltersData = {
-      ...filters,
+      ...resolvedFilters,
       from: prevFrom,
       to: prevTo,
     };
-    const resolvedPrevFilters = await resolveFiltersForQuery(
-      workspaceId,
-      prevFilters,
-    );
     const prevConditions = moneyTransactionConditionsForReports(
       workspaceId,
-      resolvedPrevFilters,
+      prevFilters,
     );
 
     const [raw, prevRaw] = await Promise.all([
@@ -599,10 +632,15 @@ async function buildNetLineSeries(
 export async function computeMoneyAnalyticsSummary(
   workspaceId: string,
   filters: AnalyticsFiltersData,
+  loaders?: MoneyServiceLoaders,
 ): Promise<MoneyAnalyticsSummaryPayload> {
   const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
 
-  const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
+  const resolvedFilters = await resolveFiltersForQuery(
+    workspaceId,
+    filters,
+    loaders,
+  );
   const conditions = moneyTransactionConditionsForReports(
     workspaceId,
     resolvedFilters,
@@ -644,11 +682,16 @@ export async function computeMoneyAnalyticsSummary(
 export async function computeMoneyAnalyticsOverview(
   workspaceId: string,
   filters: AnalyticsFiltersData,
+  loaders?: MoneyServiceLoaders,
 ): Promise<MoneyAnalyticsOverviewPayload> {
   const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
-  const timezone = await loadWorkspaceTimezone(workspaceId);
+  const timezone = await loadWorkspaceTimezone(workspaceId, loaders);
 
-  const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
+  const resolvedFilters = await resolveFiltersForQuery(
+    workspaceId,
+    filters,
+    loaders,
+  );
   const conditions = moneyTransactionConditionsForReports(
     workspaceId,
     resolvedFilters,
@@ -667,7 +710,7 @@ export async function computeMoneyAnalyticsOverview(
       .where(whereClause)
       .groupBy(sql`1`)
       .orderBy(sql`1`),
-    buildNetLineSeries(workspaceId, filters, from, to, timezone),
+    buildNetLineSeries(workspaceId, resolvedFilters, from, to, timezone),
   ]);
 
   return {
@@ -680,6 +723,95 @@ export async function computeMoneyAnalyticsOverview(
     lineCompare: lineResult.lineCompare,
     lineMode: lineResult.lineMode,
   };
+}
+
+function pieRowsFromAggregates(
+  rows: { categoryId: string | null; valueMinor: string }[],
+  catName: Map<string, string>,
+): PieRow[] {
+  return rollupPieRows(
+    rows.map((row) => {
+      const categoryId = row.categoryId;
+      const valueMinor = Number(row.valueMinor);
+      if (categoryId == null) {
+        return {
+          categoryId: null,
+          label: "Uncategorized",
+          valueMinor,
+        };
+      }
+      return {
+        categoryId,
+        label: catName.get(categoryId) ?? categoryId,
+        valueMinor,
+      };
+    }),
+  );
+}
+
+async function fetchCategoryPieRows(
+  whereClause: ReturnType<typeof and>,
+  kind: "expense" | "income",
+) {
+  return db
+    .select({
+      categoryId: moneyTransaction.categoryId,
+      valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+    })
+    .from(moneyTransaction)
+    .where(and(whereClause, eq(moneyTransaction.kind, kind)))
+    .groupBy(moneyTransaction.categoryId);
+}
+
+async function computeMoneyAnalyticsPieSpend(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+  loaders?: MoneyServiceLoaders,
+): Promise<PieRow[]> {
+  const resolvedFilters = await resolveFiltersForQuery(
+    workspaceId,
+    filters,
+    loaders,
+  );
+  const conditions = moneyTransactionConditionsForReports(
+    workspaceId,
+    resolvedFilters,
+  );
+  const whereClause = and(...conditions);
+  const [categories, pieSpendRows] = await Promise.all([
+    loadWorkspaceCategories(workspaceId, loaders),
+    fetchCategoryPieRows(whereClause, "expense"),
+  ]);
+  const catName = new Map(
+    categories.map((category) => [category.id, category.name]),
+  );
+  return pieRowsFromAggregates(pieSpendRows, catName);
+}
+
+export async function computeMoneyAnalyticsAtf(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+  loaders?: MoneyServiceLoaders,
+): Promise<MoneyAnalyticsAtfPayload> {
+  const shared = loaders ?? new Map();
+  const [summary, pieSpend] = await Promise.all([
+    computeMoneyAnalyticsSummary(workspaceId, filters, shared),
+    computeMoneyAnalyticsPieSpend(workspaceId, filters, shared),
+  ]);
+  return { summary, pieSpend };
+}
+
+export async function computeMoneyAnalyticsInsights(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+  loaders?: MoneyServiceLoaders,
+): Promise<MoneyAnalyticsInsightsPayload> {
+  const shared = loaders ?? new Map();
+  const [overview, distribution] = await Promise.all([
+    computeMoneyAnalyticsOverview(workspaceId, filters, shared),
+    computeMoneyAnalyticsDistribution(workspaceId, filters, shared),
+  ]);
+  return { overview, distribution };
 }
 
 export async function computeMoneyAnalyticsDistribution(
@@ -703,22 +835,8 @@ export async function computeMoneyAnalyticsDistribution(
   const [categories, pieSpendRows, pieIncomeRows, categoryByMonthRows] =
     await Promise.all([
       loadWorkspaceCategories(workspaceId, loaders),
-      db
-        .select({
-          categoryId: moneyTransaction.categoryId,
-          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
-        })
-        .from(moneyTransaction)
-        .where(and(whereClause, eq(moneyTransaction.kind, "expense")))
-        .groupBy(moneyTransaction.categoryId),
-      db
-        .select({
-          categoryId: moneyTransaction.categoryId,
-          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
-        })
-        .from(moneyTransaction)
-        .where(and(whereClause, eq(moneyTransaction.kind, "income")))
-        .groupBy(moneyTransaction.categoryId),
+      fetchCategoryPieRows(whereClause, "expense"),
+      fetchCategoryPieRows(whereClause, "income"),
       db
         .select({
           month: monthExpr,
@@ -732,25 +850,6 @@ export async function computeMoneyAnalyticsDistribution(
     ]);
 
   const catName = new Map(categories.map((category) => [category.id, category.name]));
-  const buildPie = (
-    rows: { categoryId: string | null; valueMinor: string }[],
-  ): PieRow[] =>
-    rows.map((row) => {
-      const categoryId = row.categoryId;
-      const valueMinor = Number(row.valueMinor);
-      if (categoryId == null) {
-        return {
-          categoryId: null,
-          label: "Uncategorized",
-          valueMinor,
-        };
-      }
-      return {
-        categoryId,
-        label: catName.get(categoryId) ?? categoryId,
-        valueMinor,
-      };
-    });
 
   const categoryByMonthRaw = categoryByMonthRows.map((row) => {
     const categoryId = row.categoryId;
@@ -772,8 +871,8 @@ export async function computeMoneyAnalyticsDistribution(
   });
 
   return {
-    pieSpend: buildPie(pieSpendRows),
-    pieIncome: buildPie(pieIncomeRows),
+    pieSpend: pieRowsFromAggregates(pieSpendRows, catName),
+    pieIncome: pieRowsFromAggregates(pieIncomeRows, catName),
     categoryByMonthStacked: rollupCategoryByMonth(categoryByMonthRaw),
   };
 }
@@ -848,8 +947,13 @@ export async function computeMoneyAnalyticsSankey(
 export async function computeMoneyAnalyticsLeaders(
   workspaceId: string,
   filters: AnalyticsFiltersData,
+  loaders?: MoneyServiceLoaders,
 ): Promise<MoneyAnalyticsLeadersPayload> {
-  const resolvedFilters = await resolveFiltersForQuery(workspaceId, filters);
+  const resolvedFilters = await resolveFiltersForQuery(
+    workspaceId,
+    filters,
+    loaders,
+  );
   const conditions = moneyTransactionConditionsForReports(
     workspaceId,
     resolvedFilters,
@@ -875,7 +979,7 @@ export async function computeMoneyAnalyticsLeaders(
           valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
         })
         .from(moneyTransaction)
-        .leftJoin(
+        .innerJoin(
           moneyTransactionTag,
           eq(moneyTransactionTag.transactionId, moneyTransaction.id),
         )

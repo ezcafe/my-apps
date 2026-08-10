@@ -3,8 +3,10 @@ import { GraphQLJSONObject, BigIntResolver } from "graphql-scalars";
 import { runInWorkspace } from "@/db";
 import { analyticsFiltersSchema } from "@/lib/validators/money";
 import {
+  computeMoneyAnalyticsAtf,
   computeMoneyAnalyticsBudgets,
   computeMoneyAnalyticsDistribution,
+  computeMoneyAnalyticsInsights,
   computeMoneyAnalyticsLeaders,
   computeMoneyAnalyticsOverview,
   computeMoneyAnalyticsSummary,
@@ -615,7 +617,11 @@ export const moneyResolvers = {
       try {
         const { workspaceId } = requireMoneyWorkspace(ctx);
         const filters = filtersFromInput(args.filters);
-        return await computeMoneyAnalyticsOverview(workspaceId, filters);
+        return await computeMoneyAnalyticsOverview(
+          workspaceId,
+          filters,
+          ctx.loaders,
+        );
       } catch (e) {
         mapServiceError(e);
       }
@@ -629,7 +635,47 @@ export const moneyResolvers = {
       try {
         const { workspaceId } = requireMoneyWorkspace(ctx);
         const filters = filtersFromInput(args.filters);
-        return await computeMoneyAnalyticsSummary(workspaceId, filters);
+        return await computeMoneyAnalyticsSummary(
+          workspaceId,
+          filters,
+          ctx.loaders,
+        );
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyAnalyticsAtf: async (
+      _: unknown,
+      args: { filters: Record<string, unknown> },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        const filters = filtersFromInput(args.filters);
+        return await computeMoneyAnalyticsAtf(
+          workspaceId,
+          filters,
+          ctx.loaders,
+        );
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+
+    moneyAnalyticsInsights: async (
+      _: unknown,
+      args: { filters: Record<string, unknown> },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        const { workspaceId } = requireMoneyWorkspace(ctx);
+        const filters = filtersFromInput(args.filters);
+        return await computeMoneyAnalyticsInsights(
+          workspaceId,
+          filters,
+          ctx.loaders,
+        );
       } catch (e) {
         mapServiceError(e);
       }
@@ -697,7 +743,11 @@ export const moneyResolvers = {
       try {
         const { workspaceId } = requireMoneyWorkspace(ctx);
         const filters = filtersFromInput(args.filters);
-        return await computeMoneyAnalyticsLeaders(workspaceId, filters);
+        return await computeMoneyAnalyticsLeaders(
+          workspaceId,
+          filters,
+          ctx.loaders,
+        );
       } catch (e) {
         mapServiceError(e);
       }

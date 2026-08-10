@@ -13,7 +13,6 @@ import {
 } from "react";
 import {
   CHART_CARD_HEIGHT_FULL,
-  CHART_CARD_HEIGHT_HALF,
   CHART_CARD_LAYOUT,
 } from "@/components/analytics-chart-layout";
 import {
@@ -45,11 +44,13 @@ import { formatMinor } from "@/lib/format-money";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_SET_ACTIVE_WORKSPACE_MUTATION } from "@/lib/money-gql-documents";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
+import { IncomeVsExpenseCard } from "@/components/analytics-chart-cards/income-vs-expense-card";
+import { SpendByCategoryCard } from "@/components/analytics-chart-cards/spend-by-category-card";
 import {
+  moneyAnalyticsAtfQueryOptions,
   moneyAnalyticsBudgetsQueryOptions,
   moneyAnalyticsChartLookupsQueryOptions,
-  moneyAnalyticsDashboardQueryOptions,
-  moneyAnalyticsDistributionQueryOptions,
+  moneyAnalyticsInsightsQueryOptions,
   moneyAnalyticsLeadersQueryOptions,
   moneyAnalyticsMerchantLookupsQueryOptions,
   moneyAnalyticsRecurrenceLookupsQueryOptions,
@@ -88,23 +89,9 @@ const chartCardLoading = () => (
   </Card>
 );
 
-const chartCardLoadingHalf = () => (
-  <Card
-    className={`col-span-2 w-full min-w-0 p-4 md:col-span-3 lg:col-span-6 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
-  >
-    <Skeleton className="mb-2 h-6 w-36 rounded-[var(--radius-sm)]" />
-    <Skeleton className="mb-2 h-3 w-44 max-w-full rounded-[var(--radius-sm)]" />
-    <Skeleton className="min-h-0 w-full flex-1 rounded-[var(--radius-sm)]" />
-  </Card>
-);
-
 const NetCumulativeFlowCard = dynamic(
   () => import("@/components/analytics-chart-cards/net-cumulative-flow-card"),
   { loading: chartCardLoading, ssr: false },
-);
-const IncomeVsExpenseCard = dynamic(
-  () => import("@/components/analytics-chart-cards/income-vs-expense-card"),
-  { loading: chartCardLoadingHalf, ssr: false },
 );
 const BudgetVsActualCard = dynamic(
   () => import("@/components/analytics-chart-cards/budget-vs-actual-card"),
@@ -112,10 +99,6 @@ const BudgetVsActualCard = dynamic(
 );
 const MoneyFlowSankeyCard = dynamic(
   () => import("@/components/analytics-chart-cards/money-flow-sankey-card"),
-  { ssr: false },
-);
-const SpendByCategoryCard = dynamic(
-  () => import("@/components/analytics-chart-cards/spend-by-category-card"),
   { ssr: false },
 );
 const IncomeByCategoryCard = dynamic(
@@ -199,24 +182,30 @@ function AnalyticsInsightsBody({
   tags,
   onChartDrilldown,
 }: AnalyticsInsightsBodyProps) {
-  const dashboardQuery = useQuery({
-    ...moneyAnalyticsDashboardQueryOptions(workspaceKey, filterQuery),
+  const atfQuery = useQuery({
+    ...moneyAnalyticsAtfQueryOptions(workspaceKey, filterQuery),
     enabled: Boolean(workspaceKey),
   });
-  const distributionQuery = useQuery({
-    ...moneyAnalyticsDistributionQueryOptions(workspaceKey, filterQuery),
-    enabled: Boolean(workspaceKey),
+  const insightsQuery = useQuery({
+    ...moneyAnalyticsInsightsQueryOptions(workspaceKey, filterQuery),
+    enabled: moreInsights && Boolean(workspaceKey),
   });
 
-  const summary = dashboardQuery.data?.moneyAnalyticsSummary as
+  const summary = atfQuery.data?.moneyAnalyticsAtf.summary as
     | MoneyAnalyticsSummaryPayload
     | undefined;
-  const distribution = distributionQuery.data?.moneyAnalyticsDistribution as
-    | MoneyAnalyticsDistributionPayload
-    | undefined;
-  const overview = dashboardQuery.data?.moneyAnalyticsOverview as
-    | MoneyAnalyticsOverviewPayload
-    | undefined;
+  const atfPieSpend = atfQuery.data?.moneyAnalyticsAtf.pieSpend;
+  const insights = insightsQuery.data?.moneyAnalyticsInsights;
+  const overview = insights?.overview ?? null;
+  const distribution = insights?.distribution ?? null;
+  const spendDistribution: MoneyAnalyticsDistributionPayload | null =
+    atfPieSpend || distribution
+      ? {
+          pieSpend: distribution?.pieSpend ?? atfPieSpend ?? [],
+          pieIncome: distribution?.pieIncome ?? [],
+          categoryByMonthStacked: distribution?.categoryByMonthStacked ?? [],
+        }
+      : null;
 
   if (!summary) {
     return <MoneyAnalyticsChartsSkeleton />;
@@ -225,9 +214,9 @@ function AnalyticsInsightsBody({
   return (
     <AnalyticsChartsView
       summary={summary}
-      distribution={distribution ?? null}
-      distributionLoading={distributionQuery.isLoading}
-      overview={overview ?? null}
+      spendDistribution={spendDistribution}
+      distribution={distribution}
+      overview={overview}
       overviewReady={moreInsights && overview != null}
       moreInsights={moreInsights}
       onExpandMoreInsights={onExpandMoreInsights}
@@ -247,8 +236,8 @@ function AnalyticsInsightsBody({
 
 type AnalyticsChartsViewProps = {
   summary: MoneyAnalyticsSummaryPayload;
+  spendDistribution: MoneyAnalyticsDistributionPayload | null;
   distribution: MoneyAnalyticsDistributionPayload | null;
-  distributionLoading: boolean;
   overview: MoneyAnalyticsOverviewPayload | null;
   overviewReady: boolean;
   moreInsights: boolean;
@@ -267,8 +256,8 @@ type AnalyticsChartsViewProps = {
 
 function AnalyticsChartsView({
   summary,
+  spendDistribution,
   distribution,
-  distributionLoading,
   overview,
   overviewReady,
   moreInsights,
@@ -342,8 +331,8 @@ function AnalyticsChartsView({
   const overviewLineCompare = overview?.lineCompare;
 
   const pieSpendHasData = useMemo(
-    () => distribution?.pieSpend.some((p) => p.valueMinor > 0) ?? false,
-    [distribution?.pieSpend],
+    () => spendDistribution?.pieSpend.some((p) => p.valueMinor > 0) ?? false,
+    [spendDistribution?.pieSpend],
   );
   const pieIncomeHasData = useMemo(
     () => distribution?.pieIncome.some((p) => p.valueMinor > 0) ?? false,
@@ -363,8 +352,9 @@ function AnalyticsChartsView({
     [overviewColumn],
   );
   const pieSpendTotal = useMemo(
-    () => distribution?.pieSpend.reduce((s, p) => s + p.valueMinor, 0) ?? 0,
-    [distribution?.pieSpend],
+    () =>
+      spendDistribution?.pieSpend.reduce((s, p) => s + p.valueMinor, 0) ?? 0,
+    [spendDistribution?.pieSpend],
   );
   const pieIncomeTotal = useMemo(
     () => distribution?.pieIncome.reduce((s, p) => s + p.valueMinor, 0) ?? 0,
@@ -428,7 +418,7 @@ function AnalyticsChartsView({
     [defaultCurrency],
   );
 
-  const spendReady = distribution != null && !distributionLoading;
+  const spendReady = spendDistribution != null;
 
   return (
     <>
@@ -450,8 +440,8 @@ function AnalyticsChartsView({
         />
         <SpendByCategoryCard
           cardRef={undefined}
-          inView={spendReady || distributionLoading}
-          distribution={distribution}
+          inView={spendReady}
+          distribution={spendDistribution}
           pieSpendHasData={pieSpendHasData}
           pieSpendTotal={pieSpendTotal}
           formatChartValue={formatChartValue}
@@ -503,7 +493,7 @@ function AnalyticsChartsView({
 
           <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:gap-3 lg:col-span-12 lg:grid-cols-3 lg:gap-3">
             <IncomeByCategoryCard
-              inView={Boolean(distribution)}
+              inView={moreInsights}
               distribution={distribution}
               pieIncomeHasData={pieIncomeHasData}
               pieIncomeTotal={pieIncomeTotal}

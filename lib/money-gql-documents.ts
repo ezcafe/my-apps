@@ -86,6 +86,18 @@ export const MONEY_ANALYTICS_DASHBOARD_QUERY = /* GraphQL */ `
   }
 `;
 
+export const MONEY_ANALYTICS_ATF_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsAtf($filters: AnalyticsFiltersInput!) {
+    moneyAnalyticsAtf(filters: $filters)
+  }
+`;
+
+export const MONEY_ANALYTICS_INSIGHTS_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsInsights($filters: AnalyticsFiltersInput!) {
+    moneyAnalyticsInsights(filters: $filters)
+  }
+`;
+
 export const MONEY_ANALYTICS_DISTRIBUTION_QUERY = /* GraphQL */ `
   query MoneyAnalyticsDistribution($filters: AnalyticsFiltersInput!) {
     moneyAnalyticsDistribution(filters: $filters)

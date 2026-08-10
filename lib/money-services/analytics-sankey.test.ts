@@ -41,6 +41,36 @@ describe("buildNetCashflowSankeyData", () => {
     );
   });
 
+  it("rolls small categories into Other and conserves flow", () => {
+    const categories = Array.from({ length: 12 }, (_, i) => ({
+      id: `c${i}`,
+      parentId: null,
+      name: `Cat ${i}`,
+      color: null,
+    }));
+    const rows = categories.map((c, i) => ({
+      kind: "expense" as const,
+      categoryId: c.id,
+      valueMinor: (12 - i) * 1_000,
+    }));
+    const income = {
+      kind: "income" as const,
+      categoryId: "salary",
+      valueMinor: rows.reduce((sum, row) => sum + row.valueMinor, 0),
+    };
+    const payload = buildNetCashflowSankeyData(
+      [...categories, { id: "salary", parentId: null, name: "Salary", color: null }],
+      [income, ...rows],
+      4,
+    );
+
+    assert.ok(payload.sankey.nodes.some((n) => n.id === "expense___other__"));
+    const expenseTotal = payload.sankey.links
+      .filter((l) => l.source === "cash_flow_node" && l.target.startsWith("expense_"))
+      .reduce((sum, l) => sum + l.value, 0);
+    assert.equal(expenseTotal, income.valueMinor);
+  });
+
   it("returns no links for zero-flow rows", () => {
     const payload = buildNetCashflowSankeyData(
       [{ id: "misc", parentId: null, name: "Misc", color: null }],

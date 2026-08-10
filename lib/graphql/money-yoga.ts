@@ -142,7 +142,9 @@ const yoga = createYoga({
       ttl: 0,
       ttlPerSchemaCoordinate: {
         "Query.moneyAnalyticsSummary": 45_000,
+        "Query.moneyAnalyticsAtf": 45_000,
         "Query.moneyAnalyticsOverview": 30_000,
+        "Query.moneyAnalyticsInsights": 20_000,
         "Query.moneyAnalyticsBudgets": 30_000,
         "Query.moneyFormBudgetStatus": 0,
         "Query.moneyAnalyticsSankey": 30_000,

@@ -19,7 +19,7 @@ Use this doc to verify regressions after changes that affect bundles, data fetch
    | Shared root + polyfill | ~168 kB | All routes |
    | `/login` | ~16 kB page + root | Static, no shell SessionProvider |
    | `/settings` | ~33 kB page + root | Shell + settings widgets |
-   | `/money/analytics` | ~93 kB page + root | ATF dashboard; charts load as separate dynamics |
+   | `/money/analytics` | ~97 kB page + root | ATF card shells in initial chunk; visx charts stay separate dynamics |
 
 2. **Bundle analyzer** (optional treemap):
 
@@ -31,7 +31,7 @@ Use this doc to verify regressions after changes that affect bundles, data fetch
 
    - LCP, TBT, and **JS transfer size** for `/login`, `/settings`, `/money/spending` (signed-in `/` redirects here), and `/money/analytics`.
    - Compare **number of requests** before first meaningful paint on Money tabs.
-   - **SSR hydration check:** on a cold load of `/money/spending` (signed in), document/RSC work should seed bootstrap + page-1 transactions via **direct service calls** — Network should **not** show loopback `POST /api/graphql` for `MoneyBootstrap` / `MoneyTransactions` during SSR. After hydrate, the client should **not** immediately re-request the same React Query keys while `staleTime` holds (30s default; bootstrap 5m). Repeat for `/money/analytics`, `/money/loans`, `/money/investments`.
+   - **SSR hydration check:** on a cold load of `/money/spending` (signed in), document/RSC work should seed bootstrap + page-1 transactions via **direct service calls** — Network should **not** show loopback `POST /api/graphql` for `MoneyBootstrap` / `MoneyTransactions` during SSR. After hydrate, the client should **not** immediately re-request the same React Query keys while `staleTime` holds (30s default; bootstrap 5m). Repeat for `/money/analytics` (`MoneyAnalyticsAtf` seed; no overview until “More insights”), `/money/loans`, `/money/investments`.
    - **Settings:** `/settings` should not refetch `/api/workspace/list` on mount when SSR passed `initialWorkspaces`.
    - **Mutation check:** after create/edit transaction or loan pay, lists/KPIs update via React Query invalidate — no full page reload.
 
@@ -44,13 +44,14 @@ SSR page seeds call [`lib/money-ssr-seed.ts`](../lib/money-ssr-seed.ts) (Postgre
    - `POST /api/graphql` — operation `MoneyBootstrap`
    - Measure p50/p95 latency with realistic auth + data volume.
 
-2. **Analytics** (combined above-the-fold + parallel lazy sections):
+2. **Analytics** (slim ATF + expand + parallel lazy sections):
 
-   - `POST /api/graphql` — **`MoneyAnalyticsDashboard`** (summary + overview in one request)
-   - `POST /api/graphql` — `MoneyAnalyticsBudgets`, `MoneyAnalyticsSankey`, `MoneyAnalyticsDistribution`, `MoneyAnalyticsLeaders` (lazy, in-view)
+   - `POST /api/graphql` — **`MoneyAnalyticsAtf`** (summary + spend pie; SSR-seeded for the default month)
+   - `POST /api/graphql` — **`MoneyAnalyticsInsights`** (overview + full distribution; only after “More insights”)
+   - `POST /api/graphql` — `MoneyAnalyticsBudgets`, `MoneyAnalyticsSankey`, `MoneyAnalyticsLeaders` (lazy, in-view)
    - `POST /api/graphql` — `MoneyTransactions` (transactions table)
 
-   Legacy single-field ops (`MoneyAnalyticsSummary`, `MoneyAnalyticsOverview`) remain available for prefetch/tests.
+   Legacy ops (`MoneyAnalyticsDashboard`, `MoneyAnalyticsSummary`, `MoneyAnalyticsOverview`, `MoneyAnalyticsDistribution`) remain available for ledger tabs and tests.
 
 3. **Other heavy endpoints**:
 
@@ -69,7 +70,7 @@ SSR page seeds call [`lib/money-ssr-seed.ts`](../lib/money-ssr-seed.ts) (Postgre
 
 ### Server-Timing
 
-Successful GraphQL responses include a `Server-Timing` header, e.g. `gql;desc="MoneyAnalyticsDashboard";dur=42.3`. Inspect in Chrome DevTools → Network → response headers. Operations slower than 500 ms are logged as `[graphql] slow operation …`.
+Successful GraphQL responses include a `Server-Timing` header, e.g. `gql;desc="MoneyAnalyticsAtf";dur=42.3`. Inspect in Chrome DevTools → Network → response headers. Operations slower than 500 ms are logged as `[graphql] slow operation …`.
 
 ### Load smoke (local)
 

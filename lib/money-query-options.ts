@@ -4,9 +4,11 @@ import {
 } from "@/lib/analytics-graphql-filters";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
+  MONEY_ANALYTICS_ATF_QUERY,
   MONEY_ANALYTICS_BUDGETS_QUERY,
   MONEY_ANALYTICS_CHART_LOOKUPS_QUERY,
   MONEY_ANALYTICS_DISTRIBUTION_QUERY,
+  MONEY_ANALYTICS_INSIGHTS_QUERY,
   MONEY_ANALYTICS_LEADERS_QUERY,
   MONEY_ANALYTICS_MERCHANT_LOOKUPS_QUERY,
   MONEY_ANALYTICS_DASHBOARD_QUERY,
@@ -24,8 +26,10 @@ import {
 import type { FormBudgetStatusPayload } from "@/lib/money-services/budgets";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import type {
+  MoneyAnalyticsAtfPayload,
   MoneyAnalyticsBudgetPayload,
   MoneyAnalyticsDistributionPayload,
+  MoneyAnalyticsInsightsPayload,
   MoneyAnalyticsLeadersPayload,
   MoneyAnalyticsOverviewPayload,
   MoneyAnalyticsSummaryPayload,
@@ -276,6 +280,14 @@ export type MoneyAnalyticsDashboardQueryResult = {
   moneyAnalyticsOverview: MoneyAnalyticsOverviewPayload;
 };
 
+export type MoneyAnalyticsAtfQueryResult = {
+  moneyAnalyticsAtf: MoneyAnalyticsAtfPayload;
+};
+
+export type MoneyAnalyticsInsightsQueryResult = {
+  moneyAnalyticsInsights: MoneyAnalyticsInsightsPayload;
+};
+
 export type MoneyAnalyticsDistributionQueryResult = {
   moneyAnalyticsDistribution: MoneyAnalyticsDistributionPayload;
 };
@@ -333,6 +345,56 @@ export function moneyAnalyticsDashboardQueryOptions(
     queryFn: async () => {
       const res = await moneyGraphQLRequest<MoneyAnalyticsDashboardQueryResult>(
         MONEY_ANALYTICS_DASHBOARD_QUERY,
+        { filters },
+      );
+      return res;
+    },
+    placeholderData: (previousData) => previousData,
+    staleTime: 20_000,
+  });
+}
+
+export function moneyAnalyticsAtfQueryOptions(
+  workspaceKey: string,
+  filterQuery: string,
+) {
+  const filters = filterQueryToGraphQLAnalyticsInput(filterQuery);
+
+  return queryOptions({
+    queryKey: [
+      "money",
+      "analyticsAtf",
+      workspaceKey,
+      filterQuery,
+    ] as const,
+    queryFn: async () => {
+      const res = await moneyGraphQLRequest<MoneyAnalyticsAtfQueryResult>(
+        MONEY_ANALYTICS_ATF_QUERY,
+        { filters },
+      );
+      return res;
+    },
+    placeholderData: (previousData) => previousData,
+    staleTime: 45_000,
+  });
+}
+
+export function moneyAnalyticsInsightsQueryOptions(
+  workspaceKey: string,
+  filterQuery: string,
+) {
+  const filters = filterQueryToGraphQLAnalyticsInput(filterQuery);
+
+  return queryOptions({
+    queryKey: [
+      "money",
+      "analyticsInsights",
+      workspaceKey,
+      filterQuery,
+    ] as const,
+    queryFn: async () => {
+      const res = await moneyGraphQLRequest<MoneyAnalyticsInsightsQueryResult>(
+        MONEY_ANALYTICS_INSIGHTS_QUERY,
         { filters },
       );
       return res;
