@@ -7,25 +7,14 @@ import {
   useMemo,
   useState,
 } from "react";
+import {
+  DATE_FORMAT_COOKIE,
+  DATE_FORMAT_STORAGE_KEY,
+  type DateFormat,
+  parseDateFormat,
+} from "@/lib/date-format-preference";
 
-export type DateFormat = "locale" | "mdy" | "dmy" | "ymd";
-
-const STORAGE_DATE_FORMAT_KEY = "workspace_date_format";
-
-const DATE_FORMAT_ORDER: DateFormat[] = ["locale", "mdy", "dmy", "ymd"];
-
-function readStoredDateFormat(): DateFormat {
-  if (typeof window === "undefined") return "locale";
-  try {
-    const s = localStorage.getItem(STORAGE_DATE_FORMAT_KEY);
-    if (s != null && DATE_FORMAT_ORDER.includes(s as DateFormat)) {
-      return s as DateFormat;
-    }
-  } catch {
-    /* ignore */
-  }
-  return "locale";
-}
+export type { DateFormat };
 
 type PreferencesContextValue = {
   dateFormat: DateFormat;
@@ -34,18 +23,33 @@ type PreferencesContextValue = {
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
-export function PreferencesProvider({ children }: { children: React.ReactNode }) {
-  const [dateFormat, setDateFormatState] = useState<DateFormat>(() =>
-    typeof window !== "undefined" ? readStoredDateFormat() : "locale",
+function persistDateFormat(f: DateFormat) {
+  try {
+    localStorage.setItem(DATE_FORMAT_STORAGE_KEY, f);
+  } catch {
+    /* ignore */
+  }
+  try {
+    document.cookie = `${DATE_FORMAT_COOKIE}=${f}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  } catch {
+    /* ignore */
+  }
+}
+
+export function PreferencesProvider({
+  initialDateFormat = "locale",
+  children,
+}: {
+  initialDateFormat?: DateFormat;
+  children: React.ReactNode;
+}) {
+  const [dateFormat, setDateFormatState] = useState<DateFormat>(
+    () => parseDateFormat(initialDateFormat),
   );
 
   const setDateFormat = useCallback((f: DateFormat) => {
     setDateFormatState(f);
-    try {
-      localStorage.setItem(STORAGE_DATE_FORMAT_KEY, f);
-    } catch {
-      /* ignore */
-    }
+    persistDateFormat(f);
   }, []);
 
   const value = useMemo(

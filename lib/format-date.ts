@@ -19,8 +19,43 @@ export type FormatDisplayDateOptions = {
   shortYear?: boolean;
 };
 
+const MONTHS_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+const MONTHS_LONG = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
+}
+
+function layoutOf(format: DateFormat): "mdy" | "dmy" | "ymd" {
+  if (format === "dmy" || format === "ymd") return format;
+  return "mdy";
 }
 
 /** Parse ISO date (`YYYY-MM-DD`) or datetime strings into a local Date. */
@@ -38,12 +73,6 @@ export function parseDateInput(input: string | Date): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function localeTag(format: DateFormat): string | undefined {
-  if (format === "mdy") return "en-US";
-  if (format === "dmy") return "en-GB";
-  return undefined;
-}
-
 function formatYmdNumeric(d: Date, includeDay = true): string {
   const y = d.getFullYear();
   const m = pad2(d.getMonth() + 1);
@@ -51,29 +80,23 @@ function formatYmdNumeric(d: Date, includeDay = true): string {
   return `${y}-${m}-${pad2(d.getDate())}`;
 }
 
-function intlDate(
-  d: Date,
-  format: DateFormat,
-  options: Intl.DateTimeFormatOptions,
-): string {
-  if (format === "ymd") {
-    if (
-      options.month === "short" &&
-      options.day === undefined &&
-      options.year === "numeric"
-    ) {
-      return formatYmdNumeric(d, false);
-    }
-    if (
-      options.month === "short" &&
-      options.day === "numeric" &&
-      !options.year
-    ) {
-      return formatYmdNumeric(d);
-    }
-    return formatYmdNumeric(d);
-  }
-  return new Intl.DateTimeFormat(localeTag(format), options).format(d);
+function formatYear(d: Date, shortYear: boolean): string {
+  if (!shortYear) return String(d.getFullYear());
+  return pad2(d.getFullYear() % 100);
+}
+
+function formatMdy(d: Date, opts: { omitYear: boolean; shortYear: boolean }): string {
+  const month = MONTHS_SHORT[d.getMonth()]!;
+  const day = String(d.getDate());
+  if (opts.omitYear) return `${month} ${day}`;
+  return `${month} ${day}, ${formatYear(d, opts.shortYear)}`;
+}
+
+function formatDmy(d: Date, opts: { omitYear: boolean; shortYear: boolean }): string {
+  const month = MONTHS_SHORT[d.getMonth()]!;
+  const day = String(d.getDate());
+  if (opts.omitYear) return `${day} ${month}`;
+  return `${day} ${month} ${formatYear(d, opts.shortYear)}`;
 }
 
 function startOfLocalDay(d: Date): number {
@@ -99,27 +122,27 @@ export function formatDisplayDate(
   const omitYear =
     opts?.omitYear === true ||
     (opts?.omitYearIfCurrent === true && d.getFullYear() === now.getFullYear());
-  const yearStyle = opts?.shortYear ? "2-digit" : "numeric";
+  const shortYear = opts?.shortYear === true;
+  const layout = layoutOf(format);
 
-  if (format === "ymd") {
-    if (omitYear) {
-      return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-    }
-    if (opts?.shortYear) {
+  if (layout === "ymd") {
+    if (omitYear) return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    if (shortYear) {
       return `${pad2(d.getFullYear() % 100)}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
     }
     return formatYmdNumeric(d);
   }
 
-  if (omitYear) {
-    return intlDate(d, format, { month: "short", day: "numeric" });
-  }
+  if (layout === "dmy") return formatDmy(d, { omitYear, shortYear });
+  return formatMdy(d, { omitYear, shortYear });
+}
 
-  return intlDate(d, format, {
-    year: yearStyle,
-    month: "short",
-    day: "numeric",
-  });
+function formatTime12(d: Date): string {
+  let hours = d.getHours();
+  const minutes = pad2(d.getMinutes());
+  const suffix = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes} ${suffix}`;
 }
 
 export function formatDisplayDateTime(
@@ -129,19 +152,11 @@ export function formatDisplayDateTime(
   const d = parseDateInput(input);
   if (!d) return typeof input === "string" ? input : "";
 
-  if (format === "ymd") {
-    const date = formatYmdNumeric(d);
-    const time = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-    return `${date} ${time}`;
+  if (layoutOf(format) === "ymd") {
+    return `${formatYmdNumeric(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
   }
 
-  return new Intl.DateTimeFormat(localeTag(format), {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
+  return `${formatDisplayDate(d, format)} ${formatTime12(d)}`;
 }
 
 export function formatDisplayMonthYear(
@@ -155,11 +170,11 @@ export function formatDisplayMonthYear(
   const d = new Date(y, m - 1, 1);
   if (Number.isNaN(d.getTime())) return yyyyMmOrDate;
 
-  if (format === "ymd") {
+  if (layoutOf(format) === "ymd") {
     return formatYmdNumeric(d, false);
   }
 
-  return intlDate(d, format, { month: "long", year: "numeric" });
+  return `${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export function formatDisplayPeriod(
@@ -167,24 +182,10 @@ export function formatDisplayPeriod(
   toIso: string,
   format: DateFormat,
 ): string {
-  try {
-    const from = parseDateInput(fromIso);
-    const to = parseDateInput(toIso);
-    if (!from || !to) return "";
-    const sep = " – ";
-    if (format === "ymd") {
-      return `${formatYmdNumeric(from)}${sep}${formatYmdNumeric(to)}`;
-    }
-    const opts: Intl.DateTimeFormatOptions = {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    };
-    const tag = localeTag(format);
-    return `${from.toLocaleDateString(tag, opts)}${sep}${to.toLocaleDateString(tag, opts)}`;
-  } catch {
-    return "";
-  }
+  const from = formatDisplayDate(fromIso, format);
+  const to = formatDisplayDate(toIso, format);
+  if (!from || !to) return "";
+  return `${from} – ${to}`;
 }
 
 export function formatChartDateTick(isoDate: string, format: DateFormat): string {
@@ -194,11 +195,7 @@ export function formatChartDateTick(isoDate: string, format: DateFormat): string
   const d = new Date(y, m - 1, day);
   if (Number.isNaN(d.getTime())) return isoDate;
 
-  if (format === "ymd") {
-    return formatYmdNumeric(d);
-  }
-
-  return intlDate(d, format, { month: "short", day: "numeric" });
+  return formatDisplayDate(d, format, { omitYear: true });
 }
 
 export function useFormatDate() {

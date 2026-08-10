@@ -47,10 +47,9 @@ export async function fetchMoneyWorkspaceStatePayload(
   };
 }
 
-export async function fetchMoneyBootstrapPayload(
-  userSub: string,
+export async function fetchMoneyBootstrapFromWorkspaceState(
+  workspaceState: MoneyWorkspaceCoreData,
 ): Promise<MoneyWorkspaceBootstrapData> {
-  const workspaceState = await fetchMoneyWorkspaceStatePayload(userSub);
   const workspaceCurrency = workspaceState.defaultCurrency ?? "USD";
   await Promise.all([
     ensureNecessitiesSeedCategoriesForWorkspace(db, workspaceState.workspaceId),
@@ -60,12 +59,22 @@ export async function fetchMoneyBootstrapPayload(
       workspaceCurrency,
     ),
   ]);
-  const lookups = await fetchMoneyLookups(workspaceState.workspaceId, workspaceCurrency);
+  const lookups = await fetchMoneyLookups(
+    workspaceState.workspaceId,
+    workspaceCurrency,
+  );
 
   return {
     ...workspaceState,
     ...lookups,
   };
+}
+
+export async function fetchMoneyBootstrapPayload(
+  userSub: string,
+): Promise<MoneyWorkspaceBootstrapData> {
+  const workspaceState = await fetchMoneyWorkspaceStatePayload(userSub);
+  return fetchMoneyBootstrapFromWorkspaceState(workspaceState);
 }
 
 export async function fetchMoneyWorkspaceStateSafe(userSub: string): Promise<
@@ -89,12 +98,14 @@ export async function fetchMoneyWorkspaceStateSafe(userSub: string): Promise<
   }
 }
 
-export async function fetchMoneyBootstrapSafe(userSub: string): Promise<
+export async function completeMoneyBootstrapFromState(
+  workspaceState: MoneyWorkspaceCoreData,
+): Promise<
   | { ok: true; data: MoneyWorkspaceBootstrapData }
   | { ok: false; code: "db_unavailable" | "workspace_error"; message: string }
 > {
   try {
-    const data = await fetchMoneyBootstrapPayload(userSub);
+    const data = await fetchMoneyBootstrapFromWorkspaceState(workspaceState);
     return { ok: true, data };
   } catch (e) {
     if (isDbUnreachable(e)) {
@@ -108,4 +119,13 @@ export async function fetchMoneyBootstrapSafe(userSub: string): Promise<
     const message = e instanceof Error ? e.message : "Workspace unavailable";
     return { ok: false, code: "workspace_error", message };
   }
+}
+
+export async function fetchMoneyBootstrapSafe(userSub: string): Promise<
+  | { ok: true; data: MoneyWorkspaceBootstrapData }
+  | { ok: false; code: "db_unavailable" | "workspace_error"; message: string }
+> {
+  const state = await fetchMoneyWorkspaceStateSafe(userSub);
+  if (!state.ok) return state;
+  return completeMoneyBootstrapFromState(state.data);
 }

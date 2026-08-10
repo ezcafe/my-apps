@@ -26,7 +26,9 @@ import {
 } from "@/lib/money-query-options";
 import {
   browserTimezoneName,
+  readCachedSyncedTimezone,
   syncWorkspaceTimezone,
+  writeCachedSyncedTimezone,
 } from "@/lib/workspace-timezone";
 import type {
   MoneyWorkspaceBootstrapData,
@@ -81,13 +83,16 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
     if (!boot?.workspaceId) return;
     const tzName = browserTimezoneName();
     if (!tzName) return;
+    if (readCachedSyncedTimezone(boot.workspaceId) === tzName) return;
 
     let cancelled = false;
     const run = () => {
       void (async () => {
         try {
           const result = await syncWorkspaceTimezone(boot.workspaceId, tzName);
-          if (cancelled || result.unchanged) return;
+          if (cancelled) return;
+          writeCachedSyncedTimezone(boot.workspaceId, tzName);
+          if (result.unchanged) return;
           await queryClient.invalidateQueries({
             predicate: (query) =>
               query.queryKey[0] === "money" &&
@@ -103,9 +108,9 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
     let idleId: number | undefined;
     let timeoutId: number | undefined;
     if (typeof globalThis.requestIdleCallback === "function") {
-      idleId = globalThis.requestIdleCallback(run, { timeout: 2500 });
+      idleId = globalThis.requestIdleCallback(run, { timeout: 4000 });
     } else {
-      timeoutId = window.setTimeout(run, 1);
+      timeoutId = window.setTimeout(run, 2000);
     }
 
     return () => {

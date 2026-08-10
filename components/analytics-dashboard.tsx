@@ -132,7 +132,6 @@ const AnalyticsFiltersBar = dynamic(
       default: m.AnalyticsFiltersBar,
     })),
   {
-    ssr: false,
     loading: () => <MoneyAnalyticsFiltersBarSkeleton />,
   },
 );
@@ -930,22 +929,26 @@ export function AnalyticsDashboard({
         <MoneyAnalyticsChartsSkeleton />
       )}
 
-      <AnalyticsChartDrilldownModal
-        open={chartDrilldown != null}
-        onClose={() => setChartDrilldown(null)}
-        title={chartDrilldown?.title ?? ""}
-        filterQuery={chartDrilldown?.filterQuery ?? ""}
-        activeWorkspaceId={activeWorkspaceId}
-        accounts={accounts}
-        categories={categories}
-        currency={defaultCurrency}
-        onEditTransaction={handleEditTransaction}
-      />
-      <TransactionEditModal
-        open={editTransactionId != null}
-        transactionId={editTransactionId}
-        onClose={() => setEditTransactionId(null)}
-      />
+      {chartDrilldown != null ? (
+        <AnalyticsChartDrilldownModal
+          open
+          onClose={() => setChartDrilldown(null)}
+          title={chartDrilldown.title}
+          filterQuery={chartDrilldown.filterQuery}
+          activeWorkspaceId={activeWorkspaceId}
+          accounts={accounts}
+          categories={categories}
+          currency={defaultCurrency}
+          onEditTransaction={handleEditTransaction}
+        />
+      ) : null}
+      {editTransactionId != null ? (
+        <TransactionEditModal
+          open
+          transactionId={editTransactionId}
+          onClose={() => setEditTransactionId(null)}
+        />
+      ) : null}
     </>
   );
 }

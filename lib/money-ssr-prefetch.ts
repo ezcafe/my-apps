@@ -28,7 +28,7 @@ export async function prefetchMoneyLedger(
 }
 
 /**
- * Analytics tab — bootstrap + combined ATF dashboard + distribution.
+ * Analytics tab — workspace id + ATF in parallel with full bootstrap lookups.
  * Budgets / sankey / leaders stay client lazy.
  */
 export async function prefetchMoneyAnalytics(

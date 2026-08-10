@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { RootProviders } from "@/components/root-providers";
+import {
+  DATE_FORMAT_COOKIE,
+  dateFormatInitInlineScript,
+  parseDateFormat,
+} from "@/lib/date-format-preference";
 import { themeInitInlineScript } from "@/lib/theme-init-script";
 
 const plexSans = IBM_Plex_Sans({
@@ -24,11 +30,16 @@ export const metadata: Metadata = {
     "Household workspace — Money, analytics, and more. Quiet Ink UI with Facebook light and Catppuccin Mocha (dark).",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const dateFormat = parseDateFormat(
+    cookieStore.get(DATE_FORMAT_COOKIE)?.value,
+  );
+
   return (
     <html
       lang="en"
@@ -40,9 +51,12 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{ __html: themeInitInlineScript() }}
         />
+        <script
+          dangerouslySetInnerHTML={{ __html: dateFormatInitInlineScript() }}
+        />
       </head>
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
-        <RootProviders>{children}</RootProviders>
+        <RootProviders dateFormat={dateFormat}>{children}</RootProviders>
       </body>
     </html>
   );

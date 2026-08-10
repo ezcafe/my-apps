@@ -726,14 +726,16 @@ export async function computeMoneyAnalyticsOverview(
 }
 
 function pieRowsFromAggregates(
-  rows: { categoryId: string | null; valueMinor: string }[],
-  catName: Map<string, string>,
+  rows: {
+    categoryId: string | null;
+    categoryName: string | null;
+    valueMinor: string;
+  }[],
 ): PieRow[] {
   return rollupPieRows(
     rows.map((row) => {
-      const categoryId = row.categoryId;
       const valueMinor = Number(row.valueMinor);
-      if (categoryId == null) {
+      if (row.categoryId == null) {
         return {
           categoryId: null,
           label: "Uncategorized",
@@ -741,8 +743,8 @@ function pieRowsFromAggregates(
         };
       }
       return {
-        categoryId,
-        label: catName.get(categoryId) ?? categoryId,
+        categoryId: row.categoryId,
+        label: row.categoryName ?? row.categoryId,
         valueMinor,
       };
     }),
@@ -756,9 +758,11 @@ async function fetchCategoryPieRows(
   return db
     .select({
       categoryId: moneyTransaction.categoryId,
+      categoryName: sql<string | null>`max(${moneyCategory.name})`,
       valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
     })
     .from(moneyTransaction)
+    .leftJoin(moneyCategory, eq(moneyCategory.id, moneyTransaction.categoryId))
     .where(and(whereClause, eq(moneyTransaction.kind, kind)))
     .groupBy(moneyTransaction.categoryId);
 }
@@ -778,14 +782,8 @@ async function computeMoneyAnalyticsPieSpend(
     resolvedFilters,
   );
   const whereClause = and(...conditions);
-  const [categories, pieSpendRows] = await Promise.all([
-    loadWorkspaceCategories(workspaceId, loaders),
-    fetchCategoryPieRows(whereClause, "expense"),
-  ]);
-  const catName = new Map(
-    categories.map((category) => [category.id, category.name]),
-  );
-  return pieRowsFromAggregates(pieSpendRows, catName);
+  const pieSpendRows = await fetchCategoryPieRows(whereClause, "expense");
+  return pieRowsFromAggregates(pieSpendRows);
 }
 
 export async function computeMoneyAnalyticsAtf(
@@ -832,24 +830,22 @@ export async function computeMoneyAnalyticsDistribution(
   const whereClause = and(...conditions);
   const monthExpr = sql<string>`to_char((${moneyTransaction.occurredAt} at time zone ${timezone}), 'YYYY-MM')`;
 
-  const [categories, pieSpendRows, pieIncomeRows, categoryByMonthRows] =
-    await Promise.all([
-      loadWorkspaceCategories(workspaceId, loaders),
-      fetchCategoryPieRows(whereClause, "expense"),
-      fetchCategoryPieRows(whereClause, "income"),
-      db
-        .select({
-          month: monthExpr,
-          categoryId: moneyTransaction.categoryId,
-          valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
-        })
-        .from(moneyTransaction)
-        .where(and(whereClause, eq(moneyTransaction.kind, "expense")))
-        .groupBy(sql`1`, moneyTransaction.categoryId)
-        .orderBy(sql`1`),
-    ]);
-
-  const catName = new Map(categories.map((category) => [category.id, category.name]));
+  const [pieSpendRows, pieIncomeRows, categoryByMonthRows] = await Promise.all([
+    fetchCategoryPieRows(whereClause, "expense"),
+    fetchCategoryPieRows(whereClause, "income"),
+    db
+      .select({
+        month: monthExpr,
+        categoryId: moneyTransaction.categoryId,
+        categoryName: sql<string | null>`max(${moneyCategory.name})`,
+        valueMinor: sql<string>`coalesce(sum(${moneyTransaction.amountMinor}), 0)`,
+      })
+      .from(moneyTransaction)
+      .leftJoin(moneyCategory, eq(moneyCategory.id, moneyTransaction.categoryId))
+      .where(and(whereClause, eq(moneyTransaction.kind, "expense")))
+      .groupBy(sql`1`, moneyTransaction.categoryId)
+      .orderBy(sql`1`),
+  ]);
 
   const categoryByMonthRaw = categoryByMonthRows.map((row) => {
     const categoryId = row.categoryId;
@@ -865,14 +861,14 @@ export async function computeMoneyAnalyticsDistribution(
     return {
       month: String(row.month),
       categoryId,
-      label: catName.get(categoryId) ?? categoryId,
+      label: row.categoryName ?? categoryId,
       expenseMinor: valueMinor,
     };
   });
 
   return {
-    pieSpend: pieRowsFromAggregates(pieSpendRows, catName),
-    pieIncome: pieRowsFromAggregates(pieIncomeRows, catName),
+    pieSpend: pieRowsFromAggregates(pieSpendRows),
+    pieIncome: pieRowsFromAggregates(pieIncomeRows),
     categoryByMonthStacked: rollupCategoryByMonth(categoryByMonthRaw),
   };
 }

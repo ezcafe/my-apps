@@ -30,6 +30,7 @@ import {
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import type { UsageRankedItem } from "@/lib/money-usage-quick-pick";
+import { useFormatDate } from "@/lib/format-date";
 
 export type {
   AnalyticsFiltersValue,
@@ -84,12 +85,6 @@ function deriveDirection(kinds: AnalyticsKind[]): DirectionKey {
   if (kinds.length !== 1) return "all";
   const k = kinds[0]!;
   return k;
-}
-
-function formatShortDate(iso: string): string {
-  if (!iso) return "—";
-  const d = new Date(`${iso}T12:00:00`);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function workspaceOptionLabel(
@@ -756,6 +751,7 @@ export function AnalyticsFiltersBar({
   /** Fires once when Date/Merchants/Tags/Recurrence (More) is opened. */
   onAdvancedFiltersNeeded?: () => void;
 }) {
+  const { formatDate } = useFormatDate();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
@@ -825,7 +821,7 @@ export function AnalyticsFiltersBar({
     ? workspaceOptionLabel(activeWorkspace, userSub)
     : "Workspace";
 
-  const dateLabel = `${formatShortDate(value.fromDate)} – ${formatShortDate(value.toDate)}`;
+  const dateLabel = `${formatDate(value.fromDate, { omitYear: true }) || "—"} – ${formatDate(value.toDate, { omitYear: true }) || "—"}`;
 
   const directionLabel =
     direction === "all"

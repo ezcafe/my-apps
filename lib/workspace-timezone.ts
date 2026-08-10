@@ -8,6 +8,49 @@ export function browserTimezoneName(): string | null {
   }
 }
 
+export const MONEY_TZ_SYNC_STORAGE_PREFIX = "money.tz-synced:";
+
+export type TimezoneSyncStorage = Pick<Storage, "getItem" | "setItem">;
+
+export function timezoneSyncStorageKey(workspaceId: string): string {
+  return `${MONEY_TZ_SYNC_STORAGE_PREFIX}${workspaceId}`;
+}
+
+function sessionStorageOrNull(): TimezoneSyncStorage | null {
+  try {
+    if (typeof sessionStorage === "undefined") return null;
+    return sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** Skip a timezone PATCH when this tab already synced the same IANA zone. */
+export function readCachedSyncedTimezone(
+  workspaceId: string,
+  storage: TimezoneSyncStorage | null = sessionStorageOrNull(),
+): string | null {
+  if (!storage) return null;
+  try {
+    return storage.getItem(timezoneSyncStorageKey(workspaceId));
+  } catch {
+    return null;
+  }
+}
+
+export function writeCachedSyncedTimezone(
+  workspaceId: string,
+  tzName: string,
+  storage: TimezoneSyncStorage | null = sessionStorageOrNull(),
+): void {
+  if (!storage) return;
+  try {
+    storage.setItem(timezoneSyncStorageKey(workspaceId), tzName);
+  } catch {
+    // Private mode / quota — next load may PATCH again.
+  }
+}
+
 export async function syncWorkspaceTimezone(
   workspaceId: string,
   tzName: string,

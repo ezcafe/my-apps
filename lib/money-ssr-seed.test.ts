@@ -5,6 +5,8 @@ import { moneyDefaultMonthFilterQuery } from "@/lib/money-first-load-filters";
 import {
   applyMoneyAnalyticsAtfSeed,
   applyMoneyBootstrapSeed,
+  dehydrateMoneyAnalyticsPageState,
+  dehydrateMoneyLayoutState,
 } from "@/lib/money-ssr-seed";
 import {
   moneyAnalyticsAtfQueryOptions,
@@ -113,5 +115,63 @@ describe("applyMoneyAnalyticsAtfSeed", () => {
       ),
       undefined,
     );
+  });
+});
+
+describe("money dehydrate splits", () => {
+  it("layout dehydrate keeps bootstrap + lookups and drops ATF", () => {
+    const qc = new QueryClient();
+    const filterQuery = moneyDefaultMonthFilterQuery(FIXED);
+    applyMoneyBootstrapSeed(qc, boot);
+    applyMoneyAnalyticsAtfSeed(qc, boot.workspaceId, filterQuery, {
+      summary: {
+        stats: {
+          expenseMinor: 1,
+          incomeMinor: 2,
+          netMinor: 1,
+          transactionCount: 1,
+          savingsRatePct: 50,
+        },
+        range: { from: "2026-08-01T00:00:00.000Z", to: "2026-08-31T23:59:59.999Z" },
+      },
+      pieSpend: [{ categoryId: "food", label: "Food", valueMinor: 100 }],
+    });
+
+    const state = dehydrateMoneyLayoutState(qc);
+    const slots = new Set(
+      state.queries.map((query) => String(query.queryKey[1])),
+    );
+    assert.equal(slots.has("bootstrap"), true);
+    assert.equal(slots.has("analyticsChartLookups"), true);
+    assert.equal(slots.has("analyticsAtf"), false);
+    assert.equal(slots.has("analyticsSummary"), false);
+  });
+
+  it("analytics page dehydrate keeps ATF only", () => {
+    const qc = new QueryClient();
+    const filterQuery = moneyDefaultMonthFilterQuery(FIXED);
+    applyMoneyBootstrapSeed(qc, boot);
+    applyMoneyAnalyticsAtfSeed(qc, boot.workspaceId, filterQuery, {
+      summary: {
+        stats: {
+          expenseMinor: 1,
+          incomeMinor: 2,
+          netMinor: 1,
+          transactionCount: 1,
+          savingsRatePct: 50,
+        },
+        range: { from: "2026-08-01T00:00:00.000Z", to: "2026-08-31T23:59:59.999Z" },
+      },
+      pieSpend: [{ categoryId: "food", label: "Food", valueMinor: 100 }],
+    });
+
+    const state = dehydrateMoneyAnalyticsPageState(qc);
+    const slots = new Set(
+      state.queries.map((query) => String(query.queryKey[1])),
+    );
+    assert.equal(slots.has("analyticsAtf"), true);
+    assert.equal(slots.has("bootstrap"), false);
+    assert.equal(slots.has("analyticsChartLookups"), false);
+    assert.equal(slots.has("analyticsSummary"), false);
   });
 });

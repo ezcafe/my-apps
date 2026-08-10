@@ -38,8 +38,10 @@ function getSnapshot(): MoneyMenuPageAction[] {
   return actions;
 }
 
+const EMPTY_MENU_ACTIONS: MoneyMenuPageAction[] = [];
+
 function getServerSnapshot(): MoneyMenuPageAction[] {
-  return [];
+  return EMPTY_MENU_ACTIONS;
 }
 
 export function useMoneyMenuPageActions(): MoneyMenuPageAction[] {

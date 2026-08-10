@@ -1,4 +1,4 @@
-import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { HydrationBoundary } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { AnalyticsDashboard } from "@/components/analytics-dashboard";
 import { AnalyticsErrorBoundary } from "@/components/analytics-error-boundary";
@@ -6,6 +6,7 @@ import { MoneyAnalyticsPageSkeleton } from "@/components/money-analytics-skeleto
 import { auth } from "@/auth";
 import { getQueryClient } from "@/lib/get-query-client";
 import { prefetchMoneyAnalytics } from "@/lib/money-ssr-prefetch";
+import { dehydrateMoneyAnalyticsPageState } from "@/lib/money-ssr-seed";
 
 export default async function MoneyAnalyticsPage() {
   const session = await auth();
@@ -16,7 +17,7 @@ export default async function MoneyAnalyticsPage() {
   }
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
+    <HydrationBoundary state={dehydrateMoneyAnalyticsPageState(queryClient)}>
       <AnalyticsErrorBoundary>
         <Suspense fallback={<MoneyAnalyticsPageSkeleton />}>
           <AnalyticsDashboard userSub={userSub} authenticated={Boolean(userSub)} />

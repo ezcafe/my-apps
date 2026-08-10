@@ -1,5 +1,4 @@
 import { Suspense, type ReactNode } from "react";
-import { dehydrate } from "@tanstack/react-query";
 import {
   MoneyHydratedWorkspace,
   MoneyRouteChrome,
@@ -8,6 +7,7 @@ import { MoneyAnalyticsPageSkeleton } from "@/components/money-analytics-skeleto
 import { auth } from "@/auth";
 import { getQueryClient } from "@/lib/get-query-client";
 import { prefetchMoneyBootstrapForLayout } from "@/lib/money-ssr-prefetch";
+import { dehydrateMoneyLayoutState } from "@/lib/money-ssr-seed";
 
 export default function MoneyLayout({ children }: { children: ReactNode }) {
   return (
@@ -27,7 +27,7 @@ async function MoneyBootstrapBoundary({ children }: { children: ReactNode }) {
   }
 
   return (
-    <MoneyHydratedWorkspace dehydratedState={dehydrate(queryClient)}>
+    <MoneyHydratedWorkspace dehydratedState={dehydrateMoneyLayoutState(queryClient)}>
       {children}
     </MoneyHydratedWorkspace>
   );

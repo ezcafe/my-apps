@@ -1,5 +1,9 @@
 import { cache } from "react";
-import type { QueryClient } from "@tanstack/react-query";
+import {
+  dehydrate,
+  defaultShouldDehydrateQuery,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { runInWorkspace } from "@/db";
 import { filterQueryToGraphQLAnalyticsInput } from "@/lib/analytics-graphql-filters";
 import {
@@ -31,7 +35,10 @@ import {
   computeMoneyAnalyticsSummary,
   type MoneyAnalyticsAtfPayload,
 } from "@/lib/money-services/analytics";
-import { fetchMoneyBootstrapSafe } from "@/lib/money-services/bootstrap";
+import {
+  completeMoneyBootstrapFromState,
+  fetchMoneyWorkspaceStateSafe,
+} from "@/lib/money-services/bootstrap";
 import { listMoneyTransactions } from "@/lib/money-services/transactions";
 import {
   moneyAnalyticsAtfQueryOptions,
@@ -50,9 +57,48 @@ import { analyticsFiltersSchema } from "@/lib/validators/money";
 
 const TRANSACTIONS_PAGE_SIZE = 20;
 
-const loadMoneyBootstrap = cache((userSub: string) =>
-  fetchMoneyBootstrapSafe(userSub),
+const MONEY_LAYOUT_DEHYDRATE_SLOTS = new Set([
+  "bootstrap",
+  "analyticsChartLookups",
+]);
+
+const MONEY_ANALYTICS_PAGE_DEHYDRATE_SLOTS = new Set(["analyticsAtf"]);
+
+const loadMoneyWorkspaceState = cache((userSub: string) =>
+  fetchMoneyWorkspaceStateSafe(userSub),
 );
+
+const loadMoneyBootstrap = cache(async (userSub: string) => {
+  const state = await loadMoneyWorkspaceState(userSub);
+  if (!state.ok) return state;
+  return completeMoneyBootstrapFromState(state.data);
+});
+
+function dehydrateMoneyQuerySlots(
+  queryClient: QueryClient,
+  slots: ReadonlySet<string>,
+) {
+  return dehydrate(queryClient, {
+    shouldDehydrateQuery: (query) => {
+      if (!defaultShouldDehydrateQuery(query)) return false;
+      const slot = query.queryKey[1];
+      return typeof slot === "string" && slots.has(slot);
+    },
+  });
+}
+
+/** Bootstrap + chart lookups only — page seeds stay in the nested boundary. */
+export function dehydrateMoneyLayoutState(queryClient: QueryClient) {
+  return dehydrateMoneyQuerySlots(queryClient, MONEY_LAYOUT_DEHYDRATE_SLOTS);
+}
+
+/** ATF payload only — layout already hydrates bootstrap. */
+export function dehydrateMoneyAnalyticsPageState(queryClient: QueryClient) {
+  return dehydrateMoneyQuerySlots(
+    queryClient,
+    MONEY_ANALYTICS_PAGE_DEHYDRATE_SLOTS,
+  );
+}
 
 export function applyMoneyBootstrapSeed(
   queryClient: QueryClient,
@@ -233,13 +279,17 @@ export async function seedMoneyAnalyticsPage(
   queryClient: QueryClient,
   userSub: string,
 ): Promise<void> {
-  const boot = await seedMoneyBootstrap(queryClient, userSub);
-  if (!boot?.workspaceId) return;
-  await seedMoneyAnalyticsAtf(
-    queryClient,
-    boot.workspaceId,
-    moneyDefaultMonthFilterQuery(),
-  );
+  const state = await loadMoneyWorkspaceState(userSub);
+  if (!state.ok || !state.data.workspaceId) return;
+
+  await Promise.all([
+    seedMoneyBootstrap(queryClient, userSub),
+    seedMoneyAnalyticsAtf(
+      queryClient,
+      state.data.workspaceId,
+      moneyDefaultMonthFilterQuery(),
+    ),
+  ]);
 }
 
 export async function seedMoneyLoansHome(
