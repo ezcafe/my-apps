@@ -5,6 +5,17 @@ import { useCallback, useEffect, useState } from "react";
 const observersByMargin = new Map<string, IntersectionObserver>();
 const callbacksByElement = new Map<Element, Set<() => void>>();
 
+type ScrollPending = {
+  element: Element;
+  rootMargin: string;
+  onVisible: () => void;
+};
+
+/** Manual visibility checks for when Safari skips IntersectionObserver on scroll. */
+const scrollPending = new Set<ScrollPending>();
+let scrollFallbackAttached = false;
+let scrollFallbackRaf = 0;
+
 /** Safari historically accepts rootMargin more reliably as 4 explicit values. */
 export function normalizeRootMargin(rootMargin: string): string {
   const margin = parseRootMarginPx(rootMargin);
@@ -58,6 +69,88 @@ function unsubscribe(element: Element, rootMargin: string, onVisible: () => void
   if (callbacks.size > 0) return;
   callbacksByElement.delete(element);
   observersByMargin.get(normalized)?.unobserve(element);
+}
+
+function runScrollPendingChecks() {
+  scrollFallbackRaf = 0;
+  if (scrollPending.size === 0) return;
+  const viewport = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+  for (const pending of [...scrollPending]) {
+    try {
+      if (
+        rectIntersectsViewport(
+          pending.element.getBoundingClientRect(),
+          pending.rootMargin,
+          viewport,
+        )
+      ) {
+        pending.onVisible();
+      }
+    } catch {
+      pending.onVisible();
+    }
+  }
+}
+
+function scheduleScrollPendingChecks() {
+  if (scrollFallbackRaf) return;
+  scrollFallbackRaf = requestAnimationFrame(runScrollPendingChecks);
+}
+
+function attachScrollFallback() {
+  if (scrollFallbackAttached || typeof window === "undefined") return;
+  scrollFallbackAttached = true;
+  // capture:true so nested overflow scrollers (shell <main> on lg) still notify.
+  window.addEventListener("scroll", scheduleScrollPendingChecks, {
+    passive: true,
+    capture: true,
+  });
+  window.addEventListener("resize", scheduleScrollPendingChecks, {
+    passive: true,
+  });
+  window.visualViewport?.addEventListener("resize", scheduleScrollPendingChecks);
+  window.visualViewport?.addEventListener("scroll", scheduleScrollPendingChecks);
+}
+
+function detachScrollFallbackIfIdle() {
+  if (scrollPending.size > 0 || !scrollFallbackAttached) return;
+  scrollFallbackAttached = false;
+  if (scrollFallbackRaf) {
+    cancelAnimationFrame(scrollFallbackRaf);
+    scrollFallbackRaf = 0;
+  }
+  window.removeEventListener("scroll", scheduleScrollPendingChecks, true);
+  window.removeEventListener("resize", scheduleScrollPendingChecks);
+  window.visualViewport?.removeEventListener(
+    "resize",
+    scheduleScrollPendingChecks,
+  );
+  window.visualViewport?.removeEventListener(
+    "scroll",
+    scheduleScrollPendingChecks,
+  );
+}
+
+/**
+ * Keep a getBoundingClientRect poll tied to scroll/resize until the element
+ * intersects. Safari/iOS IntersectionObserver often never fires for nodes
+ * that mount below the fold and only enter view on user scroll.
+ */
+function subscribeScrollFallback(
+  element: Element,
+  rootMargin: string,
+  onVisible: () => void,
+): () => void {
+  const pending: ScrollPending = { element, rootMargin, onVisible };
+  scrollPending.add(pending);
+  attachScrollFallback();
+  return () => {
+    scrollPending.delete(pending);
+    detachScrollFallbackIfIdle();
+  };
 }
 
 /** Parse IO rootMargin shorthand into expanded top/right/bottom/left px. */
@@ -124,8 +217,9 @@ export function rectIntersectsViewport(
  * Sets `isInView` to true once the element intersects the viewport (with optional root margin).
  * Uses a shared module-level IntersectionObserver per rootMargin value.
  *
- * Also runs a layout/rAF visibility check because Safari/iOS can delay or skip the
- * initial IntersectionObserver delivery until a later rendering update.
+ * Also runs layout/rAF checks and a shared scroll/resize fallback because Safari/iOS
+ * can delay or skip IntersectionObserver delivery for nodes that mount below the fold
+ * and only enter view while scrolling (common after expanding “More insights”).
  * If IntersectionObserver is missing or throws, fails open (`isInView = true`).
  */
 export function useInViewOnce(rootMargin = "120px 0px") {
@@ -142,6 +236,7 @@ export function useInViewOnce(rootMargin = "120px 0px") {
 
     const onVisible = () => setIsInView(true);
     subscribe(el, rootMargin, onVisible);
+    const unsubscribeScroll = subscribeScrollFallback(el, rootMargin, onVisible);
 
     const checkNow = () => {
       try {
@@ -157,6 +252,7 @@ export function useInViewOnce(rootMargin = "120px 0px") {
 
     return () => {
       cancelAnimationFrame(raf);
+      unsubscribeScroll();
       unsubscribe(el, rootMargin, onVisible);
     };
   }, [target, isInView, rootMargin]);
