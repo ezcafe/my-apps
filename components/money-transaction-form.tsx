@@ -1325,7 +1325,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
           <div className="flex flex-wrap items-center gap-3 [grid-column:1/-1]">
             <Button
               type="submit"
-              size="lg"
+              size="sm"
               disabled={submitDisabled}
               aria-busy={submitting}
             >

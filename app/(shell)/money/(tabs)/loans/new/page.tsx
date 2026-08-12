@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 function FormPageSkeleton() {
   return (
     <div className="col-span-2 min-w-0 md:col-span-6 lg:col-span-12">
-      <Card className="p-6">
+      <Card className="p-4">
         <div className="space-y-5">
           <div className="space-y-1.5">
             <Skeleton className="h-3 w-20 rounded-[var(--radius-sm)]" />

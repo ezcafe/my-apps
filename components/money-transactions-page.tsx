@@ -24,7 +24,9 @@ import {
 import { MoneyAnalyticsFiltersBarSkeleton, AnalyticsStatsSkeleton, MoneyAnalyticsTransactionsTableSkeleton } from "@/components/money-analytics-skeleton";
 import { MoneyLedgerSummaryStats } from "@/components/money-ledger-summary-stats";
 import { MoneyLedgerTrendCard } from "@/components/money-ledger-trend-card";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK } from "@/lib/money-layout";
+import { MoneyQuickAddBar } from "@/components/money-quick-add-bar";
+import { cn } from "@/lib/cn";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import { buildQuery } from "@/lib/analytics-build-query";
@@ -327,6 +329,9 @@ export function MoneyTransactionsPage({
     (queryErrorMessage(merchantLookupsQuery.error)) ??
     (queryErrorMessage(recurrenceLookupsQuery.error));
 
+  const quickAdd = !isSection ? preset?.emptyState?.primaryAction : undefined;
+  const showQuickAdd = quickAdd?.href === "/money/new";
+
   if (!workspaceReady && !bootstrapQuery.data && !bootstrapQuery.error) {
     return (
       <>
@@ -338,34 +343,35 @@ export function MoneyTransactionsPage({
   }
 
   return (
-    <>
-      <AnalyticsFiltersBar
-        viewFilter={viewFilter}
-        value={draft}
-        onChange={setDraft}
-        onApply={handleApply}
-        onReset={handleReset}
-        applying={isFilterPending}
-        dirty={dirty}
-        accounts={accounts}
-        categories={categories}
-        merchants={merchants}
-        tags={tags}
-        recurrenceTemplates={recurrenceTemplates}
-        workspaces={workspaces}
-        activeWorkspaceId={activeWorkspaceId}
-        onWorkspaceChange={handleWorkspaceChange}
-        switchingWorkspace={workspaceSyncPending}
-        userSub={userSub}
-        onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
-      />
+    <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
+      <section aria-label="Filters">
+        <AnalyticsFiltersBar
+          viewFilter={viewFilter}
+          value={draft}
+          onChange={setDraft}
+          onApply={handleApply}
+          onReset={handleReset}
+          applying={isFilterPending}
+          dirty={dirty}
+          accounts={accounts}
+          categories={categories}
+          merchants={merchants}
+          tags={tags}
+          recurrenceTemplates={recurrenceTemplates}
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          onWorkspaceChange={handleWorkspaceChange}
+          switchingWorkspace={workspaceSyncPending}
+          userSub={userSub}
+          onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
+        />
+      </section>
 
       {loadError ? (
         <Alert
           variant="error"
           title="Couldn’t load transactions"
           description={loadError}
-          className={`${MONEY_FULL_SPAN} mb-3`}
         />
       ) : null}
 
@@ -376,48 +382,58 @@ export function MoneyTransactionsPage({
           variant="warning"
           title="Bills category missing"
           description='Add a "Bills" category under "Necessities" in Settings → Categories, or reload after the app creates it automatically.'
-          className={`${MONEY_FULL_SPAN} mb-3`}
         />
       ) : null}
 
       {showStats && lookupsReady && activeWorkspaceId ? (
-        <MoneyLedgerSummaryStats
-          filterQuery={filterQuery}
-          workspaceId={activeWorkspaceId}
-          currency={defaultCurrency}
-          enabled={!isFilterPending}
-        />
+        <section aria-label="Summary metrics">
+          <MoneyLedgerSummaryStats
+            filterQuery={filterQuery}
+            workspaceId={activeWorkspaceId}
+            currency={defaultCurrency}
+            enabled={!isFilterPending}
+          />
+        </section>
       ) : showStats ? (
         <AnalyticsStatsSkeleton />
       ) : null}
 
-      {!isSection &&
-      preset?.chart &&
-      lookupsReady &&
-      activeWorkspaceId ? (
-        <MoneyLedgerTrendCard
-          preset={preset}
-          filterQuery={filterQuery}
-          workspaceId={activeWorkspaceId}
-          defaultCurrency={defaultCurrency}
-          enabled={!isFilterPending}
-        />
+      {!isSection && preset?.chart && lookupsReady && activeWorkspaceId ? (
+        <section aria-label="Trend chart">
+          <MoneyLedgerTrendCard
+            preset={preset}
+            filterQuery={filterQuery}
+            workspaceId={activeWorkspaceId}
+            defaultCurrency={defaultCurrency}
+            enabled={!isFilterPending}
+          />
+        </section>
       ) : null}
-      {lookupsReady && activeWorkspaceId ? (
-        <AnalyticsTransactionsTableLazy
-          filterQuery={filterQuery}
-          activeWorkspaceId={activeWorkspaceId}
-          accounts={accounts}
-          categories={categories}
-          tags={tags}
-          currency={defaultCurrency}
-          deferFetchUntilVisible={isSection}
-          variant="standalone"
-          emptyState={preset?.emptyState}
-        />
-      ) : (
-        <MoneyAnalyticsTransactionsTableSkeleton selectable />
-      )}
-    </>
+
+      <section
+        aria-label="Transactions"
+        className={showQuickAdd ? "pb-16 lg:pb-0" : undefined}
+      >
+        {lookupsReady && activeWorkspaceId ? (
+          <AnalyticsTransactionsTableLazy
+            filterQuery={filterQuery}
+            activeWorkspaceId={activeWorkspaceId}
+            accounts={accounts}
+            categories={categories}
+            tags={tags}
+            currency={defaultCurrency}
+            deferFetchUntilVisible={isSection}
+            variant="standalone"
+            emptyState={preset?.emptyState}
+          />
+        ) : (
+          <MoneyAnalyticsTransactionsTableSkeleton selectable />
+        )}
+      </section>
+
+      {showQuickAdd && quickAdd ? (
+        <MoneyQuickAddBar href={quickAdd.href} label={quickAdd.label} />
+      ) : null}
+    </div>
   );
 }

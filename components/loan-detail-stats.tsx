@@ -83,9 +83,9 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
         className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-2"
         aria-label="Loan summary"
       >
-        <Card className="px-4 py-5">
+        <Card className="px-3 py-4">
           <p className="text-sm font-medium text-muted">Remaining balance</p>
-          <p className="mt-2 font-display text-3xl font-semibold tracking-tight tabular-nums">
+          <p className="mt-1.5 font-display text-2xl font-semibold tracking-tight tabular-nums">
             <AnimatedNumber
               value={loan.summary.remainingMinor}
               format={(n) => formatMinor(Math.round(n), loan.currency)}
@@ -100,9 +100,9 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
           </p>
         </Card>
 
-        <Card className="px-4 py-5">
+        <Card className="px-3 py-4">
           <p className="text-sm font-medium text-muted">Monthly payment</p>
-          <p className="mt-2 font-display text-3xl font-semibold tracking-tight tabular-nums">
+          <p className="mt-1.5 font-display text-2xl font-semibold tracking-tight tabular-nums">
             {formatMinor(loan.paymentMinor, loan.currency)}
           </p>
           <p className="mt-1 text-xs text-muted">
@@ -110,9 +110,9 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
           </p>
         </Card>
 
-        <Card className="px-4 py-5">
+        <Card className="px-3 py-4">
           <p className="text-sm font-medium text-muted">Total paid</p>
-          <p className="mt-2 font-display text-3xl font-semibold tracking-tight tabular-nums">
+          <p className="mt-1.5 font-display text-2xl font-semibold tracking-tight tabular-nums">
             <AnimatedNumber
               value={loan.summary.totalPaidMinor}
               format={(n) => formatMinor(Math.round(n), loan.currency)}
@@ -125,11 +125,11 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
           </p>
         </Card>
 
-        <Card className="px-4 py-5">
+        <Card className="px-3 py-4">
           <p className="text-sm font-medium text-muted">Progress</p>
           <p
             className={cn(
-              "mt-2 font-display text-3xl font-semibold tracking-tight tabular-nums",
+              "mt-1.5 font-display text-2xl font-semibold tracking-tight tabular-nums",
               loan.summary.percentComplete >= 100
                 ? "text-accent"
                 : undefined,

@@ -70,7 +70,7 @@ export function InvestmentDashboard() {
   const loading = holdingsQuery.isLoading || seriesQuery.isLoading;
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-4">
       {loading ? (
         <>
           <MoneyListSkeleton

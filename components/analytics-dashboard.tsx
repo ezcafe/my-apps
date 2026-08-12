@@ -27,7 +27,8 @@ import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { AnalyticsStats } from "@/components/analytics-stats";
 import { useTheme } from "@/components/theme-provider";
 import { Alert } from "@/components/ui/alert";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK } from "@/lib/money-layout";
+import { cn } from "@/lib/cn";
 import {
   defaultAnalyticsFilters,
   type AnalyticsFiltersValue,
@@ -870,46 +871,46 @@ export function AnalyticsDashboard({
   }
 
   return (
-    <>
-      <AnalyticsFiltersBar
-        viewFilter={{
-          menuLabel: "Ledger",
-          value: ledgerScope,
-          defaultValue: "all",
-          options: MONEY_LEDGER_SCOPES.map(({ id, label }) => ({ id, label })),
-          onChange: (id) => setLedgerScope(id as MoneyLedgerScopeId),
-        }}
-        value={draft}
-        onChange={setDraft}
-        onApply={handleApply}
-        onReset={handleReset}
-        applying={isFilterPending}
-        dirty={dirty}
-        accounts={accounts}
-        categories={categories}
-        merchants={merchants}
-        tags={tags}
-        recurrenceTemplates={recurrenceTemplates}
-        workspaces={workspaces}
-        activeWorkspaceId={activeWorkspaceId}
-        onWorkspaceChange={handleWorkspaceChange}
-        switchingWorkspace={workspaceSyncPending}
-        userSub={userSub}
-        onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
-      />
+    <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
+      <section aria-label="Filters">
+        <AnalyticsFiltersBar
+          viewFilter={{
+            menuLabel: "Ledger",
+            value: ledgerScope,
+            defaultValue: "all",
+            options: MONEY_LEDGER_SCOPES.map(({ id, label }) => ({ id, label })),
+            onChange: (id) => setLedgerScope(id as MoneyLedgerScopeId),
+          }}
+          value={draft}
+          onChange={setDraft}
+          onApply={handleApply}
+          onReset={handleReset}
+          applying={isFilterPending}
+          dirty={dirty}
+          accounts={accounts}
+          categories={categories}
+          merchants={merchants}
+          tags={tags}
+          recurrenceTemplates={recurrenceTemplates}
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          onWorkspaceChange={handleWorkspaceChange}
+          switchingWorkspace={workspaceSyncPending}
+          userSub={userSub}
+          onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
+        />
+      </section>
 
       {loadError ? (
-        <div className={MONEY_FULL_SPAN}>
-          <Alert
-            variant="error"
-            title="Couldn’t load analytics"
-            description={loadError}
-          />
-        </div>
+        <Alert
+          variant="error"
+          title="Couldn’t load analytics"
+          description={loadError}
+        />
       ) : null}
 
       {activeWorkspaceId && !workspaceSyncPending ? (
-        <div className={ANALYTICS_GRID_CLASS}>
+        <section aria-label="Insights dashboard" className={ANALYTICS_GRID_CLASS}>
           <AnalyticsInsightsBody
             filterQuery={analyticsFilterQuery}
             workspaceKey={activeWorkspaceId}
@@ -924,7 +925,7 @@ export function AnalyticsDashboard({
             tags={tags}
             onChartDrilldown={handleChartDrilldown}
           />
-        </div>
+        </section>
       ) : (
         <MoneyAnalyticsChartsSkeleton />
       )}
@@ -949,7 +950,7 @@ export function AnalyticsDashboard({
           onClose={() => setEditTransactionId(null)}
         />
       ) : null}
-    </>
+    </div>
   );
 }
 

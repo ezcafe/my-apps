@@ -203,7 +203,7 @@ function ShellMobileMenu() {
   return (
     <Popover
       align="end"
-      aria-label="Open menu"
+      aria-label="Open navigation menu"
       open={open}
       onOpenChange={setOpen}
       trigger={<IconMenu className="size-5" />}
@@ -328,7 +328,6 @@ function AuthActionsRail() {
         <Button
           type="button"
           variant="secondary"
-          size="md"
           iconOnly
           className="size-10 shrink-0"
           aria-label={

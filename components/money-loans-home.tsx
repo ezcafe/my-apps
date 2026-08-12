@@ -1,10 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { LoansDashboard } from "@/components/loans-dashboard";
 import { MoneyAnalyticsFiltersBarSkeleton, MoneyAnalyticsTransactionsTableSkeleton } from "@/components/money-analytics-skeleton";
-import { buttonClassName } from "@/components/ui/button";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { MONEY_LEDGER_LOAN } from "@/lib/money-ledger-presets";
 
@@ -32,15 +30,6 @@ export function MoneyLoansHome({
 }) {
   return (
     <div className={`${MONEY_FULL_SPAN} space-y-8`}>
-      <div className="flex justify-end">
-        <Link
-          href="/money/loans/new"
-          className={buttonClassName({ variant: "primary", size: "md" })}
-        >
-          Create loan
-        </Link>
-      </div>
-
       <LoansDashboard />
 
       <div className="space-y-4 border-t border-border pt-8">

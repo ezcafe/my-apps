@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { prefersReducedMotion } from "@/lib/microinteractions";
 import { cn } from "@/lib/cn";
 
-const DURATION_MS = 600;
+const DURATION_MS = 300;
 
 function easeOutCubic(t: number): number {
   return 1 - (1 - t) ** 3;

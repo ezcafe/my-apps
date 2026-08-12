@@ -3,7 +3,7 @@ import type { StylePreset } from "@/components/theme-provider";
 /** Chart series colors — mirror CSS `--chart-0` … `--chart-7` in app/globals.css */
 
 export const CHART_PALETTE_QUIET_LIGHT = [
-  "#1877f2", // blue
+  "#356089", // subdued blue
   "#00b2ff", // cyan
   "#f7923b", // orange
   "#31a24c", // green

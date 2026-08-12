@@ -295,7 +295,7 @@ export function AnalyticsTransactionsTable({
         )}
       >
         {selectable ? (
-          <td className="w-10 px-3 py-2">
+          <td className="w-10 px-4 py-3">
             <Checkbox
               checked={isSelected}
               onChange={() => toggleRow(tx.id)}
@@ -303,9 +303,9 @@ export function AnalyticsTransactionsTable({
             />
           </td>
         ) : null}
-        <td className="whitespace-nowrap px-3 py-2 text-muted">{dateLabel}</td>
-        <td className="max-w-[10rem] truncate px-3 py-2">{acc?.name ?? "—"}</td>
-        <td className="max-w-[10rem] px-3 py-2">
+        <td className="whitespace-nowrap px-4 py-3 text-muted">{dateLabel}</td>
+        <td className="max-w-[10rem] truncate px-4 py-3">{acc?.name ?? "—"}</td>
+        <td className="max-w-[10rem] px-4 py-3">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <span className="truncate">{categoryLabel}</span>
             {tx.excludeFromAnalyticsAndBudget ? (
@@ -314,17 +314,17 @@ export function AnalyticsTransactionsTable({
           </div>
         </td>
         <td
-          className="whitespace-nowrap px-3 py-2 text-right tabular-nums"
+          className="whitespace-nowrap px-4 py-3 text-right tabular-nums"
           style={
             tx.kind === "income" ? { color: incomeAmountColor } : undefined
           }
         >
           {amountLabel}
         </td>
-        <td className="max-w-[14rem] truncate px-3 py-2 text-muted">
+        <td className="max-w-[14rem] truncate px-4 py-3 text-muted">
           {truncateNote(tx.notes)}
         </td>
-        <td className="whitespace-nowrap px-3 py-2">
+        <td className="whitespace-nowrap px-4 py-3">
           <Button
             type="button"
             variant="ghost"
@@ -359,7 +359,7 @@ export function AnalyticsTransactionsTable({
       <div
         key={tx.id}
         className={cn(
-          "flex min-h-12 items-start gap-3 rounded-[var(--radius-sm)] border border-border bg-surface px-3 py-3 transition-colors duration-150",
+          "flex min-h-12 items-start gap-3 rounded-[var(--radius-sm)] border border-border bg-surface px-4 py-3 transition-colors duration-150",
           isSelected &&
             "border-accent/40 bg-[color-mix(in_oklab,var(--accent)_8%,transparent)]",
         )}
@@ -377,18 +377,17 @@ export function AnalyticsTransactionsTable({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="font-medium tabular-nums">{amountLabel}</p>
-              <p className="mt-0.5 truncate text-sm text-muted">{acc?.name ?? "—"}</p>
+              <p className="mt-0.5 truncate text-base text-muted">{acc?.name ?? "—"}</p>
             </div>
             <span className="shrink-0 text-xs text-muted tabular-nums">{dateLabel}</span>
           </div>
-          <p className="mt-1 truncate text-sm">{categoryLabel}</p>
+          <p className="mt-1 truncate text-base">{categoryLabel}</p>
           {noteLabel !== "—" ? (
-            <p className="mt-1 truncate text-sm text-muted">{noteLabel}</p>
+            <p className="mt-1 truncate text-base text-muted">{noteLabel}</p>
           ) : null}
           <Button
             type="button"
             variant="secondary"
-            size="md"
             className="mt-3 w-full"
             onMouseEnter={preloadTransactionEditForm}
             onFocus={preloadTransactionEditForm}
@@ -407,7 +406,7 @@ export function AnalyticsTransactionsTable({
         {Array.from({ length: 6 }, (_, rowIndex) => (
           <tr key={`tx-skel-${rowIndex}`}>
             {Array.from({ length: columnCount }, (_, colIndex) => (
-              <td key={`tx-skel-${rowIndex}-${colIndex}`} className="px-3 py-3">
+              <td key={`tx-skel-${rowIndex}-${colIndex}`} className="px-4 py-3">
                 <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
               </td>
             ))}
@@ -503,7 +502,7 @@ export function AnalyticsTransactionsTable({
           ) : (
             <>
               {awaitingViewport ? (
-                <p className="rounded-[var(--radius-md)] border border-border px-3 py-8 text-center text-sm text-muted">
+                <p className="rounded-[var(--radius-md)] border border-border px-3 py-6 text-center text-base text-muted">
                   Scroll to load transactions for this filter range.
                 </p>
               ) : null}
@@ -511,7 +510,7 @@ export function AnalyticsTransactionsTable({
               {showLoadingList ? (
                 <>
                   <div className="hidden overflow-x-auto rounded-[var(--radius-md)] border border-border @md:block">
-                    <table className="min-w-full divide-y divide-border text-left text-sm">
+                    <table className="min-w-full divide-y divide-border text-left text-base">
                       <tbody className="divide-y divide-border">
                         {renderTableLoadingBody()}
                       </tbody>
@@ -526,14 +525,14 @@ export function AnalyticsTransactionsTable({
               {showDataList ? (
                 <>
                   <div className="hidden overflow-x-auto rounded-[var(--radius-md)] border border-border @md:block">
-                    <table className="min-w-full divide-y divide-border text-left text-sm">
+                    <table className="min-w-full divide-y divide-border text-left text-base">
                       <caption className="sr-only">
                         Filtered transactions with sorting and pagination
                       </caption>
                       <thead className="bg-muted-surface">
                         <tr>
                           {selectable ? (
-                            <th scope="col" className="w-10 px-3 py-2">
+                            <th scope="col" className="w-10 px-4 py-3">
                               <Checkbox
                                 checked={allPageSelected}
                                 indeterminate={somePageSelected}
@@ -544,7 +543,7 @@ export function AnalyticsTransactionsTable({
                           ) : null}
                           <th
                             scope="col"
-                            className="px-3 py-2 font-medium"
+                            className="px-4 py-3 font-medium"
                             aria-sort={sortAria("occurredAt")}
                           >
                             <button
@@ -556,15 +555,15 @@ export function AnalyticsTransactionsTable({
                               {sortIndicator("occurredAt")}
                             </button>
                           </th>
-                          <th scope="col" className="px-3 py-2 font-medium">
+                          <th scope="col" className="px-4 py-3 font-medium">
                             Account
                           </th>
-                          <th scope="col" className="px-3 py-2 font-medium">
+                          <th scope="col" className="px-4 py-3 font-medium">
                             Category
                           </th>
                           <th
                             scope="col"
-                            className="px-3 py-2 font-medium text-right"
+                            className="px-4 py-3 font-medium text-right"
                             aria-sort={sortAria("amountMinor")}
                           >
                             <button
@@ -576,10 +575,10 @@ export function AnalyticsTransactionsTable({
                               {sortIndicator("amountMinor")}
                             </button>
                           </th>
-                          <th scope="col" className="px-3 py-2 font-medium">
+                          <th scope="col" className="px-4 py-3 font-medium">
                             Note
                           </th>
-                          <th scope="col" className="px-3 py-2 font-medium">
+                          <th scope="col" className="px-4 py-3 font-medium">
                             <span className="sr-only">Actions</span>
                           </th>
                         </tr>
@@ -598,7 +597,7 @@ export function AnalyticsTransactionsTable({
           )}
 
           {payload && payload.total > 0 ? (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-base">
               <p className="text-muted">
                 Page {payload.page} of {totalPages} (
                 {payload.total.toLocaleString()} total)
@@ -607,7 +606,6 @@ export function AnalyticsTransactionsTable({
                 <Button
                   type="button"
                   variant="secondary"
-                  size="md"
                   disabled={page <= 1 || fetching}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
@@ -616,7 +614,6 @@ export function AnalyticsTransactionsTable({
                 <Button
                   type="button"
                   variant="secondary"
-                  size="md"
                   disabled={page >= totalPages || fetching}
                   onClick={() => setPage((p) => p + 1)}
                 >

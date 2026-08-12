@@ -416,7 +416,7 @@ export function MultiSelect({
           else setOpen(true);
         }}
         className={cn(
-          "flex w-full min-h-10 min-w-0 cursor-pointer items-center gap-1.5 rounded-[var(--radius-md)] border border-border bg-background px-2 py-1.5 text-left text-sm text-foreground antialiased outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-45",
+          "flex w-full min-h-9 min-w-0 cursor-pointer items-center gap-1.5 rounded-[var(--radius-md)] border border-border bg-background px-2 py-1 text-left text-sm text-foreground antialiased outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-45",
           triggerClassName,
         )}
       >

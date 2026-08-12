@@ -123,7 +123,6 @@ function DefaultWorkspaceForm({
           <Button
             type="submit"
             variant="primary"
-            size="md"
             className="w-fit"
             disabled={!value}
           >
@@ -254,7 +253,7 @@ export function WorkspaceSettings({
                 />
                 <span>Seed Money accounts &amp; categories</span>
               </div>
-              <Button type="submit" variant="primary" size="md" className="w-fit">
+              <Button type="submit" variant="primary" className="w-fit">
                 Create workspace
               </Button>
             </form>

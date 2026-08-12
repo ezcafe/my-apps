@@ -3,13 +3,13 @@ import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   return (
-    <div className="shell-main grid min-h-[70dvh] place-content-center gap-8 py-16 fx-fade-in">
-      <div className="grid items-center gap-8 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]">
+    <div className="shell-main grid min-h-[50dvh] place-content-center gap-5 py-8 fx-fade-in">
+      <div className="grid items-center gap-5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]">
         <div className="max-w-md space-y-2 lg:justify-self-end lg:text-right">
           <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted">
             Workspace
           </p>
-          <h1 className="font-display text-3xl font-semibold tracking-tight">
+          <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
             Sign in
           </h1>
           <p className="text-sm text-muted">
@@ -31,7 +31,7 @@ export default function LoginPage() {
           action={signInWithPocketId}
           className="flex items-center lg:justify-self-start"
         >
-          <Button type="submit" variant="primary" size="lg">
+          <Button type="submit" variant="primary">
             Continue with Pocket ID
           </Button>
         </form>

@@ -255,7 +255,6 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
           <Button
             type="submit"
             variant="primary"
-            size="md"
             disabled={saving}
             className="w-fit"
           >

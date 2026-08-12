@@ -56,7 +56,7 @@ export function AnalyticsStatsSkeleton() {
     >
       <Skeleton className="h-3 w-52 max-w-full rounded-[var(--radius-sm)]" />
       <div
-        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-x-6 gap-y-3"
+        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-2"
         aria-hidden
       >
         {Array.from({ length: 4 }, (_, index) => (

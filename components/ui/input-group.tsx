@@ -5,10 +5,10 @@ const groupCls =
   "flex min-w-0 rounded-[var(--radius-md)] border border-border bg-background shadow-[var(--shadow-sm)] transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30";
 
 const addonCls =
-  "inline-flex shrink-0 items-center border-border bg-muted-surface px-3 py-2 text-sm font-medium text-muted tabular-nums";
+  "inline-flex shrink-0 items-center border-border bg-muted-surface px-3 py-2.5 text-base font-medium text-muted tabular-nums";
 
 const inputCls =
-  "min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-foreground tabular-nums antialiased outline-none placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-45";
+  "min-w-0 flex-1 border-0 bg-transparent px-3 py-2.5 text-base text-foreground tabular-nums antialiased outline-none placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-45";
 
 export function InputGroup({
   className,

@@ -3,10 +3,12 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
-  Design tokens: Quiet Ink structure + Facebook light / Catppuccin Mocha dark.
-  Light hexes mirror Meta/Facebook UI (brand blue #1877F2, wash #F0F2F5).
+  Design tokens: Quiet Ink restrained dense + neutral light / Catppuccin Mocha dark.
+  Light: stepped white/off-white/cool gray surfaces; subdued primary blue.
   Dark hexes from https://github.com/catppuccin/palette (Mocha).
   Chart hexes mirror lib/theme-chart-palette.ts (chartPaletteFor).
+  DaisyUI aliases (docs only): primary=accent, secondary=secondary,
+  base-100=surface, base-200=background, base-300=muted-surface.
   Default (SSR / no JS): data-style="quiet" — matches FOUC script + ThemeProvider.
 */
 
@@ -15,43 +17,47 @@
   --font-plex-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
-/* ---- Facebook (light) ---- */
+/* ---- Neutral light ---- */
 :root[data-style="quiet"],
 :root:not([data-style]) {
   color-scheme: light;
-  --radius: 0.75rem;
-  --radius-inner: 0.4375rem;
-  --shadow-sm: 0 1px 2px rgb(28 30 33 / 0.06), 0 4px 12px -4px rgb(28 30 33 / 0.1);
-  --shadow-md: 0 1px 2px rgb(28 30 33 / 0.06), 0 8px 24px -12px rgb(28 30 33 / 0.14);
+  --radius: 0.5rem;
+  --radius-inner: 0.3125rem;
+  --shadow-sm: 0 1px 2px rgb(28 30 33 / 0.05), 0 2px 8px -2px rgb(28 30 33 / 0.08);
+  --shadow-md: 0 1px 2px rgb(28 30 33 / 0.05), 0 4px 16px -6px rgb(28 30 33 / 0.1);
   --font-heading: var(--font-plex-sans);
   --font-body: var(--font-plex-sans);
   --space-step: 0.5rem;
 
-  --background: #f0f2f5; /* wash */
-  --foreground: #1c1e21; /* primary text */
-  --muted: #65676b; /* secondary text */
-  --surface: #ffffff; /* card / panel */
-  --border: #ced0d4; /* divider */
-  --muted-surface: #e4e6eb; /* wash elevated */
+  --background: #f3f4f6; /* base-200 off-white */
+  --foreground: #111827; /* primary text — high contrast */
+  --muted: #475569; /* secondary text — WCAG-friendly on surface */
+  --surface: #ffffff; /* base-100 */
+  --border: #b8bec8; /* visible hairline */
+  --muted-surface: #e8ebf0; /* base-300 */
 
-  --accent: #1877f2; /* brand blue */
-  --accent-hover: #166fe5;
+  --accent: #356089; /* subdued brand blue — stronger contrast */
+  --accent-hover: #2a4d6e;
   --accent-foreground: #ffffff;
-  --ring: #1877f2;
+  --ring: #356089;
 
-  --destructive: #f02849; /* notification red */
+  --secondary: #d8dee6; /* muted slate wash */
+  --secondary-hover: #c8d0da;
+  --secondary-foreground: #1e293b;
+
+  --destructive: #c53030; /* semantic red */
   --danger: var(--destructive);
   --destructive-foreground: #ffffff;
-  --destructive-muted-bg: color-mix(in oklab, #f02849 10%, var(--surface));
-  --destructive-muted-border: color-mix(in oklab, #f02849 28%, var(--border));
-  --destructive-muted-text: #e41e3f;
-  --destructive-icon-bg: color-mix(in oklab, #f02849 14%, transparent);
+  --destructive-muted-bg: color-mix(in oklab, #c53030 10%, var(--surface));
+  --destructive-muted-border: color-mix(in oklab, #c53030 28%, var(--border));
+  --destructive-muted-text: #b91c1c;
+  --destructive-icon-bg: color-mix(in oklab, #c53030 14%, transparent);
 
-  --alert-error-bg: color-mix(in oklab, #f02849 8%, var(--surface));
-  --alert-error-border: color-mix(in oklab, #f02849 28%, var(--border));
-  --alert-error-accent: #f02849;
-  --alert-error-title: #e41e3f;
-  --alert-error-body: #65676b;
+  --alert-error-bg: color-mix(in oklab, #c53030 8%, var(--surface));
+  --alert-error-border: color-mix(in oklab, #c53030 28%, var(--border));
+  --alert-error-accent: #c53030;
+  --alert-error-title: #b91c1c;
+  --alert-error-body: #475569;
 
   --alert-warning-bg: color-mix(in oklab, #f7b928 12%, var(--surface));
   --alert-warning-border: color-mix(in oklab, #f7b928 32%, var(--border));
@@ -80,7 +86,7 @@
   --toast-error-title: var(--alert-error-title);
   --toast-error-body: var(--alert-error-body);
 
-  --chart-0: #1877f2; /* blue */
+  --chart-0: #356089; /* subdued blue */
   --chart-1: #00b2ff; /* cyan */
   --chart-2: #f7923b; /* orange */
   --chart-3: #31a24c; /* green */
@@ -96,16 +102,20 @@
   color-scheme: dark;
 
   --background: #1e1e2e; /* base */
-  --foreground: #cdd6f4; /* text */
-  --muted: #a6adc8; /* subtext0 */
+  --foreground: #eff1f8; /* text — high contrast on base */
+  --muted: #b8c0dc; /* subtext — readable on surface */
   --surface: #313244; /* surface0 */
-  --border: #45475a; /* surface1 */
+  --border: #585b70; /* surface1 — clearer edge */
   --muted-surface: #45475a; /* surface1 */
 
   --accent: #89b4fa; /* blue */
   --accent-hover: #b4befe; /* lavender */
   --accent-foreground: #1e1e2e; /* base */
   --ring: #89b4fa;
+
+  --secondary: #6c7086; /* overlay */
+  --secondary-hover: #7f849c;
+  --secondary-foreground: #eff1f8;
 
   --destructive: #f38ba8; /* red */
   --destructive-foreground: #1e1e2e;
@@ -118,13 +128,13 @@
   --alert-error-border: color-mix(in oklab, #f38ba8 28%, var(--border));
   --alert-error-accent: #f38ba8;
   --alert-error-title: #eba0ac;
-  --alert-error-body: #a6adc8;
+  --alert-error-body: #b8c0dc;
 
   --alert-warning-bg: color-mix(in oklab, #f9e2af 12%, var(--surface));
   --alert-warning-border: color-mix(in oklab, #f9e2af 28%, var(--border));
   --alert-warning-accent: #f9e2af; /* yellow */
   --alert-warning-title: #fab387; /* peach */
-  --alert-warning-body: #a6adc8;
+  --alert-warning-body: #b8c0dc;
 
   --toast-success-bg: var(--surface);
   --toast-success-border: var(--border);
@@ -167,6 +177,9 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-foreground: var(--accent-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-ring: var(--ring);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
@@ -198,6 +211,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
   /* Tabular nums applied globally so dynamic counters/amounts
      never cause layout shift. IBM Plex Sans handles this gracefully. */
   font-variant-numeric: tabular-nums;
@@ -295,8 +310,8 @@ dialog::backdrop {
     container-type: inline-size;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: clamp(1rem, 2.5cqi, 1.75rem);
-    padding: clamp(1rem, 3.5cqi, 2.25rem);
+    gap: clamp(1rem, 2.5cqi, 2rem);
+    padding: clamp(1rem, 3.25cqi, 2.25rem);
     max-inline-size: 100%;
     margin-inline: auto;
     width: 100%;
@@ -388,14 +403,12 @@ dialog::backdrop {
   @keyframes fx-stagger-up {
     from {
       opacity: 0;
-      transform: translateY(8px);
-      filter: blur(2px);
+      transform: translateY(4px);
     }
 
     to {
       opacity: 1;
       transform: translateY(0);
-      filter: blur(0);
     }
   }
 
@@ -403,7 +416,7 @@ dialog::backdrop {
     .fx-stagger-children > * {
       /* forwards (not both): default opacity stays 1 if the animation never runs
          (common on Safari for dynamically inserted nodes). */
-      animation: fx-stagger-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation: fx-stagger-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
 
     .fx-stagger-children > *:nth-child(1) {
@@ -411,23 +424,23 @@ dialog::backdrop {
     }
 
     .fx-stagger-children > *:nth-child(2) {
-      animation-delay: 80ms;
+      animation-delay: 50ms;
     }
 
     .fx-stagger-children > *:nth-child(3) {
-      animation-delay: 160ms;
+      animation-delay: 100ms;
     }
 
     .fx-stagger-children > *:nth-child(4) {
-      animation-delay: 240ms;
+      animation-delay: 150ms;
     }
 
     .fx-stagger-children > *:nth-child(5) {
-      animation-delay: 320ms;
+      animation-delay: 200ms;
     }
 
     .fx-stagger-children > *:nth-child(6) {
-      animation-delay: 400ms;
+      animation-delay: 250ms;
     }
   }
 
@@ -474,9 +487,9 @@ dialog::backdrop {
   }
 
   .fx-icon-swap > [data-active] {
-    transition-property: opacity, transform, filter;
-    transition-duration: 0.3s;
-    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+    transition-property: opacity;
+    transition-duration: 0.2s;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -487,15 +500,11 @@ dialog::backdrop {
     position: absolute;
     inset: 0;
     opacity: 0;
-    transform: scale(0.25);
-    filter: blur(4px);
     pointer-events: none;
   }
 
   .fx-icon-swap > [data-active="true"] {
     opacity: 1;
-    transform: scale(1);
-    filter: blur(0);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -631,7 +640,7 @@ dialog::backdrop {
   @media (prefers-reduced-motion: no-preference) {
     .fx-chart-bar-grow {
       opacity: 1;
-      animation: fx-chart-bar-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation: fx-chart-bar-grow 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
   }
 
@@ -648,14 +657,14 @@ dialog::backdrop {
   @media (prefers-reduced-motion: no-preference) {
     .fx-chart-arc-pop {
       opacity: 0.9;
-      animation: fx-chart-arc-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation: fx-chart-arc-pop 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
   }
 
   @media (prefers-reduced-motion: no-preference) {
     .fx-chart-line-draw {
       transition-property: stroke-dashoffset;
-      transition-duration: 0.8s;
+      transition-duration: 0.35s;
       transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
     }
   }

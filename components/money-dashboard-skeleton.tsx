@@ -126,7 +126,7 @@ export function MoneyTagsFieldSkeleton({
 export function MoneyDashboardSkeleton() {
   return (
     <div
-      className="min-w-0 space-y-6"
+      className="min-w-0 space-y-4"
       role="status"
       aria-busy="true"
       aria-live="polite"
@@ -205,7 +205,7 @@ export function MoneyDashboardSkeleton() {
           </Field>
 
           <div className="flex flex-wrap items-center gap-3 [grid-column:1/-1]">
-            <Button type="submit" size="lg" disabled>
+            <Button type="submit" disabled>
               Save transaction
             </Button>
             <span aria-live="polite" className="text-xs text-muted">

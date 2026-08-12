@@ -216,7 +216,7 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
         <LoanDetailBreadcrumb loanName={loan.name} />
         <div className="mt-4 flex min-w-0 items-center gap-3">
           <MoneyAppMenu />
-          <h1 className="min-w-0 truncate text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight sm:text-2xl">
             {loan.name}
           </h1>
           <AboutDisclosure label={`About ${loan.name}`}>

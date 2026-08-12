@@ -17,7 +17,7 @@ export function Field({
   return (
     <label
       className={cn(
-        "fx-field fx-field-underline grid gap-1.5 text-sm focus-within:[&_.fx-field-label]:text-foreground",
+        "fx-field fx-field-underline grid gap-2 text-base focus-within:[&_.fx-field-label]:text-foreground",
         className,
       )}
     >
@@ -32,7 +32,7 @@ export function Field({
         {label}
       </span>
       {children}
-      {hint ? <span className="text-xs text-muted">{hint}</span> : null}
+      {hint ? <span className="text-sm text-muted">{hint}</span> : null}
     </label>
   );
 }

@@ -4,7 +4,7 @@ import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cn } from "@/lib/cn";
 
 const SHELL_MAIN_GRID =
-  "shell-main grid grid-cols-2 gap-x-2 gap-y-6 py-8 md:grid-cols-6 md:gap-x-4 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-8";
+  "shell-main grid grid-cols-2 gap-x-2 gap-y-6 md:grid-cols-6 md:gap-x-4 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-6";
 
 /**
  * Shared shell page chrome matching Money settings:
@@ -25,7 +25,7 @@ export function ShellMainPage({
       <header className={cn(MONEY_FULL_SPAN, "relative z-40 flex flex-col gap-2")}>
         <div className="flex items-center gap-3">
           <MoneyAppMenu />
-          <h1 className="min-w-0 flex-1 truncate text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl">
             {title}
           </h1>
         </div>

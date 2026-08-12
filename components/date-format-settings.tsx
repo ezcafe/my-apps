@@ -79,7 +79,7 @@ export function DateFormatSettings({ embedded }: { embedded?: boolean }) {
   }
 
   return (
-    <div className="space-y-4 rounded-[var(--radius-md)] border border-border bg-surface p-6 shadow-[var(--shadow-sm)]">
+    <div className="space-y-4 rounded-[var(--radius-md)] border border-border bg-surface p-4 shadow-[var(--shadow-sm)]">
       {inner}
     </div>
   );

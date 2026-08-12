@@ -485,7 +485,7 @@ export function ApiHelp() {
         description="Create a token, send it on every request, then choose the query you need."
       >
         <div
-          className="grid gap-6"
+          className="grid gap-4"
           style={{
             gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))",
           }}

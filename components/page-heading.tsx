@@ -21,12 +21,12 @@ export function PageHeading({
 }) {
   return (
     <header
-      className={`relative z-40 flex flex-col gap-4 border-b border-border pb-8 sm:flex-row sm:items-start sm:justify-between sm:gap-x-8 ${className ?? ""}`}
+      className={`relative z-40 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-x-8 ${className ?? ""}`}
     >
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-3">
           {leading}
-          <h1 className="min-w-0 truncate font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <h1 className="min-w-0 truncate font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             {title}
           </h1>
           {description ? (

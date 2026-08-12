@@ -6,11 +6,11 @@ Replace the previous Apple × Atom One / Nord look with a cohesive **Quiet Ink**
 
 ## Users / Audience
 
-All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analytics. Money defaults target the **day-to-day spender** (capture + “where did it go?”); household-CFO surfaces stay optional / disclosed.
+All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analytics. Money defaults target a **busy parent** (fast capture + “where did it go?” on mobile); household-CFO surfaces stay optional / disclosed.
 
 ## Success criteria
 
-- Quiet Ink tokens (Facebook light / Catppuccin Mocha dark) and IBM Plex type load in both modes; Atom One / Nord are no longer the brand palette.
+- Quiet Ink tokens (subdued neutral light / Catppuccin Mocha dark) and IBM Plex type load in both modes; restrained dense density (`sm` controls, compact tables/forms) with airy section rhythm.
 - [`DESIGN_GUIDE.md`](DESIGN_GUIDE.md) is the single source of truth, including distilled minimal-UI rules, default spender IA, and progressive disclosure.
 - Every route under `app/**/page.tsx` and shared components use semantic tokens + `components/ui/*` only — no raw hex, Tailwind radius/shadow presets, or non-token status colors in feature JSX.
 - Money tabs: **Spending** (home / `/money` → `/money/spending`), **Add**, **Insights**, **Settings**; optional tabs remain off by default.

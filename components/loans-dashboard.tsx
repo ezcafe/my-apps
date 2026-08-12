@@ -172,7 +172,7 @@ function LoansTable({
                   className="cursor-pointer transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]"
                   onClick={() => router.push(`/money/loans/${loan.id}`)}
                 >
-                  <td className="max-w-0 truncate px-3 py-3 font-medium">
+                  <td className="max-w-0 truncate px-3 py-2 font-medium">
                     <Link
                       href={`/money/loans/${loan.id}`}
                       className="block truncate hover:text-accent"
@@ -181,20 +181,20 @@ function LoansTable({
                       {loan.name}
                     </Link>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-2">
                     <Tag className={statusTagClass(loan, todayIso)}>
                       {statusLabel(loan, todayIso)}
                     </Tag>
                   </td>
-                  <td className="truncate px-3 py-3 text-right tabular-nums">
+                  <td className="truncate px-3 py-2 text-right tabular-nums">
                     {formatMinor(loan.remainingMinor, loan.currency)}
                   </td>
-                  <td className="truncate px-3 py-3 text-right tabular-nums">
+                  <td className="truncate px-3 py-2 text-right tabular-nums">
                     {formatMinor(loan.paymentMinor, loan.currency)}
                   </td>
                   <td
                     className={cn(
-                      "truncate px-3 py-3 tabular-nums",
+                      "truncate px-3 py-2 tabular-nums",
                       urgent && "font-medium text-destructive",
                     )}
                   >
@@ -204,10 +204,10 @@ function LoansTable({
                         })
                       : "—"}
                   </td>
-                  <td className="px-3 py-3 text-right tabular-nums">
+                  <td className="px-3 py-2 text-right tabular-nums">
                     {loan.percentComplete.toFixed(1)}%
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-2">
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       {canPay ? (
                         <LoanPayActions
@@ -347,7 +347,7 @@ export function LoansDashboard() {
   }, [filter, listQuery.data, todayIso]);
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-4">
       <LoansDueBanner />
 
       {listQuery.isLoading ? (
@@ -413,7 +413,7 @@ export function LoansDashboard() {
           </div>
 
           {filteredLoans.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted">
+            <p className="py-6 text-center text-sm text-muted">
               No loans match this filter.
             </p>
           ) : (

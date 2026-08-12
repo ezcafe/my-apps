@@ -412,7 +412,7 @@ export function TransactionEditForm({
 
   if (loading) {
     return (
-      <div className={isModal ? "space-y-4" : "min-w-0 max-w-4xl space-y-6"}>
+      <div className={isModal ? "space-y-4" : "min-w-0 max-w-4xl space-y-4"}>
         {!isModal ? <TransactionEditBreadcrumbs returnTo={returnTo} /> : null}
         <Card className="p-5">
           <header className="mb-4 flex items-baseline justify-between gap-3">
@@ -702,7 +702,7 @@ export function TransactionEditForm({
           <div className="flex flex-wrap items-center gap-3 [grid-column:1/-1]">
             <Button
               type="submit"
-              size="lg"
+              size="sm"
               disabled={
                 accounts.length === 0 || !accountId || saving || deleting
               }
@@ -714,7 +714,7 @@ export function TransactionEditForm({
               <Button
                 type="button"
                 variant="secondary"
-                size="lg"
+                size="sm"
                 disabled={saving || deleting}
                 onClick={onClose}
               >
@@ -731,7 +731,7 @@ export function TransactionEditForm({
             <Button
               type="button"
               variant="danger"
-              size="lg"
+              size="sm"
               disabled={saving || deleting}
               aria-busy={deleting}
               onClick={() => void handleDelete()}

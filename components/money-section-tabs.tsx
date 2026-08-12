@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState, type ReactNode, type SVGProps } from "react";
 import { Popover } from "@/components/ui/popover";
+import { buttonClassName } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import {
@@ -18,6 +19,7 @@ import {
   useMoneySectionTabVisibility,
   type MoneyOptionalSectionTabKey,
 } from "@/lib/money-section-tab-visibility";
+import { moneySectionPrimaryCta } from "@/lib/money-section-primary-cta";
 import {
   isMoneyDetailChromePath,
 } from "@/lib/money-tabs-chrome-path";
@@ -455,7 +457,7 @@ export function MoneyAppMenu() {
   return (
     <Popover
       align="start"
-      aria-label="Open menu"
+      aria-label="Open Money menu"
       open={open}
       onOpenChange={setOpen}
       trigger={<IconMenu className="size-5" />}
@@ -550,13 +552,29 @@ export function MoneySectionTabs() {
   const activeTab =
     tabs.find(({ href, exact }) => isTabActive(pathname, href, exact)) ??
     visibleTabs[0];
+  const primaryCta = moneySectionPrimaryCta(pathname);
+  // Loans / investments have no sticky mobile bar — keep their CTA on all breakpoints.
+  const primaryCtaAlwaysVisible = primaryCta?.href !== "/money/new";
 
   return (
-    <header className={cn(MONEY_FULL_SPAN, "relative z-40 flex items-center gap-3")}>
+    <header className={cn(MONEY_FULL_SPAN, "relative z-40 flex items-center gap-2 sm:gap-3")}>
       <MoneyAppMenu />
-      <h1 className="min-w-0 flex-1 truncate text-3xl font-semibold tracking-tight sm:text-4xl">
+      <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl">
         {activeTab?.label ?? "Money"}
       </h1>
+      {primaryCta ? (
+        <Link
+          href={primaryCta.href}
+          className={buttonClassName({
+            variant: "primary",
+            className: primaryCtaAlwaysVisible
+              ? "shrink-0"
+              : "hidden shrink-0 sm:inline-flex",
+          })}
+        >
+          {primaryCta.label}
+        </Link>
+      ) : null}
     </header>
   );
 }
@@ -574,7 +592,7 @@ export function MoneySectionChromeSkeleton({
     >
       <Skeleton className="size-10 shrink-0 rounded-[var(--radius-md)]" />
       {showTitle ? (
-        <Skeleton className="h-9 min-w-0 flex-1 max-w-[12rem] rounded-[var(--radius-sm)] sm:h-10 sm:max-w-[14rem]" />
+        <Skeleton className="h-7 min-w-0 flex-1 max-w-[12rem] rounded-[var(--radius-sm)] sm:h-8 sm:max-w-[14rem]" />
       ) : null}
     </div>
   );

@@ -905,7 +905,6 @@ export function AnalyticsFiltersBar({
         <Button
           type="button"
           variant="secondary"
-          size="md"
           onClick={() => setMobileFiltersOpen(true)}
           trailing={
             dirty || secondaryActive ? (
@@ -982,7 +981,6 @@ export function AnalyticsFiltersBar({
               <Button
                 type="button"
                 variant="primary"
-                size="md"
                 onClick={() => {
                   onApply();
                   setMobileFiltersOpen(false);
@@ -994,7 +992,6 @@ export function AnalyticsFiltersBar({
               <Button
                 type="button"
                 variant="secondary"
-                size="md"
                 onClick={onReset}
                 disabled={applying}
               >

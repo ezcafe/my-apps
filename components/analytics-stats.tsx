@@ -1,5 +1,6 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import {
   chartExpenseColor,
@@ -69,17 +70,17 @@ export function AnalyticsStats({
     stats.savingsRatePct != null && stats.savingsRatePct >= 0;
 
   return (
-    <div className="col-span-2 grid gap-2 border-b border-border pb-4 md:col-span-6 lg:col-span-12 fx-fade-in">
-      <p className="text-xs text-muted">
+    <div className="col-span-2 grid gap-3 border-b border-border pb-6 md:col-span-6 lg:col-span-12 fx-fade-in">
+      <p className="text-sm text-muted">
         {period ? <>Totals for {period}</> : <>Totals for selected range</>}
       </p>
       <div
-        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-x-6 gap-y-3"
-        aria-label="Workspace analytics summary"
+        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
+        aria-label="Summary metrics"
       >
-        <div>
+        <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Income</p>
-          <p className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums">
+          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
             <AnimatedNumber
               value={stats.incomeMinor}
               format={(n) => formatMinor(Math.round(n), currency)}
@@ -87,11 +88,11 @@ export function AnalyticsStats({
               animationKey={animationKey}
             />
           </p>
-        </div>
+        </Card>
 
-        <div>
+        <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Expenses</p>
-          <p className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums">
+          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
             <AnimatedNumber
               value={stats.expenseMinor}
               format={(n) => formatMinor(Math.round(n), currency)}
@@ -120,11 +121,11 @@ export function AnalyticsStats({
               </span>
             </p>
           ) : null}
-        </div>
+        </Card>
 
-        <div>
+        <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Net</p>
-          <p className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums">
+          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
             <AnimatedNumber
               value={stats.netMinor}
               format={(n) => formatMinor(Math.round(n), currency)}
@@ -132,13 +133,13 @@ export function AnalyticsStats({
               animationKey={animationKey}
             />
           </p>
-        </div>
+        </Card>
 
-        <div>
+        <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Savings rate</p>
           <p
             className={cn(
-              "mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums",
+              "mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl",
               stats.savingsRatePct == null
                 ? "text-muted"
                 : savingsPositive
@@ -148,7 +149,7 @@ export function AnalyticsStats({
           >
             {savingsLabel}
           </p>
-        </div>
+        </Card>
       </div>
     </div>
   );

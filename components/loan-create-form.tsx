@@ -368,7 +368,7 @@ export function LoanCreateForm() {
 
   return (
     <div className="col-span-2 min-w-0 md:col-span-6 lg:col-span-12">
-      <Card className="p-6">
+      <Card className="p-4">
         <form onSubmit={onSubmit} className="space-y-5">
           <Field label="Loan name">
             <Input value={name} onChange={(e) => setName(e.target.value)} required />

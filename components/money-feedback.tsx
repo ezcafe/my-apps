@@ -31,7 +31,7 @@ export function MoneyQueryErrorAlert({
     <div className={cn("space-y-3", className)}>
       <Alert variant="error" title={title} description={description} />
       {onRetry ? (
-        <Button type="button" variant="secondary" size="md" onClick={onRetry}>
+        <Button type="button" variant="secondary" onClick={onRetry}>
           {retryLabel}
         </Button>
       ) : null}

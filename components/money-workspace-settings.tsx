@@ -111,7 +111,7 @@ export function MoneyWorkspaceSettings() {
         />
       ) : null}
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         <SettingsSection
           id="money-settings-section-tabs"
           title="Section menu"
@@ -215,7 +215,6 @@ export function MoneyWorkspaceSettings() {
               <Button
                 type="submit"
                 variant="primary"
-                size="md"
                 className="w-fit"
                 disabled={
                   !cloneTargetId ||

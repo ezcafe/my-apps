@@ -8,7 +8,7 @@ const variants: Record<ButtonVariant, string> = {
   primary:
     "bg-accent text-accent-foreground shadow-[var(--shadow-sm)] hover:opacity-95 active:opacity-90 border border-transparent",
   secondary:
-    "border border-border bg-surface text-foreground hover:bg-muted-surface",
+    "border border-border bg-secondary text-secondary-foreground hover:bg-secondary-hover",
   ghost:
     "border border-transparent bg-transparent text-foreground hover:bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)]",
   danger:
@@ -18,34 +18,34 @@ const variants: Record<ButtonVariant, string> = {
 // Symmetric padding for label-only buttons. When an icon is on a side,
 // the matching `pad*WithIcon` reduces that side by ~2px (optical alignment).
 const padLabelOnly: Record<ButtonSize, string> = {
-  sm: "px-2.5 py-1.5",
-  md: "px-3.5 py-2",
+  sm: "px-3 py-2",
+  md: "px-4 py-2.5",
   lg: "px-5 py-3",
 };
 
 const padLeadingIcon: Record<ButtonSize, string> = {
-  sm: "pl-2 pr-2.5 py-1.5",
-  md: "pl-3 pr-3.5 py-2",
+  sm: "pl-2.5 pr-3 py-2",
+  md: "pl-3.5 pr-4 py-2.5",
   lg: "pl-[1.125rem] pr-5 py-3",
 };
 
 const padTrailingIcon: Record<ButtonSize, string> = {
-  sm: "pl-2.5 pr-2 py-1.5",
-  md: "pl-3.5 pr-3 py-2",
+  sm: "pl-3 pr-2.5 py-2",
+  md: "pl-4 pr-3.5 py-2.5",
   lg: "pl-5 pr-[1.125rem] py-3",
 };
 
 const padIconOnly: Record<ButtonSize, string> = {
   // Icon-only buttons get equal padding and a hit-area floor of 40×40.
-  sm: "p-2 fx-hit-40",
-  md: "p-2 fx-hit-40",
+  sm: "p-2.5 fx-hit-40",
+  md: "p-2.5 fx-hit-40",
   lg: "p-3",
 };
 
 const sizeText: Record<ButtonSize, string> = {
-  sm: "gap-1.5 text-xs",
-  md: "gap-2 text-sm",
-  lg: "gap-2 text-base",
+  sm: "gap-2 text-sm",
+  md: "gap-2 text-base",
+  lg: "gap-2.5 text-lg",
 };
 
 const base =
@@ -126,15 +126,11 @@ export function Button({
       {...props}
     >
       {leading ? (
-        <span className="inline-flex shrink-0 transition-transform duration-200 group-hover:-translate-x-px">
-          {leading}
-        </span>
+        <span className="inline-flex shrink-0">{leading}</span>
       ) : null}
       {children}
       {trailing ? (
-        <span className="inline-flex shrink-0 transition-transform duration-200 group-hover:translate-x-0.5">
-          {trailing}
-        </span>
+        <span className="inline-flex shrink-0">{trailing}</span>
       ) : null}
     </button>
   );

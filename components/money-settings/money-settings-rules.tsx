@@ -144,7 +144,7 @@ export function MoneySettingsRulesSection() {
           className="mb-8"
         />
       ) : null}
-      <div className="space-y-6">
+      <div className="space-y-4">
         <RulesKindSection
           kind="expense"
           rules={rules}

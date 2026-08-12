@@ -91,7 +91,7 @@ export function InvestmentSettingsPage() {
   const instruments = instrumentsQuery.data ?? [];
 
   return (
-    <div className="col-span-2 min-w-0 space-y-6 md:col-span-6 lg:col-span-12">
+    <div className="col-span-2 min-w-0 space-y-4 md:col-span-6 lg:col-span-12">
       <SettingsSection
         id="investment-settings-instruments"
         title="Instruments"

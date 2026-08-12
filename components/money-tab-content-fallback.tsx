@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 export function MoneyTabContentFallback() {
   return (
     <div
-      className={cn(MONEY_FULL_SPAN, "space-y-6")}
+      className={cn(MONEY_FULL_SPAN, "space-y-4")}
       aria-busy="true"
       aria-live="polite"
       aria-label="Loading tab content"

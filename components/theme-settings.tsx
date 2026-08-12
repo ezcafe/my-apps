@@ -78,7 +78,7 @@ export function ThemeSettings({ embedded }: { embedded?: boolean }) {
   }
 
   return (
-    <Card className="space-y-4 p-6">
+    <Card className="space-y-4 p-4">
       {inner}
     </Card>
   );

@@ -70,7 +70,7 @@ export function LoansSettingsNotifications() {
   }
 
   return (
-    <div className="min-w-0 max-w-4xl space-y-6">
+    <div className="min-w-0 max-w-4xl space-y-4">
       <SettingsSection
         id="loans-settings-notifications"
         title="Payment reminders"

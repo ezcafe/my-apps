@@ -444,13 +444,12 @@ export function TransactionBulkEditModal({
         </fieldset>
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          <Button type="submit" variant="primary" size="md" disabled={saving}>
+          <Button type="submit" variant="primary" disabled={saving}>
             {saving ? "Saving…" : "Apply to all"}
           </Button>
           <Button
             type="button"
             variant="secondary"
-            size="md"
             disabled={saving}
             onClick={onClose}
           >

@@ -62,7 +62,7 @@ export function AnalyticsEmptyState({
   return (
     <div
       className={cn(
-        "flex w-full items-center justify-center rounded-[var(--radius-md)] border border-dashed border-border bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)] px-6 py-10 fx-fade-in",
+        "flex w-full items-center justify-center rounded-[var(--radius-md)] border border-dashed border-border bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)] px-4 py-6 fx-fade-in",
         minHeightClass,
         className,
       )}
@@ -71,7 +71,7 @@ export function AnalyticsEmptyState({
       <div className="fx-stagger-children max-w-sm text-center">
         <div
           className={cn(
-            "mx-auto flex size-12 items-center justify-center rounded-full ring-1 ring-border",
+            "mx-auto flex size-9 items-center justify-center rounded-full ring-1 ring-border",
             iconBgClass(accentChartIndex),
           )}
           aria-hidden
@@ -149,7 +149,7 @@ function EmptyStateIcon({ id }: { id: AnalyticsEmptyStateIcon }) {
 
 function IconChart() {
   return (
-    <svg className="size-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -161,7 +161,7 @@ function IconChart() {
 
 function IconFlow() {
   return (
-    <svg className="size-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -173,7 +173,7 @@ function IconFlow() {
 
 function IconTable() {
   return (
-    <svg className="size-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -185,7 +185,7 @@ function IconTable() {
 
 function IconWallet() {
   return (
-    <svg className="size-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -197,7 +197,7 @@ function IconWallet() {
 
 function IconBills() {
   return (
-    <svg className="size-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -209,7 +209,7 @@ function IconBills() {
 
 function IconSavings() {
   return (
-    <svg className="size-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -221,7 +221,7 @@ function IconSavings() {
 
 function IconLoan() {
   return (
-    <svg className="size-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -233,7 +233,7 @@ function IconLoan() {
 
 function IconInvestment() {
   return (
-    <svg className="size-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"

@@ -980,7 +980,7 @@ export function MoneyCsvImportWizard({
           </div>
 
           {valueFields.length > 0 ? (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <h3 className="text-sm font-medium text-foreground">Value mapping</h3>
               {valueFields.map((f) => {
                 const entities =

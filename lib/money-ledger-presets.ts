@@ -168,7 +168,7 @@ export const MONEY_LEDGER_LOAN: MoneyLedgerPreset = {
       "Payments and adjustments on loan accounts appear here after you add a payment from a loan.",
     icon: "loan",
     accentChartIndex: 6,
-    primaryAction: { href: "/money/loans/new", label: "Create a loan" },
+    primaryAction: { href: "/money/loans/new", label: "Create loan" },
   },
   lockedQuery: {
     accountTypes: ["loan"],
