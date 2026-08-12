@@ -13,7 +13,7 @@ import {
   shellNavItems,
 } from "@/lib/features/registry";
 import { cn } from "@/lib/cn";
-import { isMoneyTabsChromePath } from "@/lib/money-tabs-chrome-path";
+import { hidesShellRailChrome } from "@/lib/money-tabs-chrome-path";
 
 function IconHome(props: SVGProps<SVGSVGElement>) {
   return (
@@ -364,9 +364,9 @@ function AuthActionsRail() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const onMoneyChrome = isMoneyTabsChromePath(pathname);
-  const showShellMobileMenu = !onMoneyChrome;
-  const showShellAside = !onMoneyChrome;
+  const hideShellRail = hidesShellRailChrome(pathname);
+  const showShellMobileMenu = !hideShellRail;
+  const showShellAside = !hideShellRail;
 
   return (
     <div
