@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { queryErrorMessage } from "@/lib/user-facing-error";
+import { resetRequestCircuit } from "@/lib/request-circuit";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 
 export function MoneyQueryErrorAlert({
@@ -31,7 +32,14 @@ export function MoneyQueryErrorAlert({
     <div className={cn("space-y-3", className)}>
       <Alert variant="error" title={title} description={description} />
       {onRetry ? (
-        <Button type="button" variant="secondary" onClick={onRetry}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            resetRequestCircuit();
+            onRetry();
+          }}
+        >
           {retryLabel}
         </Button>
       ) : null}

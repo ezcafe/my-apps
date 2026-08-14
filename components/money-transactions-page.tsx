@@ -25,7 +25,6 @@ import { MoneyAnalyticsFiltersBarSkeleton, AnalyticsStatsSkeleton, MoneyAnalytic
 import { MoneyLedgerSummaryStats } from "@/components/money-ledger-summary-stats";
 import { MoneyLedgerTrendCard } from "@/components/money-ledger-trend-card";
 import { MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK } from "@/lib/money-layout";
-import { MoneyQuickAddBar } from "@/components/money-quick-add-bar";
 import { cn } from "@/lib/cn";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
@@ -329,9 +328,6 @@ export function MoneyTransactionsPage({
     (queryErrorMessage(merchantLookupsQuery.error)) ??
     (queryErrorMessage(recurrenceLookupsQuery.error));
 
-  const quickAdd = !isSection ? preset?.emptyState?.primaryAction : undefined;
-  const showQuickAdd = quickAdd?.href === "/money/new";
-
   if (!workspaceReady && !bootstrapQuery.data && !bootstrapQuery.error) {
     return (
       <>
@@ -410,10 +406,7 @@ export function MoneyTransactionsPage({
         </section>
       ) : null}
 
-      <section
-        aria-label="Transactions"
-        className={showQuickAdd ? "pb-16 lg:pb-0" : undefined}
-      >
+      <section aria-label="Transactions">
         {lookupsReady && activeWorkspaceId ? (
           <AnalyticsTransactionsTableLazy
             filterQuery={filterQuery}
@@ -430,10 +423,6 @@ export function MoneyTransactionsPage({
           <MoneyAnalyticsTransactionsTableSkeleton selectable />
         )}
       </section>
-
-      {showQuickAdd && quickAdd ? (
-        <MoneyQuickAddBar href={quickAdd.href} label={quickAdd.label} />
-      ) : null}
     </div>
   );
 }

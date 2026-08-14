@@ -15,7 +15,6 @@ import {
   MONEY_MERCHANT_UPDATE_MUTATION,
 } from "@/lib/money-gql-documents";
 import {
-  MoneySettingsBackLink,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
@@ -122,7 +121,6 @@ export function MoneySettingsMerchantsSection() {
 
   return (
     <>
-      <MoneySettingsBackLink current="Merchants" />
       {bootstrapErr ? (
         <Alert
           variant="error"

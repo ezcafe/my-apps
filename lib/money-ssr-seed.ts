@@ -53,9 +53,22 @@ import {
   type MoneyTransactionsListResponse,
 } from "@/lib/money-query-options";
 import type { MoneyWorkspaceBootstrapData } from "@/lib/money-workspace-bootstrap-data";
+import { isDbUnreachable } from "@/lib/db-errors";
+import {
+  isRequestCircuitOpen,
+  recordRequestFailure,
+} from "@/lib/request-circuit";
 import { analyticsFiltersSchema } from "@/lib/validators/money";
 
 const TRANSACTIONS_PAGE_SIZE = 20;
+
+function recordSeedDbFailure(error: unknown): void {
+  if (isDbUnreachable(error)) recordRequestFailure();
+}
+
+function recordSeedSafeFailure(code: string): void {
+  if (code === "db_unavailable") recordRequestFailure();
+}
 
 const MONEY_LAYOUT_DEHYDRATE_SLOTS = new Set([
   "bootstrap",
@@ -169,12 +182,17 @@ export async function seedMoneyBootstrap(
   queryClient: QueryClient,
   userSub: string,
 ): Promise<MoneyWorkspaceBootstrapData | undefined> {
+  if (isRequestCircuitOpen()) return undefined;
   try {
     const result = await loadMoneyBootstrap(userSub);
-    if (!result.ok) return undefined;
+    if (!result.ok) {
+      recordSeedSafeFailure(result.code);
+      return undefined;
+    }
     applyMoneyBootstrapSeed(queryClient, result.data);
     return result.data;
-  } catch {
+  } catch (error) {
+    recordSeedDbFailure(error);
     return undefined;
   }
 }
@@ -303,17 +321,21 @@ export async function seedMoneyLoansHome(
 }
 
 async function seedLoansQueries(queryClient: QueryClient, userSub: string) {
+  if (isRequestCircuitOpen()) return;
   try {
     const result = await fetchLoansBootstrapSafe(userSub);
-    if (!result.ok) return;
+    if (!result.ok) {
+      recordSeedSafeFailure(result.code);
+      return;
+    }
     const boot: LoansBootstrapData = result.data;
     queryClient.setQueryData(loansKeys.bootstrap(), boot);
     const list = await runInWorkspace(boot.workspaceId, () =>
       listLoans({ userSub, workspaceId: boot.workspaceId }),
     );
     queryClient.setQueryData<LoanListItem[]>(loansKeys.list(), list);
-  } catch {
-    // Client GraphQL fills in.
+  } catch (error) {
+    recordSeedDbFailure(error);
   }
 }
 
@@ -334,9 +356,13 @@ async function seedInvestmentQueries(
   from: string,
   to: string,
 ) {
+  if (isRequestCircuitOpen()) return;
   try {
     const result = await fetchInvestmentBootstrapSafe(userSub);
-    if (!result.ok) return;
+    if (!result.ok) {
+      recordSeedSafeFailure(result.code);
+      return;
+    }
     const boot: InvestmentBootstrapData = result.data;
     queryClient.setQueryData(investmentKeys.bootstrap(), boot);
     const [holdings, series] = await runInWorkspace(boot.workspaceId, () =>
@@ -353,8 +379,8 @@ async function seedInvestmentQueries(
       investmentKeys.portfolioSeries(from, to),
       series,
     );
-  } catch {
-    // Client GraphQL fills in.
+  } catch (error) {
+    recordSeedDbFailure(error);
   }
 }
 
@@ -362,12 +388,16 @@ export async function seedLoansBootstrapOnly(
   queryClient: QueryClient,
   userSub: string,
 ): Promise<void> {
+  if (isRequestCircuitOpen()) return;
   try {
     const result = await fetchLoansBootstrapSafe(userSub);
-    if (!result.ok) return;
+    if (!result.ok) {
+      recordSeedSafeFailure(result.code);
+      return;
+    }
     queryClient.setQueryData(loansKeys.bootstrap(), result.data);
-  } catch {
-    // Client GraphQL fills in.
+  } catch (error) {
+    recordSeedDbFailure(error);
   }
 }
 
@@ -375,11 +405,15 @@ export async function seedInvestmentBootstrapOnly(
   queryClient: QueryClient,
   userSub: string,
 ): Promise<void> {
+  if (isRequestCircuitOpen()) return;
   try {
     const result = await fetchInvestmentBootstrapSafe(userSub);
-    if (!result.ok) return;
+    if (!result.ok) {
+      recordSeedSafeFailure(result.code);
+      return;
+    }
     queryClient.setQueryData(investmentKeys.bootstrap(), result.data);
-  } catch {
-    // Client GraphQL fills in.
+  } catch (error) {
+    recordSeedDbFailure(error);
   }
 }

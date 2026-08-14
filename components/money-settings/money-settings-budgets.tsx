@@ -35,7 +35,6 @@ import { utcCalendarMonthRangeIso } from "@/lib/budget-utc-month-range";
 import { moneyBudgetScopeTypeSchema } from "@/lib/validators/money";
 import type { z } from "zod";
 import {
-  MoneySettingsBackLink,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
@@ -385,7 +384,6 @@ export function MoneySettingsBudgetsSection() {
 
   return (
     <>
-      <MoneySettingsBackLink current="Budgets" />
       {bootstrapErr ? (
         <Alert
           variant="error"

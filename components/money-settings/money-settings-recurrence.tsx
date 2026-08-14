@@ -28,7 +28,6 @@ import {
   MONEY_RECURRENCE_UPDATE_MUTATION,
 } from "@/lib/money-gql-documents";
 import {
-  MoneySettingsBackLink,
   SettingsSection,
   SettingsSubsectionHeading,
 } from "@/components/money-settings/money-settings-shared";
@@ -233,7 +232,6 @@ export function MoneySettingsRecurrenceSection() {
 
   return (
     <>
-      <MoneySettingsBackLink current="Recurrence" />
       {bootstrapErr ? (
         <Alert
           variant="error"

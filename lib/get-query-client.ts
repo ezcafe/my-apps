@@ -1,11 +1,29 @@
 import { cache } from "react";
 import { QueryClient, isServer } from "@tanstack/react-query";
+import { isRequestCircuitOpen } from "@/lib/request-circuit";
+import { isPersistentRequestError } from "@/lib/user-facing-error";
+
+function allowBackgroundRefetch(query: { state: { status: string } }): boolean {
+  return !isRequestCircuitOpen() && query.state.status !== "error";
+}
+
+export function shouldRetryQuery(
+  failureCount: number,
+  error: unknown,
+): boolean {
+  if (isRequestCircuitOpen() || isPersistentRequestError(error)) return false;
+  return failureCount < 1;
+}
 
 function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
         staleTime: 30_000,
+        retry: shouldRetryQuery,
+        retryOnMount: false,
+        refetchOnWindowFocus: allowBackgroundRefetch,
+        refetchOnReconnect: allowBackgroundRefetch,
       },
     },
   });

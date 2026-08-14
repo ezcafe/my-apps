@@ -26,7 +26,6 @@ import {
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import {
-  MoneySettingsBackLink,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
@@ -135,7 +134,6 @@ export function MoneySettingsRulesSection() {
 
   return (
     <>
-      <MoneySettingsBackLink current="Rules" />
       {bootstrapErr ? (
         <Alert
           variant="error"

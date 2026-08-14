@@ -32,7 +32,14 @@ If a need is not covered here, propose an extension to this doc + a primitive �
 | App shell | Top-right hamburger ([`app-shell.tsx`](../components/app-shell.tsx)) | Shell routes from [`registry.ts`](../lib/features/registry.ts) + sign in/out |
 | Money sections | Left hamburger ([`MoneyAppMenu`](../components/money-section-tabs.tsx)) | Spending, Add, Insights, Settings, optional tabs, shell links |
 
-Desktop (`lg+`): shell uses a fixed icon rail; Money header shows a section-aware primary button (`sm+`, always visible for Loans / Investments). Mobile: sticky primary CTA on Spending / Bills / Savings ([`MoneyQuickAddBar`](../components/money-quick-add-bar.tsx)).
+Desktop (`lg+`): shell uses a fixed icon rail on non-Money routes; Money / Help / App Settings hide the rail and use the in-page hamburger. Every shell page uses [`PageHeading`](../components/page-heading.tsx) (Tailwind Plus [page headings](https://tailwindcss.com/plus/ui-blocks/application-ui/headings/page-headings)): **With actions** on top-level routes, **With actions and breadcrumbs** when nested. Primary CTA is a **text-only** button in the heading at all breakpoints (no sticky bottom Add bar).
+
+### Page headings & breadcrumbs
+
+- Structure follows Tailwind Plus application-ui blocks; retokenize onto Quiet Ink + [`components/ui/*`](../components/ui/) (`Button` / `buttonClassName`, [`Breadcrumb`](../components/ui/breadcrumb.tsx) from [Simple with chevrons](https://tailwindcss.com/plus/ui-blocks/application-ui/navigation/breadcrumbs)).
+- Hamburger = icon-only (`fx-hit-40`); primary page actions = **text labels only** (e.g. “Create loan”, “Add transaction”).
+- Breadcrumbs sit **above** the title when nested; omit on top-level section pages.
+- Path defaults: [`resolveMoneyAppHeader`](../lib/money-app-header.ts); dynamic pages override via [`useSetAppHeader`](../components/app-header-override.tsx).
 
 ### Dashboard layout pattern
 
@@ -46,11 +53,11 @@ Money home surfaces follow **metric cards → (optional chart) → table**, top 
 Wrap page bodies in [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) (`flex flex-col gap-4`) with semantic `<section aria-label="…">` landmarks.
 
 ```text
-[ Hamburger | Title | Add (sm+) ]
+[ Crumbs when nested ──────────── ]
+[ Hamburger | Title | Add (text) ]
 [ Filters ─────────────────────── ]
 [ Metric │ Metric │ Metric │ …   ]
 [ Table ───────────────────────── ]
-[ Add CTA — sticky mobile only  ]
 ```
 
 ## Restrained dense rules
@@ -267,7 +274,7 @@ withViewTransition(() => setTheme("dark"));
 
 - **Container**: `.shell-main` for top-level page padding/max width.
 - **Dashboard stack**: [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) for metric cards + chart + table pages.
-- **Multi-column**: `repeat(auto-fit, minmax(min(100%, 22rem), 1fr))` (`.auto-fit-2`). Breakpoint utilities only for shell chrome (hamburger vs rail, sticky Add bar).
+- **Multi-column**: `repeat(auto-fit, minmax(min(100%, 22rem), 1fr))` (`.auto-fit-2`). Breakpoint utilities only for shell chrome (hamburger vs rail).
 - **Container queries**: `cqi` / `container-type` / `@container` for filter bars and chart cards.
 - **Density**: `--space-step`; compact controls + airy section rhythm.
 - **Mobile-first**: stack sections vertically; metric cards use `auto-fit` with `minmax(min(100%, 9rem), 1fr)`; tables scroll horizontally inside their section when needed.
@@ -275,8 +282,8 @@ withViewTransition(() => setTheme("dark"));
 ## Shell & navigation
 
 - Source of truth: [`lib/features/registry.ts`](../lib/features/registry.ts).
-- **Mobile-first:** hamburger → [`Popover`](../components/ui/popover.tsx) popup menu (`aria-label="Open navigation menu"`).
-- **Desktop (`lg+`):** icon rail in [`app-shell.tsx`](../components/app-shell.tsx); Money section-aware primary CTA in section header.
+- **Mobile-first:** hamburger → [`Popover`](../components/ui/popover.tsx) popup menu (`aria-label="Open navigation menu"` / Money: `"Open Money menu"`).
+- **Desktop (`lg+`):** icon rail in [`app-shell.tsx`](../components/app-shell.tsx) when not on Money/Help/Settings; otherwise in-page [`PageHeading`](../components/page-heading.tsx) with section-aware text CTA.
 - Active item: `fx-vt-shell-nav-active`.
 - Route changes: `<main key={pathname}>` + `fx-fade-in`.
 - Touch targets: `iconOnly` / `fx-hit-40` (≥40×40) on all menu triggers.
@@ -331,6 +338,6 @@ withViewTransition(() => setTheme("dark"));
 - [ ] Concentric radii (`--radius-md` / `--radius-sm`).
 - [ ] Icon-only: `iconOnly` or `fx-hit-40`; swaps via `IconSwap`.
 - [ ] Explicit `transition-*` properties.
-- [ ] Mobile-first: hamburger popup nav, dashboard stack, sticky Add on Spending.
+- [ ] Mobile-first: hamburger popup nav, dashboard stack, primary CTA in PageHeading on all breakpoints.
 - [ ] Verified light and dark via `/settings`.
 - [ ] `npm run lint` and `npm run build` pass.

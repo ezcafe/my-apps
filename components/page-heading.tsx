@@ -1,31 +1,54 @@
 import type { ReactNode } from "react";
 import { AboutDisclosure } from "@/components/ui/about-disclosure";
+import {
+  Breadcrumb,
+  type BreadcrumbItem,
+} from "@/components/ui/breadcrumb";
+import { cn } from "@/lib/cn";
 
 /**
- * Application page heading — layout aligned with Tailwind Plus “meta + actions” page headings
- * (see https://tailwindcss.com/plus/ui-blocks/application-ui/headings/page-headings).
+ * Application page heading — Tailwind Plus “With actions” /
+ * “With actions and breadcrumbs” / “With meta and actions”, Quiet Ink tokens.
+ * @see https://tailwindcss.com/plus/ui-blocks/application-ui/headings/page-headings
+ *
+ * Layout deviation: title + leading + actions stay on one row at all widths
+ * so the primary CTA remains in the header on phones.
  */
 export function PageHeading({
   title,
   description,
+  meta,
   leading,
   actions,
+  breadcrumbs,
   className,
 }: {
   title: string;
+  /** AboutDisclosure body (info icon beside the title). */
   description?: ReactNode;
-  /** Optional control before the title (e.g. Money menu on detail pages). */
+  /** Optional subtitle under the title row (Plus meta slot). */
+  meta?: ReactNode;
+  /** Optional control before the title (e.g. Money menu). */
   leading?: ReactNode;
   actions?: ReactNode;
+  /** Plus breadcrumbs row above the title when nested. */
+  breadcrumbs?: BreadcrumbItem[];
   className?: string;
 }) {
+  const hasCrumbs = breadcrumbs != null && breadcrumbs.length > 0;
+
   return (
     <header
-      className={`relative z-40 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-x-8 ${className ?? ""}`}
+      className={cn(
+        "relative z-40 flex flex-col gap-2 border-b border-border pb-5",
+        className,
+      )}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-3">
-          {leading}
+      {hasCrumbs ? <Breadcrumb items={breadcrumbs} /> : null}
+
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        {leading}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <h1 className="min-w-0 truncate font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             {title}
           </h1>
@@ -39,9 +62,15 @@ export function PageHeading({
             </AboutDisclosure>
           ) : null}
         </div>
+        {actions ? (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {actions}
+          </div>
+        ) : null}
       </div>
-      {actions ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div>
+
+      {meta ? (
+        <div className="max-w-3xl text-sm leading-6 text-muted">{meta}</div>
       ) : null}
     </header>
   );

@@ -9,9 +9,9 @@ import {
   CHART_CARD_HEIGHT_TALL,
   CHART_CARD_LAYOUT,
 } from "@/components/analytics-chart-layout";
+import { useSetAppHeader } from "@/components/app-header-override";
 import { LoanDetailOptionsMenu } from "@/components/loan-detail-options-menu";
 import { LoanPayActions } from "@/components/loan-pay-actions";
-import { MoneyAppMenu } from "@/components/money-section-tabs";
 import { ChartLegendList } from "@/components/charts/chart-legend-list";
 import {
   loanProgressSeriesColors,
@@ -26,7 +26,6 @@ import {
   useLoansWorkspace,
 } from "@/components/loans-workspace-provider";
 import { Alert } from "@/components/ui/alert";
-import { AboutDisclosure } from "@/components/ui/about-disclosure";
 import { buttonClassName } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,30 +67,24 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function LoanDetailBreadcrumb({ loanName }: { loanName: string }) {
-  const itemCls =
-    "rounded-[var(--radius-sm)] px-1 py-0.5 text-sm font-medium text-muted transition-colors duration-150 hover:text-foreground";
+const LOAN_DETAIL_ABOUT =
+  "Track payoff progress, record payments, and review your amortization schedule. Payments can be posted to Money or marked paid without a ledger entry.";
 
-  return (
-    <nav aria-label="Breadcrumb">
-      <ol className="flex flex-wrap items-center gap-2">
-        <li>
-          <Link href="/money/loans" className={itemCls}>
-            Loans
-          </Link>
-        </li>
-        <li aria-hidden className="text-sm text-muted">
-          /
-        </li>
-        <li
-          className="text-sm font-medium text-foreground"
-          aria-current="page"
-        >
-          {loanName}
-        </li>
-      </ol>
-    </nav>
-  );
+function LoanDetailHeaderSync({
+  loanName,
+}: {
+  loanName: string;
+}) {
+  useSetAppHeader({
+    title: loanName,
+    description: LOAN_DETAIL_ABOUT,
+    breadcrumbs: [
+      { label: "Loans", href: "/money/loans" },
+      { label: loanName },
+    ],
+    cta: null,
+  });
+  return null;
 }
 
 export function LoanDetailPage({ loanId }: { loanId: string }) {
@@ -212,27 +205,12 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
 
   return (
     <>
-      <header className={cn(MONEY_FULL_SPAN, "relative z-40 fx-fade-in")}>
-        <LoanDetailBreadcrumb loanName={loan.name} />
-        <div className="mt-4 flex min-w-0 items-center gap-3">
-          <MoneyAppMenu />
-          <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight sm:text-2xl">
-            {loan.name}
-          </h1>
-          <AboutDisclosure label={`About ${loan.name}`}>
-            <p>
-              Track payoff progress, record payments, and review your
-              amortization schedule. Payments can be posted to Money or marked
-              paid without a ledger entry.
-            </p>
-          </AboutDisclosure>
-        </div>
-        <LoanDetailOptionsMenu
-          loanId={loan.id}
-          loanName={loan.name}
-          status={loan.status}
-        />
-      </header>
+      <LoanDetailHeaderSync loanName={loan.name} />
+      <LoanDetailOptionsMenu
+        loanId={loan.id}
+        loanName={loan.name}
+        status={loan.status}
+      />
 
       <div className={LOAN_DETAIL_GRID_CLASS}>
         <LoanDetailStats loan={loan} />

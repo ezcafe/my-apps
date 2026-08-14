@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { MoneyAppMenu } from "@/components/money-section-tabs";
+import { PageHeading } from "@/components/page-heading";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cn } from "@/lib/cn";
 
@@ -7,8 +8,8 @@ const SHELL_MAIN_GRID =
   "shell-main grid grid-cols-2 gap-x-2 gap-y-6 md:grid-cols-6 md:gap-x-4 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-6";
 
 /**
- * Shared shell page chrome matching Money settings:
- * 12-col grid, button menu + title row, full-span `space-y-6` section stack.
+ * Shared shell page chrome matching Money:
+ * 12-col grid, Plus page heading (menu + title + optional meta), full-span stack.
  * Shell aside is hidden on these routes via `hidesShellRailChrome`.
  */
 export function ShellMainPage({
@@ -22,17 +23,12 @@ export function ShellMainPage({
 }) {
   return (
     <div className={SHELL_MAIN_GRID}>
-      <header className={cn(MONEY_FULL_SPAN, "relative z-40 flex flex-col gap-2")}>
-        <div className="flex items-center gap-3">
-          <MoneyAppMenu />
-          <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl">
-            {title}
-          </h1>
-        </div>
-        {subtitle ? (
-          <p className="max-w-3xl text-sm leading-6 text-muted">{subtitle}</p>
-        ) : null}
-      </header>
+      <PageHeading
+        className={MONEY_FULL_SPAN}
+        leading={<MoneyAppMenu />}
+        title={title}
+        meta={subtitle}
+      />
       <div className={cn(MONEY_FULL_SPAN, "space-y-6")}>{children}</div>
     </div>
   );

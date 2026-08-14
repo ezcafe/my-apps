@@ -1,6 +1,4 @@
-import { GraphQLClient } from "graphql-request";
-import { graphqlRequestHeaders } from "@/lib/gql-request-headers";
-import { toUserFacingError } from "@/lib/user-facing-error";
+import { graphqlRequestWithCircuit } from "@/lib/gql-request-with-circuit";
 
 /** graphql-request resolves the endpoint with `new URL()`; relative paths throw in the browser without a base. */
 function resolveMoneyGraphQLEndpoint(): string {
@@ -18,16 +16,10 @@ export async function moneyGraphQLRequest<T extends Record<string, unknown>>(
   document: string,
   variables?: Record<string, unknown>,
 ): Promise<T> {
-  try {
-    const client = new GraphQLClient(resolveMoneyGraphQLEndpoint(), {
-      credentials: "include",
-      headers: await graphqlRequestHeaders(),
-    });
-    return await client.request<T>(
-      document,
-      variables as Record<string, unknown> | undefined,
-    );
-  } catch (e) {
-    throw toUserFacingError("moneyGraphQLRequest", e);
-  }
+  return graphqlRequestWithCircuit<T>(
+    "moneyGraphQLRequest",
+    resolveMoneyGraphQLEndpoint(),
+    document,
+    variables,
+  );
 }

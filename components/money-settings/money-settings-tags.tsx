@@ -15,7 +15,6 @@ import {
   MONEY_TAG_UPDATE_MUTATION,
 } from "@/lib/money-gql-documents";
 import {
-  MoneySettingsBackLink,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
@@ -118,7 +117,6 @@ export function MoneySettingsTagsSection() {
 
   return (
     <>
-      <MoneySettingsBackLink current="Tags" />
       {bootstrapErr ? (
         <Alert
           variant="error"

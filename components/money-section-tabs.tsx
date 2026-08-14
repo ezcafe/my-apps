@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState, type ReactNode, type SVGProps } from "react";
+import { useAppHeaderOverride } from "@/components/app-header-override";
+import { PageHeading } from "@/components/page-heading";
 import { Popover } from "@/components/ui/popover";
 import { buttonClassName } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,15 +16,12 @@ import {
   type ShellNavIconId,
   type ShellNavItem,
 } from "@/lib/features/registry";
+import { resolveMoneyAppHeader } from "@/lib/money-app-header";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import {
   useMoneySectionTabVisibility,
   type MoneyOptionalSectionTabKey,
 } from "@/lib/money-section-tab-visibility";
-import { moneySectionPrimaryCta } from "@/lib/money-section-primary-cta";
-import {
-  isMoneyDetailChromePath,
-} from "@/lib/money-tabs-chrome-path";
 import { useMoneyMenuPageActions } from "@/lib/money-menu-page-actions";
 
 type MoneySectionTabIconId =
@@ -199,15 +198,18 @@ function IconHelp(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
       <path
-        d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M8 8h8M8 12h5M8 16h8"
+        d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 17h.01"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -312,6 +314,14 @@ const menuItemClassName = (active: boolean) =>
       : "text-muted hover:bg-muted-surface hover:text-foreground",
   );
 
+const menuIconButtonClassName = (active: boolean) =>
+  cn(
+    "fx-hit-40 inline-flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    active
+      ? "bg-muted-surface text-foreground"
+      : "text-muted hover:bg-muted-surface hover:text-foreground",
+  );
+
 const tabs: Array<{
   href: string;
   label: string;
@@ -396,11 +406,12 @@ function MoneyMenuShellLink({
     <Link
       href={item.href}
       onClick={onNavigate}
+      title={item.label}
+      aria-label={item.label}
       aria-current={active ? "page" : undefined}
-      className={menuItemClassName(active)}
+      className={menuIconButtonClassName(active)}
     >
       <Icon className="size-5 shrink-0" />
-      {item.label}
     </Link>
   );
 }
@@ -412,22 +423,28 @@ function MoneyMenuAuth({ onNavigate }: { onNavigate: () => void }) {
     return (
       <button
         type="button"
-        className={cn(menuItemClassName(false), "w-full text-left")}
+        title="Sign out"
+        aria-label="Sign out"
+        className={menuIconButtonClassName(false)}
         onClick={() => {
           onNavigate();
           signOut({ redirectTo: "/login" });
         }}
       >
         <IconSignOut className="size-5 shrink-0" />
-        Sign out
       </button>
     );
   }
 
   return (
-    <Link href="/login" onClick={onNavigate} className={menuItemClassName(false)}>
+    <Link
+      href="/login"
+      onClick={onNavigate}
+      title="Sign in"
+      aria-label="Sign in"
+      className={menuIconButtonClassName(false)}
+    >
       <IconSignIn className="size-5 shrink-0" />
-      Sign in
     </Link>
   );
 }
@@ -520,7 +537,10 @@ export function MoneyAppMenu() {
         className="my-1.5 border-t border-border"
       />
 
-      <nav className="flex flex-col" aria-label="Workspace">
+      <nav
+        className="flex items-center justify-between gap-1"
+        aria-label="Workspace"
+      >
         {moneyMenuShellItems.map((item) => (
           <MoneyMenuShellLink
             key={item.id}
@@ -535,47 +555,44 @@ export function MoneyAppMenu() {
 }
 
 /**
- * Page title for the active Money section + merged menu.
- * Detail pages own their title row and render {@link MoneyAppMenu} themselves.
+ * Unified Money page heading (Tailwind Plus + {@link MoneyAppMenu}).
+ * Detail pages refine title/crumbs via {@link useSetAppHeader}.
  */
 export function MoneySectionTabs() {
   const pathname = usePathname();
-  const { isTabVisible } = useMoneySectionTabVisibility();
+  const override = useAppHeaderOverride();
+  const resolved = resolveMoneyAppHeader(pathname);
 
-  if (isMoneyDetailChromePath(pathname)) {
-    return null;
-  }
-
-  const visibleTabs = tabs.filter(({ visibilityKey }) =>
-    isTabVisible(visibilityKey),
-  );
-  const activeTab =
-    tabs.find(({ href, exact }) => isTabActive(pathname, href, exact)) ??
-    visibleTabs[0];
-  const primaryCta = moneySectionPrimaryCta(pathname);
-  // Loans / investments have no sticky mobile bar — keep their CTA on all breakpoints.
-  const primaryCtaAlwaysVisible = primaryCta?.href !== "/money/new";
+  const title = override?.title ?? resolved.title;
+  const breadcrumbs =
+    override?.breadcrumbs ?? resolved.breadcrumbs;
+  const description = override?.description;
+  const cta =
+    override != null && "cta" in override
+      ? override.cta ?? null
+      : resolved.cta;
 
   return (
-    <header className={cn(MONEY_FULL_SPAN, "relative z-40 flex items-center gap-2 sm:gap-3")}>
-      <MoneyAppMenu />
-      <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl">
-        {activeTab?.label ?? "Money"}
-      </h1>
-      {primaryCta ? (
-        <Link
-          href={primaryCta.href}
-          className={buttonClassName({
-            variant: "primary",
-            className: primaryCtaAlwaysVisible
-              ? "shrink-0"
-              : "hidden shrink-0 sm:inline-flex",
-          })}
-        >
-          {primaryCta.label}
-        </Link>
-      ) : null}
-    </header>
+    <PageHeading
+      className={MONEY_FULL_SPAN}
+      leading={<MoneyAppMenu />}
+      title={title}
+      description={description}
+      breadcrumbs={breadcrumbs}
+      actions={
+        cta ? (
+          <Link
+            href={cta.href}
+            className={buttonClassName({
+              variant: "primary",
+              className: "shrink-0",
+            })}
+          >
+            {cta.label}
+          </Link>
+        ) : null
+      }
+    />
   );
 }
 

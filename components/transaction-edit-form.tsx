@@ -79,50 +79,6 @@ function resolveTransactionEditReturnTo(raw: string | null): string {
   return "/money/spending";
 }
 
-function transactionEditReturnLabel(returnTo: string): string {
-  if (returnTo === "/money/spending" || returnTo === "/money/transactions") {
-    return "Spending";
-  }
-  if (returnTo === "/money/bills") return "Bills";
-  if (returnTo === "/money/savings") return "Savings";
-  if (returnTo === "/money/investments") return "Investments";
-  if (returnTo === "/money/loans") return "Loans";
-  return "Analytics";
-}
-
-function TransactionEditBreadcrumbs({ returnTo }: { returnTo: string }) {
-  const itemCls =
-    "text-sm font-medium text-muted transition-colors duration-150 hover:text-foreground";
-  const currentCls = "text-sm font-medium text-foreground";
-  const parentLabel = transactionEditReturnLabel(returnTo);
-
-  return (
-    <nav aria-label="Breadcrumb">
-      <ol className="flex flex-wrap items-center gap-2">
-        <li>
-          <Link href="/money/spending" className={itemCls}>
-            Money
-          </Link>
-        </li>
-        <li aria-hidden className="text-muted">
-          /
-        </li>
-        <li>
-          <Link href={returnTo} className={itemCls}>
-            {parentLabel}
-          </Link>
-        </li>
-        <li aria-hidden className="text-muted">
-          /
-        </li>
-        <li className={currentCls} aria-current="page">
-          Edit transaction
-        </li>
-      </ol>
-    </nav>
-  );
-}
-
 export function TransactionEditForm({
   transactionId,
   returnTo: returnToProp,
@@ -413,7 +369,6 @@ export function TransactionEditForm({
   if (loading) {
     return (
       <div className={isModal ? "space-y-4" : "min-w-0 max-w-4xl space-y-4"}>
-        {!isModal ? <TransactionEditBreadcrumbs returnTo={returnTo} /> : null}
         <Card className="p-5">
           <header className="mb-4 flex items-baseline justify-between gap-3">
             <Skeleton className="h-6 w-40 rounded-[var(--radius-sm)]" />
@@ -462,7 +417,6 @@ export function TransactionEditForm({
             : "flex min-w-0 max-w-4xl flex-col gap-3"
         }
       >
-        {!isModal ? <TransactionEditBreadcrumbs returnTo={returnTo} /> : null}
         <Alert
           variant="error"
           title="Couldn’t load transaction"
@@ -478,7 +432,6 @@ export function TransactionEditForm({
 
   return (
     <div className={isModal ? "space-y-4" : "min-w-0 max-w-4xl space-y-6"}>
-      {!isModal ? <TransactionEditBreadcrumbs returnTo={returnTo} /> : null}
       {err ? <Alert variant="error" title={err} /> : null}
       <Card className={isModal ? "border-0 bg-transparent p-0 shadow-none" : "p-5"}>
         <header className="mb-4 flex items-baseline justify-between gap-3">

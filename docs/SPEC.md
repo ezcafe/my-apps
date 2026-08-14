@@ -16,6 +16,7 @@ All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analy
 - Money tabs: **Spending** (home / `/money` → `/money/spending`), **Add**, **Insights**, **Settings**; optional tabs remain off by default.
 - Money filter toolbars show Direction, Accounts, Categories, Apply/Reset (plus Workspace/View when present); Date, Merchants, Tags, Recurrence live under **More**.
 - Primary CTAs stay visible; secondary actions use [`MoreMenu`](../components/ui/more-menu.tsx); help copy uses [`AboutDisclosure`](../components/ui/about-disclosure.tsx) (info icon + tooltip).
+- Unified [`PageHeading`](../components/page-heading.tsx) (Tailwind Plus page heading) on all shell routes: hamburger + title + text-only primary CTA; breadcrumbs above title when nested; primary CTA in the header on all breakpoints (no sticky mobile Add bar).
 - Default Insights shows KPIs + spend-by-category + income vs expense; remaining charts behind **More insights** (unmounted until expanded).
 - **Default Insights first paint:** summary + distribution only — not full overview, budgets, sankey, or leaders until More insights.
 - Heavy chart/modal modules load via `next/dynamic` (chart cards, DivergingBar, LoanProgressChart, bulk-edit modal).

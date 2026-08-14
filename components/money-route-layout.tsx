@@ -5,6 +5,7 @@ import {
   HydrationBoundary,
   type DehydratedState,
 } from "@tanstack/react-query";
+import { AppHeaderOverrideProvider } from "@/components/app-header-override";
 import { GraphQLMoneyProvider } from "@/components/graphql-money-provider";
 import { MoneySectionTabs } from "@/components/money-section-tabs";
 import { MoneyWorkspaceProvider } from "@/components/money-workspace-provider";
@@ -13,10 +14,12 @@ import { MoneyWorkspaceProvider } from "@/components/money-workspace-provider";
 export function MoneyRouteChrome({ children }: { children: ReactNode }) {
   return (
     <GraphQLMoneyProvider>
-      <div className="shell-main grid grid-cols-2 gap-x-2 gap-y-6 md:grid-cols-6 md:gap-x-4 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-6">
-        <MoneySectionTabs />
-        {children}
-      </div>
+      <AppHeaderOverrideProvider>
+        <div className="shell-main grid grid-cols-2 gap-x-2 gap-y-6 md:grid-cols-6 md:gap-x-4 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-6">
+          <MoneySectionTabs />
+          {children}
+        </div>
+      </AppHeaderOverrideProvider>
     </GraphQLMoneyProvider>
   );
 }

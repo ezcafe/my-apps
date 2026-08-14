@@ -28,14 +28,34 @@ function isMoneyCreateFormPath(pathname: string): boolean {
   );
 }
 
+function isLoanListPath(pathname: string): boolean {
+  return pathname === "/money/loans" || pathname === "/money/loans/";
+}
+
+function isInvestmentListPath(pathname: string): boolean {
+  return (
+    pathname === "/money/investments" || pathname === "/money/investments/"
+  );
+}
+
+function isMoneySettingsChildPath(pathname: string): boolean {
+  return (
+    pathname.startsWith("/money/settings/") &&
+    pathname !== "/money/settings/"
+  );
+}
+
 /**
- * Primary add CTA for the Money section header / sticky bar, by route.
- * Labels match ledger empty-state actions (Option A).
+ * Primary add CTA for the Money section header, by route.
+ * Labels match ledger empty-state actions.
+ * No CTA on create forms, loan/investment detail, module settings, or settings children.
  */
 export function moneySectionPrimaryCta(
   pathname: string,
 ): MoneySectionPrimaryCta | null {
   if (isMoneyCreateFormPath(pathname)) return null;
+  if (isMoneySettingsChildPath(pathname)) return null;
+  if (/^\/money\/transactions\/[^/]+/.test(pathname)) return null;
 
   if (pathname === "/money/bills" || pathname.startsWith("/money/bills/")) {
     return MONEY_LEDGER_BILLS.emptyState.primaryAction ?? DEFAULT_CTA;
@@ -43,20 +63,23 @@ export function moneySectionPrimaryCta(
   if (pathname === "/money/savings" || pathname.startsWith("/money/savings/")) {
     return MONEY_LEDGER_SAVINGS.emptyState.primaryAction ?? DEFAULT_CTA;
   }
-  if (pathname === "/money/loans" || pathname.startsWith("/money/loans/")) {
+  if (isLoanListPath(pathname)) {
     return MONEY_LEDGER_LOAN.emptyState.primaryAction ?? {
       href: "/money/loans/new",
       label: "Create loan",
     };
   }
-  if (
-    pathname === "/money/investments" ||
-    pathname.startsWith("/money/investments/")
-  ) {
+  if (pathname.startsWith("/money/loans/")) {
+    return null;
+  }
+  if (isInvestmentListPath(pathname)) {
     return MONEY_LEDGER_INVESTMENT.emptyState.primaryAction ?? {
       href: "/money/investments/new",
       label: "Record activity",
     };
+  }
+  if (pathname.startsWith("/money/investments/")) {
+    return null;
   }
   if (
     pathname === "/money/spending" ||
@@ -65,6 +88,6 @@ export function moneySectionPrimaryCta(
     return MONEY_LEDGER_SPENDING.emptyState.primaryAction ?? DEFAULT_CTA;
   }
 
-  // Insights, settings, import, and other Money chrome routes.
+  // Insights, settings hub, import, and other Money chrome routes.
   return DEFAULT_CTA;
 }

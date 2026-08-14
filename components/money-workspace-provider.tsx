@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
+import { MoneyQueryErrorAlert } from "@/components/money-feedback";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_WORKSPACE_CURRENCY_MUTATION } from "@/lib/money-gql-documents";
 import {
@@ -190,6 +192,19 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
   );
 
   const modalOpen = workspaceReady && needsCurrencySetup && workspaceId != null;
+
+  if (bootstrapQuery.isError) {
+    return (
+      <WorkspaceCurrencyContext.Provider value={value}>
+        <MoneyQueryErrorAlert
+          className={MONEY_FULL_SPAN}
+          title="Couldn’t load Money"
+          error={bootstrapQuery.error}
+          onRetry={() => void bootstrapQuery.refetch()}
+        />
+      </WorkspaceCurrencyContext.Provider>
+    );
+  }
 
   return (
     <WorkspaceCurrencyContext.Provider value={value}>

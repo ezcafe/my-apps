@@ -12,18 +12,22 @@ const GRAPHQL_CODE_MESSAGES: Record<string, string> = {
   RATE_LIMITED: "Too many requests. Wait a moment and try again.",
 };
 
+const PERSISTENT_REQUEST_CODES = new Set(["DB_UNAVAILABLE", "RATE_LIMITED"]);
+
 export class UserFacingError extends Error {
   readonly userMessage: string;
   readonly logged: boolean;
+  readonly code?: string;
 
   constructor(
     userMessage: string,
-    options?: { cause?: unknown; logged?: boolean },
+    options?: { cause?: unknown; logged?: boolean; code?: string },
   ) {
     super(userMessage);
     this.name = "UserFacingError";
     this.userMessage = userMessage;
     this.logged = options?.logged ?? false;
+    this.code = options?.code;
     if (options?.cause !== undefined) {
       (this as Error & { cause?: unknown }).cause = options.cause;
     }
@@ -40,6 +44,36 @@ function graphqlExtensionCode(error: unknown): string | undefined {
   const first = error.response.errors?.[0];
   const code = first?.extensions?.code;
   return typeof code === "string" ? code : undefined;
+}
+
+/** GraphQL `extensions.code` or `UserFacingError.code`, walking `cause`. */
+export function graphqlErrorCode(error: unknown): string | undefined {
+  let current: unknown = error;
+  for (let i = 0; i < 4 && current != null; i += 1) {
+    if (current instanceof UserFacingError && current.code) {
+      return current.code;
+    }
+    const fromGraphql = graphqlExtensionCode(current);
+    if (fromGraphql) return fromGraphql;
+    current = current instanceof Error ? current.cause : undefined;
+  }
+  return undefined;
+}
+
+/** True for outages that should not auto-retry (DB down, rate limit). */
+export function isPersistentRequestError(error: unknown): boolean {
+  const code = graphqlErrorCode(error);
+  if (code && PERSISTENT_REQUEST_CODES.has(code)) return true;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /Cannot reach PostgreSQL|DB_UNAVAILABLE|DATABASE_URL/i.test(message);
+}
+
+/** Thrown when the session circuit is open so callers skip the network. */
+export function requestCircuitOpenError(): UserFacingError {
+  return new UserFacingError(GRAPHQL_CODE_MESSAGES.DB_UNAVAILABLE, {
+    code: "DB_UNAVAILABLE",
+    logged: true,
+  });
 }
 
 function rawErrorMessage(error: unknown): string | undefined {
@@ -135,5 +169,6 @@ export function toUserFacingError(
   return new UserFacingError(toUserFacingMessage(error, fallback), {
     cause: error,
     logged: true,
+    code: graphqlErrorCode(error),
   });
 }

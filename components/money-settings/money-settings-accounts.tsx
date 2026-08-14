@@ -22,7 +22,6 @@ import {
   MONEY_LIST_ACCOUNTS_QUERY,
 } from "@/lib/money-gql-documents";
 import {
-  MoneySettingsBackLink,
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 
@@ -179,7 +178,6 @@ export function MoneySettingsAccountsSection() {
 
   return (
     <>
-      <MoneySettingsBackLink current="Accounts" />
       {bootstrapErr ? (
         <Alert
           variant="error"

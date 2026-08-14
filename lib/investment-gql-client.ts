@@ -1,6 +1,4 @@
-import { GraphQLClient } from "graphql-request";
-import { graphqlRequestHeaders } from "@/lib/gql-request-headers";
-import { toUserFacingError } from "@/lib/user-facing-error";
+import { graphqlRequestWithCircuit } from "@/lib/gql-request-with-circuit";
 
 function resolveInvestmentGraphQLEndpoint(): string {
   if (typeof window !== "undefined" && window.location?.origin) {
@@ -17,16 +15,10 @@ export async function investmentGraphQLRequest<T extends Record<string, unknown>
   document: string,
   variables?: Record<string, unknown>,
 ): Promise<T> {
-  try {
-    const client = new GraphQLClient(resolveInvestmentGraphQLEndpoint(), {
-      credentials: "include",
-      headers: await graphqlRequestHeaders(),
-    });
-    return await client.request<T>(
-      document,
-      variables as Record<string, unknown> | undefined,
-    );
-  } catch (e) {
-    throw toUserFacingError("investmentGraphQLRequest", e);
-  }
+  return graphqlRequestWithCircuit<T>(
+    "investmentGraphQLRequest",
+    resolveInvestmentGraphQLEndpoint(),
+    document,
+    variables,
+  );
 }
