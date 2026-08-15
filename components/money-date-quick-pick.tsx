@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useRef } from "react";
+import { type ReactNode } from "react";
 import {
   MoneyUsageQuickPickOtherChipContent,
   moneyUsageQuickPickChipCls,
@@ -75,35 +75,15 @@ export function MoneyDateQuickPick({
   className?: string;
 }) {
   const { formatDate } = useFormatDate();
-  const customDateInputRef = useRef<HTMLInputElement>(null);
   const mode = deriveMode(value);
   const customDate = mode === "custom" ? value : "";
 
-  const openCustomPicker = () => {
-    const input = customDateInputRef.current;
-    if (!input) return;
-    try {
-      if (typeof input.showPicker === "function") {
-        input.showPicker();
-        return;
-      }
-    } catch {
-      // showPicker can throw NotAllowedError without user activation; fall through
-    }
-    input.focus();
-    input.click();
-  };
-
-  const pickMode = (when: MoneyDateQuickPickMode) => {
+  const pickMode = (when: Exclude<MoneyDateQuickPickMode, "custom">) => {
     if (when === "today") {
       onChange(localDateString());
       return;
     }
-    if (when === "yesterday") {
-      onChange(yesterdayDateString());
-      return;
-    }
-    openCustomPicker();
+    onChange(yesterdayDateString());
   };
 
   const handleCustomDateChange = (next: string) => {
@@ -137,6 +117,28 @@ export function MoneyDateQuickPick({
             isCustom && customDate
               ? formatDate(customDate, { omitYearIfCurrent: true })
               : opt.label;
+          if (isCustom) {
+            return (
+              <label
+                key={opt.id}
+                className={cn(
+                  moneyUsageQuickPickOtherChipCls(active),
+                  "shrink-0 min-w-0",
+                )}
+              >
+                <span className="pointer-events-none">
+                  <MoneyUsageQuickPickOtherChipContent label={label} />
+                </span>
+                <input
+                  type="date"
+                  value={customDate || value || ""}
+                  onChange={(e) => handleCustomDateChange(e.target.value)}
+                  aria-label={label}
+                  className="native-date-overlay"
+                />
+              </label>
+            );
+          }
           return (
             <button
               key={opt.id}
@@ -144,31 +146,13 @@ export function MoneyDateQuickPick({
               role="radio"
               aria-checked={active}
               onClick={() => pickMode(opt.id)}
-              className={cn(
-                isCustom
-                  ? moneyUsageQuickPickOtherChipCls(active)
-                  : moneyUsageQuickPickChipCls(active),
-                "shrink-0 min-w-0",
-              )}
+              className={cn(moneyUsageQuickPickChipCls(active), "shrink-0 min-w-0")}
             >
-              {isCustom ? (
-                <MoneyUsageQuickPickOtherChipContent label={label} />
-              ) : (
-                label
-              )}
+              {label}
             </button>
           );
         })}
       </div>
-      <input
-        ref={customDateInputRef}
-        type="date"
-        value={customDate || value || ""}
-        onChange={(e) => handleCustomDateChange(e.target.value)}
-        className="sr-only"
-        aria-hidden="true"
-        tabIndex={-1}
-      />
     </fieldset>
   );
 }
