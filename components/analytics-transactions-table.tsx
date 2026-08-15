@@ -6,7 +6,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AnalyticsLookupAccount } from "@/components/analytics-filters";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { useTheme } from "@/components/theme-provider";
-import { preloadTransactionEditForm } from "@/components/transaction-edit-form-load";
 import { TransactionEditModal } from "@/components/transaction-edit-modal";
 import { TransactionSelectionBar } from "@/components/transaction-selection-bar";
 import { formatMinor } from "@/lib/format-money";
@@ -166,7 +165,7 @@ export function AnalyticsTransactionsTable({
   const somePageSelected =
     !allPageSelected && pageIds.some((id) => selectedIds.has(id));
 
-  const columnCount = selectable ? 7 : 6;
+  const columnCount = selectable ? 6 : 5;
 
   const toggleRow = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -324,19 +323,6 @@ export function AnalyticsTransactionsTable({
         <td className="max-w-[14rem] truncate px-4 py-3 text-muted">
           {truncateNote(tx.notes)}
         </td>
-        <td className="whitespace-nowrap px-4 py-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="font-medium text-foreground underline-offset-2 hover:underline"
-            onMouseEnter={preloadTransactionEditForm}
-            onFocus={preloadTransactionEditForm}
-            onClick={() => setEditTransactionId(tx.id)}
-          >
-            Edit
-          </Button>
-        </td>
       </tr>
     );
   }
@@ -385,16 +371,6 @@ export function AnalyticsTransactionsTable({
           {noteLabel !== "—" ? (
             <p className="mt-1 truncate text-base text-muted">{noteLabel}</p>
           ) : null}
-          <Button
-            type="button"
-            variant="secondary"
-            className="mt-3 w-full"
-            onMouseEnter={preloadTransactionEditForm}
-            onFocus={preloadTransactionEditForm}
-            onClick={() => setEditTransactionId(tx.id)}
-          >
-            Edit
-          </Button>
         </div>
       </div>
     );
@@ -577,9 +553,6 @@ export function AnalyticsTransactionsTable({
                           </th>
                           <th scope="col" className="px-4 py-3 font-medium">
                             Note
-                          </th>
-                          <th scope="col" className="px-4 py-3 font-medium">
-                            <span className="sr-only">Actions</span>
                           </th>
                         </tr>
                       </thead>

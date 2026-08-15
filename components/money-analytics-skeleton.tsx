@@ -199,7 +199,7 @@ export function MoneyAnalyticsTransactionsTableSkeleton({
   /** Standalone ledger tables include a leading checkbox column. */
   selectable?: boolean;
 }) {
-  const colCount = selectable ? 7 : 6;
+  const colCount = selectable ? 6 : 5;
 
   return (
     <Card
@@ -216,8 +216,8 @@ export function MoneyAnalyticsTransactionsTableSkeleton({
           className="grid gap-3 bg-muted-surface px-3 py-2"
           style={{
             gridTemplateColumns: selectable
-              ? "2.5rem repeat(5, minmax(0, 1fr)) 4rem"
-              : "repeat(5, minmax(0, 1fr)) 4rem",
+              ? "2.5rem repeat(5, minmax(0, 1fr))"
+              : "repeat(5, minmax(0, 1fr))",
           }}
         >
           {Array.from({ length: colCount }, (_, index) => (
@@ -234,8 +234,8 @@ export function MoneyAnalyticsTransactionsTableSkeleton({
               className="grid gap-3 py-3"
               style={{
                 gridTemplateColumns: selectable
-                  ? "2.5rem repeat(5, minmax(0, 1fr)) 4rem"
-                  : "repeat(5, minmax(0, 1fr)) 4rem",
+                  ? "2.5rem repeat(5, minmax(0, 1fr))"
+                  : "repeat(5, minmax(0, 1fr))",
               }}
             >
               {Array.from({ length: colCount }, (_, colIndex) => (
