@@ -70,7 +70,7 @@ export function AnalyticsStats({
     stats.savingsRatePct != null && stats.savingsRatePct >= 0;
 
   return (
-    <div className="col-span-2 grid gap-3 border-b border-border pb-6 md:col-span-6 lg:col-span-12 fx-fade-in">
+    <div className="col-span-2 grid gap-3 md:col-span-6 lg:col-span-12 fx-fade-in">
       <p className="text-sm text-muted">
         {period ? <>Totals for {period}</> : <>Totals for selected range</>}
       </p>

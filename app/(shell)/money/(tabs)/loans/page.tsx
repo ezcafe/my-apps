@@ -14,10 +14,7 @@ export default async function MoneyLoansPage() {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <MoneyLoansHome
-        userSub={userSub}
-        authenticated={Boolean(userSub)}
-      />
+      <MoneyLoansHome />
     </HydrationBoundary>
   );
 }

@@ -17,16 +17,16 @@ const LEGEND_GRID_COMPACT_SKELETON =
 
 function LoanDetailStatsSkeleton() {
   return (
-    <div className="col-span-2 grid gap-2 md:col-span-6 lg:col-span-12">
-      <Skeleton className="h-3 w-72 max-w-full rounded-[var(--radius-sm)]" />
+    <div className="col-span-2 grid gap-3 md:col-span-6 lg:col-span-12">
+      <Skeleton className="h-4 w-72 max-w-full rounded-[var(--radius-sm)]" />
       <div
-        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-2"
+        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
         aria-hidden
       >
         {Array.from({ length: 4 }, (_, index) => (
-          <Card key={`loan-stat-${index}`} className="px-4 py-5">
+          <Card key={`loan-stat-${index}`} className="px-4 py-4">
             <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
-            <Skeleton className="mt-2 h-9 w-32 rounded-[var(--radius-sm)]" />
+            <Skeleton className="mt-2 h-8 w-32 max-w-full rounded-[var(--radius-sm)]" />
             <Skeleton className="mt-1 h-3 w-36 rounded-[var(--radius-sm)]" />
           </Card>
         ))}

@@ -6,7 +6,7 @@ Workspace-backed loan tracking with SC spreadsheet amortization, progress charts
 
 | Path | Purpose |
 |------|---------|
-| `/money/loans` | Home: due panel, summary, loans table, then loan-account Activity |
+| `/money/loans` | Home: due panel, summary, loans table |
 | `/money/loans/new` | Create amortized loan |
 | `/money/loans/settings` | Browser push + Money workspace note |
 | `/money/loans/[id]` | Detail, chart, pay actions, schedule |
@@ -74,7 +74,6 @@ Service worker: [`public/sw.js`](../../public/sw.js).
 - [ ] Detail chart: scheduled vs paid vs projected
 - [ ] Mark paid without transaction → no Money tx, progress updates
 - [ ] Due installment → banner + badge; toast on first visit
-- [ ] Activity section lists loan-account transactions
 - [ ] `/money/loans/manage` redirects to `/money/loans`
 - [ ] Push (with VAPID): cron sends notification; click opens loan
 - [ ] Light and dark mode on charts and table

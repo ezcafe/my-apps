@@ -66,8 +66,8 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
   ].filter(Boolean);
 
   return (
-    <div className="col-span-2 grid gap-2 md:col-span-6 lg:col-span-12 fx-fade-in">
-      <p className="text-xs text-muted">
+    <div className="col-span-2 grid gap-3 md:col-span-6 lg:col-span-12 fx-fade-in">
+      <p className="text-sm text-muted">
         {contextParts.join(" · ")}
         {loan.summary.projectedPayoffDate && loan.status !== "paid_off" ? (
           <>
@@ -80,12 +80,12 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
         ) : null}
       </p>
       <div
-        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-2"
+        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
         aria-label="Loan summary"
       >
-        <Card className="px-3 py-4">
+        <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Remaining balance</p>
-          <p className="mt-1.5 font-display text-2xl font-semibold tracking-tight tabular-nums">
+          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
             <AnimatedNumber
               value={loan.summary.remainingMinor}
               format={(n) => formatMinor(Math.round(n), loan.currency)}
@@ -100,19 +100,23 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
           </p>
         </Card>
 
-        <Card className="px-3 py-4">
+        <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Monthly payment</p>
-          <p className="mt-1.5 font-display text-2xl font-semibold tracking-tight tabular-nums">
-            {formatMinor(loan.paymentMinor, loan.currency)}
+          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+            <AnimatedNumber
+              value={loan.paymentMinor}
+              format={(n) => formatMinor(Math.round(n), loan.currency)}
+              animationKey={animationKey}
+            />
           </p>
           <p className="mt-1 text-xs text-muted">
             Due on day {loan.dueDayOfMonth} each month
           </p>
         </Card>
 
-        <Card className="px-3 py-4">
+        <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Total paid</p>
-          <p className="mt-1.5 font-display text-2xl font-semibold tracking-tight tabular-nums">
+          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
             <AnimatedNumber
               value={loan.summary.totalPaidMinor}
               format={(n) => formatMinor(Math.round(n), loan.currency)}
@@ -125,11 +129,11 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
           </p>
         </Card>
 
-        <Card className="px-3 py-4">
+        <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Progress</p>
           <p
             className={cn(
-              "mt-1.5 font-display text-2xl font-semibold tracking-tight tabular-nums",
+              "mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl",
               loan.summary.percentComplete >= 100
                 ? "text-accent"
                 : undefined,

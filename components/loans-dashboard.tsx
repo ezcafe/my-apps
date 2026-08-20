@@ -352,7 +352,7 @@ export function LoansDashboard() {
 
       {listQuery.isLoading ? (
         <>
-          <MoneyListSkeleton variant="summaryTiles" />
+          <MoneyListSkeleton variant="summaryTiles" showAccentBar={false} />
           <MoneyListSkeleton variant="loansTable" />
         </>
       ) : null}

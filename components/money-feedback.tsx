@@ -92,17 +92,20 @@ export function MoneyListSkeleton({
   variant,
   className,
   tileCount = 3,
+  showAccentBar = true,
 }: {
   variant: "summaryTiles" | "cardGrid" | "tableRows" | "panelCards" | "loansTable";
   className?: string;
   /** Number of summary tiles (default 3). Use 1 for portfolio value. */
   tileCount?: number;
+  /** Left chart-color bar on summary tiles. Off for Insights-style metrics. */
+  showAccentBar?: boolean;
 }) {
   if (variant === "summaryTiles") {
     return (
       <div
         className={cn(
-          "grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]",
+          "grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3",
           className,
         )}
         aria-hidden
@@ -110,17 +113,22 @@ export function MoneyListSkeleton({
         {Array.from({ length: tileCount }, (_, i) => (
           <Card
             key={`summary-tile-${i}`}
-            className="relative overflow-hidden p-4"
+            className={cn(
+              "px-4 py-4",
+              showAccentBar && "relative overflow-hidden",
+            )}
           >
-            <div
-              className={cn(
-                "absolute inset-y-0 start-0 w-1 rounded-s-[var(--radius-sm)]",
-                chartAccentBarClass(i + 4),
-              )}
-              aria-hidden
-            />
-            <Skeleton className="h-3 w-20 rounded-[var(--radius-sm)]" />
-            <Skeleton className="mt-2 h-7 w-24 rounded-[var(--radius-sm)]" />
+            {showAccentBar ? (
+              <div
+                className={cn(
+                  "absolute inset-y-0 start-0 w-1 rounded-s-[var(--radius-sm)]",
+                  chartAccentBarClass(i + 4),
+                )}
+                aria-hidden
+              />
+            ) : null}
+            <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
+            <Skeleton className="mt-2 h-8 w-32 max-w-full rounded-[var(--radius-sm)]" />
           </Card>
         ))}
       </div>

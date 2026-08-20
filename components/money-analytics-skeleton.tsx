@@ -48,7 +48,7 @@ export const ANALYTICS_GRID_CLASS = cn(MONEY_FULL_SPAN, ANALYTICS_INNER_GRID);
 export function AnalyticsStatsSkeleton() {
   return (
     <div
-      className="col-span-2 grid gap-2 border-b border-border pb-4 md:col-span-6 lg:col-span-12"
+      className="col-span-2 grid gap-2 md:col-span-6 lg:col-span-12"
       role="status"
       aria-busy="true"
       aria-live="polite"
