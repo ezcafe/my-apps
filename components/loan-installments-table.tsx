@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 import { Card } from "@/components/ui/card";
 import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/cn";
@@ -44,6 +45,25 @@ const FILTER_OPTIONS: { value: Filter; label: string }[] = [
   { value: "paid", label: "Paid" },
 ];
 
+function emptyCopy(filter: Filter): { title: string; description: string } {
+  if (filter === "paid") {
+    return {
+      title: "No paid installments yet",
+      description: "Payments you record will show up here.",
+    };
+  }
+  if (filter === "upcoming") {
+    return {
+      title: "No upcoming payments",
+      description: "This loan may already be paid off.",
+    };
+  }
+  return {
+    title: "No installments on this loan",
+    description: "The payment schedule is empty.",
+  };
+}
+
 export function LoanInstallmentsTable({
   loan,
   nextPendingId,
@@ -67,126 +87,179 @@ export function LoanInstallmentsTable({
 
   const paidCount = loan.installments.filter((i) => i.status === "paid").length;
   const overdueCount = loan.installments.filter(isOverdue).length;
+  const empty = emptyCopy(filter);
 
-  return (
-    <Card className="col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-display text-lg font-medium">Payment schedule</h2>
-          <p className="mt-1 text-xs text-muted">
-            {paidCount} of {loan.installments.length} installments paid
-            {overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}
+  function renderRow(row: InstallmentRow) {
+    const isNext = row.scheduleInstallmentId === nextPendingId;
+    return (
+      <tr
+        key={row.scheduleInstallmentId}
+        className={cn(
+          "transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]",
+          isNext && "bg-[color-mix(in_oklab,var(--accent)_8%,transparent)]",
+        )}
+      >
+        <td className="whitespace-nowrap px-4 py-3 tabular-nums">
+          {row.installmentNumber}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 text-muted">
+          {formatDate(row.dueDate, { omitYearIfCurrent: true })}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+          {formatMinor(row.paymentMinor, loan.currency)}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted">
+          {formatMinor(row.interestMinor, loan.currency)}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+          {formatMinor(row.principalMinor, loan.currency)}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted">
+          {formatMinor(row.balanceAfterMinor, loan.currency)}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3">
+          <Tag className={statusTagClass(row)}>{statusLabel(row)}</Tag>
+          {row.paidWithoutTransaction && row.status === "paid" ? (
+            <span className="ml-2 text-xs text-muted">No ledger entry</span>
+          ) : null}
+        </td>
+      </tr>
+    );
+  }
+
+  function renderMobileCard(row: InstallmentRow) {
+    const isNext = row.scheduleInstallmentId === nextPendingId;
+    const dateLabel = formatDate(row.dueDate, { omitYearIfCurrent: true });
+    const paymentLabel = formatMinor(row.paymentMinor, loan.currency);
+    return (
+      <div
+        key={row.scheduleInstallmentId}
+        className={cn(
+          "flex min-h-12 items-start gap-3 rounded-[var(--radius-sm)] border border-border bg-surface px-4 py-3 transition-colors duration-150",
+          isNext &&
+            "border-accent/40 bg-[color-mix(in_oklab,var(--accent)_8%,transparent)]",
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-medium tabular-nums">{paymentLabel}</p>
+              <p className="mt-0.5 truncate text-base text-muted">
+                #{row.installmentNumber}
+              </p>
+            </div>
+            <span className="shrink-0 text-xs text-muted tabular-nums">
+              {dateLabel}
+            </span>
+          </div>
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+            <Tag className={statusTagClass(row)}>{statusLabel(row)}</Tag>
+            {row.paidWithoutTransaction && row.status === "paid" ? (
+              <span className="text-xs text-muted">No ledger entry</span>
+            ) : null}
+          </div>
+          <p className="mt-1 truncate text-base text-muted">
+            Interest {formatMinor(row.interestMinor, loan.currency)} · Principal{" "}
+            {formatMinor(row.principalMinor, loan.currency)}
+          </p>
+          <p className="mt-1 truncate text-base text-muted">
+            Balance after {formatMinor(row.balanceAfterMinor, loan.currency)}
           </p>
         </div>
-        <div
-          className="inline-flex rounded-[var(--radius-sm)] border border-border p-0.5"
-          role="group"
-          aria-label="Filter installments"
-        >
-          {FILTER_OPTIONS.map(({ value, label }) => {
-            const active = filter === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setFilter(value)}
-                className={cn(
-                  "rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-medium transition-colors duration-150 fx-press",
-                  active
-                    ? "bg-muted-surface text-foreground"
-                    : "text-muted hover:text-foreground",
-                )}
-                aria-pressed={active}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
       </div>
+    );
+  }
 
-      {rows.length === 0 ? (
-        <p className="py-10 text-center text-sm text-muted">
-          {filter === "paid"
-            ? "No paid installments yet."
-            : filter === "upcoming"
-              ? "No upcoming payments — this loan may be paid off."
-              : "No installments on this loan."}
-        </p>
-      ) : (
-        <div className="overflow-x-auto rounded-[var(--radius-md)] border border-border">
-          <table className="min-w-full divide-y divide-border text-left text-sm">
-            <caption className="sr-only">
-              Loan installment schedule with payment status
-            </caption>
-            <thead className="bg-muted-surface">
-              <tr>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  #
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  Due date
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium text-right">
-                  Payment
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium text-right">
-                  Interest
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium text-right">
-                  Principal
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium text-right">
-                  Balance after
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((row) => {
-                const isNext = row.scheduleInstallmentId === nextPendingId;
-                return (
-                  <tr
-                    key={row.scheduleInstallmentId}
-                    className={cn(
-                      "transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]",
-                      isNext &&
-                        "bg-[color-mix(in_oklab,var(--accent)_8%,transparent)]",
-                    )}
-                  >
-                    <td className="whitespace-nowrap px-3 py-2 tabular-nums">
-                      {row.installmentNumber}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-muted">
-                      {formatDate(row.dueDate, { omitYearIfCurrent: true })}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                      {formatMinor(row.paymentMinor, loan.currency)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted">
-                      {formatMinor(row.interestMinor, loan.currency)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                      {formatMinor(row.principalMinor, loan.currency)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted">
-                      {formatMinor(row.balanceAfterMinor, loan.currency)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2">
-                      <Tag className={statusTagClass(row)}>{statusLabel(row)}</Tag>
-                      {row.paidWithoutTransaction && row.status === "paid" ? (
-                        <span className="ml-2 text-xs text-muted">No ledger entry</span>
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+  return (
+    <Card className="@container col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12">
+      <section aria-labelledby="loan-installments-heading">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2
+              id="loan-installments-heading"
+              className="font-display text-lg font-medium"
+            >
+              Payment schedule
+            </h2>
+            <p className="mt-1 text-xs text-muted">
+              {paidCount} of {loan.installments.length} installments paid
+              {overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}
+            </p>
+          </div>
+          <div
+            className="inline-flex rounded-[var(--radius-sm)] border border-border p-0.5"
+            role="radiogroup"
+            aria-label="Filter installments"
+          >
+            {FILTER_OPTIONS.map(({ value, label }) => {
+              const active = filter === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  onClick={() => setFilter(value)}
+                  className={cn(
+                    "rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color] duration-150 fx-press",
+                    active
+                      ? "bg-muted-surface text-foreground"
+                      : "text-muted hover:text-foreground",
+                  )}
+                  aria-checked={active}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      )}
+
+        {rows.length === 0 ? (
+          <AnalyticsEmptyState
+            icon="loan"
+            title={empty.title}
+            description={empty.description}
+            minHeightClass="min-h-[220px]"
+          />
+        ) : (
+          <>
+            <div className="hidden overflow-x-auto rounded-[var(--radius-md)] border border-border @md:block">
+              <table className="min-w-full divide-y divide-border text-left text-base">
+                <caption className="sr-only">
+                  Loan installment schedule with payment status
+                </caption>
+                <thead className="bg-muted-surface">
+                  <tr>
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      #
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      Due date
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium text-right">
+                      Payment
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium text-right">
+                      Interest
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium text-right">
+                      Principal
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium text-right">
+                      Balance after
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">{rows.map(renderRow)}</tbody>
+              </table>
+            </div>
+            <div className="space-y-2 @md:hidden">{rows.map(renderMobileCard)}</div>
+          </>
+        )}
+      </section>
     </Card>
   );
 }

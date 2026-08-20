@@ -145,14 +145,6 @@ const AnalyticsChartDrilldownModal = dynamic(
   { ssr: false },
 );
 
-const TransactionEditModal = dynamic(
-  () =>
-    import("@/components/transaction-edit-modal").then((m) => ({
-      default: m.TransactionEditModal,
-    })),
-  { ssr: false },
-);
-
 type AnalyticsInsightsBodyProps = {
   filterQuery: string;
   workspaceKey: string;
@@ -617,15 +609,8 @@ export function AnalyticsDashboard({
   const [error, setError] = useState<string | null>(null);
   const [chartDrilldown, setChartDrilldown] =
     useState<AnalyticsChartDrilldownPayload | null>(null);
-  const [editTransactionId, setEditTransactionId] = useState<string | null>(
-    null,
-  );
   const handleChartDrilldown = useCallback(
     (payload: AnalyticsChartDrilldownPayload) => setChartDrilldown(payload),
-    [],
-  );
-  const handleEditTransaction = useCallback(
-    (transactionId: string) => setEditTransactionId(transactionId),
     [],
   );
   const [draft, setDraft] = useState<AnalyticsFiltersValue>(() =>
@@ -940,14 +925,6 @@ export function AnalyticsDashboard({
           accounts={accounts}
           categories={categories}
           currency={defaultCurrency}
-          onEditTransaction={handleEditTransaction}
-        />
-      ) : null}
-      {editTransactionId != null ? (
-        <TransactionEditModal
-          open
-          transactionId={editTransactionId}
-          onClose={() => setEditTransactionId(null)}
         />
       ) : null}
     </div>

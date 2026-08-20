@@ -7,7 +7,6 @@ import type { AnalyticsLookupAccount } from "@/components/analytics-filters";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
-import { preloadTransactionEditForm } from "@/components/transaction-edit-form-load";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatMinor } from "@/lib/format-money";
@@ -40,7 +39,6 @@ export function AnalyticsChartDrilldownModal({
   accounts,
   categories,
   currency,
-  onEditTransaction,
 }: {
   open: boolean;
   onClose: () => void;
@@ -50,7 +48,6 @@ export function AnalyticsChartDrilldownModal({
   accounts: AnalyticsLookupAccount[];
   categories: MoneyCategoryRow[];
   currency: string;
-  onEditTransaction: (transactionId: string) => void;
 }) {
   const { formatDate } = useFormatDate();
   const { resolved, style } = useTheme();
@@ -145,9 +142,6 @@ export function AnalyticsChartDrilldownModal({
                   <th className="px-3 py-2 font-medium">Category</th>
                   <th className="px-3 py-2 text-right font-medium">Amount</th>
                   <th className="px-3 py-2 font-medium">Notes</th>
-                  <th className="px-3 py-2 font-medium">
-                    <span className="sr-only">Actions</span>
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -160,7 +154,6 @@ export function AnalyticsChartDrilldownModal({
                     currency={currency}
                     incomeAmountColor={incomeAmountColor}
                     formatDate={formatDate}
-                    onEdit={() => onEditTransaction(tx.id)}
                   />
                 ))}
               </tbody>
@@ -205,7 +198,6 @@ function DrilldownRow({
   currency,
   incomeAmountColor,
   formatDate,
-  onEdit,
 }: {
   tx: MoneyTransactionListRow;
   accountById: Map<string, AnalyticsLookupAccount>;
@@ -221,7 +213,6 @@ function DrilldownRow({
       shortYear?: boolean;
     },
   ) => string;
-  onEdit: () => void;
 }) {
   const acc = accountById.get(tx.accountId);
   const cat = tx.categoryId ? categoryById.get(tx.categoryId) : null;
@@ -248,18 +239,6 @@ function DrilldownRow({
       </td>
       <td className="max-w-[10rem] truncate px-3 py-2 text-muted">
         {truncateNote(tx.notes)}
-      </td>
-      <td className="whitespace-nowrap px-3 py-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onMouseEnter={preloadTransactionEditForm}
-          onFocus={preloadTransactionEditForm}
-          onClick={onEdit}
-        >
-          Edit
-        </Button>
       </td>
     </tr>
   );
