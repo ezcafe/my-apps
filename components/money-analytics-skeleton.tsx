@@ -8,6 +8,14 @@ import { MoneyFilterToolbar } from "@/components/money-page-header";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 
 /** Desktop filter triggers: Ledger · Direction · Accounts · Categories · More. */
@@ -196,10 +204,10 @@ function AnalyticsExpandedGridContent() {
 export function MoneyAnalyticsTransactionsTableSkeleton({
   selectable = false,
 }: {
-  /** Standalone ledger tables include a leading checkbox column. */
+  /** Standalone ledger tables include a leading checkbox column + actions. */
   selectable?: boolean;
 }) {
-  const colCount = selectable ? 6 : 5;
+  const colCount = selectable ? 7 : 5;
 
   return (
     <section
@@ -210,43 +218,30 @@ export function MoneyAnalyticsTransactionsTableSkeleton({
     >
       <Skeleton className="mb-3 h-6 w-32 rounded-[var(--radius-sm)]" />
       <Skeleton className="mb-3 h-3 w-80 max-w-full rounded-[var(--radius-sm)]" />
-      <div className="overflow-hidden rounded-[var(--radius-md)] border border-border">
-        <div
-          className="grid gap-3 bg-muted-surface px-3 py-2"
-          style={{
-            gridTemplateColumns: selectable
-              ? "2.5rem repeat(5, minmax(0, 1fr))"
-              : "repeat(5, minmax(0, 1fr))",
-          }}
-        >
-          {Array.from({ length: colCount }, (_, index) => (
-            <Skeleton
-              key={`analytics-table-head-${index}`}
-              className="h-4 w-full rounded-[var(--radius-sm)]"
-            />
-          ))}
-        </div>
-        <div className="space-y-0 divide-y divide-border px-3">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {Array.from({ length: colCount }, (_, index) => (
+              <TableHead key={`analytics-table-head-${index}`}>
+                <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {Array.from({ length: 5 }, (_, rowIndex) => (
-            <div
-              key={`analytics-table-row-${rowIndex}`}
-              className="grid gap-3 py-3"
-              style={{
-                gridTemplateColumns: selectable
-                  ? "2.5rem repeat(5, minmax(0, 1fr))"
-                  : "repeat(5, minmax(0, 1fr))",
-              }}
-            >
+            <TableRow key={`analytics-table-row-${rowIndex}`}>
               {Array.from({ length: colCount }, (_, colIndex) => (
-                <Skeleton
+                <TableCell
                   key={`analytics-table-row-${rowIndex}-col-${colIndex}`}
-                  className="h-4 w-full rounded-[var(--radius-sm)]"
-                />
+                >
+                  <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                </TableCell>
               ))}
-            </div>
+            </TableRow>
           ))}
-        </div>
-      </div>
+        </TableBody>
+      </Table>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <Skeleton className="h-4 w-44 rounded-[var(--radius-sm)]" />
         <div className="flex gap-2">

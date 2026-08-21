@@ -20,6 +20,7 @@ All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analy
 - Default Insights shows KPIs + spend-by-category + income vs expense; remaining charts behind **More insights** (unmounted until expanded).
 - **Default Insights first paint:** summary + distribution only — not full overview, budgets, sankey, or leaders until More insights.
 - Heavy chart/modal modules load via `next/dynamic` (chart cards, DivergingBar, LoanProgressChart, bulk-edit modal).
+- Data tables use [`components/ui/table.tsx`](../components/ui/table.tsx): sticky headers, frozen identity columns where useful, matched header/cell alignment (no center), hairline rows (no zebra), hover/focus row actions with touch fallback; settings entity editors remain divide-y lists.
 - `npm run lint` and `npm run build` pass; light + dark verified via `/settings`.
 
 ## Test plan
@@ -33,6 +34,7 @@ All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analy
 - **A11y:** focus rings on new accent; contrast of accent text; `prefers-reduced-motion` disables `fx-*`.
 - **Regression:** charts recolor via `colorByIndex(resolved, i, style)` with `style === "quiet"`.
 - **Perf smoke:** analytics chart-cards chunk loads after shell; secondary filter fields mount when More opens; deferred analytics queries stay idle until More insights.
+- **Tables:** Spending ledger sort/select/bulk + hover Edit; loans freeze + hover Pay/View; installments sticky scrollport; holdings not Card-wrapped; horizontal freeze on identity columns.
 
 ## Out of scope
 
@@ -41,6 +43,7 @@ All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analy
 - Installing Lightweight Charts (visx remains; LC later if needed)
 - Marketing landing beyond existing login
 - Shrinking money bootstrap payload (accounts/categories stay primary)
+- Table column manager, density toggle, inline cell edit, expandable rows, view-pref persistence
 
 ## Tech stack
 

@@ -9,6 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
@@ -926,30 +934,32 @@ export function MoneyCsvImportWizard({
             <p className="mt-1 text-sm text-muted">
               First row shows a sample value from your file for each column.
             </p>
-            <div className="mt-3 overflow-x-auto rounded-[var(--radius-md)] border border-border">
-              <table className="w-full min-w-[32rem] text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-background text-left">
-                    <th className="px-3 py-2 font-medium text-foreground">CSV column</th>
-                    <th className="w-10 px-1 py-2" aria-hidden />
-                    <th className="px-3 py-2 font-medium text-foreground">Maps to</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="mt-3">
+              <Table className="min-w-[32rem]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>CSV column</TableHead>
+                    <TableHead className="w-10" aria-hidden>
+                      {" "}
+                    </TableHead>
+                    <TableHead>Maps to</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {headers.map((h) => {
                     const sample = firstRowSample(h);
                     return (
-                      <tr key={h} className="border-b border-border/60">
-                        <td className="align-top px-3 py-3">
+                      <TableRow key={h}>
+                        <TableCell className="align-top">
                           <div className="font-medium text-foreground">{h}</div>
                           <div className="mt-1 max-w-xs truncate font-mono text-xs text-muted">
                             {sample || "—"}
                           </div>
-                        </td>
-                        <td className="align-middle px-1 py-3">
+                        </TableCell>
+                        <TableCell className="align-middle px-1">
                           <MapArrowIcon />
-                        </td>
-                        <td className="px-3 py-3">
+                        </TableCell>
+                        <TableCell>
                           <Select
                             value={dbFieldByCsvCol[h] ?? ""}
                             onChange={(e) =>
@@ -966,12 +976,12 @@ export function MoneyCsvImportWizard({
                               </option>
                             ))}
                           </Select>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
             {!allRequiredColumnsMapped(kind, columnByField) ? (
               <p className="mt-2 text-sm text-destructive">
@@ -1024,24 +1034,24 @@ export function MoneyCsvImportWizard({
                         </span>
                         .
                       </p>
-                      <div className="mt-3 max-h-[min(36rem,70vh)] overflow-auto">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="text-left text-muted">
-                              <th className="py-1 pr-2">#</th>
-                              <th className="py-1 pr-2">Category</th>
+                      <div className="mt-3">
+                        <Table maxHeight="min(36rem,70vh)" className="text-xs">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>#</TableHead>
+                              <TableHead>Category</TableHead>
                               {parentCol ? (
-                                <th className="py-1 pr-2">Parent in CSV</th>
+                                <TableHead>Parent in CSV</TableHead>
                               ) : null}
-                              <th className="py-1">
+                              <TableHead>
                                 Parent
                                 <span className="mt-0.5 block font-normal text-muted">
                                   (expense / income roots)
                                 </span>
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
                             {parsedRows.map((csvRow, rowIdx) => {
                               const pickKey = categoryImportParentPickKey(rowIdx);
                               const pick = valuePicksByField[f.key]?.[pickKey];
@@ -1058,23 +1068,23 @@ export function MoneyCsvImportWizard({
                                 { categoriesImportParentField: true },
                               );
                               return (
-                                <tr key={pickKey} className="border-t border-border/40">
-                                  <td className="py-2 pr-2 align-top text-muted">
+                                <TableRow key={pickKey}>
+                                  <TableCell className="align-top text-muted">
                                     {rowIdx + 1}
-                                  </td>
-                                  <td className="py-2 pr-2 align-top font-medium text-foreground">
+                                  </TableCell>
+                                  <TableCell className="align-top font-medium text-foreground">
                                     {catName ? (
                                       <span className="font-mono">{catName}</span>
                                     ) : (
                                       <span className="text-muted">(empty name)</span>
                                     )}
-                                  </td>
+                                  </TableCell>
                                   {parentCol ? (
-                                    <td className="py-2 pr-2 align-top font-mono text-muted">
+                                    <TableCell className="align-top font-mono text-muted">
                                       {parentHint || "—"}
-                                    </td>
+                                    </TableCell>
                                   ) : null}
-                                  <td className="py-2 align-top">
+                                  <TableCell className="align-top">
                                     <div className="flex flex-col gap-2">
                                       <CsvFkQuickPick
                                         selectedId={selectValue || ""}
@@ -1113,12 +1123,12 @@ export function MoneyCsvImportWizard({
                                         }}
                                       />
                                     </div>
-                                  </td>
-                                </tr>
+                                  </TableCell>
+                                </TableRow>
                               );
                             })}
-                          </tbody>
-                        </table>
+                          </TableBody>
+                        </Table>
                       </div>
                     </div>
                   );
@@ -1138,15 +1148,15 @@ export function MoneyCsvImportWizard({
                       {f.label}
                       <span className="ml-2 font-normal text-muted">({f.key})</span>
                     </h4>
-                    <div className="mt-3 max-h-72 overflow-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="text-left text-muted">
-                            <th className="py-1 pr-2">CSV value</th>
-                            <th className="py-1">Maps to</th>
-                          </tr>
-                        </thead>
-                        <tbody>
+                    <div className="mt-3">
+                      <Table maxHeight="18rem" className="text-xs">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>CSV value</TableHead>
+                            <TableHead>Maps to</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {keys.map((csvKey) => {
                             const rowKey = csvKey === "" ? "__csv_empty__" : csvKey;
                             const pick = valuePicksByField[f.key]?.[csvKey];
@@ -1161,9 +1171,9 @@ export function MoneyCsvImportWizard({
                                   ? f.enumValues
                                   : (["true", "false"] as const);
                               return (
-                                <tr key={rowKey} className="border-t border-border/40">
-                                  <td className="py-2 pr-2 align-top font-mono">{csvKey}</td>
-                                  <td className="py-2 align-top">
+                                <TableRow key={rowKey}>
+                                  <TableCell className="align-top font-mono">{csvKey}</TableCell>
+                                  <TableCell className="align-top">
                                     <Select
                                       value={
                                         pick?.kind === "ignore"
@@ -1193,8 +1203,8 @@ export function MoneyCsvImportWizard({
                                       ))}
                                       <option value={VALUE_PICK_SELECT_IGNORE}>Ignore</option>
                                     </Select>
-                                  </td>
-                                </tr>
+                                  </TableCell>
+                                </TableRow>
                               );
                             }
                             const { selectValue, isAutoFallback } = effectiveFkSelectForRow(
@@ -1211,9 +1221,9 @@ export function MoneyCsvImportWizard({
                                   : "(no parent column — all rows)"
                                 : csvKey;
                             return (
-                              <tr key={rowKey} className="border-t border-border/40">
-                                <td className="py-2 pr-2 align-top font-mono">{csvLabel}</td>
-                                <td className="py-2 align-top">
+                              <TableRow key={rowKey}>
+                                <TableCell className="align-top font-mono">{csvLabel}</TableCell>
+                                <TableCell className="align-top">
                                   <div className="flex flex-col gap-2">
                                     <CsvFkQuickPick
                                       selectedId={selectValue || ""}
@@ -1423,12 +1433,12 @@ export function MoneyCsvImportWizard({
                                       </div>
                                     ) : null}
                                   </div>
-                                </td>
-                              </tr>
+                                </TableCell>
+                              </TableRow>
                             );
                           })}
-                        </tbody>
-                      </table>
+                        </TableBody>
+                      </Table>
                     </div>
                   </div>
                 );
@@ -1468,26 +1478,24 @@ export function MoneyCsvImportWizard({
               </pre>
             </div>
           ) : null}
-          <div className="overflow-x-auto rounded-[var(--radius-md)] border border-border">
-            <table className="w-full min-w-[28rem] text-left text-xs">
-              <thead>
-                <tr className="border-b border-border bg-background">
-                  <th className="px-2 py-2 font-medium text-foreground">#</th>
-                  <th className="px-2 py-2 font-medium text-foreground">Row (JSON)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reviewSampleRows.map((row, i) => (
-                  <tr key={i} className="border-b border-border/60 font-mono">
-                    <td className="align-top px-2 py-2 text-muted">{i + 1}</td>
-                    <td className="max-w-0 break-all px-2 py-2 text-foreground">
-                      {JSON.stringify(row)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table className="min-w-[28rem] text-xs">
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>Row (JSON)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reviewSampleRows.map((row, i) => (
+                <TableRow key={i} className="font-mono">
+                  <TableCell className="align-top text-muted">{i + 1}</TableCell>
+                  <TableCell className="max-w-0 break-all text-foreground">
+                    {JSON.stringify(row)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="ghost" onClick={() => setStep("map")}>
               Back

@@ -2,6 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/format-money";
@@ -91,38 +100,40 @@ export function LoanInstallmentsTable({
   function renderRow(row: InstallmentRow) {
     const isNext = row.scheduleInstallmentId === nextPendingId;
     return (
-      <tr
-        key={row.scheduleInstallmentId}
-        className={cn(
-          "transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]",
-          isNext && "bg-[color-mix(in_oklab,var(--accent)_8%,transparent)]",
-        )}
-      >
-        <td className="whitespace-nowrap px-4 py-3 tabular-nums">
+      <TableRow key={row.scheduleInstallmentId} accent={isNext}>
+        <TableCell freeze="leading" numeric className="whitespace-nowrap">
           {row.installmentNumber}
-        </td>
-        <td className="whitespace-nowrap px-4 py-3 text-muted">
+        </TableCell>
+        <TableCell className="whitespace-nowrap text-muted">
           {formatDate(row.dueDate, { omitYearIfCurrent: true })}
-        </td>
-        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+        </TableCell>
+        <TableCell align="end" numeric className="whitespace-nowrap">
           {formatMinor(row.paymentMinor, loan.currency)}
-        </td>
-        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted">
+        </TableCell>
+        <TableCell
+          align="end"
+          numeric
+          className="whitespace-nowrap text-muted"
+        >
           {formatMinor(row.interestMinor, loan.currency)}
-        </td>
-        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+        </TableCell>
+        <TableCell align="end" numeric className="whitespace-nowrap">
           {formatMinor(row.principalMinor, loan.currency)}
-        </td>
-        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted">
+        </TableCell>
+        <TableCell
+          align="end"
+          numeric
+          className="whitespace-nowrap text-muted"
+        >
           {formatMinor(row.balanceAfterMinor, loan.currency)}
-        </td>
-        <td className="whitespace-nowrap px-4 py-3">
+        </TableCell>
+        <TableCell className="whitespace-nowrap">
           <Tag className={statusTagClass(row)}>{statusLabel(row)}</Tag>
           {row.paidWithoutTransaction && row.status === "paid" ? (
             <span className="ml-2 text-xs text-muted">No ledger entry</span>
           ) : null}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
     );
   }
 
@@ -174,92 +185,78 @@ export function LoanInstallmentsTable({
       aria-labelledby="loan-installments-heading"
       className="@container col-span-2 w-full min-w-0 md:col-span-6 lg:col-span-12"
     >
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2
-              id="loan-installments-heading"
-              className="font-display text-lg font-medium"
-            >
-              Payment schedule
-            </h2>
-            <p className="mt-1 text-xs text-muted">
-              {paidCount} of {loan.installments.length} installments paid
-              {overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}
-            </p>
-          </div>
-          <div
-            className="inline-flex rounded-[var(--radius-sm)] border border-border p-0.5"
-            role="radiogroup"
-            aria-label="Filter installments"
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2
+            id="loan-installments-heading"
+            className="font-display text-lg font-medium"
           >
-            {FILTER_OPTIONS.map(({ value, label }) => {
-              const active = filter === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  onClick={() => setFilter(value)}
-                  className={cn(
-                    "rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color] duration-150 fx-press",
-                    active
-                      ? "bg-muted-surface text-foreground"
-                      : "text-muted hover:text-foreground",
-                  )}
-                  aria-checked={active}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+            Payment schedule
+          </h2>
+          <p className="mt-1 text-xs text-muted">
+            {paidCount} of {loan.installments.length} installments paid
+            {overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}
+          </p>
         </div>
+        <div
+          className="inline-flex rounded-[var(--radius-sm)] border border-border p-0.5"
+          role="radiogroup"
+          aria-label="Filter installments"
+        >
+          {FILTER_OPTIONS.map(({ value, label }) => {
+            const active = filter === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                onClick={() => setFilter(value)}
+                className={cn(
+                  "rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color] duration-150 fx-press",
+                  active
+                    ? "bg-muted-surface text-foreground"
+                    : "text-muted hover:text-foreground",
+                )}
+                aria-checked={active}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-        {rows.length === 0 ? (
-          <AnalyticsEmptyState
-            icon="loan"
-            title={empty.title}
-            description={empty.description}
-            minHeightClass="min-h-[220px]"
-          />
-        ) : (
-          <>
-            <div className="hidden overflow-x-auto rounded-[var(--radius-md)] border border-border @md:block">
-              <table className="min-w-full divide-y divide-border text-left text-base">
-                <caption className="sr-only">
-                  Loan installment schedule with payment status
-                </caption>
-                <thead className="bg-muted-surface">
-                  <tr>
-                    <th scope="col" className="px-4 py-3 font-medium">
-                      #
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-medium">
-                      Due date
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-right">
-                      Payment
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-right">
-                      Interest
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-right">
-                      Principal
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-right">
-                      Balance after
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-medium">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">{rows.map(renderRow)}</tbody>
-              </table>
-            </div>
-            <div className="space-y-2 @md:hidden">{rows.map(renderMobileCard)}</div>
-          </>
-        )}
+      {rows.length === 0 ? (
+        <AnalyticsEmptyState
+          icon="loan"
+          title={empty.title}
+          description={empty.description}
+          minHeightClass="min-h-[220px]"
+        />
+      ) : (
+        <>
+          <div className="hidden @md:block">
+            <Table maxHeight="min(28rem, 60dvh)">
+              <TableCaption>
+                Loan installment schedule with payment status
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead freeze="leading">#</TableHead>
+                  <TableHead>Due date</TableHead>
+                  <TableHead align="end">Payment</TableHead>
+                  <TableHead align="end">Interest</TableHead>
+                  <TableHead align="end">Principal</TableHead>
+                  <TableHead align="end">Balance after</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>{rows.map(renderRow)}</TableBody>
+            </Table>
+          </div>
+          <div className="space-y-2 @md:hidden">{rows.map(renderMobileCard)}</div>
+        </>
+      )}
     </section>
   );
 }

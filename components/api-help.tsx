@@ -10,6 +10,14 @@ import {
 } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
 import { useNotify } from "@/components/notification-provider";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
@@ -131,25 +139,25 @@ function HelpQuickStartCard({
       ) : null}
 
       {section.scopeTable?.length ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[18rem] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="py-2 pr-4 font-medium text-foreground">Scope</th>
-                <th className="py-2 font-medium text-foreground">Allows</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="mt-4">
+          <Table className="min-w-[18rem]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Scope</TableHead>
+                <TableHead>Allows</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {section.scopeTable.map((row) => (
-                <tr key={row.scope} className="border-b border-border/60">
-                  <td className="py-2 pr-4 font-mono text-xs text-foreground">
+                <TableRow key={row.scope}>
+                  <TableCell className="font-mono text-xs text-foreground">
                     {row.scope}
-                  </td>
-                  <td className="py-2 text-muted">{row.allows}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="text-muted">{row.allows}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       ) : null}
 
@@ -372,57 +380,54 @@ function HelpSectionBody({
       ) : null}
 
       {section.scopeTable?.length ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[20rem] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="py-2 pr-4 font-medium text-foreground">Scope</th>
-                <th className="py-2 font-medium text-foreground">Allows</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="mt-4">
+          <Table className="min-w-[20rem]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Scope</TableHead>
+                <TableHead>Allows</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {section.scopeTable.map((row) => (
-                <tr key={row.scope} className="border-b border-border/60">
-                  <td className="py-2 pr-4 font-mono text-xs text-foreground">
+                <TableRow key={row.scope}>
+                  <TableCell className="font-mono text-xs text-foreground">
                     {row.scope}
-                  </td>
-                  <td className="py-2 text-muted">{row.allows}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="text-muted">{row.allows}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       ) : null}
 
       {section.restTable?.length ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="py-2 pr-3 font-medium text-foreground">Method</th>
-                <th className="py-2 pr-3 font-medium text-foreground">Path</th>
-                <th className="py-2 pr-3 font-medium text-foreground">Auth</th>
-                <th className="py-2 font-medium text-foreground">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="mt-4">
+          <Table className="min-w-[32rem]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Method</TableHead>
+                <TableHead>Path</TableHead>
+                <TableHead>Auth</TableHead>
+                <TableHead>Notes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {section.restTable.map((row) => (
-                <tr
-                  key={`${row.method}-${row.path}`}
-                  className="border-b border-border/60"
-                >
-                  <td className="py-2 pr-3 font-mono text-xs text-foreground">
+                <TableRow key={`${row.method}-${row.path}`}>
+                  <TableCell className="font-mono text-xs text-foreground">
                     {row.method}
-                  </td>
-                  <td className="py-2 pr-3 font-mono text-xs text-foreground">
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-foreground">
                     {row.path}
-                  </td>
-                  <td className="py-2 pr-3 text-muted">{row.auth}</td>
-                  <td className="py-2 text-muted">{row.notes}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="text-muted">{row.auth}</TableCell>
+                  <TableCell className="text-muted">{row.notes}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       ) : null}
 

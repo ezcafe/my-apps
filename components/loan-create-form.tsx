@@ -15,6 +15,15 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatMinor, parseMajorToMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import {
@@ -467,80 +476,78 @@ export function LoanCreateForm() {
                     {showSchedulePreview ? "Hide" : "Show"} schedule preview
                   </button>
                   {showSchedulePreview ? (
-                    <div className="mt-2 overflow-x-auto rounded-[var(--radius-md)] border border-border">
-                      <table className="min-w-full divide-y divide-border text-left text-sm">
-                        <caption className="sr-only">
+                    <div className="mt-2">
+                      <Table>
+                        <TableCaption>
                           Amortization schedule preview
-                        </caption>
-                        <thead className="bg-muted-surface">
-                          <tr>
-                            <th scope="col" className="px-3 py-2 font-medium">
-                              #
-                            </th>
-                            <th scope="col" className="px-3 py-2 font-medium">
-                              Due date
-                            </th>
-                            <th
-                              scope="col"
-                              className="px-3 py-2 font-medium text-right"
-                            >
-                              Payment
-                            </th>
-                            <th
-                              scope="col"
-                              className="px-3 py-2 font-medium text-right"
-                            >
-                              Interest
-                            </th>
-                            <th
-                              scope="col"
-                              className="px-3 py-2 font-medium text-right"
-                            >
-                              Principal
-                            </th>
-                            <th
-                              scope="col"
-                              className="px-3 py-2 font-medium text-right"
-                            >
-                              Balance after
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
+                        </TableCaption>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>#</TableHead>
+                            <TableHead>Due date</TableHead>
+                            <TableHead align="end">Payment</TableHead>
+                            <TableHead align="end">Interest</TableHead>
+                            <TableHead align="end">Principal</TableHead>
+                            <TableHead align="end">Balance after</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {schedulePreview.slice(0, 6).map((row) => (
-                            <tr
-                              key={row.installmentNumber}
-                              className="transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]"
-                            >
-                              <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                            <TableRow key={row.installmentNumber}>
+                              <TableCell
+                                numeric
+                                className="whitespace-nowrap"
+                              >
                                 {row.installmentNumber}
-                              </td>
-                              <td className="whitespace-nowrap px-3 py-2 text-muted">
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap text-muted">
                                 {formatDate(row.dueDate, {
                                   omitYearIfCurrent: true,
                                 })}
-                              </td>
-                              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                              </TableCell>
+                              <TableCell
+                                align="end"
+                                numeric
+                                className="whitespace-nowrap"
+                              >
                                 {formatMinor(row.paymentMinor, defaultCurrency)}
-                              </td>
-                              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted">
-                                {formatMinor(row.interestMinor, defaultCurrency)}
-                              </td>
-                              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                                {formatMinor(row.principalMinor, defaultCurrency)}
-                              </td>
-                              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted">
+                              </TableCell>
+                              <TableCell
+                                align="end"
+                                numeric
+                                className="whitespace-nowrap text-muted"
+                              >
+                                {formatMinor(
+                                  row.interestMinor,
+                                  defaultCurrency,
+                                )}
+                              </TableCell>
+                              <TableCell
+                                align="end"
+                                numeric
+                                className="whitespace-nowrap"
+                              >
+                                {formatMinor(
+                                  row.principalMinor,
+                                  defaultCurrency,
+                                )}
+                              </TableCell>
+                              <TableCell
+                                align="end"
+                                numeric
+                                className="whitespace-nowrap text-muted"
+                              >
                                 {formatMinor(
                                   row.balanceAfterMinor,
                                   defaultCurrency,
                                 )}
-                              </td>
-                            </tr>
+                              </TableCell>
+                            </TableRow>
                           ))}
-                        </tbody>
-                      </table>
+                        </TableBody>
+                      </Table>
                       {schedulePreview.length > 6 ? (
-                        <p className="border-t border-border px-3 py-2 text-xs text-muted">
+                        <p className="mt-2 text-xs text-muted">
                           Showing first 6 of {schedulePreview.length}{" "}
                           installments
                         </p>

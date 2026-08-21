@@ -9,6 +9,16 @@ import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableSortButton,
+  tableSortAria,
+} from "@/components/ui/table";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import {
@@ -20,6 +30,7 @@ import {
   moneyTransactionsQueryOptions,
   type MoneyTransactionListRow,
 } from "@/lib/money-query-options";
+import type { TransactionListSortKey } from "@/lib/validators/money";
 
 const PAGE_SIZE = 15;
 
@@ -28,6 +39,10 @@ function truncateNote(s: string | null, max = 48): string {
   const t = s.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max - 1)}…`;
+}
+
+function defaultDirForSort(): "asc" | "desc" {
+  return "desc";
 }
 
 export function AnalyticsChartDrilldownModal({
@@ -66,14 +81,19 @@ export function AnalyticsChartDrilldownModal({
     }));
   };
 
+  const [{ sort, dir }, setSortState] = useState<{
+    sort: TransactionListSortKey;
+    dir: "asc" | "desc";
+  }>({ sort: "occurredAt", dir: "desc" });
+
   const listQuery = useQuery({
     ...moneyTransactionsQueryOptions(
       activeWorkspaceId,
       filterQuery,
       page,
       PAGE_SIZE,
-      "occurredAt",
-      "desc",
+      sort,
+      dir,
     ),
     enabled: open && Boolean(activeWorkspaceId) && Boolean(filterQuery),
   });
@@ -90,6 +110,22 @@ export function AnalyticsChartDrilldownModal({
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const modalTitleId = "chart-drilldown-title";
+
+  const onSortHeader = (col: TransactionListSortKey) => {
+    setSortState((s) =>
+      s.sort === col
+        ? { sort: col, dir: s.dir === "asc" ? "desc" : "asc" }
+        : { sort: col, dir: defaultDirForSort() },
+    );
+    setPage(1);
+  };
+
+  const sortDirection = (
+    col: TransactionListSortKey,
+  ): "asc" | "desc" | "none" => {
+    if (sort !== col) return "none";
+    return dir;
+  };
 
   return (
     <Modal
@@ -116,35 +152,60 @@ export function AnalyticsChartDrilldownModal({
           </Button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div className="min-h-0 flex-1 overflow-auto p-3">
           {listQuery.isLoading ? (
-            <div className="space-y-0 divide-y divide-border p-1">
-              {Array.from({ length: 5 }, (_, i) => (
-                <div key={`drilldown-row-${i}`} className="flex gap-3 px-3 py-3">
-                  <Skeleton className="h-4 w-16 shrink-0 rounded-[var(--radius-sm)]" />
-                  <Skeleton className="h-4 min-w-0 flex-1 rounded-[var(--radius-sm)]" />
-                  <Skeleton className="h-4 w-20 shrink-0 rounded-[var(--radius-sm)]" />
-                </div>
-              ))}
-            </div>
+            <Table maxHeight="100%">
+              <TableBody>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <TableRow key={`drilldown-skel-${i}`}>
+                    {Array.from({ length: 5 }, (_, j) => (
+                      <TableCell key={`drilldown-skel-${i}-${j}`}>
+                        <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           ) : listQuery.isError ? (
-            <p className="p-4 text-sm text-destructive" role="alert">
+            <p className="p-1 text-sm text-destructive" role="alert">
               {queryErrorMessage(listQuery.error) ?? "Could not load transactions"}
             </p>
           ) : rows.length === 0 ? (
-            <p className="p-4 text-sm text-muted">No transactions in this slice.</p>
+            <p className="p-1 text-sm text-muted">No transactions in this slice.</p>
           ) : (
-            <table className="w-full min-w-[28rem] text-sm">
-              <thead className="sticky top-0 bg-surface text-left text-xs text-muted">
-                <tr className="border-b border-border">
-                  <th className="px-3 py-2 font-medium">Date</th>
-                  <th className="px-3 py-2 font-medium">Account</th>
-                  <th className="px-3 py-2 font-medium">Category</th>
-                  <th className="px-3 py-2 text-right font-medium">Amount</th>
-                  <th className="px-3 py-2 font-medium">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="min-w-[28rem]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead
+                    freeze="leading"
+                    aria-sort={tableSortAria(sortDirection("occurredAt"))}
+                  >
+                    <TableSortButton
+                      direction={sortDirection("occurredAt")}
+                      onClick={() => onSortHeader("occurredAt")}
+                    >
+                      Date
+                    </TableSortButton>
+                  </TableHead>
+                  <TableHead>Account</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead
+                    align="end"
+                    aria-sort={tableSortAria(sortDirection("amountMinor"))}
+                  >
+                    <TableSortButton
+                      align="end"
+                      direction={sortDirection("amountMinor")}
+                      onClick={() => onSortHeader("amountMinor")}
+                    >
+                      Amount
+                    </TableSortButton>
+                  </TableHead>
+                  <TableHead>Notes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {rows.map((tx) => (
                   <DrilldownRow
                     key={tx.id}
@@ -156,8 +217,8 @@ export function AnalyticsChartDrilldownModal({
                     formatDate={formatDate}
                   />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
         </div>
 
@@ -221,25 +282,27 @@ function DrilldownRow({
   const amountLabel = formatMinor(tx.amountMinor, currency);
 
   return (
-    <tr className="border-b border-border/60 transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]">
-      <td className="whitespace-nowrap px-3 py-2 text-muted">
+    <TableRow>
+      <TableCell freeze="leading" className="whitespace-nowrap text-muted">
         {formatDate(tx.occurredAt, {
           omitYearIfCurrent: true,
           relativeDay: true,
           shortYear: true,
         })}
-      </td>
-      <td className="max-w-[8rem] truncate px-3 py-2">{acc?.name ?? "—"}</td>
-      <td className="max-w-[8rem] truncate px-3 py-2">{categoryLabel}</td>
-      <td
-        className="whitespace-nowrap px-3 py-2 text-right tabular-nums"
+      </TableCell>
+      <TableCell className="max-w-[8rem] truncate">{acc?.name ?? "—"}</TableCell>
+      <TableCell className="max-w-[8rem] truncate">{categoryLabel}</TableCell>
+      <TableCell
+        align="end"
+        numeric
+        className="whitespace-nowrap"
         style={tx.kind === "income" ? { color: incomeAmountColor } : undefined}
       >
         {amountLabel}
-      </td>
-      <td className="max-w-[10rem] truncate px-3 py-2 text-muted">
+      </TableCell>
+      <TableCell className="max-w-[10rem] truncate text-muted">
         {truncateNote(tx.notes)}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }

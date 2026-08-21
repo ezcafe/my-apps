@@ -12,6 +12,14 @@ import {
   MoneyStatCard,
 } from "@/components/money-feedback";
 import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tag } from "@/components/ui/tag";
 import { formatMinor } from "@/lib/format-money";
 import {
@@ -136,7 +144,7 @@ export function InvestmentDashboard() {
             </div>
           </Card>
 
-          <Card className="p-4">
+          <section className="w-full min-w-0">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-display text-lg font-medium">Holdings</h2>
               <Link
@@ -146,42 +154,40 @@ export function InvestmentDashboard() {
                 Record activity
               </Link>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-border text-left text-sm">
-                <thead>
-                  <tr className="text-xs text-muted">
-                    <th className="pb-2 pr-4 font-medium">Symbol</th>
-                    <th className="pb-2 pr-4 font-medium">Name</th>
-                    <th className="pb-2 pr-4 font-medium text-right">Qty</th>
-                    <th className="pb-2 pr-4 font-medium text-right">Value</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {holdingsQuery.data.map((row, index) => (
-                    <tr key={row.instrumentId}>
-                      <td className="py-2.5 pr-4">
-                        <Tag
-                          className={cn(
-                            "font-medium",
-                            HOLDING_SYMBOL_COLORS[index % 8],
-                          )}
-                        >
-                          {row.symbol}
-                        </Tag>
-                      </td>
-                      <td className="py-2.5 pr-4 text-muted">{row.name}</td>
-                      <td className="py-2.5 pr-4 text-right tabular-nums">
-                        {row.quantity}
-                      </td>
-                      <td className="py-2.5 pr-4 text-right tabular-nums font-medium">
-                        {formatMinor(row.valueMinor, row.currency)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead freeze="leading">Symbol</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead align="end">Qty</TableHead>
+                  <TableHead align="end">Value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {holdingsQuery.data.map((row, index) => (
+                  <TableRow key={row.instrumentId}>
+                    <TableCell freeze="leading">
+                      <Tag
+                        className={cn(
+                          "font-medium",
+                          HOLDING_SYMBOL_COLORS[index % 8],
+                        )}
+                      >
+                        {row.symbol}
+                      </Tag>
+                    </TableCell>
+                    <TableCell className="text-muted">{row.name}</TableCell>
+                    <TableCell align="end" numeric>
+                      {row.quantity}
+                    </TableCell>
+                    <TableCell align="end" numeric className="font-medium">
+                      {formatMinor(row.valueMinor, row.currency)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </section>
         </>
       ) : null}
     </div>

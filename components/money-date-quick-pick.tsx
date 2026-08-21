@@ -145,7 +145,11 @@ export function MoneyDateQuickPick({
               type="button"
               role="radio"
               aria-checked={active}
-              onClick={() => pickMode(opt.id)}
+              onClick={() => {
+                if (opt.id === "today" || opt.id === "yesterday") {
+                  pickMode(opt.id);
+                }
+              }}
               className={cn(moneyUsageQuickPickChipCls(active), "shrink-0 min-w-0")}
             >
               {label}

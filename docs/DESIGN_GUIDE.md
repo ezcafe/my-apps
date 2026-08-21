@@ -212,6 +212,7 @@ Never hard-code chart hexes; never read only `resolved`. Keep charts restrained 
 | `Field` + `Input` / `Textarea` / `Select` | [`field.tsx`](../components/ui/field.tsx), [`input.tsx`](../components/ui/input.tsx), [`textarea.tsx`](../components/ui/textarea.tsx), [`select.tsx`](../components/ui/select.tsx) | Labeled fields with focus underline. Dense default padding. |
 | `MultiSelect` | [`multi-select.tsx`](../components/ui/multi-select.tsx) | Chip trigger + checkbox popover. |
 | `Card` | [`card.tsx`](../components/ui/card.tsx) | Discrete surfaces only: KPI tiles, chart panels, entity tiles. Nested children → `--radius-sm`. Do **not** wrap tables, page forms, or settings sections. |
+| `Table` | [`table.tsx`](../components/ui/table.tsx) | Data grids (ledgers, schedules, holdings, CSV maps). Sticky header, optional frozen identity column, sort button, hover/focus row actions. **Not** for settings entity editors (those stay divide-y lists). |
 | `Modal` | [`modal.tsx`](../components/ui/modal.tsx) | Native `<dialog>` + `fx-overlay`. |
 | `Popover` | [`popover.tsx`](../components/ui/popover.tsx) | Anchored panel with entry/exit. |
 | `MoreMenu` | [`more-menu.tsx`](../components/ui/more-menu.tsx) | Secondary actions / overflow (ellipsis + optional dirty dot). Use `MoreMenuItem` for rows; `variant="danger"` for destructive. |
@@ -296,6 +297,24 @@ withViewTransition(() => setTheme("dark"));
 - `aria-label` / `aria-labelledby` on icon-only controls, modals, popovers.
 - Focus: `focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`.
 - All `fx-*` and View Transitions respect `prefers-reduced-motion: reduce`.
+
+## Tables
+
+Use [`components/ui/table.tsx`](../components/ui/table.tsx) for every HTML data table. Patterns follow [Pencil & Paper enterprise table UX](https://www.pencilandpaper.io/articles/ux-pattern-analysis-enterprise-data-tables), constrained for Quiet Ink and a mobile-first busy-parent audience.
+
+| Rule | Practice |
+|------|----------|
+| **Classify the view** | Action-oriented, info-oriented, or both — choose sticky/freeze/sort/row actions accordingly. |
+| **Alignment** | Text and qualitative numbers/dates → `align="start"`. Quantitative amounts/qty/% → `align="end"` + `numeric`. Header alignment **matches** the column. Never center. |
+| **Division** | Hairline `divide-y` rows only. No zebra stripes (they fight hover/selected/accent). No vertical column rules. |
+| **Sticky header** | Built into `TableHead`. Use `Table` `maxHeight` only for tall scrollports (installments, CSV maps, modal drilldowns). Paginated ledgers stay page-scroll. |
+| **Freeze identity** | Freeze the leading identity column (`freeze="leading"`). With a checkbox column, freeze checkbox + identity (`leading` + `afterCheckbox`). |
+| **Row actions** | Prefer `TableRowActions` (hover-reveal on fine pointers; always visible on touch + `focus-within`). Keep bulk toolbar ([`TransactionSelectionBar`](../components/transaction-selection-bar.tsx)) only after selection. |
+| **Flat surface** | Tables sit on the page background inside the table shell — **never** wrap a table in `Card`. |
+| **Mobile** | Keep `@md:hidden` card lists for ledgers/loans/installments; row actions on cards stay always visible. |
+| **Settings lists** | Accounts, categories, merchants, tags, budgets, rules, recurrence stay divide-y action lists — not this primitive. |
+
+**Out of this system (ask before adding):** column show/hide, reorder, resize, density switch, view-state persistence, inline cell editing, expandable rows, fullscreen table.
 
 ## Forms
 

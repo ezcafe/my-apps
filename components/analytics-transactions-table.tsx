@@ -16,6 +16,18 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableRowActions,
+  TableSortButton,
+  tableSortAria,
+} from "@/components/ui/table";
 import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/cn";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
@@ -164,7 +176,7 @@ export function AnalyticsTransactionsTable({
   const somePageSelected =
     !allPageSelected && pageIds.some((id) => selectedIds.has(id));
 
-  const columnCount = selectable ? 6 : 5;
+  const columnCount = selectable ? 7 : 5;
 
   const toggleRow = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -252,9 +264,11 @@ export function AnalyticsTransactionsTable({
     setPage(1);
   };
 
-  const sortAria = (col: TransactionListSortKey): "ascending" | "descending" | "none" => {
+  const sortDirection = (
+    col: TransactionListSortKey,
+  ): "asc" | "desc" | "none" => {
     if (sort !== col) return "none";
-    return dir === "asc" ? "ascending" : "descending";
+    return dir;
   };
 
   if (!activeWorkspaceId) return null;
@@ -266,9 +280,6 @@ export function AnalyticsTransactionsTable({
     !loading &&
     payload != null &&
     payload.total === 0;
-
-  const sortIndicator = (col: TransactionListSortKey) =>
-    sort === col ? (dir === "asc" ? " ↑" : " ↓") : "";
 
   function renderRow(tx: MoneyTransactionListRow) {
     const acc = accountById.get(tx.accountId);
@@ -282,47 +293,64 @@ export function AnalyticsTransactionsTable({
       shortYear: true,
     });
     const isSelected = selectedIds.has(tx.id);
+    const dateFreeze = selectable ? "afterCheckbox" : "leading";
 
     return (
-      <tr
-        key={tx.id}
-        className={cn(
-          "transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]",
-          isSelected &&
-            "bg-[color-mix(in_oklab,var(--accent)_8%,transparent)]",
-        )}
-      >
+      <TableRow key={tx.id} selected={isSelected}>
         {selectable ? (
-          <td className="w-10 px-4 py-3">
+          <TableCell freeze="leading" className="w-10">
             <Checkbox
               checked={isSelected}
               onChange={() => toggleRow(tx.id)}
               ariaLabel={`Select transaction ${dateLabel}, ${amountLabel}`}
             />
-          </td>
+          </TableCell>
         ) : null}
-        <td className="whitespace-nowrap px-4 py-3 text-muted">{dateLabel}</td>
-        <td className="max-w-[10rem] truncate px-4 py-3">{acc?.name ?? "—"}</td>
-        <td className="max-w-[10rem] px-4 py-3">
+        <TableCell
+          freeze={dateFreeze}
+          className="whitespace-nowrap text-muted"
+        >
+          {dateLabel}
+        </TableCell>
+        <TableCell className="max-w-[10rem] truncate">
+          {acc?.name ?? "—"}
+        </TableCell>
+        <TableCell className="max-w-[10rem]">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <span className="truncate">{categoryLabel}</span>
             {tx.excludeFromAnalyticsAndBudget ? (
               <Tag className="shrink-0 text-muted">Excluded</Tag>
             ) : null}
           </div>
-        </td>
-        <td
-          className="whitespace-nowrap px-4 py-3 text-right tabular-nums"
+        </TableCell>
+        <TableCell
+          align="end"
+          numeric
+          className="whitespace-nowrap"
           style={
             tx.kind === "income" ? { color: incomeAmountColor } : undefined
           }
         >
           {amountLabel}
-        </td>
-        <td className="max-w-[14rem] truncate px-4 py-3 text-muted">
+        </TableCell>
+        <TableCell className="max-w-[14rem] truncate text-muted">
           {truncateNote(tx.notes)}
-        </td>
-      </tr>
+        </TableCell>
+        {selectable ? (
+          <TableCell>
+            <TableRowActions>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditTransactionId(tx.id)}
+              >
+                Edit
+              </Button>
+            </TableRowActions>
+          </TableCell>
+        ) : null}
+      </TableRow>
     );
   }
 
@@ -362,13 +390,29 @@ export function AnalyticsTransactionsTable({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="font-medium tabular-nums">{amountLabel}</p>
-              <p className="mt-0.5 truncate text-base text-muted">{acc?.name ?? "—"}</p>
+              <p className="mt-0.5 truncate text-base text-muted">
+                {acc?.name ?? "—"}
+              </p>
             </div>
-            <span className="shrink-0 text-xs text-muted tabular-nums">{dateLabel}</span>
+            <span className="shrink-0 text-xs text-muted tabular-nums">
+              {dateLabel}
+            </span>
           </div>
           <p className="mt-1 truncate text-base">{categoryLabel}</p>
           {noteLabel !== "—" ? (
             <p className="mt-1 truncate text-base text-muted">{noteLabel}</p>
+          ) : null}
+          {selectable ? (
+            <div className="mt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditTransactionId(tx.id)}
+              >
+                Edit
+              </Button>
+            </div>
           ) : null}
         </div>
       </div>
@@ -379,13 +423,13 @@ export function AnalyticsTransactionsTable({
     return (
       <>
         {Array.from({ length: 6 }, (_, rowIndex) => (
-          <tr key={`tx-skel-${rowIndex}`}>
+          <TableRow key={`tx-skel-${rowIndex}`}>
             {Array.from({ length: columnCount }, (_, colIndex) => (
-              <td key={`tx-skel-${rowIndex}-${colIndex}`} className="px-4 py-3">
+              <TableCell key={`tx-skel-${rowIndex}-${colIndex}`}>
                 <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
-              </td>
+              </TableCell>
             ))}
-          </tr>
+          </TableRow>
         ))}
       </>
     );
@@ -485,12 +529,10 @@ export function AnalyticsTransactionsTable({
 
               {showLoadingList ? (
                 <>
-                  <div className="hidden overflow-x-auto rounded-[var(--radius-md)] border border-border @md:block">
-                    <table className="min-w-full divide-y divide-border text-left text-base">
-                      <tbody className="divide-y divide-border">
-                        {renderTableLoadingBody()}
-                      </tbody>
-                    </table>
+                  <div className="hidden @md:block">
+                    <Table>
+                      <TableBody>{renderTableLoadingBody()}</TableBody>
+                    </Table>
                   </div>
                   <div className="rounded-[var(--radius-md)] border border-border p-3 @md:hidden">
                     <MoneyListSkeleton variant="tableRows" />
@@ -500,66 +542,60 @@ export function AnalyticsTransactionsTable({
 
               {showDataList ? (
                 <>
-                  <div className="hidden overflow-x-auto rounded-[var(--radius-md)] border border-border @md:block">
-                    <table className="min-w-full divide-y divide-border text-left text-base">
-                      <caption className="sr-only">
+                  <div className="hidden @md:block">
+                    <Table>
+                      <TableCaption>
                         Filtered transactions with sorting and pagination
-                      </caption>
-                      <thead className="bg-muted-surface">
-                        <tr>
+                      </TableCaption>
+                      <TableHeader>
+                        <TableRow>
                           {selectable ? (
-                            <th scope="col" className="w-10 px-4 py-3">
+                            <TableHead freeze="leading" className="w-10">
                               <Checkbox
                                 checked={allPageSelected}
                                 indeterminate={somePageSelected}
                                 onChange={toggleAllOnPage}
                                 ariaLabel="Select all transactions on this page"
                               />
-                            </th>
+                            </TableHead>
                           ) : null}
-                          <th
-                            scope="col"
-                            className="px-4 py-3 font-medium"
-                            aria-sort={sortAria("occurredAt")}
+                          <TableHead
+                            freeze={selectable ? "afterCheckbox" : "leading"}
+                            aria-sort={tableSortAria(sortDirection("occurredAt"))}
                           >
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-1 py-0.5 font-medium transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] fx-press"
+                            <TableSortButton
+                              direction={sortDirection("occurredAt")}
                               onClick={() => onSortHeader("occurredAt")}
                             >
                               Date
-                              {sortIndicator("occurredAt")}
-                            </button>
-                          </th>
-                          <th scope="col" className="px-4 py-3 font-medium">
-                            Account
-                          </th>
-                          <th scope="col" className="px-4 py-3 font-medium">
-                            Category
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-4 py-3 font-medium text-right"
-                            aria-sort={sortAria("amountMinor")}
+                            </TableSortButton>
+                          </TableHead>
+                          <TableHead>Account</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead
+                            align="end"
+                            aria-sort={tableSortAria(
+                              sortDirection("amountMinor"),
+                            )}
                           >
-                            <button
-                              type="button"
-                              className="inline-flex w-full items-center justify-end gap-1 rounded-[var(--radius-sm)] px-1 py-0.5 font-medium transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] fx-press"
+                            <TableSortButton
+                              align="end"
+                              direction={sortDirection("amountMinor")}
                               onClick={() => onSortHeader("amountMinor")}
                             >
                               Amount
-                              {sortIndicator("amountMinor")}
-                            </button>
-                          </th>
-                          <th scope="col" className="px-4 py-3 font-medium">
-                            Note
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {pageRows.map(renderRow)}
-                      </tbody>
-                    </table>
+                            </TableSortButton>
+                          </TableHead>
+                          <TableHead>Note</TableHead>
+                          {selectable ? (
+                            <TableHead>
+                              <span className="sr-only">Actions</span>
+                            </TableHead>
+                          ) : null}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>{pageRows.map(renderRow)}</TableBody>
+                    </Table>
                   </div>
                   <div className="space-y-2 @md:hidden">
                     {pageRows.map(renderMobileCard)}

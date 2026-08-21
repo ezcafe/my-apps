@@ -7,6 +7,14 @@ import { Button } from "@/components/ui/button";
 import { buttonClassName } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { queryErrorMessage } from "@/lib/user-facing-error";
 import { resetRequestCircuit } from "@/lib/request-circuit";
@@ -149,43 +157,28 @@ export function MoneyListSkeleton({
             ))}
           </div>
         </div>
-        <Card className="w-full min-w-0 p-4">
-          <div className="overflow-hidden rounded-[var(--radius-md)] border border-border">
-            <div
-              className="grid gap-3 bg-muted-surface px-3 py-2"
-              style={{
-                gridTemplateColumns:
-                  "minmax(0,1.4fr) minmax(0,0.8fr) minmax(0,0.9fr) minmax(0,0.8fr) minmax(0,0.8fr) minmax(0,0.6fr) minmax(0,1.1fr)",
-              }}
-            >
+        <Table>
+          <TableHeader>
+            <TableRow>
               {Array.from({ length: 7 }, (_, i) => (
-                <Skeleton
-                  key={`loan-table-head-${i}`}
-                  className="h-4 w-full rounded-[var(--radius-sm)]"
-                />
+                <TableHead key={`loan-table-head-${i}`}>
+                  <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                </TableHead>
               ))}
-            </div>
-            <div className="divide-y divide-border px-3">
-              {Array.from({ length: 4 }, (_, row) => (
-                <div
-                  key={`loan-table-row-${row}`}
-                  className="grid gap-3 py-3"
-                  style={{
-                    gridTemplateColumns:
-                      "minmax(0,1.4fr) minmax(0,0.8fr) minmax(0,0.9fr) minmax(0,0.8fr) minmax(0,0.8fr) minmax(0,0.6fr) minmax(0,1.1fr)",
-                  }}
-                >
-                  {Array.from({ length: 7 }, (_, col) => (
-                    <Skeleton
-                      key={`loan-table-row-${row}-col-${col}`}
-                      className="h-4 w-full rounded-[var(--radius-sm)]"
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 4 }, (_, row) => (
+              <TableRow key={`loan-table-row-${row}`}>
+                {Array.from({ length: 7 }, (_, col) => (
+                  <TableCell key={`loan-table-row-${row}-col-${col}`}>
+                    <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     );
   }
@@ -240,57 +233,60 @@ export function MoneyListSkeleton({
           <Skeleton className="h-6 w-36 rounded-[var(--radius-sm)]" />
           <Skeleton className="mt-3 h-56 w-full rounded-[var(--radius-sm)]" />
         </Card>
-        <Card className="p-4">
+        <section className="w-full min-w-0">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <Skeleton className="h-6 w-28 rounded-[var(--radius-sm)]" />
             <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
           </div>
-          <div className="overflow-x-auto">
-            <div
-              className="grid gap-3 border-b border-border pb-2 text-xs"
-              style={{
-                gridTemplateColumns:
-                  "minmax(0,0.8fr) minmax(0,1.4fr) minmax(0,0.7fr) minmax(0,0.9fr)",
-              }}
-            >
-              {Array.from({ length: 4 }, (_, i) => (
-                <Skeleton
-                  key={`holdings-head-${i}`}
-                  className="h-3 w-12 rounded-[var(--radius-sm)]"
-                />
-              ))}
-            </div>
-            <div className="divide-y divide-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {Array.from({ length: 4 }, (_, i) => (
+                  <TableHead key={`holdings-head-${i}`}>
+                    <Skeleton className="h-3 w-12 rounded-[var(--radius-sm)]" />
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {Array.from({ length: 4 }, (_, row) => (
-                <div
-                  key={`holdings-row-${row}`}
-                  className="grid gap-3 py-2.5"
-                  style={{
-                    gridTemplateColumns:
-                      "minmax(0,0.8fr) minmax(0,1.4fr) minmax(0,0.7fr) minmax(0,0.9fr)",
-                  }}
-                >
-                  <Skeleton className="h-6 w-14 rounded-[var(--radius-sm)]" />
-                  <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
-                  <Skeleton className="ms-auto h-4 w-10 rounded-[var(--radius-sm)]" />
-                  <Skeleton className="ms-auto h-4 w-16 rounded-[var(--radius-sm)]" />
-                </div>
+                <TableRow key={`holdings-row-${row}`}>
+                  <TableCell>
+                    <Skeleton className="h-6 w-14 rounded-[var(--radius-sm)]" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
+                  </TableCell>
+                  <TableCell align="end">
+                    <Skeleton className="ms-auto h-4 w-10 rounded-[var(--radius-sm)]" />
+                  </TableCell>
+                  <TableCell align="end">
+                    <Skeleton className="ms-auto h-4 w-16 rounded-[var(--radius-sm)]" />
+                  </TableCell>
+                </TableRow>
               ))}
-            </div>
-          </div>
-        </Card>
+            </TableBody>
+          </Table>
+        </section>
       </div>
     );
   }
 
   return (
     <div className={cn("space-y-2", className)} aria-hidden>
-      {Array.from({ length: 6 }, (_, i) => (
-        <Skeleton
-          key={`table-row-${i}`}
-          className="h-12 w-full rounded-[var(--radius-sm)]"
-        />
-      ))}
+      <Table>
+        <TableBody>
+          {Array.from({ length: 6 }, (_, i) => (
+            <TableRow key={`table-row-${i}`}>
+              {Array.from({ length: 5 }, (_, col) => (
+                <TableCell key={`table-row-${i}-col-${col}`}>
+                  <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }

@@ -16,6 +16,16 @@ import {
   MoneyListSkeleton,
   MoneyQueryErrorAlert,
 } from "@/components/money-feedback";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableRowActions,
+} from "@/components/ui/table";
 import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/format-money";
@@ -117,46 +127,25 @@ function LoansTable({
 
   return (
     <div className="w-full min-w-0">
-      <div className="hidden min-w-0 rounded-[var(--radius-md)] border border-border @md:block">
-        <table className="w-full table-fixed divide-y divide-border text-left text-sm">
-          <caption className="sr-only">
+      <div className="hidden min-w-0 @md:block">
+        <Table>
+          <TableCaption>
             Loans with remaining balance, next due date, and payment actions
-          </caption>
-          <colgroup>
-            <col className="w-[22%]" />
-            <col className="w-[12%]" />
-            <col className="w-[14%]" />
-            <col className="w-[12%]" />
-            <col className="w-[12%]" />
-            <col className="w-[10%]" />
-            <col className="w-[18%]" />
-          </colgroup>
-          <thead className="bg-muted-surface">
-            <tr>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Loan
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Status
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium text-right">
-                Remaining
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium text-right">
-                Monthly
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Next due
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium text-right">
-                Progress
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
+          </TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead freeze="leading">Loan</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead align="end">Remaining</TableHead>
+              <TableHead align="end">Monthly</TableHead>
+              <TableHead>Next due</TableHead>
+              <TableHead align="end">Progress</TableHead>
+              <TableHead>
                 <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {loans.map((loan) => {
               const urgent =
                 isOverdue(loan, todayIso) || isDueSoon(loan, todayIso);
@@ -166,12 +155,12 @@ function LoansTable({
                 loan.nextInstallmentNumber != null;
 
               return (
-                <tr
+                <TableRow
                   key={loan.id}
-                  className="cursor-pointer transition-colors duration-150 hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]"
+                  clickable
                   onClick={() => router.push(`/money/loans/${loan.id}`)}
                 >
-                  <td className="max-w-0 truncate px-3 py-2 font-medium">
+                  <TableCell freeze="leading" className="max-w-0 truncate font-medium">
                     <Link
                       href={`/money/loans/${loan.id}`}
                       className="block truncate hover:text-accent"
@@ -179,21 +168,21 @@ function LoansTable({
                     >
                       {loan.name}
                     </Link>
-                  </td>
-                  <td className="px-3 py-2">
+                  </TableCell>
+                  <TableCell>
                     <Tag className={statusTagClass(loan, todayIso)}>
                       {statusLabel(loan, todayIso)}
                     </Tag>
-                  </td>
-                  <td className="truncate px-3 py-2 text-right tabular-nums">
+                  </TableCell>
+                  <TableCell align="end" numeric className="truncate">
                     {formatMinor(loan.remainingMinor, loan.currency)}
-                  </td>
-                  <td className="truncate px-3 py-2 text-right tabular-nums">
+                  </TableCell>
+                  <TableCell align="end" numeric className="truncate">
                     {formatMinor(loan.paymentMinor, loan.currency)}
-                  </td>
-                  <td
+                  </TableCell>
+                  <TableCell
                     className={cn(
-                      "truncate px-3 py-2 tabular-nums",
+                      "truncate tabular-nums",
                       urgent && "font-medium text-destructive",
                     )}
                   >
@@ -202,25 +191,30 @@ function LoansTable({
                           omitYearIfCurrent: true,
                         })
                       : "—"}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  </TableCell>
+                  <TableCell align="end" numeric>
                     {loan.percentComplete.toFixed(1)}%
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap items-center justify-end gap-2">
+                  </TableCell>
+                  <TableCell>
+                    <TableRowActions>
                       {canPay ? (
-                        <LoanPayActions
-                          variant="compact"
-                          scheduleInstallmentId={
-                            loan.nextScheduleInstallmentId!
-                          }
-                          loanName={loan.name}
-                          installmentNumber={loan.nextInstallmentNumber!}
-                          paymentMinor={loan.paymentMinor}
-                          currency={loan.currency}
-                          moneyAccountId={loan.moneyAccountId}
-                          moneyCategoryId={loan.moneyCategoryId}
-                        />
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          <LoanPayActions
+                            variant="compact"
+                            scheduleInstallmentId={
+                              loan.nextScheduleInstallmentId!
+                            }
+                            loanName={loan.name}
+                            installmentNumber={loan.nextInstallmentNumber!}
+                            paymentMinor={loan.paymentMinor}
+                            currency={loan.currency}
+                            moneyAccountId={loan.moneyAccountId}
+                            moneyCategoryId={loan.moneyCategoryId}
+                          />
+                        </div>
                       ) : (
                         <Link
                           href={`/money/loans/${loan.id}`}
@@ -230,13 +224,13 @@ function LoansTable({
                           View
                         </Link>
                       )}
-                    </div>
-                  </td>
-                </tr>
+                    </TableRowActions>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       <ul className="space-y-3 @md:hidden">
