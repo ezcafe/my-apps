@@ -1,39 +1,28 @@
+import type { Metadata } from "next";
 import { signInWithPocketId } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 
+export const metadata: Metadata = {
+  title: "Sign in",
+};
+
 export default function LoginPage() {
   return (
-    <div className="shell-main grid min-h-[50dvh] place-content-center gap-6 py-8 fx-fade-in">
-      <div className="grid items-center gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]">
-        <div className="max-w-md space-y-2 lg:justify-self-end lg:text-right">
+    <main className="shell-main grid min-h-dvh place-content-center fx-fade-in">
+      <section className="mx-auto flex w-full max-w-md flex-col gap-8 text-center">
+        <header className="flex flex-col gap-2">
           <p className="text-sm font-medium text-muted">Workspace</p>
-          <h1 className="font-display text-3xl font-semibold tracking-tight">
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">
             Sign in
           </h1>
-          <p className="text-base text-muted">
-            Continue with your Pocket ID server using OIDC (passkeys). Configure{" "}
-            <code className="rounded-[var(--radius-sm)] bg-muted-surface px-1 py-0.5 font-mono text-sm">
-              AUTH_POCKET_ID_*
-            </code>{" "}
-            and redirect URIs per{" "}
-            <a
-              className="text-accent no-underline hover:underline"
-              href="https://pocket-id.org/docs/guides/oidc-client-authentication"
-            >
-              Pocket ID OIDC docs
-            </a>
-            .
-          </p>
-        </div>
-        <form
-          action={signInWithPocketId}
-          className="flex items-center lg:justify-self-start"
-        >
-          <Button type="submit" variant="primary">
+        </header>
+
+        <form action={signInWithPocketId}>
+          <Button type="submit" variant="primary" className="w-full">
             Continue with Pocket ID
           </Button>
         </form>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
