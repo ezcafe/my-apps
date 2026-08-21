@@ -154,7 +154,7 @@ export function ApiTokenSettings({
         <p className="text-sm text-muted">
           Personal tokens for Postman, cron jobs, and scripts. Each token is bound
           to one workspace for Money, Savings, or Investment. Send{" "}
-          <code className="rounded-[var(--radius-sm)] bg-muted-surface px-1 py-0.5 font-mono text-xs">
+          <code className="rounded-[var(--radius-sm)] bg-muted-surface px-1 py-0.5 font-mono text-sm">
             Authorization: Bearer mny_|sav_|inv_…
           </code>{" "}
           on GraphQL and REST requests.
@@ -232,11 +232,11 @@ export function ApiTokenSettings({
               >
                 <div>
                   <p className="text-sm font-medium text-foreground">{t.name}</p>
-                  <p className="mt-1 font-mono text-xs text-muted">
+                  <p className="mt-1 font-mono text-sm text-muted">
                     {t.keyPrefix}… · {t.appKey} · {workspaceName(t.workspaceId)} ·{" "}
                     {t.scopes.join(", ")}
                   </p>
-                  <p className="mt-1 text-xs text-muted">
+                  <p className="mt-1 text-sm text-muted">
                     Created {new Date(t.createdAt).toLocaleString()}
                     {t.lastUsedAt
                       ? ` · Last used ${new Date(t.lastUsedAt).toLocaleString()}`
@@ -266,7 +266,7 @@ export function ApiTokenSettings({
         <p className="text-sm text-muted">
           Store this token securely. You will not be able to see it again.
         </p>
-        <pre className="mt-3 max-h-32 overflow-auto rounded-[var(--radius-md)] border border-border bg-muted-surface p-3 font-mono text-xs break-all text-foreground">
+        <pre className="mt-3 max-h-32 overflow-auto rounded-[var(--radius-md)] border border-border bg-muted-surface p-3 font-mono text-sm break-all text-foreground">
           {revealedToken}
         </pre>
         <div className="mt-4 flex flex-wrap gap-2">

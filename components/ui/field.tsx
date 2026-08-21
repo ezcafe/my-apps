@@ -4,27 +4,25 @@ import { cn } from "@/lib/cn";
 export function Field({
   label,
   hint,
+  error,
   children,
   className,
   required: req,
 }: {
   label: ReactNode;
   hint?: ReactNode;
+  /** Error message below the control (takes precedence over hint). */
+  error?: ReactNode;
   children: ReactNode;
   className?: string;
   required?: boolean;
 }) {
   return (
-    <label
-      className={cn(
-        "fx-field fx-field-underline grid gap-2 text-base focus-within:[&_.fx-field-label]:text-foreground",
-        className,
-      )}
-    >
-      <span className="fx-field-label text-muted transition-colors duration-200">
+    <label className={cn("grid gap-2 text-base", className)}>
+      <span className="text-sm font-medium text-foreground">
         {req ? (
           <>
-            <span className="text-foreground" aria-hidden>
+            <span className="text-destructive" aria-hidden>
               *
             </span>{" "}
           </>
@@ -32,7 +30,11 @@ export function Field({
         {label}
       </span>
       {children}
-      {hint ? <span className="text-sm text-muted">{hint}</span> : null}
+      {error ? (
+        <span className="text-sm text-destructive">{error}</span>
+      ) : hint ? (
+        <span className="text-sm text-muted">{hint}</span>
+      ) : null}
     </label>
   );
 }

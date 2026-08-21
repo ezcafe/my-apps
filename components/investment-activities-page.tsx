@@ -111,7 +111,7 @@ export function InvestmentActivitiesPage() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium">{row.instrumentSymbol}</p>
-                  <span className="text-xs text-muted tabular-nums">
+                  <span className="text-sm text-muted tabular-nums">
                     {formatDate(row.activityDate)}
                   </span>
                 </div>

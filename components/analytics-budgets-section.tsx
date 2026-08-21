@@ -46,7 +46,7 @@ export function AnalyticsBudgetsSection({
   return (
     <Card className="col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12">
       <h2 className="font-display text-lg font-medium">Budgets</h2>
-      <p className="mt-1 text-xs text-muted">
+      <p className="mt-1 text-sm text-muted">
         Monthly budget usage for the selected date range (limits scale when the range spans multiple
         UTC months).
       </p>
@@ -80,13 +80,13 @@ export function AnalyticsBudgetsSection({
                   <span className="text-sm font-medium text-foreground">{label}</span>
                   <div className="flex items-center gap-2">
                     {budget.overBudget ? (
-                      <span className="rounded-[var(--radius-sm)] border border-[color:var(--destructive)]/50 bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-[color:var(--destructive)]">
+                      <span className="rounded-[var(--radius-sm)] border border-[color:var(--destructive)]/50 bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] px-2 py-0.5 text-sm font-medium text-[color:var(--destructive)]">
                         Overspent
                       </span>
                     ) : null}
                     <span
                       className={cn(
-                        "text-xs",
+                        "text-sm",
                         budget.overBudget ? "text-destructive" : "text-muted",
                       )}
                     >

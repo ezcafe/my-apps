@@ -15,15 +15,15 @@ Money client bootstrap: [`components/money-workspace-provider.tsx`](components/m
 
 ## UI / design system (mandatory)
 
-Any user-facing change — new pages, components, micro-tweaks — must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md). The shell uses the **Quiet Ink** preset (`data-style="quiet"`) with a **subdued neutral light** palette and **Catppuccin Mocha** (dark); if your change does not survive switching light/dark in `/settings`, it is wrong.
+Any user-facing change — new pages, components, micro-tweaks — must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md). The shell uses the **clean-minimal** preset (`data-style="quiet"`) with a **teal accent** light palette and **neutral dark** + teal; if your change does not survive switching light/dark in `/settings`, it is wrong.
 
 Hard rules:
 
 - Use semantic tokens from [`app/globals.css`](app/globals.css) and primitives from [`components/ui/`](components/ui/). No hard-coded hex, font stacks, `rounded-md`, or `shadow-lg`.
-- **Concentric radii**: outer surfaces use `rounded-[var(--radius-md)]`; nested chips/rows/checkbox markers use `rounded-[var(--radius-sm)]`. Never use `rounded-[calc(var(--radius-md)-Xpx)]` — that's a legacy pattern, replaced by `--radius-sm`.
-- Microinteractions are CSS-only (`fx-press`, `fx-fade-in`, `fx-stagger-children`, `fx-overlay`, `fx-icon-swap`, `fx-hit-40`, `fx-shimmer`, `fx-field`, View Transitions via [`withViewTransition`](lib/microinteractions.ts)). No motion libs.
+- **Concentric radii**: outer surfaces use `rounded-[var(--radius-md)]`; nested chips/rows/checkbox markers use `rounded-[var(--radius-sm)]`. Never use `rounded-[calc(var(--radius-md)-Xpx)]` — that's a legacy pattern, replaced by `--radius-sm`. Tables stay sharp (no radius).
+- Microinteractions are CSS-only (`fx-press`, `fx-fade-in`, `fx-stagger-children`, `fx-overlay`, `fx-icon-swap`, `fx-hit-40`, `fx-shimmer`, View Transitions via [`withViewTransition`](lib/microinteractions.ts)). No motion libs.
 - **Transition specificity**: list the exact properties (`transition-[opacity,transform]`, `transition-colors`, `transition-transform`). Never `transition` shorthand or `transition-property: all`.
-- **Hit area**: icon-only `Button` callers pass `iconOnly`; raw `<button>`/`<a>` icon-only controls add `fx-hit-40`. Don't let two extended hit areas overlap.
+- **Hit area**: icon-only `Button` callers pass `iconOnly`; raw `<button>`/`<a>` icon-only controls add `fx-hit-40` (≥44×44). Don't let two extended hit areas overlap.
 - **Stateful icon swaps**: use the [`IconSwap`](components/ui/icon-swap.tsx) primitive; never toggle visibility for play/pause, copy/check, etc.
 - **Globally provided** by `globals.css` (don't repeat per element): `tabular-nums` on body, `text-wrap: balance` on `h1-h3`, `text-wrap: pretty` on body copy, `outline` on `<img>`, `-webkit-font-smoothing: antialiased` on `<html>`.
 - Layout uses `repeat(auto-fit, minmax(...))` and container queries; no hardcoded breakpoints for content.

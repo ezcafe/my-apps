@@ -374,12 +374,12 @@ export function MultiSelect({
           style={{ maxHeight: panelPos.listMaxHeight }}
         >
           {flatItems.length === 0 ? (
-            <p className="px-2 py-3 text-center text-xs text-muted">
+            <p className="px-2 py-3 text-center text-sm text-muted">
               {emptyHint ?? "Nothing to choose"}
             </p>
           ) : filteredFlat ? (
             filteredFlat.length === 0 ? (
-              <p className="px-2 py-3 text-center text-xs text-muted">
+              <p className="px-2 py-3 text-center text-sm text-muted">
                 No matches
               </p>
             ) : (
@@ -427,7 +427,7 @@ export function MultiSelect({
             selected.map((s) => (
               <span
                 key={s.id}
-                className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-border bg-muted-surface px-1.5 py-0.5 text-xs font-medium text-foreground fx-press"
+                className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-border bg-muted-surface px-1.5 py-0.5 text-sm font-medium text-foreground fx-press"
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();

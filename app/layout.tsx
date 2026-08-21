@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { IBM_Plex_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { RootProviders } from "@/components/root-providers";
 import {
@@ -10,10 +10,10 @@ import {
 } from "@/lib/date-format-preference";
 import { themeInitInlineScript } from "@/lib/theme-init-script";
 
-const plexSans = IBM_Plex_Sans({
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-plex-sans",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -27,7 +27,7 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Workspace",
   description:
-    "Household workspace — Money, analytics, and more. Quiet Ink UI with Facebook light and Catppuccin Mocha (dark).",
+    "Household workspace — Money, analytics, and more. Clean minimal UI with teal accent and neutral dark mode.",
 };
 
 export default async function RootLayout({
@@ -45,7 +45,7 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       data-style="quiet"
-      className={`h-full ${plexSans.variable} ${plexMono.variable}`}
+      className={`h-full ${inter.variable} ${plexMono.variable}`}
     >
       <head>
         <script

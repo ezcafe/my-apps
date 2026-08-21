@@ -101,7 +101,7 @@ export function Modal({
       <div className="flex max-h-[inherit] min-h-0 min-w-0 w-full flex-col overflow-hidden rounded-[inherit]">
         {!bare && title ? (
           <>
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-3 py-2.5">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-6 py-4">
               <h2
                 id="modal-dialog-title"
                 className="text-lg font-medium tracking-tight"
@@ -119,12 +119,12 @@ export function Modal({
                 ✕
               </Button>
             </div>
-            <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-4">
+            <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-6">
               {children}
             </div>
           </>
         ) : (
-          <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-4">
+          <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-6">
             {children}
           </div>
         )}

@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 
 /**
  * Application page heading — Tailwind Plus “With actions” /
- * “With actions and breadcrumbs” / “With meta and actions”, Quiet Ink tokens.
+ * “With actions and breadcrumbs” / “With meta and actions”, clean-minimal tokens.
  * @see https://tailwindcss.com/plus/ui-blocks/application-ui/headings/page-headings
  *
  * Layout deviation: title + leading + actions stay on one row at all widths
@@ -49,7 +49,7 @@ export function PageHeading({
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         {leading}
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <h1 className="min-w-0 truncate font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          <h1 className="min-w-0 truncate font-display text-3xl font-semibold tracking-tight text-foreground">
             {title}
           </h1>
           {description ? (

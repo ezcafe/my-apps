@@ -148,10 +148,10 @@ export function InvestmentSettingsPage() {
                   <p className="font-medium">
                     {i.symbol} · {i.name}
                     {i.archived ? (
-                      <span className="ml-2 text-xs text-muted">(archived)</span>
+                      <span className="ml-2 text-sm text-muted">(archived)</span>
                     ) : null}
                   </p>
-                  <p className="text-xs text-muted capitalize">
+                  <p className="text-sm text-muted capitalize">
                     {i.kind} · {i.currency}
                     {i.yahooSymbol ? ` · Yahoo: ${i.yahooSymbol}` : ""}
                   </p>
@@ -203,7 +203,7 @@ export function InvestmentSettingsPage() {
                 autoComplete="off"
               />
             </Field>
-            <p className="text-xs text-muted">Currency: {defaultCurrency}</p>
+            <p className="text-sm text-muted">Currency: {defaultCurrency}</p>
             <Button type="submit" variant="primary" disabled={saving} className="w-fit">
               {saving ? "Creating…" : "Create instrument"}
             </Button>

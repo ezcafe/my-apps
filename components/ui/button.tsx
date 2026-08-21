@@ -6,7 +6,7 @@ export type ButtonSize = "sm" | "md" | "lg";
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-accent-foreground shadow-[var(--shadow-sm)] hover:opacity-95 active:opacity-90 border border-transparent",
+    "bg-accent text-accent-foreground shadow-[var(--shadow-sm)] hover:bg-accent-hover hover:shadow-[0_2px_4px_rgb(0_0_0/0.08)] hover:-translate-y-px active:translate-y-0 active:shadow-[var(--shadow-sm)] border border-transparent disabled:bg-muted-surface disabled:text-muted disabled:opacity-60 disabled:shadow-none disabled:translate-y-0",
   secondary:
     "border border-border bg-secondary text-secondary-foreground hover:bg-secondary-hover",
   ghost:
@@ -18,25 +18,25 @@ const variants: Record<ButtonVariant, string> = {
 // Symmetric padding for label-only buttons. When an icon is on a side,
 // the matching `pad*WithIcon` reduces that side by ~2px (optical alignment).
 const padLabelOnly: Record<ButtonSize, string> = {
-  sm: "px-3 py-2",
-  md: "px-4 py-2.5",
-  lg: "px-5 py-3",
+  sm: "px-4 py-2",
+  md: "px-6 py-3",
+  lg: "px-6 py-3.5",
 };
 
 const padLeadingIcon: Record<ButtonSize, string> = {
-  sm: "pl-2.5 pr-3 py-2",
-  md: "pl-3.5 pr-4 py-2.5",
-  lg: "pl-[1.125rem] pr-5 py-3",
+  sm: "pl-3 pr-4 py-2",
+  md: "pl-5 pr-6 py-3",
+  lg: "pl-5 pr-6 py-3.5",
 };
 
 const padTrailingIcon: Record<ButtonSize, string> = {
-  sm: "pl-3 pr-2.5 py-2",
-  md: "pl-4 pr-3.5 py-2.5",
-  lg: "pl-5 pr-[1.125rem] py-3",
+  sm: "pl-4 pr-3 py-2",
+  md: "pl-6 pr-5 py-3",
+  lg: "pl-6 pr-5 py-3.5",
 };
 
 const padIconOnly: Record<ButtonSize, string> = {
-  // Icon-only buttons get equal padding and a hit-area floor of 40×40.
+  // Icon-only buttons get equal padding and a hit-area floor of 44×44.
   sm: "p-2.5 fx-hit-40",
   md: "p-2.5 fx-hit-40",
   lg: "p-3",
@@ -49,7 +49,7 @@ const sizeText: Record<ButtonSize, string> = {
 };
 
 const base =
-  "group relative inline-flex items-center justify-center rounded-[var(--radius-md)] font-medium transition-[opacity,transform,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 fx-press";
+  "group relative inline-flex items-center justify-center rounded-[var(--radius-md)] font-medium transition-[background-color,box-shadow,transform,opacity] duration-150 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none fx-press";
 
 type ClassNameOptions = {
   variant?: ButtonVariant;
@@ -97,7 +97,7 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: ButtonSize;
   leading?: ReactNode;
   trailing?: ReactNode;
-  /** Pure-icon button: enables 40×40 hit area + symmetric padding. */
+  /** Pure-icon button: enables 44×44 hit area + symmetric padding. */
   iconOnly?: boolean;
 };
 

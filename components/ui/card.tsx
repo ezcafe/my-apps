@@ -7,13 +7,10 @@ export type CardProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 /**
- * Surface container that survives every preset's radius/shadow tokens.
+ * Surface container — border only (no shadow) per clean-minimal rules.
  *
- * Concentric radius rule (skill): if you nest a rounded element directly
- * inside a Card, the child must use `--radius-sm` (smaller). Use
- * `rounded-[var(--radius-sm)]` for inner buttons, chips, list rows, etc.
- * For 24px+ inner padding, treat the inner element as its own surface
- * and pick a radius independently.
+ * Concentric radius: nest with `--radius-sm`. For 24px+ inner padding,
+ * treat the inner element as its own surface.
  */
 export function Card({
   children,
@@ -26,9 +23,9 @@ export function Card({
     <div
       ref={ref}
       className={cn(
-        "rounded-[var(--radius-md)] border border-border bg-surface shadow-[var(--shadow-sm)]",
+        "rounded-[var(--radius-md)] border border-border bg-surface",
         interactive &&
-          "transition-[box-shadow] duration-200 hover:shadow-[var(--shadow-md)]",
+          "transition-[border-color] duration-200 hover:border-[color-mix(in_oklab,var(--border)_70%,var(--foreground))]",
         className,
       )}
       {...props}

@@ -1,4 +1,4 @@
-# Design guide — Quiet Ink (restrained & dense)
+# Design guide — Clean minimal (teal + Inter)
 
 Every new screen, component, and feature must follow this guide. The shell, primitives, tokens, and motion utilities here are the **only** sanctioned way to build UI.
 
@@ -9,7 +9,7 @@ The non-negotiables:
 3. Microinteractions are **CSS-only** (Tailwind transitions, `@starting-style`, View Transitions API, `:has()`, scroll-driven animations) and respect `prefers-reduced-motion`.
 4. Layout uses modern CSS (`grid-template-columns: repeat(auto-fit, minmax(...))`, container queries, `clamp()`); no hardcoded breakpoints for content.
 5. Charts use **visx** and read colors via [`colorByIndex(resolved, i, style)`](../lib/theme-chart-palette.ts) so they recolor when the user switches light/dark mode.
-6. Apply the **interface-polish principles**, **restrained dense rules**, and **Quiet Ink minimal rules** below by default.
+6. Apply the **interface-polish principles**, **clean-minimal rules**, and **8px spacing** below by default.
 
 If a need is not covered here, propose an extension to this doc + a primitive — do **not** ship a one-off.
 
@@ -19,7 +19,7 @@ If a need is not covered here, propose an extension to this doc + a primitive �
 |-----------|-------------|
 | **Platform** | Responsive web app, **mobile-first**. Design for narrow viewports first; enhance with container queries and `auto-fit` grids — never desktop-only layouts that collapse poorly on phones. |
 | **Primary user** | A **busy parent** who needs to **add or update spending in seconds** between other tasks. Optimize for capture speed, scannable totals, and one-thumb reach on mobile. |
-| **Mood & style** | **Minimal** — Quiet Ink restrained dense (see below). No decoration, no hero marketing chrome. |
+| **Mood & style** | **Clean minimal** — off-white surfaces, dark gray type, one teal accent, Inter. No decoration, no hero marketing chrome. |
 | **Styling** | [**Tailwind CSS v4**](https://tailwindcss.com/) utilities + semantic tokens from [`app/globals.css`](../app/globals.css). No daisyUI; no hard-coded hex in feature JSX. |
 | **Charts** | [**visx**](https://visx.airbnb.tech/docs) only for data visualization; colors via [`colorByIndex`](../lib/theme-chart-palette.ts). |
 
@@ -36,7 +36,7 @@ Desktop (`lg+`): shell uses a fixed icon rail on non-Money routes; Money / Help 
 
 ### Page headings & breadcrumbs
 
-- Structure follows Tailwind Plus application-ui blocks; retokenize onto Quiet Ink + [`components/ui/*`](../components/ui/) (`Button` / `buttonClassName`, [`Breadcrumb`](../components/ui/breadcrumb.tsx) from [Simple with chevrons](https://tailwindcss.com/plus/ui-blocks/application-ui/navigation/breadcrumbs)).
+- Structure follows Tailwind Plus application-ui blocks; retokenize onto clean-minimal + [`components/ui/*`](../components/ui/) (`Button` / `buttonClassName`, [`Breadcrumb`](../components/ui/breadcrumb.tsx) from [Simple with chevrons](https://tailwindcss.com/plus/ui-blocks/application-ui/navigation/breadcrumbs)).
 - Hamburger = icon-only (`fx-hit-40`); primary page actions = **text labels only** (e.g. “Create loan”, “Add transaction”).
 - Breadcrumbs sit **above** the title when nested; omit on top-level section pages.
 - Path defaults: [`resolveMoneyAppHeader`](../lib/money-app-header.ts); dynamic pages override via [`useSetAppHeader`](../components/app-header-override.tsx).
@@ -61,19 +61,19 @@ Wrap page bodies in [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) (`flex fle
 ```
 
 **Flat surfaces:** Cards are for discrete metrics, charts, and entity tiles. Tables, full-page forms, and settings/help sections sit on the page background with headings + dividers — no Card-in-page or Card-around-table.
-## Restrained dense rules
+## Clean-minimal rules
 
-Information-grid first: medium–high density in controls, tables, filters, and forms; airy rhythm between sections.
+Information-grid first: readable density in controls, tables, filters, and forms; generous section whitespace on an **8px grid** (8 / 16 / 24 / 32 / 48 / 64).
 
 | Rule | Practice in this app |
 |------|----------------------|
-| **Stepped surfaces** | White / off-white / cool gray layers via `--surface`, `--background`, `--muted-surface`. Dark: Catppuccin Mocha base / surface0 / surface1. Build depth with hairline `border-border`, shallow `--shadow-*`, and layered surfaces — not thick borders or glow. |
-| **Subdued accents** | Dark neutral text + **one subdued primary** (`--accent`) + **muted secondary** (`--secondary`). Reserve saturated color for semantic states (destructive, alerts, toasts) and chart series — not chrome. |
-| **Compact controls** | Default `Button` `size="md"` (`text-base`); form fields at `text-base` with comfortable padding. Tables use `text-base` rows. Section gaps via `.shell-main` and `gap-6` dashboard stacks. |
-| **Imagery subordinate** | Prefer small avatars, product thumbnails, precise diagrams, restrained data viz. No decorative illustration or cinematic photography. Empty-state icons stay modest — not hero-scale rings. |
-| **Measured motion** | Short fades, small slides, focus rings, state transitions for menus, dialogs, sorting, validation. No ambient blur theater, scale pops, or long chart draws. |
-| **Restrained geometry** | `--radius-md` / `--radius-sm` between `0.25rem`–`1rem`. Plain rectangles, compact pills, inset controls. |
-| **Quiet type** | IBM Plex Sans + Mono only. Strong hierarchy via size, weight, alignment — not expressive styling. Medium-weight labels; muted supporting text; tabular nums global. |
+| **Stepped surfaces** | Off-white / white / light gray via `--background`, `--surface`, `--muted-surface`. Dark: near-black neutrals. Depth via hairline `border-border` — **cards use border only** (no shadow). Modals/popovers may use `--shadow-md`. |
+| **One accent** | Dark gray text + **one teal primary** (`--accent`) + muted secondary. Semantic red/amber for errors/warnings only. No purple/rainbow chrome. |
+| **Comfortable controls** | Default `Button` `size="md"` (`text-base`, ~12×24 padding); form fields `text-base` with `px-4 py-3`. Tables `text-base`. Section gaps `gap-6` (24px) / `gap-8` (32px). |
+| **Imagery subordinate** | Prefer small avatars, product thumbnails, precise diagrams, restrained data viz. No decorative illustration or cinematic photography. |
+| **Measured motion** | Short fades, small slides, focus rings, button lift on hover. No ambient blur, scale pops, or long chart draws. Never `transition: all`. |
+| **Restrained geometry** | `--radius-md` 8px outer / `--radius-sm` 6px nested. Tables stay sharp (no radius). |
+| **Clean type** | Inter for UI + headings. IBM Plex Mono for code only. Body ≥16px; metadata ≥14px (`text-sm`). H1 ~32px with `-0.02em` tracking. |
 
 ### DaisyUI role aliases (mapping only — we do not use daisyUI)
 
@@ -88,15 +88,15 @@ This app uses custom tokens + [`components/ui`](components/ui/). When reading da
 | `base-300` | `--muted-surface` | `bg-muted-surface` |
 | `*-sm` size | primitive `size="sm"` | `Button size="sm"`, dense inputs |
 
-## Quiet Ink minimal rules
+## Minimal UI rules
 
-Distilled from modern minimal / clean UI practice. Clarity beats decoration.
+Clarity beats decoration.
 
 | Rule | Practice in this app |
 |------|----------------------|
 | **Whitespace as hierarchy** | Dense tables and forms; airy section gaps. Do not pack page chrome into hero blocks. |
-| **One type family** | IBM Plex Sans for UI + headings (weight hierarchy). IBM Plex Mono for code/mono. Never add a third family. |
-| **Four color roles** | Neutrals (background / surface / muted-surface) + subdued **primary** + muted **secondary** + **destructive** / semantic states. No rainbow chrome. |
+| **One type family** | Inter for UI + headings (weight hierarchy). IBM Plex Mono for code/mono. Never add a third sans family. |
+| **Four color roles** | Neutrals (background / surface / muted-surface) + teal **primary** + muted **secondary** + **destructive** / semantic states. Max ~3 chrome colors (grays + accent). |
 | **One primary action per view** | Prefer a single `Button` `primary` per screen region; `secondary` / `ghost` for the rest. |
 | **Alignment & consistency** | Same padding, radius, and component styles everywhere; no one-off card treatments. |
 | **Simple navigation** | Shell nav from [`registry.ts`](../lib/features/registry.ts) only; do not stuff menus. |
@@ -116,16 +116,16 @@ Default audience is a **busy parent**: log a spend in seconds, then scan where m
 | **Insights** `/money/analytics` | KPIs + spend-by-category + income vs expense. Remaining charts behind **More insights**. |
 | **Settings** `/money/settings` | Workspace config; optional section tabs (Bills, Savings, Loans, Invest, Import) stay off by default. |
 
-Avoid: purple gradients, cream+terracotta marketing looks, broadsheet density, glow, decorative `rounded-full` pill clusters, Inter/system-only stacks, cinematic hero layouts.
+Avoid: purple gradients, rainbow multi-color chrome, text below 14px for UI copy, heavy drop shadows, cinematic hero layouts.
 
 ## Style architecture
 
-Fixed **Quiet Ink** structure with a **subdued neutral light** palette and **Catppuccin Mocha** dark ([Catppuccin style guide](https://github.com/catppuccin/catppuccin/blob/main/docs/style-guide.md)):
+Fixed clean-minimal structure with **teal accent** light palette and **neutral gray + teal** dark. Internal hook `data-style="quiet"` remains for ThemeProvider / FOUC compatibility.
 
 | Axis    | Where it lives                                           | Values |
 |---------|-----------------------------------------------------------|--------|
 | `style` | `<html data-style="quiet">` (set by [`ThemeProvider`](../components/theme-provider.tsx)) | `quiet` only |
-| `mode`  | `<html class="dark">` toggled by `ThemeProvider`         | light (neutral stepped grays) or dark (**Mocha**) |
+| `mode`  | `<html class="dark">` toggled by `ThemeProvider`         | light (off-white + teal) or dark (near-black + teal) |
 
 The user picks appearance in **`/settings`** ([`ThemeSettings`](../components/theme-settings.tsx)). Token sets live in [`app/globals.css`](../app/globals.css) under `:root[data-style="quiet"]` and `.dark`. FOUC is prevented by a pre-paint script in [`app/layout.tsx`](../app/layout.tsx).
 
@@ -133,7 +133,7 @@ The user picks appearance in **`/settings`** ([`ThemeSettings`](../components/th
 flowchart LR
   Settings["/settings"] --> ThemeProvider
   ThemeProvider -- "data-style=quiet + class=dark" --> HtmlRoot["html"]
-  HtmlRoot --> Tokens["globals.css light / Mocha"]
+  HtmlRoot --> Tokens["globals.css light / dark"]
   Tokens --> Primitives["components/ui"]
   Tokens --> Charts["chartPaletteFor"]
   Primitives --> Surfaces["Feature pages"]
@@ -141,17 +141,18 @@ flowchart LR
 
 ### Identity tokens (reference)
 
-| Role | Light | Mocha (dark) |
-|------|-------|--------------|
-| Surface (`base-100`) | `#ffffff` | `#313244` (surface0) |
-| Background (`base-200`) | `#f3f4f6` | `#1e1e2e` (base) |
-| Muted surface (`base-300`) | `#e8ebf0` | `#45475a` (surface1) |
-| Foreground | `#111827` | `#eff1f8` (text) |
-| Muted text | `#475569` | `#b8c0dc` (subtext0) |
-| Primary (`accent`) | `#356089` (subdued blue) | `#89b4fa` |
-| Secondary | `#d8dee6` (muted slate wash) | `#6c7086` (overlay) |
+| Role | Light | Dark |
+|------|-------|------|
+| Surface (`base-100`) | `#ffffff` | `#1a1a1a` |
+| Background (`base-200`) | `#fafafa` | `#171717` |
+| Muted surface (`base-300`) | `#f5f5f5` | `#262626` |
+| Foreground | `#1a1a1a` | `#fafafa` |
+| Muted text | `#6b6b6b` | `#a0a0a0` |
+| Border | `#e5e5e5` | `#404040` |
+| Primary (`accent`) | `#0d9488` (teal) | `#2dd4bf` |
+| Secondary | `#f5f5f5` | `#262626` |
 | Body size | `1rem` / `line-height: 1.5` | same |
-| Radius | `--radius` `0.5rem` / `--radius-inner` `0.3125rem` | same |
+| Radius | `--radius` `0.5rem` / `--radius-inner` `0.375rem` | same |
 
 ## Tokens you must use
 
@@ -166,24 +167,24 @@ Defined in [`app/globals.css`](../app/globals.css). Available as Tailwind utilit
 - Status: `--destructive` and `--alert-error-*` / `--alert-warning-*` (used by [`Alert`](../components/ui/alert.tsx)) and `--toast-*` (used by [`NotificationProvider`](../components/notification-provider.tsx))
 
 ### Type
-- Body: `font-sans` → `--font-body` (IBM Plex Sans)
-- Headings/branding: `font-display` → `--font-heading` (IBM Plex Sans, heavier weight via utility)
+- Body: `font-sans` → `--font-body` (Inter)
+- Headings/branding: `font-display` → `--font-heading` (Inter, heavier weight via utility)
 - Mono: `font-mono` → IBM Plex Mono
 
-Do not hard-code font stacks. Body sets `font-size: 1rem`, `line-height: 1.5`, and `font-variant-numeric: tabular-nums` globally. Prefer readable scale: `text-base` for controls and table body; `text-sm` for metadata; page titles `text-2xl`–`text-3xl`.
+Do not hard-code font stacks. Body sets `font-size: 1rem`, `line-height: 1.5`, and `font-variant-numeric: tabular-nums` globally. Prefer readable scale: `text-base` for controls and table body; `text-sm` (14px) for metadata — never `text-xs` for UI copy; page titles `text-3xl` (32px).
 
 ### Shape & elevation
 
 | Token | Tailwind class | Use it on |
 |-------|----------------|-----------|
-| `--radius` (alias `--radius-md`) | `rounded-[var(--radius-md)]` | Outer surfaces — Cards, Modals, Popovers, Inputs, Buttons, primary panels. Range: `0.25rem`–`1rem`. |
+| `--radius` (alias `--radius-md`) | `rounded-[var(--radius-md)]` | Outer surfaces — Cards, Modals, Popovers, Inputs, Buttons, primary panels. |
 | `--radius-inner` (alias `--radius-sm`) | `rounded-[var(--radius-sm)]` | Nested chips, badges, segmented items, list rows, checkbox indicators, inline `<code>`. |
 
 If inner padding around a child exceeds 24px, treat it as its own surface.
 
-> **Never** use Tailwind's `rounded-md`, `rounded-lg`, `rounded-2xl`, or `rounded-[calc(var(--radius-md)-2px)]`. Use `--radius-sm` for nested.
+> **Never** use Tailwind's `rounded-md`, `rounded-lg`, `rounded-2xl`, or `rounded-[calc(var(--radius-md)-2px)]`. Use `--radius-sm` for nested. Tables stay sharp (no radius on the table shell).
 
-Shadows: `shadow-[var(--shadow-sm)]` and `shadow-[var(--shadow-md)]`. Never `shadow-md`/`shadow-lg`. Prefer hairline `border-border` + shallow shadow for elevation.
+Shadows: `shadow-[var(--shadow-sm)]` and `shadow-[var(--shadow-md)]` for buttons / modals / popovers. **Cards: border only** — do not combine border + shadow on the same card. Never `shadow-md`/`shadow-lg` Tailwind presets.
 
 ### Status colors
 - **Positive / desirable:** `text-accent` / `bg-accent` (subdued primary — not a separate green on chrome).
@@ -200,19 +201,19 @@ const { resolved, style } = useTheme();
 Never hard-code chart hexes; never read only `resolved`. Keep charts restrained — precise axes, modest legend, no decorative illustration.
 
 ### Spacing
-- `--space-step: 0.5rem` is the density unit.
-- Macro whitespace: `.shell-main` uses `clamp` padding with airy section `gap` — do not override with zero padding on page roots.
-- Micro whitespace: form/table internals use comfortable padding (`py-2.5`–`py-3` rows, `px-3`–`px-4` cells, `gap-3` in toolbars).
+- `--space-step: 0.5rem` is the **8px grid** unit. Prefer 8 / 16 / 24 / 32 / 48 / 64 (`gap-2` … `gap-16`, `p-2` … `p-16`).
+- Macro whitespace: `.shell-main` uses `clamp` padding; dashboard stacks use `gap-8` (32px). Do not override with zero padding on page roots.
+- Micro whitespace: form/table internals use comfortable padding (`py-3` rows, `px-4` cells, `gap-3`–`gap-4` in toolbars).
 
 ## Primitives — pick from these first
 
 | Primitive | File | Use it for |
 |-----------|------|-----------|
-| `Button` | [`components/ui/button.tsx`](../components/ui/button.tsx) | Any button (`primary`/`secondary`/`ghost`/`danger`, `sm`/`md`/`lg`). Default **`md`** (`text-base`). Built-in `fx-press`. Pass `leading`/`trailing`; `iconOnly` for 40×40 via `fx-hit-40`. |
-| `Field` + `Input` / `Textarea` / `Select` | [`field.tsx`](../components/ui/field.tsx), [`input.tsx`](../components/ui/input.tsx), [`textarea.tsx`](../components/ui/textarea.tsx), [`select.tsx`](../components/ui/select.tsx) | Labeled fields with focus underline. Dense default padding. |
+| `Button` | [`components/ui/button.tsx`](../components/ui/button.tsx) | Any button (`primary`/`secondary`/`ghost`/`danger`, `sm`/`md`/`lg`). Default **`md`** (`text-base`, ~12×24 padding). Built-in `fx-press` + hover lift. Pass `leading`/`trailing`; `iconOnly` for 44×44 via `fx-hit-40`. |
+| `Field` + `Input` / `Textarea` / `Select` | [`field.tsx`](../components/ui/field.tsx), [`input.tsx`](../components/ui/input.tsx), [`textarea.tsx`](../components/ui/textarea.tsx), [`select.tsx`](../components/ui/select.tsx) | Labeled fields with focus ring. Optional `error` slot. Comfortable `px-4 py-3` padding. |
 | `MultiSelect` | [`multi-select.tsx`](../components/ui/multi-select.tsx) | Chip trigger + checkbox popover. |
-| `Card` | [`card.tsx`](../components/ui/card.tsx) | Discrete surfaces only: KPI tiles, chart panels, entity tiles. Nested children → `--radius-sm`. Do **not** wrap tables, page forms, or settings sections. |
-| `Table` | [`table.tsx`](../components/ui/table.tsx) | Data grids (ledgers, schedules, holdings, CSV maps). Sticky header, optional frozen identity column, sort button, hover/focus row actions. **Not** for settings entity editors (those stay divide-y lists). |
+| `Card` | [`card.tsx`](../components/ui/card.tsx) | Discrete surfaces only: KPI tiles, chart panels, entity tiles. **Border only** (no shadow). Nested children → `--radius-sm`. Do **not** wrap tables, page forms, or settings sections. |
+| `Table` | [`table.tsx`](../components/ui/table.tsx) | Data grids (ledgers, schedules, holdings, CSV maps). Sharp shell, sticky header, optional frozen identity column, sort button, hover/focus row actions. **Not** for settings entity editors (those stay divide-y lists). |
 | `Modal` | [`modal.tsx`](../components/ui/modal.tsx) | Native `<dialog>` + `fx-overlay`. |
 | `Popover` | [`popover.tsx`](../components/ui/popover.tsx) | Anchored panel with entry/exit. |
 | `MoreMenu` | [`more-menu.tsx`](../components/ui/more-menu.tsx) | Secondary actions / overflow (ellipsis + optional dirty dot). Use `MoreMenuItem` for rows; `variant="danger"` for destructive. |
@@ -237,9 +238,8 @@ All in [`app/globals.css`](../app/globals.css) `@layer utilities`. Do not author
 | `fx-stagger-children` | Short staggered fade/slide (no blur) |
 | `fx-overlay` | Dialog enter/exit (~−8px + fade) |
 | `fx-icon-swap` | Opacity cross-fade only |
-| `fx-hit-40` | ≥40×40 hit target |
+| `fx-hit-40` | ≥44×44 hit target (class name kept for callers) |
 | `fx-shimmer` | Skeleton shimmer |
-| `fx-field` + `fx-field-underline` | Focus underline |
 | `fx-vt-shell-nav-active` | Shell nav view transition |
 | `fx-vt-money-tab-active` | Money tab view transition |
 | `toast-progress-bar` | Toast countdown |
@@ -270,7 +270,7 @@ withViewTransition(() => setTheme("dark"));
 | 13 | **Skip animation on first paint** | `@starting-style` where safe |
 | 14 | **No `transition: all`** | list properties |
 | 15 | **`will-change` sparingly** | only when stutter observed |
-| 16 | **Minimum 40×40 hit area** | `iconOnly` / `fx-hit-40` |
+| 16 | **Minimum 44×44 hit area** | `iconOnly` / `fx-hit-40` |
 
 ## Layout rules
 
@@ -290,7 +290,7 @@ withViewTransition(() => setTheme("dark"));
 - **Desktop (`lg+`):** icon rail in [`app-shell.tsx`](../components/app-shell.tsx) when not on Money/Help/Settings; otherwise in-page [`PageHeading`](../components/page-heading.tsx) with section-aware text CTA.
 - Active item: `fx-vt-shell-nav-active`.
 - Route changes: `<main key={pathname}>` + `fx-fade-in`.
-- Touch targets: `iconOnly` / `fx-hit-40` (≥40×40) on all menu triggers.
+- Touch targets: `iconOnly` / `fx-hit-40` (≥44×44) on all menu triggers.
 
 ## Accessibility & motion
 
@@ -300,7 +300,7 @@ withViewTransition(() => setTheme("dark"));
 
 ## Tables
 
-Use [`components/ui/table.tsx`](../components/ui/table.tsx) for every HTML data table. Patterns follow [Pencil & Paper enterprise table UX](https://www.pencilandpaper.io/articles/ux-pattern-analysis-enterprise-data-tables), constrained for Quiet Ink and a mobile-first busy-parent audience.
+Use [`components/ui/table.tsx`](../components/ui/table.tsx) for every HTML data table. Patterns follow [Pencil & Paper enterprise table UX](https://www.pencilandpaper.io/articles/ux-pattern-analysis-enterprise-data-tables), constrained for clean-minimal and a mobile-first busy-parent audience.
 
 | Rule | Practice |
 |------|----------|
@@ -338,9 +338,11 @@ Use [`components/ui/table.tsx`](../components/ui/table.tsx) for every HTML data 
 - Per-style component branching — express differences via tokens.
 - Hardcoded breakpoints when `auto-fit` / container queries work.
 - `transition` shorthand or `transition-property: all`.
-- Tinted image outlines; icon visibility toggles; hit areas &lt; 40×40 without `fx-hit-40`.
+- Tinted image outlines; icon visibility toggles; hit areas &lt; 44×44 without `fx-hit-40`.
 - Decorative `rounded-full` pill clusters (true circular controls OK).
 - Cinematic photography, hero-scale empty states, theatrical motion.
+- Text below 14px for UI copy (`text-xs` reserved for rare chart ticks).
+- Borders **and** shadows on the same card.
 
 ## When changing the design system itself
 
@@ -358,8 +360,8 @@ Use [`components/ui/table.tsx`](../components/ui/table.tsx) for every HTML data 
 - [ ] Layout uses `auto-fit`/container queries.
 - [ ] Charts use `colorByIndex(resolved, i, style)`.
 - [ ] Concentric radii (`--radius-md` / `--radius-sm`).
-- [ ] Icon-only: `iconOnly` or `fx-hit-40`; swaps via `IconSwap`.
-- [ ] Explicit `transition-*` properties.
+- [ ] Icon-only: `iconOnly` or `fx-hit-40` (≥44×44); swaps via `IconSwap`.
+- [ ] Explicit `transition-*` properties (never `transition: all`).
 - [ ] Mobile-first: hamburger popup nav, dashboard stack, primary CTA in PageHeading on all breakpoints.
 - [ ] Verified light and dark via `/settings`.
 - [ ] `npm run lint` and `npm run build` pass.

@@ -3,25 +3,25 @@ import type { StylePreset } from "@/components/theme-provider";
 /** Chart series colors — mirror CSS `--chart-0` … `--chart-7` in app/globals.css */
 
 export const CHART_PALETTE_QUIET_LIGHT = [
-  "#356089", // subdued blue
-  "#00b2ff", // cyan
-  "#f7923b", // orange
-  "#31a24c", // green
-  "#8b5cf6", // violet
-  "#f02849", // red
-  "#54c7ec", // sky
-  "#8a8d91", // gray
+  "#0d9488", // teal
+  "#0f766e", // teal dark
+  "#f59e0b", // amber
+  "#059669", // emerald
+  "#737373", // gray
+  "#dc2626", // red
+  "#a0a0a0", // light gray
+  "#2d2d2d", // near black
 ] as const;
 
 export const CHART_PALETTE_QUIET_DARK = [
-  "#89b4fa", // blue
-  "#94e2d5", // teal
-  "#fab387", // peach
-  "#a6e3a1", // green
-  "#cba6f7", // mauve
-  "#f38ba8", // red
-  "#89dceb", // sky
-  "#6c7086", // overlay0
+  "#2dd4bf", // teal
+  "#5eead4", // teal light
+  "#fbbf24", // amber
+  "#34d399", // emerald
+  "#a0a0a0", // gray
+  "#f87171", // red
+  "#737373", // muted gray
+  "#e5e5e5", // near white
 ] as const;
 
 /** @deprecated Use CHART_PALETTE_QUIET_* — kept for gradual migration */
@@ -62,7 +62,7 @@ const EXPENSE_HOT_PASTEL: Record<
   StylePreset,
   { light: string; dark: string }
 > = {
-  quiet: { light: "#f02849", dark: "#f38ba8" },
+  quiet: { light: "#dc2626", dark: "#f87171" },
 };
 
 export function chartExpenseHotPastel(

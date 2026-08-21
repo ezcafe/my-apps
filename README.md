@@ -1,6 +1,6 @@
 # Workspace app
 
-Multi-feature Next.js workspace built around a small **shell** and a unified **Money** finance module (transactions, investments, loans, and savings-style accounts). Pocket ID OIDC handles auth; Drizzle + PostgreSQL 18 hold the data. The UI is a token-driven **Quiet Ink** design system with a **Facebook** light palette and **Catppuccin Mocha** (dark) and CSS-only motion.
+Multi-feature Next.js workspace built around a small **shell** and a unified **Money** finance module (transactions, investments, loans, and savings-style accounts). Pocket ID OIDC handles auth; Drizzle + PostgreSQL 18 hold the data. The UI is a token-driven **clean-minimal** design system (teal accent, Inter, neutral dark) with CSS-only motion.
 
 > **All UI work must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md).** No hard-coded colors, fonts, radii, shadows, or motion libraries.
 
@@ -154,18 +154,18 @@ docs/                  Architecture, design guide, feature checklist.
 
 ## Design system (mandatory)
 
-- Fixed **Quiet Ink** structure with two Catppuccin appearance palettes:
+- Fixed **clean-minimal** structure (`data-style="quiet"` hook retained):
   - `style` → `<html data-style="quiet">` (always).
-  - `mode` → `<html class="dark">` for Mocha dark; otherwise Facebook light.
+  - `mode` → `<html class="dark">` for neutral dark + teal; otherwise off-white + teal light.
 - **2 token sets** declared in [`app/globals.css`](app/globals.css). Components never branch on `style`.
-- Compose UI from [`components/ui/`](components/ui/) primitives. They already consume tokens (`rounded-[var(--radius-md)]`, `shadow-[var(--shadow-sm)]`, `bg-surface`, etc.).
-- Microinteractions are CSS-only (`fx-press`, `fx-fade-in`, `fx-shimmer`, `fx-field` + `fx-field-underline`). For state-driven transitions, use [`withViewTransition`](lib/microinteractions.ts).
+- Compose UI from [`components/ui/`](components/ui/) primitives. They already consume tokens (`rounded-[var(--radius-md)]`, `bg-surface`, `border-border`, etc.). Cards are border-only (no shadow).
+- Microinteractions are CSS-only (`fx-press`, `fx-fade-in`, `fx-shimmer`, `fx-hit-40`). For state-driven transitions, use [`withViewTransition`](lib/microinteractions.ts).
 - Charts: visx + `colorByIndex(resolved, i, style)` from [`lib/theme-chart-palette.ts`](lib/theme-chart-palette.ts). Never hand-pick chart colors.
 - Layout: `shell-main` wrapper + `repeat(auto-fit, minmax(min(100%, …), 1fr))` and container queries. No hard-coded breakpoints for content.
 - Status colors: `--accent` for positive, `--destructive` for negative, `--muted` for flat. No `text-emerald-*` / `text-rose-*`.
 - Verify every change in light and dark modes via `/settings` before merging.
 
-Forbidden: `rounded-md`/`rounded-lg`/`rounded-xl`/`rounded-2xl`, `shadow-sm`/`shadow-md`/`shadow-lg`, hand-picked hex colors or font families, JS animation libraries (Framer Motion / Motion One / GSAP), manual portals for dialogs (use `Modal`).
+Forbidden: `rounded-md`/`rounded-lg`/`rounded-xl`/`rounded-2xl`, `shadow-sm`/`shadow-md`/`shadow-lg`, hand-picked hex colors or font families, JS animation libraries (Framer Motion / Motion One / GSAP), manual portals for dialogs (use `Modal`), `transition: all`.
 
 Full rules + primitive table + microinteraction utilities: [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md). Spec: [`docs/SPEC.md`](docs/SPEC.md).
 

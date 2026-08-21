@@ -32,7 +32,7 @@ export function MoneySettingsResetSection({ onResetComplete }: Props) {
       <div className="rounded-[var(--radius-sm)] bg-destructive-muted-bg p-4">
         <p className="text-sm leading-6 text-foreground">
           Type{" "}
-          <span className="rounded-[var(--radius-sm)] bg-surface px-1.5 py-0.5 font-mono text-xs font-semibold ring-1 ring-border">
+          <span className="rounded-[var(--radius-sm)] bg-surface px-1.5 py-0.5 font-mono text-sm font-semibold ring-1 ring-border">
             {CONFIRM_PHRASE}
           </span>{" "}
           to enable reset, then confirm.

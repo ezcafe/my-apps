@@ -55,7 +55,7 @@ export function Table({
   return (
     <div
       className={cn(
-        "rounded-[var(--radius-md)] border border-border",
+        "border border-border",
         constrained ? "overflow-auto" : "overflow-x-auto",
         className,
       )}

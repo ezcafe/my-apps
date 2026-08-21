@@ -130,7 +130,7 @@ export function LoanInstallmentsTable({
         <TableCell className="whitespace-nowrap">
           <Tag className={statusTagClass(row)}>{statusLabel(row)}</Tag>
           {row.paidWithoutTransaction && row.status === "paid" ? (
-            <span className="ml-2 text-xs text-muted">No ledger entry</span>
+            <span className="ml-2 text-sm text-muted">No ledger entry</span>
           ) : null}
         </TableCell>
       </TableRow>
@@ -158,14 +158,14 @@ export function LoanInstallmentsTable({
                 #{row.installmentNumber}
               </p>
             </div>
-            <span className="shrink-0 text-xs text-muted tabular-nums">
+            <span className="shrink-0 text-sm text-muted tabular-nums">
               {dateLabel}
             </span>
           </div>
           <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
             <Tag className={statusTagClass(row)}>{statusLabel(row)}</Tag>
             {row.paidWithoutTransaction && row.status === "paid" ? (
-              <span className="text-xs text-muted">No ledger entry</span>
+              <span className="text-sm text-muted">No ledger entry</span>
             ) : null}
           </div>
           <p className="mt-1 truncate text-base text-muted">
@@ -193,7 +193,7 @@ export function LoanInstallmentsTable({
           >
             Payment schedule
           </h2>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-sm text-muted">
             {paidCount} of {loan.installments.length} installments paid
             {overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}
           </p>

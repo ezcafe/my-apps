@@ -134,7 +134,7 @@ export function Popover({
         aria-controls={id}
         aria-label={ariaLabel}
         className={cn(
-          "inline-flex items-center justify-center rounded-[var(--radius-md)] border border-border bg-surface px-2.5 py-2 text-sm font-medium text-foreground shadow-[var(--shadow-sm)] transition-[opacity,transform,box-shadow] duration-200 hover:bg-muted-surface focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
+          "inline-flex items-center justify-center rounded-[var(--radius-md)] border border-border bg-surface px-2.5 py-2 text-sm font-medium text-foreground transition-[opacity,transform,background-color] duration-200 hover:bg-muted-surface focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
           triggerClassName,
         )}
         onClick={() => setOpen((o) => !o)}

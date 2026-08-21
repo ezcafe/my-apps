@@ -136,7 +136,7 @@ export function MoneyDashboardSkeleton() {
           <h2 className="font-display text-lg font-medium tracking-tight">
             New transaction
           </h2>
-          <span className="text-xs text-muted">USD</span>
+          <span className="text-sm text-muted">USD</span>
         </header>
 
         <form
@@ -207,7 +207,7 @@ export function MoneyDashboardSkeleton() {
             <Button type="submit" disabled>
               Save transaction
             </Button>
-            <span aria-live="polite" className="text-xs text-muted">
+            <span aria-live="polite" className="text-sm text-muted">
               Reduces account balance.
             </span>
           </div>

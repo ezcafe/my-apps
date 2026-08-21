@@ -822,7 +822,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
           <h2 className="font-display text-lg font-medium tracking-tight">
             {cardTitle}
           </h2>
-          <span className="text-xs text-muted">{defaultCurrency}</span>
+          <span className="text-sm text-muted">{defaultCurrency}</span>
         </header>
         <form
           className="grid min-w-0 gap-4"
@@ -918,7 +918,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                 })}
               </Select>
               {workspaceSyncPending ? (
-                <p className="mt-1 text-xs text-muted">Switching workspace…</p>
+                <p className="mt-1 text-sm text-muted">Switching workspace…</p>
               ) : null}
             </Field>
           ) : null}
@@ -943,7 +943,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             </InputGroup>
             {topAmounts.length > 0 ? (
               <>
-                <p className="text-xs text-muted">
+                <p className="text-sm text-muted">
                   Tap a recent amount to fill · last 90 days
                 </p>
                 <div
@@ -964,7 +964,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                         onClick={() => setAmountMajor(major)}
                         title={`Use ${formatted}`}
                         className={cn(
-                          "cursor-pointer rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-xs font-medium tabular-nums text-foreground underline decoration-transparent underline-offset-2 transition-[background-color,border-color,color,text-decoration-color] duration-200 hover:border-foreground/25 hover:bg-muted-surface hover:decoration-foreground/40 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
+                          "cursor-pointer rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-sm font-medium tabular-nums text-foreground underline decoration-transparent underline-offset-2 transition-[background-color,border-color,color,text-decoration-color] duration-200 hover:border-foreground/25 hover:bg-muted-surface hover:decoration-foreground/40 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
                         )}
                       >
                         {formatted}
@@ -1180,7 +1180,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                             {fill ? (
                               <span
                                 className={cn(
-                                  "relative z-[1] shrink-0 text-xs tabular-nums",
+                                  "relative z-[1] shrink-0 text-sm tabular-nums",
                                   budgetUtilizationPctTextClassName(
                                     fill.progressPct,
                                     { selected },
@@ -1199,7 +1199,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
               </div>
               {topTagSuggestions.length > 0 ? (
                 <>
-                  <p className="text-xs text-muted">
+                  <p className="text-sm text-muted">
                     Tap a tag to add · last 90 days
                   </p>
                   <div
@@ -1222,7 +1222,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                             fill ? budgetFillTitle(fill) : `Add ${tag.label}`
                           }
                           className={cn(
-                            "relative isolate cursor-pointer overflow-hidden rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-xs font-medium text-foreground underline decoration-transparent underline-offset-2 transition-[background-color,border-color,color,text-decoration-color] duration-200 hover:border-foreground/25 hover:bg-muted-surface hover:decoration-foreground/40 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
+                            "relative isolate cursor-pointer overflow-hidden rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-sm font-medium text-foreground underline decoration-transparent underline-offset-2 transition-[background-color,border-color,color,text-decoration-color] duration-200 hover:border-foreground/25 hover:bg-muted-surface hover:decoration-foreground/40 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
                           )}
                         >
                           {fill ? <BudgetUtilizationFillLayer fill={fill} /> : null}
@@ -1258,7 +1258,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                 <span className="text-sm font-medium text-foreground">
                   Exclude from Insights and budget
                 </span>
-                <p className="mt-0.5 text-xs text-muted">
+                <p className="mt-0.5 text-sm text-muted">
                   Still updates account balance. Hidden from insights charts and
                   budget spend.
                 </p>
@@ -1280,7 +1280,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                     <span className="text-sm font-medium text-foreground">
                       Repeat this transaction
                     </span>
-                    <p className="mt-0.5 text-xs text-muted">
+                    <p className="mt-0.5 text-sm text-muted">
                       Post this entry now and generate future occurrences on a
                       schedule.
                     </p>
@@ -1291,7 +1291,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                   <span className="text-sm font-medium text-foreground">
                     Repeat this transaction
                   </span>
-                  <p className="mt-0.5 text-xs text-muted">
+                  <p className="mt-0.5 text-sm text-muted">
                     This transaction will repeat on the schedule below.
                   </p>
                 </div>
@@ -1330,7 +1330,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             >
               {submitLabel}
             </Button>
-            <span aria-live="polite" className="text-xs text-muted">
+            <span aria-live="polite" className="text-sm text-muted">
               {kind === "transfer"
                 ? "Transfers do not affect totals — only balances."
                 : recurrenceActive

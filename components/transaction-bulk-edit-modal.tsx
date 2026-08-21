@@ -340,14 +340,14 @@ export function TransactionBulkEditModal({
             />
             <div>
               <span className="font-medium text-foreground">Replace tags</span>
-              <span className="mt-0.5 block text-xs text-muted">
+              <span className="mt-0.5 block text-sm text-muted">
                 Sets the same tags on every selected transaction.
               </span>
             </div>
           </div>
           {updateTags ? (
             tags.length === 0 ? (
-              <p className="text-xs text-muted">No tags in workspace.</p>
+              <p className="text-sm text-muted">No tags in workspace.</p>
             ) : (
               <ul className="flex flex-wrap gap-2">
                 {tags.map((t) => {
@@ -363,7 +363,7 @@ export function TransactionBulkEditModal({
                         />
                         <span
                           className={cn(
-                            "inline-flex items-center rounded-[var(--radius-md)] border px-3 py-1.5 text-xs font-medium transition-[background-color,border-color,box-shadow] duration-150 fx-press",
+                            "inline-flex items-center rounded-[var(--radius-md)] border px-3 py-1.5 text-sm font-medium transition-[background-color,border-color,box-shadow] duration-150 fx-press",
                             checked
                               ? "border-accent bg-[color-mix(in_oklab,var(--accent)_14%,transparent)] text-accent"
                               : "border-border bg-background text-foreground hover:border-foreground/40",
@@ -390,7 +390,7 @@ export function TransactionBulkEditModal({
             />
             <div>
               <span className="font-medium text-foreground">Replace notes</span>
-              <span className="mt-0.5 block text-xs text-muted">
+              <span className="mt-0.5 block text-sm text-muted">
                 Sets the same note on every selected transaction.
               </span>
             </div>
@@ -417,7 +417,7 @@ export function TransactionBulkEditModal({
               <span className="font-medium text-foreground">
                 Exclude from Analytics and budget
               </span>
-              <span className="mt-0.5 block text-xs text-muted">
+              <span className="mt-0.5 block text-sm text-muted">
                 Sets the same exclusion flag on every selected transaction.
               </span>
             </div>
@@ -434,7 +434,7 @@ export function TransactionBulkEditModal({
               />
               <div className="min-w-0 flex-1">
                 <span className="text-sm text-foreground">Excluded</span>
-                <p className="mt-0.5 text-xs text-muted">
+                <p className="mt-0.5 text-sm text-muted">
                   Uncheck to include selected transactions in analytics and
                   budget again.
                 </p>

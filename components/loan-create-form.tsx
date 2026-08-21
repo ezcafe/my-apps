@@ -431,7 +431,7 @@ export function LoanCreateForm() {
           </div>
 
           {parsedInputs == null ? (
-            <p className="text-xs text-muted">
+            <p className="text-sm text-muted">
               Enter principal, rate, and term to see your estimated monthly
               payment.
             </p>
@@ -444,14 +444,14 @@ export function LoanCreateForm() {
               </p>
               <div className="mt-3 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
                 <div>
-                  <p className="text-xs text-muted">Monthly payment</p>
+                  <p className="text-sm text-muted">Monthly payment</p>
                   <p className="mt-0.5 font-display text-xl font-semibold tabular-nums">
                     {formatMinor(computedPaymentMinor, defaultCurrency)}
                   </p>
                 </div>
                 {firstMonthInterestMinor != null ? (
                   <div>
-                    <p className="text-xs text-muted">First-month interest</p>
+                    <p className="text-sm text-muted">First-month interest</p>
                     <p className="mt-0.5 font-display text-xl font-semibold tabular-nums">
                       {formatMinor(firstMonthInterestMinor, defaultCurrency)}
                     </p>
@@ -459,7 +459,7 @@ export function LoanCreateForm() {
                 ) : null}
                 {firstMonthPrincipalMinor != null ? (
                   <div>
-                    <p className="text-xs text-muted">First-month principal</p>
+                    <p className="text-sm text-muted">First-month principal</p>
                     <p className="mt-0.5 font-display text-xl font-semibold tabular-nums">
                       {formatMinor(firstMonthPrincipalMinor, defaultCurrency)}
                     </p>
@@ -470,7 +470,7 @@ export function LoanCreateForm() {
                 <div className="mt-4">
                   <button
                     type="button"
-                    className="text-xs font-medium text-accent transition-colors duration-150 hover:text-foreground"
+                    className="text-sm font-medium text-accent transition-colors duration-150 hover:text-foreground"
                     onClick={() => setShowSchedulePreview((v) => !v)}
                   >
                     {showSchedulePreview ? "Hide" : "Show"} schedule preview
@@ -547,7 +547,7 @@ export function LoanCreateForm() {
                         </TableBody>
                       </Table>
                       {schedulePreview.length > 6 ? (
-                        <p className="mt-2 text-xs text-muted">
+                        <p className="mt-2 text-sm text-muted">
                           Showing first 6 of {schedulePreview.length}{" "}
                           installments
                         </p>
@@ -571,12 +571,12 @@ export function LoanCreateForm() {
           {ltvLabel != null ? (
             <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
               <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 px-3 py-2">
-                <p className="text-xs text-muted">LTV ratio</p>
+                <p className="text-sm text-muted">LTV ratio</p>
                 <p className="mt-0.5 text-sm font-medium tabular-nums">{ltvLabel}</p>
               </div>
               {downPaymentMinor != null ? (
                 <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 px-3 py-2">
-                  <p className="text-xs text-muted">Down payment</p>
+                  <p className="text-sm text-muted">Down payment</p>
                   <p className="mt-0.5 text-sm font-medium tabular-nums">
                     {formatMinor(downPaymentMinor, defaultCurrency)}
                   </p>
@@ -618,7 +618,7 @@ export function LoanCreateForm() {
                   <span className="text-sm font-medium text-foreground">
                     Mark past-due installments as paid
                   </span>
-                  <p className="mt-0.5 text-xs text-muted">
+                  <p className="mt-0.5 text-sm text-muted">
                     {pastDueCount} installment{pastDueCount === 1 ? "" : "s"}{" "}
                     with a due date on or before today.
                   </p>
@@ -636,7 +636,7 @@ export function LoanCreateForm() {
                         <span className="text-sm text-foreground">
                           Paid without Money transaction
                         </span>
-                        <p className="mt-0.5 text-xs text-muted">
+                        <p className="mt-0.5 text-sm text-muted">
                           Updates loan progress only. Uncheck to create an
                           expense in Money for each past-due installment
                           (requires account below).
@@ -661,7 +661,7 @@ export function LoanCreateForm() {
                 <span className="text-sm font-medium text-foreground">
                   Custom monthly payment
                 </span>
-                <p className="mt-0.5 text-xs text-muted">
+                <p className="mt-0.5 text-sm text-muted">
                   {computedPaymentMinor != null
                     ? `Calculated payment: ${formatMinor(computedPaymentMinor, defaultCurrency)}`
                     : "Enter principal, rate, and term to see the calculated payment."}
@@ -693,7 +693,7 @@ export function LoanCreateForm() {
                   <span className="text-sm font-medium text-foreground">
                     Custom payment after rate change
                   </span>
-                  <p className="mt-0.5 text-xs text-muted">
+                  <p className="mt-0.5 text-sm text-muted">
                     From month {parsedInputs!.initialRateMonths! + 1}, payment
                     recalculates via PMT on the remaining balance unless you
                     override it here.
@@ -755,7 +755,7 @@ export function LoanCreateForm() {
             {saving ? "Creating…" : "Create loan"}
           </Button>
           {needsMoneyAccountForAutoMark ? (
-            <p className="text-xs text-muted">
+            <p className="text-sm text-muted">
               {!moneyBootstrap.data?.workspaceId
                 ? "Open /money to set up a workspace before creating transactions for past-due installments."
                 : "Select a pay-from account to create Money transactions for past-due installments."}

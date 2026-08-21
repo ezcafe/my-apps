@@ -391,7 +391,7 @@ export function LoansDashboard() {
                     type="button"
                     onClick={() => setFilter(value)}
                     className={cn(
-                      "rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-medium transition-colors duration-150 fx-press",
+                      "rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-colors duration-150 fx-press",
                       active
                         ? "bg-muted-surface text-foreground"
                         : "text-muted hover:text-foreground",

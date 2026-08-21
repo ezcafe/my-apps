@@ -286,9 +286,9 @@ function FilterCheckboxList({
       ) : null}
       <div className="max-h-64 overflow-auto">
         {items.length === 0 ? (
-          <p className="px-2 py-3 text-center text-xs text-muted">{emptyHint}</p>
+          <p className="px-2 py-3 text-center text-sm text-muted">{emptyHint}</p>
         ) : filtered.length === 0 ? (
-          <p className="px-2 py-3 text-center text-xs text-muted">No matches</p>
+          <p className="px-2 py-3 text-center text-sm text-muted">No matches</p>
         ) : (
           filtered.map((item) => {
             const checked = value.includes(item.id);
@@ -934,7 +934,7 @@ export function AnalyticsFiltersBar({
                 >
                   Filters
                 </h3>
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 text-sm text-muted">
                   Workspace switches immediately. Apply to refresh results.
                 </p>
               </div>
@@ -971,7 +971,7 @@ export function AnalyticsFiltersBar({
               </button>
               {showMobileMore ? (
                 <div className="mt-3 fx-fade-in">
-                  <p className="mb-3 text-xs text-muted">{dateLabel}</p>
+                  <p className="mb-3 text-sm text-muted">{dateLabel}</p>
                   <AnalyticsFiltersSecondaryFields {...secondaryFieldsProps} />
                 </div>
               ) : null}
@@ -997,7 +997,7 @@ export function AnalyticsFiltersBar({
                 Reset
               </Button>
               {dirty ? (
-                <span className="text-xs text-muted fx-fade-in">
+                <span className="text-sm text-muted fx-fade-in">
                   Unapplied changes — click Apply to refresh.
                 </span>
               ) : null}
@@ -1052,7 +1052,7 @@ export function AnalyticsFiltersBar({
                   ))}
                 </Select>
               </Field>
-              <p className="mt-2 text-xs text-muted">
+              <p className="mt-2 text-sm text-muted">
                 Workspace switches immediately.
               </p>
             </FilterMenu>
@@ -1130,7 +1130,7 @@ export function AnalyticsFiltersBar({
           >
             {showDesktopMorePanel ? (
               <div className="grid max-h-[min(70vh,32rem)] gap-3 overflow-y-auto">
-                <p className="text-xs text-muted">Date · {dateLabel}</p>
+                <p className="text-sm text-muted">Date · {dateLabel}</p>
                 <AnalyticsFiltersSecondaryFields
                   {...secondaryFieldsProps}
                   compact

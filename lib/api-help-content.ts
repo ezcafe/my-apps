@@ -720,7 +720,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
     variables: {
       input: {
         name: "Travel",
-        color: "#356089",
+        color: "#0d9488",
       },
     },
   },

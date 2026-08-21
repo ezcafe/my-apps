@@ -460,7 +460,7 @@ export function MoneySettingsBudgetsSection() {
                       </span>
                       <div className="flex flex-wrap items-center gap-2">
                         {overBudget ? (
-                          <span className="rounded-[var(--radius-sm)] bg-[color-mix(in_oklab,var(--danger)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-[color:var(--danger)]">
+                          <span className="rounded-[var(--radius-sm)] bg-[color-mix(in_oklab,var(--danger)_14%,transparent)] px-2 py-0.5 text-sm font-medium text-[color:var(--danger)]">
                             Overspent
                           </span>
                         ) : null}

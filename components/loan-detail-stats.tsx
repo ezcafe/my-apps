@@ -93,7 +93,7 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
               animationKey={animationKey}
             />
           </p>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-sm text-muted">
             {loan.status === "paid_off"
               ? "Loan is fully paid"
               : "Principal still owed"}
@@ -109,7 +109,7 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
               animationKey={animationKey}
             />
           </p>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-sm text-muted">
             Due on day {loan.dueDayOfMonth} each month
           </p>
         </Card>
@@ -124,7 +124,7 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
               animationKey={animationKey}
             />
           </p>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-sm text-muted">
             {paidCount} of {loan.installments.length} installments paid
           </p>
         </Card>
@@ -141,7 +141,7 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
           >
             {loan.summary.percentComplete.toFixed(1)}%
           </p>
-          <p className={cn("mt-1 text-xs font-medium", toneClass(schedule.tone))}>
+          <p className={cn("mt-1 text-sm font-medium", toneClass(schedule.tone))}>
             {schedule.text}
           </p>
         </Card>

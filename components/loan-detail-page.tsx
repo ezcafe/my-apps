@@ -134,7 +134,7 @@ function LoanPayoffProgressCard({ loan }: { loan: LoanDetail }) {
       className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
     >
       <h2 className="mb-2 font-display text-lg font-medium">Payoff progress</h2>
-      <p className="mb-2 text-xs text-muted">
+      <p className="mb-2 text-sm text-muted">
         Solid: principal paid to date. Dashed: scheduled. Dotted: projected.
       </p>
       <AnalyticsChartContainer

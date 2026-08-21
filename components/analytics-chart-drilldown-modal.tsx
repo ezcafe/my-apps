@@ -141,7 +141,7 @@ export function AnalyticsChartDrilldownModal({
             <h2 id={modalTitleId} className="font-display text-lg font-medium">
               {title}
             </h2>
-            <p className="mt-0.5 text-xs text-muted">
+            <p className="mt-0.5 text-sm text-muted">
               {listQuery.isSuccess
                 ? `${total.toLocaleString()} transaction${total === 1 ? "" : "s"}`
                 : "Loading…"}
@@ -233,7 +233,7 @@ export function AnalyticsChartDrilldownModal({
             >
               Previous
             </Button>
-            <span className="text-xs text-muted">
+            <span className="text-sm text-muted">
               Page {page} of {totalPages}
             </span>
             <Button

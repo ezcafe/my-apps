@@ -437,7 +437,7 @@ export function TransactionEditForm({
           <h2 className="font-display text-lg font-medium tracking-tight">
             Edit transaction
           </h2>
-          <span className="text-xs text-muted">{defaultCurrency}</span>
+          <span className="text-sm text-muted">{defaultCurrency}</span>
         </header>
         <form
           className="grid min-w-0 gap-4"
@@ -589,7 +589,7 @@ export function TransactionEditForm({
           <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
             <legend className="text-muted">Tags</legend>
             {tags.length === 0 ? (
-              <p className="text-xs text-muted">No tags in workspace.</p>
+              <p className="text-sm text-muted">No tags in workspace.</p>
             ) : (
               <ul className="flex flex-wrap gap-2">
                 {tags.map((t) => {
@@ -605,7 +605,7 @@ export function TransactionEditForm({
                         />
                         <span
                           className={cn(
-                            "inline-flex items-center rounded-[var(--radius-md)] border px-3 py-1.5 text-xs font-medium transition-[background-color,border-color,box-shadow] duration-150 fx-press",
+                            "inline-flex items-center rounded-[var(--radius-md)] border px-3 py-1.5 text-sm font-medium transition-[background-color,border-color,box-shadow] duration-150 fx-press",
                             checked
                               ? "border-accent bg-[color-mix(in_oklab,var(--accent)_14%,transparent)] text-accent"
                               : "border-border bg-background text-foreground hover:border-foreground/40",
@@ -643,7 +643,7 @@ export function TransactionEditForm({
                 <span className="text-sm font-medium text-foreground">
                   Exclude from Analytics and budget
                 </span>
-                <p className="mt-0.5 text-xs text-muted">
+                <p className="mt-0.5 text-sm text-muted">
                   Still updates account balance. Hidden from analytics charts and
                   budget spend.
                 </p>
@@ -690,7 +690,7 @@ export function TransactionEditForm({
             >
               {deleting ? "Deleting…" : "Delete"}
             </Button>
-            <span aria-live="polite" className="text-xs text-muted">
+            <span aria-live="polite" className="text-sm text-muted">
               Changes update balances and analytics immediately.
             </span>
           </div>

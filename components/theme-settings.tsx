@@ -36,11 +36,11 @@ export function ThemeSettings({ embedded }: { embedded?: boolean }) {
         <h2 className="font-display text-lg font-medium tracking-tight">Appearance</h2>
       ) : null}
       <p className="text-sm text-muted">
-        Facebook palette in light mode, Catppuccin Mocha in dark.
-        System follows <code className="font-mono text-xs">prefers-color-scheme</code>.
+        Teal accent on off-white in light mode; neutral dark + teal in dark.
+        System follows <code className="font-mono text-sm">prefers-color-scheme</code>.
       </p>
       {showResolved ? (
-        <p className="text-xs text-muted">
+        <p className="text-sm text-muted">
           Resolved: <span className="font-mono">{resolved}</span>
         </p>
       ) : null}
@@ -78,7 +78,7 @@ export function ThemeSettings({ embedded }: { embedded?: boolean }) {
   }
 
   return (
-    <Card className="space-y-4 p-4">
+    <Card className="space-y-4 p-6">
       {inner}
     </Card>
   );

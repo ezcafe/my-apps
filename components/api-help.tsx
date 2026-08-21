@@ -75,12 +75,12 @@ function HelpCodeBlock({
   return (
     <div className="mt-3">
       {sample.label ? (
-        <p className="mb-1.5 text-xs font-medium text-muted">{sample.label}</p>
+        <p className="mb-1.5 text-sm font-medium text-muted">{sample.label}</p>
       ) : null}
       <div className="relative">
         <pre
           className={cn(
-            "max-h-56 overflow-auto rounded-[var(--radius-md)] border border-border bg-muted-surface p-3 font-mono text-xs whitespace-pre-wrap break-all text-foreground",
+            "max-h-56 overflow-auto rounded-[var(--radius-md)] border border-border bg-muted-surface p-3 font-mono text-sm whitespace-pre-wrap break-all text-foreground",
           )}
         >
           {resolved}
@@ -108,7 +108,7 @@ function HelpDetail({
 }) {
   return (
     <div className="rounded-[var(--radius-sm)] border border-border bg-background p-3">
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted">
+      <dt className="text-sm font-medium uppercase tracking-wide text-muted">
         {label}
       </dt>
       <dd className="mt-1 text-sm leading-6 text-foreground">{value}</dd>
@@ -150,7 +150,7 @@ function HelpQuickStartCard({
             <TableBody>
               {section.scopeTable.map((row) => (
                 <TableRow key={row.scope}>
-                  <TableCell className="font-mono text-xs text-foreground">
+                  <TableCell className="font-mono text-sm text-foreground">
                     {row.scope}
                   </TableCell>
                   <TableCell className="text-muted">{row.allows}</TableCell>
@@ -391,7 +391,7 @@ function HelpSectionBody({
             <TableBody>
               {section.scopeTable.map((row) => (
                 <TableRow key={row.scope}>
-                  <TableCell className="font-mono text-xs text-foreground">
+                  <TableCell className="font-mono text-sm text-foreground">
                     {row.scope}
                   </TableCell>
                   <TableCell className="text-muted">{row.allows}</TableCell>
@@ -416,10 +416,10 @@ function HelpSectionBody({
             <TableBody>
               {section.restTable.map((row) => (
                 <TableRow key={`${row.method}-${row.path}`}>
-                  <TableCell className="font-mono text-xs text-foreground">
+                  <TableCell className="font-mono text-sm text-foreground">
                     {row.method}
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-foreground">
+                  <TableCell className="font-mono text-sm text-foreground">
                     {row.path}
                   </TableCell>
                   <TableCell className="text-muted">{row.auth}</TableCell>

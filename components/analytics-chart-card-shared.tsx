@@ -80,7 +80,7 @@ export function AnalyticsChartContainer({
 export function ChartViewportFallback({ ariaLabel }: { ariaLabel: string }) {
   return (
     <Skeleton
-      className="flex h-full w-full min-h-0 min-w-0 items-center justify-center rounded-[var(--radius-sm)] text-xs text-muted"
+      className="flex h-full w-full min-h-0 min-w-0 items-center justify-center rounded-[var(--radius-sm)] text-sm text-muted"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -94,7 +94,7 @@ export function ChartViewportFallback({ ariaLabel }: { ariaLabel: string }) {
 export function DeferredChartLoading({ ariaLabel }: { ariaLabel: string }) {
   return (
     <Skeleton
-      className="flex h-full w-full min-h-0 min-w-0 items-center justify-center rounded-[var(--radius-sm)] text-xs text-muted"
+      className="flex h-full w-full min-h-0 min-w-0 items-center justify-center rounded-[var(--radius-sm)] text-sm text-muted"
       role="status"
       aria-live="polite"
       aria-busy="true"

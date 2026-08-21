@@ -78,7 +78,7 @@ export default async function SettingsPage() {
           </div>
           <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-3 py-2.5">
             <dt className="text-muted">Subject</dt>
-            <dd className="min-w-0 max-w-full font-mono text-xs break-all text-foreground">
+            <dd className="min-w-0 max-w-full font-mono text-sm break-all text-foreground">
               {session?.user?.id ?? "—"}
             </dd>
           </div>

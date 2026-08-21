@@ -248,7 +248,7 @@ function ImportProgress({
   const progressPct = ((currentIdx + 1) / STEP_ORDER.length) * 100;
   return (
     <nav aria-label="Import steps" className="space-y-3">
-      <div className="flex items-center justify-between text-xs text-muted">
+      <div className="flex items-center justify-between text-sm text-muted">
         <span>
           Step {currentIdx + 1} of {STEP_ORDER.length}
         </span>
@@ -911,7 +911,7 @@ export function MoneyCsvImportWizard({
             />
           </Field>
           {csvFileName ? (
-            <p className="text-xs text-muted">
+            <p className="text-sm text-muted">
               Selected: <span className="font-mono text-foreground">{csvFileName}</span>
             </p>
           ) : null}
@@ -952,7 +952,7 @@ export function MoneyCsvImportWizard({
                       <TableRow key={h}>
                         <TableCell className="align-top">
                           <div className="font-medium text-foreground">{h}</div>
-                          <div className="mt-1 max-w-xs truncate font-mono text-xs text-muted">
+                          <div className="mt-1 max-w-xs truncate font-mono text-sm text-muted">
                             {sample || "—"}
                           </div>
                         </TableCell>
@@ -1021,7 +1021,7 @@ export function MoneyCsvImportWizard({
                         {f.label}
                         <span className="ml-2 font-normal text-muted">({f.key})</span>
                       </h4>
-                      <p className="mt-1 text-xs text-muted">
+                      <p className="mt-1 text-sm text-muted">
                         One parent per imported row. CSV parent values are hints only; the
                         selection here is what gets imported. In the Parent dropdown, workspace
                         roots are grouped under{" "}
@@ -1035,7 +1035,7 @@ export function MoneyCsvImportWizard({
                         .
                       </p>
                       <div className="mt-3">
-                        <Table maxHeight="min(36rem,70vh)" className="text-xs">
+                        <Table maxHeight="min(36rem,70vh)" className="text-sm">
                           <TableHeader>
                             <TableRow>
                               <TableHead>#</TableHead>
@@ -1149,7 +1149,7 @@ export function MoneyCsvImportWizard({
                       <span className="ml-2 font-normal text-muted">({f.key})</span>
                     </h4>
                     <div className="mt-3">
-                      <Table maxHeight="18rem" className="text-xs">
+                      <Table maxHeight="18rem" className="text-sm">
                         <TableHeader>
                           <TableRow>
                             <TableHead>CSV value</TableHead>
@@ -1472,13 +1472,13 @@ export function MoneyCsvImportWizard({
           </p>
           {preview.errors.length > 0 ? (
             <div className="space-y-2">
-              <p className="text-xs text-muted">Rows with errors (CSV)</p>
-              <pre className="max-h-44 overflow-auto rounded-[var(--radius-md)] border border-border bg-background p-2 text-xs font-mono text-foreground">
+              <p className="text-sm text-muted">Rows with errors (CSV)</p>
+              <pre className="max-h-44 overflow-auto rounded-[var(--radius-md)] border border-border bg-background p-2 text-sm font-mono text-foreground">
                 {reviewErrorCsv}
               </pre>
             </div>
           ) : null}
-          <Table className="min-w-[28rem] text-xs">
+          <Table className="min-w-[28rem] text-sm">
             <TableHeader>
               <TableRow>
                 <TableHead>#</TableHead>

@@ -3,9 +3,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
-  Design tokens: Quiet Ink restrained dense + neutral light / Catppuccin Mocha dark.
-  Light: stepped white/off-white/cool gray surfaces; subdued primary blue.
-  Dark hexes from https://github.com/catppuccin/palette (Mocha).
+  Design tokens: clean-minimal (teal accent + Inter).
+  Light: off-white surfaces, dark gray type, one teal accent.
+  Dark: near-black neutrals + lighter teal (not Mocha).
   Chart hexes mirror lib/theme-chart-palette.ts (chartPaletteFor).
   DaisyUI aliases (docs only): primary=accent, secondary=secondary,
   base-100=surface, base-200=background, base-300=muted-surface.
@@ -13,69 +13,69 @@
 */
 
 :root {
-  --font-plex-sans: "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-plex-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
-/* ---- Neutral light ---- */
+/* ---- Clean minimal light ---- */
 :root[data-style="quiet"],
 :root:not([data-style]) {
   color-scheme: light;
-  --radius: 0.5rem;
-  --radius-inner: 0.3125rem;
-  --shadow-sm: 0 1px 2px rgb(28 30 33 / 0.05), 0 2px 8px -2px rgb(28 30 33 / 0.08);
-  --shadow-md: 0 1px 2px rgb(28 30 33 / 0.05), 0 4px 16px -6px rgb(28 30 33 / 0.1);
-  --font-heading: var(--font-plex-sans);
-  --font-body: var(--font-plex-sans);
+  --radius: 0.5rem; /* 8px cards/modals */
+  --radius-inner: 0.375rem; /* 6px nested */
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-md: 0 4px 6px rgb(0 0 0 / 0.07), 0 2px 4px rgb(0 0 0 / 0.05);
+  --font-heading: var(--font-inter);
+  --font-body: var(--font-inter);
   --space-step: 0.5rem;
 
-  --background: #f3f4f6; /* base-200 off-white */
-  --foreground: #111827; /* primary text — high contrast */
-  --muted: #475569; /* secondary text — WCAG-friendly on surface */
-  --surface: #ffffff; /* base-100 */
-  --border: #b8bec8; /* visible hairline */
-  --muted-surface: #e8ebf0; /* base-300 */
+  --background: #fafafa;
+  --foreground: #1a1a1a;
+  --muted: #6b6b6b;
+  --surface: #ffffff;
+  --border: #e5e5e5;
+  --muted-surface: #f5f5f5;
 
-  --accent: #356089; /* subdued brand blue — stronger contrast */
-  --accent-hover: #2a4d6e;
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
   --accent-foreground: #ffffff;
-  --ring: #356089;
+  --ring: #0d9488;
 
-  --secondary: #d8dee6; /* muted slate wash */
-  --secondary-hover: #c8d0da;
-  --secondary-foreground: #1e293b;
+  --secondary: #f5f5f5;
+  --secondary-hover: #ebebeb;
+  --secondary-foreground: #2d2d2d;
 
-  --destructive: #c53030; /* semantic red */
+  --destructive: #dc2626;
   --danger: var(--destructive);
   --destructive-foreground: #ffffff;
-  --destructive-muted-bg: color-mix(in oklab, #c53030 10%, var(--surface));
-  --destructive-muted-border: color-mix(in oklab, #c53030 28%, var(--border));
+  --destructive-muted-bg: color-mix(in oklab, #dc2626 10%, var(--surface));
+  --destructive-muted-border: color-mix(in oklab, #dc2626 28%, var(--border));
   --destructive-muted-text: #b91c1c;
-  --destructive-icon-bg: color-mix(in oklab, #c53030 14%, transparent);
+  --destructive-icon-bg: color-mix(in oklab, #dc2626 14%, transparent);
 
-  --alert-error-bg: color-mix(in oklab, #c53030 8%, var(--surface));
-  --alert-error-border: color-mix(in oklab, #c53030 28%, var(--border));
-  --alert-error-accent: #c53030;
+  --alert-error-bg: color-mix(in oklab, #dc2626 8%, var(--surface));
+  --alert-error-border: color-mix(in oklab, #dc2626 28%, var(--border));
+  --alert-error-accent: #dc2626;
   --alert-error-title: #b91c1c;
-  --alert-error-body: #475569;
+  --alert-error-body: #6b6b6b;
 
-  --alert-warning-bg: color-mix(in oklab, #f7b928 12%, var(--surface));
-  --alert-warning-border: color-mix(in oklab, #f7b928 32%, var(--border));
-  --alert-warning-accent: #f7b928; /* yellow */
-  --alert-warning-title: #e67e22; /* orange */
-  --alert-warning-body: #65676b;
+  --alert-warning-bg: color-mix(in oklab, #f59e0b 12%, var(--surface));
+  --alert-warning-border: color-mix(in oklab, #f59e0b 32%, var(--border));
+  --alert-warning-accent: #f59e0b;
+  --alert-warning-title: #d97706;
+  --alert-warning-body: #6b6b6b;
 
   --toast-success-bg: var(--surface);
   --toast-success-border: var(--border);
-  --toast-success-accent: #31a24c; /* green */
-  --toast-success-icon-bg: color-mix(in oklab, #31a24c 14%, transparent);
+  --toast-success-accent: #059669;
+  --toast-success-icon-bg: color-mix(in oklab, #059669 14%, transparent);
   --toast-success-title: var(--foreground);
   --toast-success-body: var(--muted);
 
   --toast-warning-bg: var(--alert-warning-bg);
   --toast-warning-border: var(--border);
   --toast-warning-accent: var(--alert-warning-accent);
-  --toast-warning-icon-bg: color-mix(in oklab, #f7b928 14%, transparent);
+  --toast-warning-icon-bg: color-mix(in oklab, #f59e0b 14%, transparent);
   --toast-warning-title: var(--alert-warning-title);
   --toast-warning-body: var(--alert-warning-body);
 
@@ -86,85 +86,86 @@
   --toast-error-title: var(--alert-error-title);
   --toast-error-body: var(--alert-error-body);
 
-  --chart-0: #356089; /* subdued blue */
-  --chart-1: #00b2ff; /* cyan */
-  --chart-2: #f7923b; /* orange */
-  --chart-3: #31a24c; /* green */
-  --chart-4: #8b5cf6; /* violet */
-  --chart-5: #f02849; /* red */
-  --chart-6: #54c7ec; /* sky */
-  --chart-7: #8a8d91; /* gray */
+  /* Teal + gray + semantic orange/red — no violet/cyan chrome */
+  --chart-0: #0d9488;
+  --chart-1: #0f766e;
+  --chart-2: #f59e0b;
+  --chart-3: #059669;
+  --chart-4: #737373;
+  --chart-5: #dc2626;
+  --chart-6: #a0a0a0;
+  --chart-7: #2d2d2d;
 }
 
-/* ---- Catppuccin Mocha (dark) ---- */
+/* ---- Neutral dark (grays + teal) ---- */
 :root[data-style="quiet"].dark,
 :root:not([data-style]).dark {
   color-scheme: dark;
 
-  --background: #1e1e2e; /* base */
-  --foreground: #eff1f8; /* text — high contrast on base */
-  --muted: #b8c0dc; /* subtext — readable on surface */
-  --surface: #313244; /* surface0 */
-  --border: #585b70; /* surface1 — clearer edge */
-  --muted-surface: #45475a; /* surface1 */
+  --background: #171717;
+  --foreground: #fafafa;
+  --muted: #a0a0a0;
+  --surface: #1a1a1a;
+  --border: #404040;
+  --muted-surface: #262626;
 
-  --accent: #89b4fa; /* blue */
-  --accent-hover: #b4befe; /* lavender */
-  --accent-foreground: #1e1e2e; /* base */
-  --ring: #89b4fa;
+  --accent: #2dd4bf;
+  --accent-hover: #5eead4;
+  --accent-foreground: #171717;
+  --ring: #2dd4bf;
 
-  --secondary: #6c7086; /* overlay */
-  --secondary-hover: #7f849c;
-  --secondary-foreground: #eff1f8;
+  --secondary: #262626;
+  --secondary-hover: #333333;
+  --secondary-foreground: #fafafa;
 
-  --destructive: #f38ba8; /* red */
-  --destructive-foreground: #1e1e2e;
-  --destructive-muted-bg: color-mix(in oklab, #f38ba8 14%, var(--surface));
-  --destructive-muted-border: color-mix(in oklab, #f38ba8 35%, var(--border));
-  --destructive-muted-text: #eba0ac; /* maroon */
-  --destructive-icon-bg: color-mix(in oklab, #f38ba8 18%, transparent);
+  --destructive: #f87171;
+  --destructive-foreground: #171717;
+  --destructive-muted-bg: color-mix(in oklab, #f87171 14%, var(--surface));
+  --destructive-muted-border: color-mix(in oklab, #f87171 35%, var(--border));
+  --destructive-muted-text: #fca5a5;
+  --destructive-icon-bg: color-mix(in oklab, #f87171 18%, transparent);
 
-  --alert-error-bg: color-mix(in oklab, #f38ba8 14%, var(--surface));
-  --alert-error-border: color-mix(in oklab, #f38ba8 28%, var(--border));
-  --alert-error-accent: #f38ba8;
-  --alert-error-title: #eba0ac;
-  --alert-error-body: #b8c0dc;
+  --alert-error-bg: color-mix(in oklab, #f87171 14%, var(--surface));
+  --alert-error-border: color-mix(in oklab, #f87171 28%, var(--border));
+  --alert-error-accent: #f87171;
+  --alert-error-title: #fca5a5;
+  --alert-error-body: #a0a0a0;
 
-  --alert-warning-bg: color-mix(in oklab, #f9e2af 12%, var(--surface));
-  --alert-warning-border: color-mix(in oklab, #f9e2af 28%, var(--border));
-  --alert-warning-accent: #f9e2af; /* yellow */
-  --alert-warning-title: #fab387; /* peach */
-  --alert-warning-body: #b8c0dc;
+  --alert-warning-bg: color-mix(in oklab, #fbbf24 12%, var(--surface));
+  --alert-warning-border: color-mix(in oklab, #fbbf24 28%, var(--border));
+  --alert-warning-accent: #fbbf24;
+  --alert-warning-title: #fcd34d;
+  --alert-warning-body: #a0a0a0;
 
   --toast-success-bg: var(--surface);
   --toast-success-border: var(--border);
-  --toast-success-accent: #a6e3a1; /* green */
-  --toast-success-icon-bg: color-mix(in oklab, #a6e3a1 18%, transparent);
+  --toast-success-accent: #34d399;
+  --toast-success-icon-bg: color-mix(in oklab, #34d399 18%, transparent);
   --toast-success-title: var(--foreground);
   --toast-success-body: var(--muted);
 
   --toast-warning-bg: var(--alert-warning-bg);
   --toast-warning-border: var(--border);
   --toast-warning-accent: var(--alert-warning-accent);
-  --toast-warning-icon-bg: color-mix(in oklab, #f9e2af 18%, transparent);
+  --toast-warning-icon-bg: color-mix(in oklab, #fbbf24 18%, transparent);
   --toast-warning-title: var(--alert-warning-title);
   --toast-warning-body: var(--alert-warning-body);
 
   --toast-error-bg: var(--alert-error-bg);
   --toast-error-border: var(--border);
-  --toast-error-accent: #f38ba8;
+  --toast-error-accent: #f87171;
   --toast-error-icon-bg: var(--destructive-icon-bg);
-  --toast-error-title: #eba0ac;
-  --toast-error-body: #a6adc8;
+  --toast-error-title: #fca5a5;
+  --toast-error-body: #a0a0a0;
 
-  --chart-0: #89b4fa; /* blue */
-  --chart-1: #94e2d5; /* teal */
-  --chart-2: #fab387; /* peach */
-  --chart-3: #a6e3a1; /* green */
-  --chart-4: #cba6f7; /* mauve */
-  --chart-5: #f38ba8; /* red */
-  --chart-6: #89dceb; /* sky */
-  --chart-7: #6c7086; /* overlay0 */
+  --chart-0: #2dd4bf;
+  --chart-1: #5eead4;
+  --chart-2: #fbbf24;
+  --chart-3: #34d399;
+  --chart-4: #a0a0a0;
+  --chart-5: #f87171;
+  --chart-6: #737373;
+  --chart-7: #e5e5e5;
 }
 
 @theme inline {
@@ -214,7 +215,7 @@ body {
   font-size: 1rem;
   line-height: 1.5;
   /* Tabular nums applied globally so dynamic counters/amounts
-     never cause layout shift. IBM Plex Sans handles this gracefully. */
+     never cause layout shift. */
   font-variant-numeric: tabular-nums;
 }
 
@@ -229,6 +230,10 @@ h1,
 h2,
 h3 {
   text-wrap: balance;
+}
+
+h1 {
+  letter-spacing: -0.02em;
 }
 
 /* Body copy: `pretty` prevents single-word orphans on the last line.
@@ -515,7 +520,8 @@ dialog::backdrop {
     }
   }
 
-  /* Hit-area extender for icon-only controls smaller than 40×40. The
+  /* Hit-area extender for icon-only controls smaller than 44×44.
+     Class name kept as fx-hit-40 for caller compatibility. The
      pseudo-element extends the touch target without visually inflating
      the control. Use sparingly — never stack two on overlapping
      controls (skill rule: extended hit areas must not collide). */
@@ -528,8 +534,8 @@ dialog::backdrop {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: max(100%, 40px);
-    height: max(100%, 40px);
+    width: max(100%, 44px);
+    height: max(100%, 44px);
     transform: translate(-50%, -50%);
   }
 

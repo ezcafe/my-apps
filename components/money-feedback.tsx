@@ -90,7 +90,7 @@ export function MoneyStatCard({
         )}
         aria-hidden
       />
-      <p className="text-xs text-muted">{label}</p>
+      <p className="text-sm text-muted">{label}</p>
       <p className="mt-1 font-display text-2xl font-semibold tabular-nums">{value}</p>
     </Card>
   );

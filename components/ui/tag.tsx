@@ -12,7 +12,7 @@ export function Tag({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-[var(--radius-sm)] border border-border bg-background px-2 py-1 text-xs font-medium text-foreground",
+        "inline-flex items-center rounded-[var(--radius-sm)] border border-border bg-background px-2 py-1 text-sm font-medium text-foreground",
         className,
       )}
     >

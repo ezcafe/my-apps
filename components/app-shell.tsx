@@ -230,7 +230,7 @@ function ShellPopoverAuth({ onNavigate }: { onNavigate?: () => void }) {
     return (
       <div className="flex flex-col gap-2 border-t border-border pt-3">
         {session?.user?.email ? (
-          <p className="truncate text-xs text-muted">{session.user.email}</p>
+          <p className="truncate text-sm text-muted">{session.user.email}</p>
         ) : null}
         <Button
           type="button"

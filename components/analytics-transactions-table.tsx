@@ -394,7 +394,7 @@ export function AnalyticsTransactionsTable({
                 {acc?.name ?? "—"}
               </p>
             </div>
-            <span className="shrink-0 text-xs text-muted tabular-nums">
+            <span className="shrink-0 text-sm text-muted tabular-nums">
               {dateLabel}
             </span>
           </div>
@@ -486,7 +486,7 @@ export function AnalyticsTransactionsTable({
           >
             Transactions
           </h2>
-          <p className="mb-3 text-xs text-muted">
+          <p className="mb-3 text-sm text-muted">
             {variant === "standalone"
               ? "Select rows to edit or delete. Filter by date, account, category, and more."
               : "Rows match the applied analytics filters. Sort columns or change page below."}

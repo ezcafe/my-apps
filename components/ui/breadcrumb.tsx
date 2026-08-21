@@ -25,7 +25,7 @@ export type BreadcrumbItem = {
 };
 
 /**
- * Tailwind Plus “Simple with chevrons” breadcrumbs, Quiet Ink tokens.
+ * Tailwind Plus “Simple with chevrons” breadcrumbs, clean-minimal tokens.
  * @see https://tailwindcss.com/plus/ui-blocks/application-ui/navigation/breadcrumbs
  */
 export function Breadcrumb({

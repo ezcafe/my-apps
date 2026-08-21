@@ -34,7 +34,7 @@ export function LoanListCard({
 
   return (
     <Link href={`/money/loans/${loan.id}`} className="fx-press block h-full">
-      <Card className="flex h-full flex-col p-5 transition-[border-color,box-shadow] duration-200 hover:border-accent/40 hover:shadow-[var(--shadow-sm)]">
+      <Card className="flex h-full flex-col p-6 transition-[border-color] duration-200 hover:border-accent/40">
         <div className="flex items-start justify-between gap-2">
           <h2 className="font-display text-lg font-semibold leading-tight">
             {loan.name}
@@ -45,7 +45,7 @@ export function LoanListCard({
         </div>
 
         <div className="mt-4">
-          <div className="mb-1 flex justify-between gap-2 text-xs text-muted">
+          <div className="mb-1 flex justify-between gap-2 text-sm text-muted">
             <span>Paid down</span>
             <span className="tabular-nums">{loan.percentComplete.toFixed(1)}%</span>
           </div>
@@ -92,7 +92,7 @@ export function LoanListCard({
           ) : null}
         </dl>
 
-        <p className="mt-4 text-xs font-medium text-accent">View details →</p>
+        <p className="mt-4 text-sm font-medium text-accent">View details →</p>
       </Card>
     </Link>
   );

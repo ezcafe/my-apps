@@ -387,7 +387,7 @@ export function MoneyUsageQuickPick({
                           {item.label}
                         </span>
                         {renderPickerRow ? (
-                          <span className="shrink-0 text-xs text-muted">
+                          <span className="shrink-0 text-sm text-muted">
                             {renderPickerRow(item)}
                           </span>
                         ) : null}
