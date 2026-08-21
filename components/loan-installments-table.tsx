@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
-import { Card } from "@/components/ui/card";
 import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/format-money";
@@ -171,8 +170,10 @@ export function LoanInstallmentsTable({
   }
 
   return (
-    <Card className="@container col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12">
-      <section aria-labelledby="loan-installments-heading">
+    <section
+      aria-labelledby="loan-installments-heading"
+      className="@container col-span-2 w-full min-w-0 md:col-span-6 lg:col-span-12"
+    >
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2
@@ -259,7 +260,6 @@ export function LoanInstallmentsTable({
             <div className="space-y-2 @md:hidden">{rows.map(renderMobileCard)}</div>
           </>
         )}
-      </section>
-    </Card>
+    </section>
   );
 }

@@ -11,7 +11,6 @@ import {
   MoneyDateQuickPick,
 } from "@/components/money-date-quick-pick";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -139,8 +138,7 @@ export function InvestmentActivityForm() {
 
   return (
     <div className="col-span-2 min-w-0 max-w-xl md:col-span-6 lg:col-span-8">
-      <Card className="p-5">
-        <h2 className="font-display text-lg font-medium">New activity</h2>
+      <h2 className="font-display text-lg font-medium">New activity</h2>
         {instrumentsQuery.isError ? (
           <p className="mt-4 text-sm text-destructive" role="alert">
             {queryErrorMessage(instrumentsQuery.error) ??
@@ -277,7 +275,6 @@ export function InvestmentActivityForm() {
             </Button>
           </div>
         </form>
-      </Card>
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import {
   InputGroup,
@@ -122,7 +121,7 @@ export function MoneyTagsFieldSkeleton({
   );
 }
 
-/** Placeholder for the `/money` transaction dashboard while bootstrap data loads. */
+/** Placeholder for the `/money/new` transaction form while the chunk loads. */
 export function MoneyDashboardSkeleton() {
   return (
     <div
@@ -132,7 +131,7 @@ export function MoneyDashboardSkeleton() {
       aria-live="polite"
       aria-label="Loading money dashboard"
     >
-      <Card className="p-5">
+      <div>
         <header className="mb-4 flex items-baseline justify-between gap-3">
           <h2 className="font-display text-lg font-medium tracking-tight">
             New transaction
@@ -213,7 +212,7 @@ export function MoneyDashboardSkeleton() {
             </span>
           </div>
         </form>
-      </Card>
+      </div>
     </div>
   );
 }

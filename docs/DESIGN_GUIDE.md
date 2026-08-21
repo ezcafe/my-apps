@@ -48,9 +48,9 @@ Money home surfaces follow **metric cards → (optional chart) → table**, top 
 1. **Filters** — compact toolbar; secondary filters under **More**.
 2. **Metric cards** — [`AnalyticsStats`](../components/analytics-stats.tsx) in a responsive `auto-fit` grid of [`Card`](../components/ui/card.tsx) cells.
 3. **Chart** *(optional)* — visx chart card when the ledger preset defines `chart` (e.g. Bills, Savings). **Spending** omits the chart — metrics + table only.
-4. **Table** — transaction ledger ([`AnalyticsTransactionsTable`](../components/analytics-transactions-table.tsx)).
+4. **Table** — transaction ledger ([`AnalyticsTransactionsTable`](../components/analytics-transactions-table.tsx)) as a flat `<section>` with hairline table chrome — **not** wrapped in a Card.
 
-Wrap page bodies in [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) (`flex flex-col gap-4`) with semantic `<section aria-label="…">` landmarks.
+Wrap page bodies in [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) (`flex flex-col gap-6`) with semantic `<section>` landmarks. Apply [`MONEY_FULL_SPAN`](../lib/money-layout.ts) **once** on the outermost page body in the shell grid — never on nested filters, tables, or section children.
 
 ```text
 [ Crumbs when nested ──────────── ]
@@ -60,6 +60,7 @@ Wrap page bodies in [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) (`flex fle
 [ Table ───────────────────────── ]
 ```
 
+**Flat surfaces:** Cards are for discrete metrics, charts, and entity tiles. Tables, full-page forms, and settings/help sections sit on the page background with headings + dividers — no Card-in-page or Card-around-table.
 ## Restrained dense rules
 
 Information-grid first: medium–high density in controls, tables, filters, and forms; airy rhythm between sections.
@@ -210,7 +211,7 @@ Never hard-code chart hexes; never read only `resolved`. Keep charts restrained 
 | `Button` | [`components/ui/button.tsx`](../components/ui/button.tsx) | Any button (`primary`/`secondary`/`ghost`/`danger`, `sm`/`md`/`lg`). Default **`md`** (`text-base`). Built-in `fx-press`. Pass `leading`/`trailing`; `iconOnly` for 40×40 via `fx-hit-40`. |
 | `Field` + `Input` / `Textarea` / `Select` | [`field.tsx`](../components/ui/field.tsx), [`input.tsx`](../components/ui/input.tsx), [`textarea.tsx`](../components/ui/textarea.tsx), [`select.tsx`](../components/ui/select.tsx) | Labeled fields with focus underline. Dense default padding. |
 | `MultiSelect` | [`multi-select.tsx`](../components/ui/multi-select.tsx) | Chip trigger + checkbox popover. |
-| `Card` | [`card.tsx`](../components/ui/card.tsx) | Surface container; minimal hover lift. Nested children → `--radius-sm`. Default `p-4`. |
+| `Card` | [`card.tsx`](../components/ui/card.tsx) | Discrete surfaces only: KPI tiles, chart panels, entity tiles. Nested children → `--radius-sm`. Do **not** wrap tables, page forms, or settings sections. |
 | `Modal` | [`modal.tsx`](../components/ui/modal.tsx) | Native `<dialog>` + `fx-overlay`. |
 | `Popover` | [`popover.tsx`](../components/ui/popover.tsx) | Anchored panel with entry/exit. |
 | `MoreMenu` | [`more-menu.tsx`](../components/ui/more-menu.tsx) | Secondary actions / overflow (ellipsis + optional dirty dot). Use `MoreMenuItem` for rows; `variant="danger"` for destructive. |
@@ -273,7 +274,9 @@ withViewTransition(() => setTheme("dark"));
 ## Layout rules
 
 - **Container**: `.shell-main` for top-level page padding/max width.
-- **Dashboard stack**: [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) for metric cards + chart + table pages.
+- **One full-span**: [`MONEY_FULL_SPAN`](../lib/money-layout.ts) once per grid child under Money / ShellMainPage — not on nested filters or tables.
+- **Dashboard stack**: [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) for metric cards + chart + table pages (`gap-6`).
+- **Flat sections**: tables and forms are `<section>` / heading + content on the page background; Cards reserved for metrics, charts, and entity tiles. Settings use [`SettingsSection`](../components/money-settings/money-settings-shared.tsx) (heading + body, no Card).
 - **Multi-column**: `repeat(auto-fit, minmax(min(100%, 22rem), 1fr))` (`.auto-fit-2`). Breakpoint utilities only for shell chrome (hamburger vs rail).
 - **Container queries**: `cqi` / `container-type` / `@container` for filter bars and chart cards.
 - **Density**: `--space-step`; compact controls + airy section rhythm.

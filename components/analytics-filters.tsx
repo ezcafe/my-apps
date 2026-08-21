@@ -21,7 +21,6 @@ import { Select } from "@/components/ui/select";
 import { MoneyDateQuickPick } from "@/components/money-date-quick-pick";
 import { MoneyUsageMultiQuickPick } from "@/components/money-usage-multi-quick-pick";
 import { MoneyFilterToolbar } from "@/components/money-page-header";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cn } from "@/lib/cn";
 import {
   moneyCategoryById,
@@ -898,7 +897,7 @@ export function AnalyticsFiltersBar({
 
   return (
     <section
-      className={cn(MONEY_FULL_SPAN, "@container mb-4 fx-fade-in")}
+      className={cn("@container fx-fade-in")}
       aria-label="Analytics filters"
     >
       <div className="flex justify-end @md:hidden">
@@ -1181,7 +1180,7 @@ export function MoneyViewFiltersBar({
 
   return (
     <section
-      className={cn(MONEY_FULL_SPAN, "@container mb-4 fx-fade-in")}
+      className={cn("@container fx-fade-in")}
       aria-label={`${viewFilter.menuLabel} filters`}
     >
       <MoneyFilterToolbar aria-label={viewFilter.menuLabel}>

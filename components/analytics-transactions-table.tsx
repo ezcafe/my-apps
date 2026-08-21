@@ -14,7 +14,6 @@ import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 import { MoneyListSkeleton } from "@/components/money-feedback";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tag } from "@/components/ui/tag";
@@ -431,11 +430,12 @@ export function AnalyticsTransactionsTable({
 
   return (
     <>
-      <Card
+      <div
         ref={viewportRef}
-        className="@container col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12"
+        role="region"
+        aria-labelledby="analytics-transactions-heading"
+        className="@container w-full min-w-0"
       >
-        <section aria-labelledby="analytics-transactions-heading">
           <h2
             id="analytics-transactions-heading"
             className="mb-3 font-display text-lg font-medium"
@@ -595,8 +595,7 @@ export function AnalyticsTransactionsTable({
               </div>
             </div>
           ) : null}
-        </section>
-      </Card>
+      </div>
 
       {selectable ? (
         <>

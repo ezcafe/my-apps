@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 
+/** Span is applied once by each settings page root — do not wrap here. */
 export default function MoneySettingsLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  return <div className={MONEY_FULL_SPAN}>{children}</div>;
+  return children;
 }

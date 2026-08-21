@@ -23,7 +23,6 @@ import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -818,7 +817,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
         />
       ) : null}
 
-      <Card className="p-5">
+      <div>
         <header className="mb-4 flex items-baseline justify-between gap-3">
           <h2 className="font-display text-lg font-medium tracking-tight">
             {cardTitle}
@@ -1342,7 +1341,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             </span>
           </div>
         </form>
-      </Card>
+      </div>
     </>
   );
 }

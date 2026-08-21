@@ -4,6 +4,7 @@ import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { Button } from "@/components/ui/button";
 import {
   registerLoansServiceWorker,
@@ -70,7 +71,7 @@ export function LoansSettingsNotifications() {
   }
 
   return (
-    <div className="min-w-0 max-w-4xl space-y-4">
+    <div className={`${MONEY_FULL_SPAN} min-w-0 max-w-4xl space-y-4`}>
       <SettingsSection
         id="loans-settings-notifications"
         title="Payment reminders"

@@ -111,7 +111,7 @@ export function MoneyWorkspaceSettings() {
         />
       ) : null}
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         <SettingsSection
           id="money-settings-section-tabs"
           title="Section menu"

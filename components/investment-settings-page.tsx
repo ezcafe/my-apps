@@ -11,6 +11,8 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { MoreMenu, MoreMenuItem } from "@/components/ui/more-menu";
 import { Select } from "@/components/ui/select";
+import { cn } from "@/lib/cn";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { investmentGraphQLRequest } from "@/lib/investment-gql-client";
 import {
   INVESTMENT_INSTRUMENT_CREATE_MUTATION,
@@ -91,7 +93,7 @@ export function InvestmentSettingsPage() {
   const instruments = instrumentsQuery.data ?? [];
 
   return (
-    <div className="col-span-2 min-w-0 space-y-4 md:col-span-6 lg:col-span-12">
+    <div className={cn(MONEY_FULL_SPAN, "min-w-0 space-y-4")}>
       <SettingsSection
         id="investment-settings-instruments"
         title="Instruments"

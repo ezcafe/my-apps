@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { AboutDisclosure } from "@/components/ui/about-disclosure";
-import { Card } from "@/components/ui/card";
 
 /**
  * Shared settings chrome. Compose form controls from `components/ui/*`
@@ -33,7 +32,7 @@ export function SettingsSubsectionHeading({
   );
 }
 
-/** Panel shell — single elevated Card surface. */
+/** Flat section on the page background — heading + content, no Card chrome. */
 export function SettingsSection({
   id,
   title,
@@ -46,24 +45,22 @@ export function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <Card id={id} className="scroll-mt-24 fx-fade-in">
-      <div className="p-5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <h2 className="font-display text-base font-semibold leading-6 text-foreground">
-            {title}
-          </h2>
-          {description != null && description !== "" ? (
-            <AboutDisclosure label={`About ${title}`}>
-              {typeof description === "string" ? (
-                <p>{description}</p>
-              ) : (
-                description
-              )}
-            </AboutDisclosure>
-          ) : null}
-        </div>
-        <div className="mt-4">{children}</div>
+    <section id={id} className="scroll-mt-24 fx-fade-in">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <h2 className="font-display text-base font-semibold leading-6 text-foreground">
+          {title}
+        </h2>
+        {description != null && description !== "" ? (
+          <AboutDisclosure label={`About ${title}`}>
+            {typeof description === "string" ? (
+              <p>{description}</p>
+            ) : (
+              description
+            )}
+          </AboutDisclosure>
+        ) : null}
       </div>
-    </Card>
+      <div className="mt-4">{children}</div>
+    </section>
   );
 }

@@ -28,6 +28,7 @@ import {
 import {
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 
 type Account = { id: string; name: string; archived?: boolean };
 type Merchant = { id: string; name: string };
@@ -133,7 +134,7 @@ export function MoneySettingsRulesSection() {
   );
 
   return (
-    <>
+    <div className={MONEY_FULL_SPAN}>
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -162,7 +163,7 @@ export function MoneySettingsRulesSection() {
           reloadRules={loadRules}
         />
       </div>
-    </>
+    </div>
   );
 }
 

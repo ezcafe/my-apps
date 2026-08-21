@@ -17,6 +17,7 @@ import {
 import {
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 
 type Merchant = { id: string; name: string };
 
@@ -120,7 +121,7 @@ export function MoneySettingsMerchantsSection() {
   }
 
   return (
-    <>
+    <div className={MONEY_FULL_SPAN}>
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -194,6 +195,6 @@ export function MoneySettingsMerchantsSection() {
           </ul>
         </div>
       </SettingsSection>
-    </>
+    </div>
   );
 }

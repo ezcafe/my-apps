@@ -14,7 +14,6 @@ import {
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import {
@@ -369,7 +368,7 @@ export function TransactionEditForm({
   if (loading) {
     return (
       <div className={isModal ? "space-y-4" : "min-w-0 max-w-4xl space-y-4"}>
-        <Card className="p-5">
+        <div>
           <header className="mb-4 flex items-baseline justify-between gap-3">
             <Skeleton className="h-6 w-40 rounded-[var(--radius-sm)]" />
             <Skeleton className="h-3 w-10 rounded-[var(--radius-sm)]" />
@@ -403,7 +402,7 @@ export function TransactionEditForm({
               <Skeleton className="h-11 w-24 rounded-[var(--radius-md)]" />
             </div>
           </div>
-        </Card>
+        </div>
       </div>
     );
   }
@@ -433,7 +432,7 @@ export function TransactionEditForm({
   return (
     <div className={isModal ? "space-y-4" : "min-w-0 max-w-4xl space-y-6"}>
       {err ? <Alert variant="error" title={err} /> : null}
-      <Card className={isModal ? "border-0 bg-transparent p-0 shadow-none" : "p-5"}>
+      <div>
         <header className="mb-4 flex items-baseline justify-between gap-3">
           <h2 className="font-display text-lg font-medium tracking-tight">
             Edit transaction
@@ -696,7 +695,7 @@ export function TransactionEditForm({
             </span>
           </div>
         </form>
-      </Card>
+      </div>
     </div>
   );
 }

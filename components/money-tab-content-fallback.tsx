@@ -1,5 +1,4 @@
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 
@@ -7,12 +6,12 @@ import { cn } from "@/lib/cn";
 export function MoneyTabContentFallback() {
   return (
     <div
-      className={cn(MONEY_FULL_SPAN, "space-y-4")}
+      className={cn(MONEY_FULL_SPAN, "space-y-6")}
       aria-busy="true"
       aria-live="polite"
       aria-label="Loading tab content"
     >
-      <Card className="p-5">
+      <section>
         <div className="flex items-center gap-1.5">
           <Skeleton className="h-5 w-32 rounded-[var(--radius-sm)]" />
           <Skeleton className="size-4 shrink-0 rounded-full" />
@@ -25,9 +24,9 @@ export function MoneyTabContentFallback() {
             </div>
           ))}
         </div>
-      </Card>
+      </section>
 
-      <Card className="p-5">
+      <section>
         <div className="flex items-center gap-1.5">
           <Skeleton className="h-5 w-44 rounded-[var(--radius-sm)]" />
           <Skeleton className="size-4 shrink-0 rounded-full" />
@@ -42,16 +41,16 @@ export function MoneyTabContentFallback() {
             </li>
           ))}
         </ul>
-      </Card>
+      </section>
 
-      <Card className="p-5">
+      <section>
         <div className="flex items-center gap-1.5">
           <Skeleton className="h-5 w-28 rounded-[var(--radius-sm)]" />
           <Skeleton className="size-4 shrink-0 rounded-full" />
         </div>
         <Skeleton className="mt-4 h-20 w-full rounded-[var(--radius-sm)]" />
         <Skeleton className="mt-3 h-10 w-36 rounded-[var(--radius-md)]" />
-      </Card>
+      </section>
     </div>
   );
 }

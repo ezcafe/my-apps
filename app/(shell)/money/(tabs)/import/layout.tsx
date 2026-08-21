@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 
+/** Span is applied once by the import wizard root — do not wrap here. */
 export default function MoneyImportLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  return <div className={MONEY_FULL_SPAN}>{children}</div>;
+  return children;
 }

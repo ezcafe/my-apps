@@ -16,7 +16,6 @@ import {
   MoneyListSkeleton,
   MoneyQueryErrorAlert,
 } from "@/components/money-feedback";
-import { Card } from "@/components/ui/card";
 import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/format-money";
@@ -117,7 +116,7 @@ function LoansTable({
   const { formatDate } = useFormatDate();
 
   return (
-    <Card className="w-full min-w-0 p-4">
+    <div className="w-full min-w-0">
       <div className="hidden min-w-0 rounded-[var(--radius-md)] border border-border @md:block">
         <table className="w-full table-fixed divide-y divide-border text-left text-sm">
           <caption className="sr-only">
@@ -325,7 +324,7 @@ function LoansTable({
           );
         })}
       </ul>
-    </Card>
+    </div>
   );
 }
 

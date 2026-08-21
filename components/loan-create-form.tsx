@@ -12,7 +12,6 @@ import {
 } from "@/components/money-date-quick-pick";
 import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -368,8 +367,7 @@ export function LoanCreateForm() {
 
   return (
     <div className="col-span-2 min-w-0 md:col-span-6 lg:col-span-12">
-      <Card className="p-4">
-        <form onSubmit={onSubmit} className="space-y-5">
+      <form onSubmit={onSubmit} className="space-y-5">
           <Field label="Loan name">
             <Input value={name} onChange={(e) => setName(e.target.value)} required />
           </Field>
@@ -757,7 +755,6 @@ export function LoanCreateForm() {
             </p>
           ) : null}
         </form>
-      </Card>
     </div>
   );
 }

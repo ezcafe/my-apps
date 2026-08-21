@@ -1,5 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 
 const IMPORT_STEP_COUNT = 4;
 const IMPORT_KIND_COUNT = 8;
@@ -12,7 +13,7 @@ export function MoneyCsvImportWizardSkeleton({
 }) {
   return (
     <div
-      className={cn("min-w-0", className)}
+      className={cn(MONEY_FULL_SPAN, "min-w-0", className)}
       aria-busy="true"
       aria-live="polite"
       aria-label="Loading import wizard"

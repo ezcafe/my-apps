@@ -339,29 +339,32 @@ export function MoneyTransactionsPage({
   }
 
   return (
-    <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
-      <section aria-label="Filters">
-        <AnalyticsFiltersBar
-          viewFilter={viewFilter}
-          value={draft}
-          onChange={setDraft}
-          onApply={handleApply}
-          onReset={handleReset}
-          applying={isFilterPending}
-          dirty={dirty}
-          accounts={accounts}
-          categories={categories}
-          merchants={merchants}
-          tags={tags}
-          recurrenceTemplates={recurrenceTemplates}
-          workspaces={workspaces}
-          activeWorkspaceId={activeWorkspaceId}
-          onWorkspaceChange={handleWorkspaceChange}
-          switchingWorkspace={workspaceSyncPending}
-          userSub={userSub}
-          onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
-        />
-      </section>
+    <div
+      className={cn(
+        !isSection && MONEY_FULL_SPAN,
+        MONEY_DASHBOARD_STACK,
+      )}
+    >
+      <AnalyticsFiltersBar
+        viewFilter={viewFilter}
+        value={draft}
+        onChange={setDraft}
+        onApply={handleApply}
+        onReset={handleReset}
+        applying={isFilterPending}
+        dirty={dirty}
+        accounts={accounts}
+        categories={categories}
+        merchants={merchants}
+        tags={tags}
+        recurrenceTemplates={recurrenceTemplates}
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId}
+        onWorkspaceChange={handleWorkspaceChange}
+        switchingWorkspace={workspaceSyncPending}
+        userSub={userSub}
+        onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
+      />
 
       {loadError ? (
         <Alert
@@ -406,23 +409,21 @@ export function MoneyTransactionsPage({
         </section>
       ) : null}
 
-      <section aria-label="Transactions">
-        {lookupsReady && activeWorkspaceId ? (
-          <AnalyticsTransactionsTableLazy
-            filterQuery={filterQuery}
-            activeWorkspaceId={activeWorkspaceId}
-            accounts={accounts}
-            categories={categories}
-            tags={tags}
-            currency={defaultCurrency}
-            deferFetchUntilVisible={isSection}
-            variant="standalone"
-            emptyState={preset?.emptyState}
-          />
-        ) : (
-          <MoneyAnalyticsTransactionsTableSkeleton selectable />
-        )}
-      </section>
+      {lookupsReady && activeWorkspaceId ? (
+        <AnalyticsTransactionsTableLazy
+          filterQuery={filterQuery}
+          activeWorkspaceId={activeWorkspaceId}
+          accounts={accounts}
+          categories={categories}
+          tags={tags}
+          currency={defaultCurrency}
+          deferFetchUntilVisible={isSection}
+          variant="standalone"
+          emptyState={preset?.emptyState}
+        />
+      ) : (
+        <MoneyAnalyticsTransactionsTableSkeleton selectable />
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/cn";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import type { UsageRankedItem } from "@/lib/money-usage-quick-pick";
 import {
@@ -855,7 +856,7 @@ export function MoneyCsvImportWizard({
   }, [headers, parsedRows, preview]);
 
   return (
-    <div className="min-w-0">
+    <div className={cn(MONEY_FULL_SPAN, "min-w-0")}>
       <ImportProgress current={step} onStepClick={goToStep} />
 
       {step === "type" ? (

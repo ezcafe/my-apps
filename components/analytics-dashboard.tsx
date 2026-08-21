@@ -857,34 +857,32 @@ export function AnalyticsDashboard({
 
   return (
     <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
-      <section aria-label="Filters">
-        <AnalyticsFiltersBar
-          viewFilter={{
-            menuLabel: "Ledger",
-            value: ledgerScope,
-            defaultValue: "all",
-            options: MONEY_LEDGER_SCOPES.map(({ id, label }) => ({ id, label })),
-            onChange: (id) => setLedgerScope(id as MoneyLedgerScopeId),
-          }}
-          value={draft}
-          onChange={setDraft}
-          onApply={handleApply}
-          onReset={handleReset}
-          applying={isFilterPending}
-          dirty={dirty}
-          accounts={accounts}
-          categories={categories}
-          merchants={merchants}
-          tags={tags}
-          recurrenceTemplates={recurrenceTemplates}
-          workspaces={workspaces}
-          activeWorkspaceId={activeWorkspaceId}
-          onWorkspaceChange={handleWorkspaceChange}
-          switchingWorkspace={workspaceSyncPending}
-          userSub={userSub}
-          onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
-        />
-      </section>
+      <AnalyticsFiltersBar
+        viewFilter={{
+          menuLabel: "Ledger",
+          value: ledgerScope,
+          defaultValue: "all",
+          options: MONEY_LEDGER_SCOPES.map(({ id, label }) => ({ id, label })),
+          onChange: (id) => setLedgerScope(id as MoneyLedgerScopeId),
+        }}
+        value={draft}
+        onChange={setDraft}
+        onApply={handleApply}
+        onReset={handleReset}
+        applying={isFilterPending}
+        dirty={dirty}
+        accounts={accounts}
+        categories={categories}
+        merchants={merchants}
+        tags={tags}
+        recurrenceTemplates={recurrenceTemplates}
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId}
+        onWorkspaceChange={handleWorkspaceChange}
+        switchingWorkspace={workspaceSyncPending}
+        userSub={userSub}
+        onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
+      />
 
       {loadError ? (
         <Alert

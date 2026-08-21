@@ -37,6 +37,7 @@ import type { z } from "zod";
 import {
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 
 type BudgetScope = z.infer<typeof moneyBudgetScopeTypeSchema>;
 
@@ -383,7 +384,7 @@ export function MoneySettingsBudgetsSection() {
   }
 
   return (
-    <>
+    <div className={MONEY_FULL_SPAN}>
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -488,6 +489,6 @@ export function MoneySettingsBudgetsSection() {
           </ul>
         </div>
       </SettingsSection>
-    </>
+    </div>
   );
 }

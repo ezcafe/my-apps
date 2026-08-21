@@ -69,7 +69,7 @@ function LoanDetailChartSkeleton() {
 
 function LoanDetailTableSkeleton() {
   return (
-    <Card className="col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12">
+    <section className="col-span-2 w-full min-w-0 md:col-span-6 lg:col-span-12">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div>
           <Skeleton className="h-6 w-40 rounded-[var(--radius-sm)]" />
@@ -103,7 +103,7 @@ function LoanDetailTableSkeleton() {
           ))}
         </div>
       </div>
-    </Card>
+    </section>
   );
 }
 

@@ -31,6 +31,7 @@ import {
   SettingsSection,
   SettingsSubsectionHeading,
 } from "@/components/money-settings/money-settings-shared";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cadenceLabel, type MoneyCadence } from "@/lib/recurrence";
 
 type Account = { id: string; name: string; archived?: boolean };
@@ -231,7 +232,7 @@ export function MoneySettingsRecurrenceSection() {
   }
 
   return (
-    <>
+    <div className={MONEY_FULL_SPAN}>
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -425,6 +426,6 @@ export function MoneySettingsRecurrenceSection() {
           )}
         </div>
       </SettingsSection>
-    </>
+    </div>
   );
 }

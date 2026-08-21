@@ -17,6 +17,7 @@ import {
 import {
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 
 type TagRow = { id: string; name: string };
 
@@ -116,7 +117,7 @@ export function MoneySettingsTagsSection() {
   }
 
   return (
-    <>
+    <div className={MONEY_FULL_SPAN}>
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -190,6 +191,6 @@ export function MoneySettingsTagsSection() {
           </ul>
         </div>
       </SettingsSection>
-    </>
+    </div>
   );
 }

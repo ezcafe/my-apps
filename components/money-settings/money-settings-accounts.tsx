@@ -24,6 +24,7 @@ import {
 import {
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
+import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 
 const ACCOUNT_TYPES = [
   "checking",
@@ -177,7 +178,7 @@ export function MoneySettingsAccountsSection() {
   }
 
   return (
-    <>
+    <div className={MONEY_FULL_SPAN}>
       {bootstrapErr ? (
         <Alert
           variant="error"
@@ -303,6 +304,6 @@ export function MoneySettingsAccountsSection() {
           </ul>
         </div>
       </SettingsSection>
-    </>
+    </div>
   );
 }
