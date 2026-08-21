@@ -71,6 +71,10 @@ export function budgetUtilizationAnalyticsFill(
   };
 }
 
+export function formatBudgetUtilizationPct(progressPct: number): string {
+  return progressPct >= 100 ? progressPct.toFixed(0) : progressPct.toFixed(1);
+}
+
 export function budgetUtilizationPctTextClassName(
   progressPct: number,
   opts?: { selected?: boolean },

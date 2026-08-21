@@ -3,7 +3,7 @@
 import { useNotify } from "@/components/notification-provider";
 import { useTheme } from "@/components/theme-provider";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/cn";
+import { moneyQuickPickChipCls, moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
 import { withViewTransition } from "@/lib/microinteractions";
 
 const OPTIONS = [
@@ -47,7 +47,7 @@ export function ThemeSettings({ embedded }: { embedded?: boolean }) {
       <div
         role="radiogroup"
         aria-label="Appearance mode"
-        className="inline-flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1 shadow-[var(--shadow-sm)]"
+        className={moneyQuickPickGroupCls}
       >
         {OPTIONS.map((opt) => {
           const active = theme === opt.id;
@@ -58,12 +58,7 @@ export function ThemeSettings({ embedded }: { embedded?: boolean }) {
               role="radio"
               aria-checked={active}
               onClick={() => pick(opt.id)}
-              className={cn(
-                "min-w-20 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
-                active
-                  ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-                  : "text-muted hover:bg-muted-surface hover:text-foreground",
-              )}
+              className={moneyQuickPickChipCls(active)}
             >
               {opt.label}
             </button>

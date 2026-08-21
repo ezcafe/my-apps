@@ -22,6 +22,7 @@ import { MoneyDateQuickPick } from "@/components/money-date-quick-pick";
 import { MoneyUsageMultiQuickPick } from "@/components/money-usage-multi-quick-pick";
 import { MoneyFilterToolbar } from "@/components/money-page-header";
 import { cn } from "@/lib/cn";
+import { moneyQuickPickChipCls, moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
 import {
   moneyCategoryById,
   moneyCategoryLabel,
@@ -357,19 +358,14 @@ function FilterViewRadios({
       <div
         role="radiogroup"
         aria-label={menuLabel}
-        className="flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+        className={moneyQuickPickGroupCls}
       >
         {options.map((opt) => {
           const selected = value === opt.id;
           return (
             <label
               key={opt.id}
-              className={cn(
-                "cursor-pointer rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-colors duration-200 fx-press",
-                selected
-                  ? "bg-muted-surface text-foreground"
-                  : "text-muted hover:bg-muted-surface hover:text-foreground",
-              )}
+              className={moneyQuickPickChipCls(selected)}
             >
               <input
                 type="radio"
@@ -413,19 +409,14 @@ function DirectionRadios({
       <div
         role="radiogroup"
         aria-label="Direction"
-        className="flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+        className={moneyQuickPickGroupCls}
       >
         {DIRECTION_OPTIONS.map((opt) => {
           const selected = direction === opt.value;
           return (
             <label
               key={opt.value}
-              className={cn(
-                "cursor-pointer rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-colors duration-200 fx-press",
-                selected
-                  ? "bg-muted-surface text-foreground"
-                  : "text-muted hover:bg-muted-surface hover:text-foreground",
-              )}
+              className={moneyQuickPickChipCls(selected)}
             >
               <input
                 type="radio"
@@ -456,19 +447,14 @@ function RecurrenceRadios({
       <div
         role="radiogroup"
         aria-label="Recurrence"
-        className="flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+        className={moneyQuickPickGroupCls}
       >
         {RECURRENCE_OPTIONS.map((opt) => {
           const selected = recurrence === opt.value;
           return (
             <label
               key={opt.value}
-              className={cn(
-                "cursor-pointer rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-colors duration-200 fx-press",
-                selected
-                  ? "bg-muted-surface text-foreground"
-                  : "text-muted hover:bg-muted-surface hover:text-foreground",
-              )}
+              className={moneyQuickPickChipCls(selected)}
             >
               <input
                 type="radio"

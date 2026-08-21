@@ -8,7 +8,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
-import { moneyQuickPickOtherChipCls } from "@/lib/money-quick-pick-chip-cls";
+import {
+  moneyQuickPickChipCls,
+  moneyQuickPickChipHeightCls,
+  moneyQuickPickGroupCls,
+  moneyQuickPickOtherChipCls,
+} from "@/lib/money-quick-pick-chip-cls";
 
 function StaticChip({
   label,
@@ -47,16 +52,7 @@ function StaticChip({
     );
   }
   return (
-    <button
-      type="button"
-      disabled
-      className={cn(
-        "min-w-20 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200",
-        active
-          ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-          : "text-muted",
-      )}
-    >
+    <button type="button" disabled className={moneyQuickPickChipCls(active)}>
       {label}
     </button>
   );
@@ -68,6 +64,7 @@ export function MoneyLookupQuickPickSkeleton({
   className,
   chips = 4,
   otherChipLabel,
+  withPct = false,
 }: {
   legend: string;
   required?: boolean;
@@ -75,6 +72,8 @@ export function MoneyLookupQuickPickSkeleton({
   chips?: number;
   /** “Open picker” chip shown after the skeleton placeholders. */
   otherChipLabel?: string;
+  /** Two-line chip placeholders (name + budget %). */
+  withPct?: boolean;
 }) {
   return (
     <fieldset className={cn("grid min-w-0 gap-1.5 text-sm", className)}>
@@ -90,18 +89,57 @@ export function MoneyLookupQuickPickSkeleton({
           legend
         )}
       </legend>
-      <div className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1">
-        {Array.from({ length: chips }, (_, index) => (
-          <Skeleton
-            key={`${legend}-${index}`}
-            className="h-9 w-24 rounded-[var(--radius-sm)]"
-          />
-        ))}
+      <div className={moneyQuickPickGroupCls}>
+        {Array.from({ length: chips }, (_, index) =>
+          withPct ? (
+            <span
+              key={`${legend}-${index}`}
+              className={cn(
+                "inline-flex w-28 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] px-4",
+                moneyQuickPickChipHeightCls,
+              )}
+            >
+              <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-3.5 w-10 rounded-[var(--radius-sm)]" />
+            </span>
+          ) : (
+            <Skeleton
+              key={`${legend}-${index}`}
+              className={cn(
+                "w-24 rounded-[var(--radius-sm)]",
+                moneyQuickPickChipHeightCls,
+              )}
+            />
+          ),
+        )}
         {otherChipLabel ? (
           <StaticChip label={otherChipLabel} variant="other" />
         ) : null}
       </div>
     </fieldset>
+  );
+}
+
+export function MoneyQuickPickGroupSkeleton({
+  widths,
+  className,
+}: {
+  widths: readonly string[];
+  className?: string;
+}) {
+  return (
+    <div className={cn(moneyQuickPickGroupCls, className)}>
+      {widths.map((widthClass, index) => (
+        <Skeleton
+          key={`quick-pick-chip-${index}`}
+          className={cn(
+            "rounded-[var(--radius-sm)]",
+            moneyQuickPickChipHeightCls,
+            widthClass,
+          )}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -116,7 +154,12 @@ export function MoneyTagsFieldSkeleton({
       hint="Separate tags with spaces. Tags are created and linked when you save."
       className={className}
     >
-      <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+      <Skeleton
+        className={cn(
+          "w-full rounded-[var(--radius-md)]",
+          moneyQuickPickChipHeightCls,
+        )}
+      />
     </Field>
   );
 }
@@ -148,7 +191,7 @@ export function MoneyDashboardSkeleton() {
         >
           <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
             <legend className="text-muted">Kind</legend>
-            <div className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1">
+            <div className={moneyQuickPickGroupCls}>
               <StaticChip label="Expense" active />
               <StaticChip label="Income" />
               <StaticChip label="Transfer" />
@@ -176,17 +219,19 @@ export function MoneyDashboardSkeleton() {
           <MoneyLookupQuickPickSkeleton
             legend="Account"
             required
+            withPct
             className="[grid-column:1/-1]"
           />
 
           <MoneyLookupQuickPickSkeleton
             legend="Category"
+            withPct
             className="[grid-column:1/-1]"
           />
 
           <fieldset className="grid min-w-0 gap-1.5 text-sm">
             <legend className="text-muted">When</legend>
-            <div className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1">
+            <div className={moneyQuickPickGroupCls}>
               <StaticChip label="Today" active />
               <StaticChip label="Yesterday" />
               <StaticChip label="Select custom date" variant="other" />

@@ -11,7 +11,7 @@ import { TransactionSelectionBar } from "@/components/transaction-selection-bar"
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
-import { MoneyListSkeleton } from "@/components/money-feedback";
+import { MoneyLedgerMobileCardsSkeleton } from "@/components/money-analytics-skeleton";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -534,8 +534,8 @@ export function AnalyticsTransactionsTable({
                       <TableBody>{renderTableLoadingBody()}</TableBody>
                     </Table>
                   </div>
-                  <div className="rounded-[var(--radius-md)] border border-border p-3 @md:hidden">
-                    <MoneyListSkeleton variant="tableRows" />
+                  <div className="@md:hidden">
+                    <MoneyLedgerMobileCardsSkeleton selectable={selectable} />
                   </div>
                 </>
               ) : null}

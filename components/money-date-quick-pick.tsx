@@ -7,6 +7,7 @@ import {
   moneyUsageQuickPickOtherChipCls,
 } from "@/components/money-usage-quick-pick";
 import { cn } from "@/lib/cn";
+import { moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
 import { useFormatDate } from "@/lib/format-date";
 
 export type MoneyDateQuickPickMode = "today" | "yesterday" | "custom";
@@ -108,7 +109,10 @@ export function MoneyDateQuickPick({
       <div
         role="radiogroup"
         aria-label={ariaLabel}
-        className="inline-flex w-max max-w-full min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1 @[22rem]:flex-nowrap"
+        className={cn(
+          moneyQuickPickGroupCls,
+          "w-max max-w-full @[22rem]:flex-nowrap",
+        )}
       >
         {WHEN_OPTIONS.map((opt) => {
           const active = mode === opt.id;

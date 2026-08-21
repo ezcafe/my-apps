@@ -5,7 +5,7 @@ import {
   CHART_CARD_LAYOUT,
 } from "@/components/analytics-chart-layout";
 import { MoneyFilterToolbar } from "@/components/money-page-header";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { MONEY_DASHBOARD_STACK, MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -20,6 +20,8 @@ import { cn } from "@/lib/cn";
 
 /** Desktop filter triggers: Ledger · Direction · Accounts · Categories · More. */
 const FILTER_TRIGGER_COUNT = 5;
+const TABLE_LOADING_ROWS = 6;
+const MOBILE_CARD_COUNT = 4;
 
 const LEGEND_GRID_SKELETON =
   "grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] gap-2 md:grid-rows-1 md:[grid-template-columns:minmax(0,20%)_minmax(0,80%)] md:gap-3";
@@ -28,19 +30,19 @@ export function MoneyAnalyticsFiltersBarSkeleton() {
   return (
     <section className="@container" aria-hidden>
       <div className="flex justify-end @md:hidden">
-        <Skeleton className="h-10 w-24 shrink-0 rounded-[var(--radius-md)]" />
+        <Skeleton className="h-12 w-20 shrink-0 rounded-[var(--radius-md)]" />
       </div>
 
       <MoneyFilterToolbar className="mt-3 hidden @md:flex">
         {Array.from({ length: FILTER_TRIGGER_COUNT }, (_, index) => (
           <Skeleton
             key={`analytics-filter-trigger-${index}`}
-            className="mx-1 h-5 w-20 shrink-0 self-center rounded-[var(--radius-sm)]"
+            className="mx-1 h-11 w-20 shrink-0 self-center rounded-[var(--radius-sm)]"
           />
         ))}
         <div className="ms-2 flex shrink-0 items-center gap-2 border-s border-border ps-3">
-          <Skeleton className="h-8 w-16 rounded-[var(--radius-md)]" />
-          <Skeleton className="h-8 w-16 rounded-[var(--radius-md)]" />
+          <Skeleton className="h-9 w-16 rounded-[var(--radius-md)]" />
+          <Skeleton className="h-9 w-16 rounded-[var(--radius-md)]" />
         </div>
       </MoneyFilterToolbar>
     </section>
@@ -56,22 +58,22 @@ export const ANALYTICS_GRID_CLASS = ANALYTICS_INNER_GRID;
 export function AnalyticsStatsSkeleton() {
   return (
     <div
-      className="col-span-2 grid gap-2 md:col-span-6 lg:col-span-12"
+      className="col-span-2 grid gap-3 md:col-span-6 lg:col-span-12 fx-fade-in"
       role="status"
       aria-busy="true"
       aria-live="polite"
       aria-label="Loading summary totals"
     >
-      <Skeleton className="h-3 w-52 max-w-full rounded-[var(--radius-sm)]" />
+      <Skeleton className="h-4 w-52 max-w-full rounded-[var(--radius-sm)]" />
       <div
-        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-2"
+        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
         aria-hidden
       >
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={`analytics-stat-${index}`}>
+          <Card key={`analytics-stat-${index}`} className="px-4 py-4">
             <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
-            <Skeleton className="mt-1 h-8 w-32 max-w-full rounded-[var(--radius-sm)]" />
-          </div>
+            <Skeleton className="mt-2 h-8 w-32 max-w-full rounded-[var(--radius-sm)] sm:h-9" />
+          </Card>
         ))}
       </div>
     </div>
@@ -95,7 +97,7 @@ function AnalyticsChartCardSkeleton({
     <Card className={cn("min-w-0 p-4", CHART_CARD_LAYOUT, heightClass, className)}>
       <Skeleton className={cn("mb-2 h-6 rounded-[var(--radius-sm)]", titleWidthClass)} />
       <Skeleton
-        className={cn("mb-2 h-3 rounded-[var(--radius-sm)]", descriptionWidthClass)}
+        className={cn("mb-2 h-4 rounded-[var(--radius-sm)]", descriptionWidthClass)}
       />
       <div className={showLegend ? LEGEND_GRID_SKELETON : "min-h-0 flex-1"}>
         <Skeleton className="h-full min-h-0 w-full rounded-[var(--radius-sm)]" />
@@ -128,7 +130,7 @@ function AnalyticsCollapsedGridContent() {
       </div>
 
       <div className="col-span-2 flex flex-wrap justify-end gap-3 md:col-span-6 lg:col-span-12">
-        <Skeleton className="h-8 w-28 rounded-[var(--radius-md)]" />
+        <Skeleton className="h-9 w-28 rounded-[var(--radius-md)]" />
       </div>
     </>
   );
@@ -201,6 +203,40 @@ function AnalyticsExpandedGridContent() {
   );
 }
 
+export function MoneyLedgerMobileCardsSkeleton({
+  selectable = false,
+  count = MOBILE_CARD_COUNT,
+}: {
+  selectable?: boolean;
+  count?: number;
+}) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: count }, (_, index) => (
+        <div
+          key={`ledger-mobile-card-${index}`}
+          className="flex min-h-12 items-start gap-3 rounded-[var(--radius-sm)] border border-border bg-surface px-4 py-3"
+        >
+          {selectable ? (
+            <Skeleton className="mt-0.5 size-4 shrink-0 rounded-[var(--radius-sm)]" />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <Skeleton className="h-5 w-24 rounded-[var(--radius-sm)]" />
+                <Skeleton className="mt-1 h-4 w-32 max-w-full rounded-[var(--radius-sm)]" />
+              </div>
+              <Skeleton className="h-4 w-16 shrink-0 rounded-[var(--radius-sm)]" />
+            </div>
+            <Skeleton className="mt-2 h-4 w-28 rounded-[var(--radius-sm)]" />
+            <Skeleton className="mt-1 h-4 w-40 max-w-full rounded-[var(--radius-sm)]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function MoneyAnalyticsTransactionsTableSkeleton({
   selectable = false,
 }: {
@@ -211,42 +247,47 @@ export function MoneyAnalyticsTransactionsTableSkeleton({
 
   return (
     <section
-      className="w-full min-w-0"
+      className="@container w-full min-w-0"
       aria-busy="true"
       aria-live="polite"
       aria-label="Loading transactions"
     >
       <Skeleton className="mb-3 h-6 w-32 rounded-[var(--radius-sm)]" />
-      <Skeleton className="mb-3 h-3 w-80 max-w-full rounded-[var(--radius-sm)]" />
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {Array.from({ length: colCount }, (_, index) => (
-              <TableHead key={`analytics-table-head-${index}`}>
-                <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: 5 }, (_, rowIndex) => (
-            <TableRow key={`analytics-table-row-${rowIndex}`}>
-              {Array.from({ length: colCount }, (_, colIndex) => (
-                <TableCell
-                  key={`analytics-table-row-${rowIndex}-col-${colIndex}`}
-                >
+      <Skeleton className="mb-3 h-4 w-80 max-w-full rounded-[var(--radius-sm)]" />
+      <div className="hidden @md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {Array.from({ length: colCount }, (_, index) => (
+                <TableHead key={`analytics-table-head-${index}`}>
                   <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
-                </TableCell>
+                </TableHead>
               ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: TABLE_LOADING_ROWS }, (_, rowIndex) => (
+              <TableRow key={`analytics-table-row-${rowIndex}`}>
+                {Array.from({ length: colCount }, (_, colIndex) => (
+                  <TableCell
+                    key={`analytics-table-row-${rowIndex}-col-${colIndex}`}
+                  >
+                    <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="@md:hidden">
+        <MoneyLedgerMobileCardsSkeleton selectable={selectable} />
+      </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <Skeleton className="h-4 w-44 rounded-[var(--radius-sm)]" />
         <div className="flex gap-2">
-          <Skeleton className="h-9 w-20 rounded-[var(--radius-md)]" />
-          <Skeleton className="h-9 w-16 rounded-[var(--radius-md)]" />
+          <Skeleton className="h-12 w-24 rounded-[var(--radius-md)]" />
+          <Skeleton className="h-12 w-16 rounded-[var(--radius-md)]" />
         </div>
       </div>
     </section>
@@ -256,7 +297,7 @@ export function MoneyAnalyticsTransactionsTableSkeleton({
 export function MoneyAnalyticsPageSkeleton() {
   return (
     <div
-      className={cn(MONEY_FULL_SPAN, "flex w-full min-w-0 flex-col gap-6")}
+      className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}
       role="status"
       aria-busy="true"
       aria-live="polite"
@@ -280,7 +321,7 @@ export function MoneyLedgerPageSkeleton({
 } = {}) {
   return (
     <div
-      className={cn(MONEY_FULL_SPAN, "flex w-full min-w-0 flex-col gap-6")}
+      className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}
       role="status"
       aria-busy="true"
       aria-live="polite"

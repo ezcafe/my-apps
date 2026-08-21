@@ -4,8 +4,17 @@ import {
 } from "@/components/analytics-chart-layout";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cn } from "@/lib/cn";
+import { MoneyQuickPickGroupSkeleton } from "@/components/money-dashboard-skeleton";
 
 const LOAN_DETAIL_GRID_CLASS = cn(
   MONEY_FULL_SPAN,
@@ -17,7 +26,7 @@ const LEGEND_GRID_COMPACT_SKELETON =
 
 function LoanDetailStatsSkeleton() {
   return (
-    <div className="col-span-2 grid gap-3 md:col-span-6 lg:col-span-12">
+    <div className="col-span-2 grid gap-3 md:col-span-6 lg:col-span-12 fx-fade-in">
       <Skeleton className="h-4 w-72 max-w-full rounded-[var(--radius-sm)]" />
       <div
         className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
@@ -26,8 +35,8 @@ function LoanDetailStatsSkeleton() {
         {Array.from({ length: 4 }, (_, index) => (
           <Card key={`loan-stat-${index}`} className="px-4 py-4">
             <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
-            <Skeleton className="mt-2 h-8 w-32 max-w-full rounded-[var(--radius-sm)]" />
-            <Skeleton className="mt-1 h-3 w-36 rounded-[var(--radius-sm)]" />
+            <Skeleton className="mt-2 h-8 w-32 max-w-full rounded-[var(--radius-sm)] sm:h-9" />
+            <Skeleton className="mt-1 h-4 w-36 rounded-[var(--radius-sm)]" />
           </Card>
         ))}
       </div>
@@ -43,10 +52,10 @@ function LoanDetailNextPaymentSkeleton() {
           <Skeleton className="h-6 w-36 rounded-[var(--radius-sm)]" />
           <Skeleton className="mt-2 h-4 w-52 max-w-full rounded-[var(--radius-sm)]" />
         </div>
-        <Skeleton className="h-8 w-28 rounded-[var(--radius-sm)]" />
+        <Skeleton className="h-8 w-28 rounded-[var(--radius-sm)] sm:h-9" />
       </div>
       <div className="mt-4">
-        <Skeleton className="h-10 w-64 max-w-full rounded-[var(--radius-md)]" />
+        <Skeleton className="h-12 w-64 max-w-full rounded-[var(--radius-md)]" />
       </div>
     </Card>
   );
@@ -58,7 +67,7 @@ function LoanDetailChartSkeleton() {
       className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
     >
       <Skeleton className="mb-2 h-6 w-40 rounded-[var(--radius-sm)]" />
-      <Skeleton className="mb-2 h-3 w-64 max-w-full rounded-[var(--radius-sm)]" />
+      <Skeleton className="mb-2 h-4 w-64 max-w-full rounded-[var(--radius-sm)]" />
       <div className={LEGEND_GRID_COMPACT_SKELETON}>
         <Skeleton className="h-full min-h-0 w-full rounded-[var(--radius-sm)]" />
         <Skeleton className="h-12 w-full rounded-[var(--radius-sm)] md:h-full md:min-h-0" />
@@ -69,39 +78,60 @@ function LoanDetailChartSkeleton() {
 
 function LoanDetailTableSkeleton() {
   return (
-    <section className="col-span-2 w-full min-w-0 md:col-span-6 lg:col-span-12">
+    <section className="@container col-span-2 w-full min-w-0 md:col-span-6 lg:col-span-12">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div>
           <Skeleton className="h-6 w-40 rounded-[var(--radius-sm)]" />
-          <Skeleton className="mt-2 h-3 w-56 max-w-full rounded-[var(--radius-sm)]" />
+          <Skeleton className="mt-2 h-4 w-56 max-w-full rounded-[var(--radius-sm)]" />
         </div>
-        <div className="inline-flex gap-1 rounded-[var(--radius-sm)] border border-border p-0.5">
-          <Skeleton className="h-7 w-12 rounded-[var(--radius-sm)]" />
-          <Skeleton className="h-7 w-20 rounded-[var(--radius-sm)]" />
-          <Skeleton className="h-7 w-12 rounded-[var(--radius-sm)]" />
-        </div>
+        <MoneyQuickPickGroupSkeleton widths={["w-12", "w-20", "w-12"]} />
       </div>
-      <div className="overflow-hidden rounded-[var(--radius-md)] border border-border">
-        <div className="grid grid-cols-7 gap-3 bg-muted-surface px-3 py-2">
-          {Array.from({ length: 7 }, (_, index) => (
-            <Skeleton
-              key={`loan-table-head-${index}`}
-              className="h-4 w-full rounded-[var(--radius-sm)]"
-            />
-          ))}
-        </div>
-        <div className="divide-y divide-border px-3">
-          {Array.from({ length: 6 }, (_, rowIndex) => (
-            <div key={`loan-table-row-${rowIndex}`} className="grid grid-cols-7 gap-3 py-3">
-              {Array.from({ length: 7 }, (_, colIndex) => (
-                <Skeleton
-                  key={`loan-table-row-${rowIndex}-col-${colIndex}`}
-                  className="h-4 w-full rounded-[var(--radius-sm)]"
-                />
+      <div className="hidden @md:block">
+        <Table maxHeight="min(28rem, 60dvh)">
+          <TableHeader>
+            <TableRow>
+              {Array.from({ length: 7 }, (_, index) => (
+                <TableHead key={`loan-table-head-${index}`}>
+                  <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                </TableHead>
               ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 6 }, (_, rowIndex) => (
+              <TableRow key={`loan-table-row-${rowIndex}`}>
+                {Array.from({ length: 7 }, (_, colIndex) => (
+                  <TableCell
+                    key={`loan-table-row-${rowIndex}-col-${colIndex}`}
+                  >
+                    <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="space-y-2 @md:hidden">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div
+            key={`loan-mobile-card-${index}`}
+            className="flex min-h-12 items-start gap-3 rounded-[var(--radius-sm)] border border-border bg-surface px-4 py-3"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <Skeleton className="h-5 w-24 rounded-[var(--radius-sm)]" />
+                  <Skeleton className="mt-1 h-4 w-12 rounded-[var(--radius-sm)]" />
+                </div>
+                <Skeleton className="h-4 w-16 shrink-0 rounded-[var(--radius-sm)]" />
+              </div>
+              <Skeleton className="mt-2 h-5 w-16 rounded-[var(--radius-sm)]" />
+              <Skeleton className="mt-2 h-4 w-48 max-w-full rounded-[var(--radius-sm)]" />
+              <Skeleton className="mt-1 h-4 w-40 max-w-full rounded-[var(--radius-sm)]" />
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -109,21 +139,17 @@ function LoanDetailTableSkeleton() {
 
 export function LoanDetailPageSkeleton() {
   return (
-    <>
-      <header className={MONEY_FULL_SPAN}>
-        <Skeleton className="mb-4 h-4 w-32 rounded-[var(--radius-sm)]" />
-        <div className="flex min-w-0 items-center gap-3">
-          <Skeleton className="size-10 shrink-0 rounded-[var(--radius-md)]" />
-          <Skeleton className="h-9 min-w-0 flex-1 max-w-[14rem] rounded-[var(--radius-sm)] sm:h-10" />
-          <Skeleton className="size-4 shrink-0 rounded-full" />
-        </div>
-      </header>
-      <div className={LOAN_DETAIL_GRID_CLASS}>
-        <LoanDetailStatsSkeleton />
-        <LoanDetailNextPaymentSkeleton />
-        <LoanDetailChartSkeleton />
-        <LoanDetailTableSkeleton />
-      </div>
-    </>
+    <div
+      className={LOAN_DETAIL_GRID_CLASS}
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Loading loan"
+    >
+      <LoanDetailStatsSkeleton />
+      <LoanDetailNextPaymentSkeleton />
+      <LoanDetailChartSkeleton />
+      <LoanDetailTableSkeleton />
+    </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   budgetUtilizationFillColor,
   budgetUtilizationPctTextClassName,
   budgetUtilizationTone,
+  formatBudgetUtilizationPct,
   clampBudgetUtilizationWidthPct,
 } from "@/lib/budget-utilization-chart-colors";
 
@@ -72,5 +73,14 @@ describe("budgetUtilizationAnalyticsFill", () => {
   it("maps pct label class to muted or destructive", () => {
     assert.match(budgetUtilizationPctTextClassName(50), /text-muted/);
     assert.match(budgetUtilizationPctTextClassName(120), /text-destructive/);
+  });
+});
+
+describe("formatBudgetUtilizationPct", () => {
+  it("keeps one decimal under 100 and whole numbers at or above 100", () => {
+    assert.equal(formatBudgetUtilizationPct(12.34), "12.3");
+    assert.equal(formatBudgetUtilizationPct(99.9), "99.9");
+    assert.equal(formatBudgetUtilizationPct(100), "100");
+    assert.equal(formatBudgetUtilizationPct(120.4), "120");
   });
 });

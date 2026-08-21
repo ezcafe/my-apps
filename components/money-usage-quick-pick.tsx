@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
 import {
   budgetUtilizationChipFill,
+  budgetUtilizationPctTextClassName,
+  formatBudgetUtilizationPct,
   type BudgetUtilizationChipFill,
 } from "@/lib/budget-utilization-chart-colors";
 import {
@@ -23,6 +25,7 @@ import {
 } from "@/lib/money-usage-quick-pick";
 import {
   moneyQuickPickChipCls,
+  moneyQuickPickGroupCls,
   moneyQuickPickOtherChipCls,
 } from "@/lib/money-quick-pick-chip-cls";
 
@@ -113,11 +116,42 @@ export function BudgetUtilizationFillLayer({ fill }: { fill: BudgetUtilizationCh
 }
 
 export function budgetFillTitle(fill: BudgetUtilizationChipFill): string {
-  const pct =
-    fill.progressPct >= 100
-      ? fill.progressPct.toFixed(0)
-      : fill.progressPct.toFixed(1);
-  return `${pct}% of budget used`;
+  return `${formatBudgetUtilizationPct(fill.progressPct)}% of budget used`;
+}
+
+function QuickPickChipLabel({
+  label,
+  fill,
+  align = "center",
+  selected = false,
+}: {
+  label: string;
+  fill: BudgetUtilizationChipFill | null;
+  align?: "center" | "start";
+  selected?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "relative z-[1] flex min-w-0 flex-col justify-center",
+        align === "center"
+          ? "w-full items-center text-center"
+          : "flex-1 items-start text-start",
+      )}
+    >
+      <span className="max-w-full truncate leading-tight">{label}</span>
+      {fill ? (
+        <span
+          className={cn(
+            "text-sm font-normal leading-tight tabular-nums",
+            budgetUtilizationPctTextClassName(fill.progressPct, { selected }),
+          )}
+        >
+          {formatBudgetUtilizationPct(fill.progressPct)}%
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 export function MoneyUsageQuickPick({
@@ -296,7 +330,7 @@ export function MoneyUsageQuickPick({
       <div
         role="radiogroup"
         aria-label={ariaLabel}
-        className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+        className={moneyQuickPickGroupCls}
       >
         {chipItems.map((item) => {
           const active = selectedId === item.id && !otherActive;
@@ -313,8 +347,7 @@ export function MoneyUsageQuickPick({
               className={chipCls(active)}
               title={fill ? budgetFillTitle(fill) : undefined}
             >
-              {fill ? <BudgetUtilizationFillLayer fill={fill} /> : null}
-              <span className="relative z-[1] block truncate">{item.label}</span>
+              <QuickPickChipLabel label={item.label} fill={fill} />
             </button>
           );
         })}
@@ -382,10 +415,12 @@ export function MoneyUsageQuickPick({
                         )}
                         title={fill ? budgetFillTitle(fill) : undefined}
                       >
-                        {fill ? <BudgetUtilizationFillLayer fill={fill} /> : null}
-                        <span className="relative z-[1] min-w-0 truncate">
-                          {item.label}
-                        </span>
+                        <QuickPickChipLabel
+                          label={item.label}
+                          fill={fill}
+                          align="start"
+                          selected={selected}
+                        />
                         {renderPickerRow ? (
                           <span className="shrink-0 text-sm text-muted">
                             {renderPickerRow(item)}

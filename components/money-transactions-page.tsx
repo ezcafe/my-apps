@@ -330,11 +330,16 @@ export function MoneyTransactionsPage({
 
   if (!workspaceReady && !bootstrapQuery.data && !bootstrapQuery.error) {
     return (
-      <>
+      <div
+        className={cn(
+          !isSection && MONEY_FULL_SPAN,
+          MONEY_DASHBOARD_STACK,
+        )}
+      >
         <MoneyAnalyticsFiltersBarSkeleton />
         {showStats ? <AnalyticsStatsSkeleton /> : null}
         <MoneyAnalyticsTransactionsTableSkeleton selectable />
-      </>
+      </div>
     );
   }
 

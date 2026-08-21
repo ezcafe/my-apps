@@ -1,15 +1,5 @@
-import {
-  MoneyAnalyticsFiltersBarSkeleton,
-  AnalyticsStatsSkeleton,
-  MoneyAnalyticsTransactionsTableSkeleton,
-} from "@/components/money-analytics-skeleton";
+import { MoneyLedgerPageSkeleton } from "@/components/money-analytics-skeleton";
 
 export default function MoneyTransactionsLoading() {
-  return (
-    <>
-      <MoneyAnalyticsFiltersBarSkeleton />
-      <AnalyticsStatsSkeleton />
-      <MoneyAnalyticsTransactionsTableSkeleton selectable />
-    </>
-  );
+  return <MoneyLedgerPageSkeleton showChart={false} showSummaryStats />;
 }

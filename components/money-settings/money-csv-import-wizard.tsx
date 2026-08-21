@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
+import { moneyQuickPickChipCls, moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import type { UsageRankedItem } from "@/lib/money-usage-quick-pick";
@@ -265,7 +266,7 @@ function ImportProgress({
       <div
         role="radiogroup"
         aria-label="Import steps"
-        className="flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+        className={moneyQuickPickGroupCls}
       >
         {STEP_ORDER.map((id, i) => {
           const done = i < currentIdx;
@@ -283,12 +284,9 @@ function ImportProgress({
                 if (!future && i !== currentIdx) onStepClick(id);
               }}
               className={cn(
-                "rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press disabled:cursor-not-allowed disabled:opacity-45",
-                active
-                  ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-                  : done
-                    ? "text-foreground hover:bg-muted-surface"
-                    : "text-muted",
+                moneyQuickPickChipCls(active),
+                "disabled:cursor-not-allowed disabled:opacity-45",
+                done && !active ? "text-foreground" : null,
               )}
             >
               {STEP_META[id].title}

@@ -7,6 +7,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import {
+  MoneyLookupQuickPickSkeleton,
+  MoneyQuickPickGroupSkeleton,
+} from "@/components/money-dashboard-skeleton";
+import {
   joinDateTimeLocal,
   MoneyDateQuickPick,
   splitDateTimeLocal,
@@ -24,6 +28,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
+import {
+  moneyQuickPickChipCls,
+  moneyQuickPickGroupCls,
+} from "@/lib/money-quick-pick-chip-cls";
 import {
   categoriesOfKind,
   moneyCategoryById,
@@ -371,7 +379,7 @@ export function TransactionEditForm({
         <div>
           <header className="mb-4 flex items-baseline justify-between gap-3">
             <Skeleton className="h-6 w-40 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-3 w-10 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-4 w-10 rounded-[var(--radius-sm)]" />
           </header>
           <div
             className="grid min-w-0 gap-4"
@@ -380,26 +388,35 @@ export function TransactionEditForm({
                 "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))",
             }}
           >
-            <div className="[grid-column:1/-1] space-y-1.5">
-              <Skeleton className="h-3 w-12 rounded-[var(--radius-sm)]" />
-              <Skeleton className="h-10 w-full max-w-xs rounded-[var(--radius-md)]" />
+            <div className="grid gap-1.5 [grid-column:1/-1]">
+              <Skeleton className="h-4 w-12 rounded-[var(--radius-sm)]" />
+              <MoneyQuickPickGroupSkeleton widths={["w-24", "w-20", "w-24"]} />
             </div>
-            <div className="space-y-1.5">
-              <Skeleton className="h-3 w-16 rounded-[var(--radius-sm)]" />
-              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-12 w-full rounded-[var(--radius-md)]" />
             </div>
-            <div className="[grid-column:1/-1] space-y-1.5">
-              <Skeleton className="h-3 w-16 rounded-[var(--radius-sm)]" />
-              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+            <MoneyLookupQuickPickSkeleton
+              legend="Account"
+              required
+              withPct
+              className="[grid-column:1/-1]"
+            />
+            <MoneyLookupQuickPickSkeleton
+              legend="Category"
+              withPct
+              className="[grid-column:1/-1]"
+            />
+            <div className="grid gap-1.5 [grid-column:1/-1]">
+              <Skeleton className="h-4 w-12 rounded-[var(--radius-sm)]" />
+              <MoneyQuickPickGroupSkeleton
+                widths={["w-20", "w-24", "w-40"]}
+              />
             </div>
-            <div className="[grid-column:1/-1] space-y-1.5">
-              <Skeleton className="h-3 w-20 rounded-[var(--radius-sm)]" />
-              <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
-            </div>
-            <Skeleton className="h-20 w-full rounded-[var(--radius-md)] [grid-column:1/-1]" />
+            <Skeleton className="h-24 w-full rounded-[var(--radius-md)] [grid-column:1/-1]" />
             <div className="flex flex-wrap gap-2 [grid-column:1/-1]">
-              <Skeleton className="h-11 w-36 rounded-[var(--radius-md)]" />
-              <Skeleton className="h-11 w-24 rounded-[var(--radius-md)]" />
+              <Skeleton className="h-12 w-36 rounded-[var(--radius-md)]" />
+              <Skeleton className="h-12 w-24 rounded-[var(--radius-md)]" />
             </div>
           </div>
         </div>
@@ -452,7 +469,7 @@ export function TransactionEditForm({
             <div
               role="radiogroup"
               aria-label="Transaction kind"
-              className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+              className={moneyQuickPickGroupCls}
             >
               {KIND_OPTIONS.map(({ value, label, description }) => (
                 <button
@@ -465,12 +482,7 @@ export function TransactionEditForm({
                     setKind(value);
                     if (value !== "transfer") setToAccountId("");
                   }}
-                  className={cn(
-                    "min-w-20 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
-                    kind === value
-                      ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-                      : "text-muted hover:bg-muted-surface hover:text-foreground",
-                  )}
+                  className={moneyQuickPickChipCls(kind === value)}
                 >
                   {label}
                 </button>

@@ -53,6 +53,7 @@ import {
   budgetUtilizationAnalyticsFill,
   budgetUtilizationChipFill,
   budgetUtilizationPctTextClassName,
+  formatBudgetUtilizationPct,
 } from "@/lib/budget-utilization-chart-colors";
 import {
   categoriesOfKind,
@@ -72,6 +73,10 @@ import {
 } from "@/lib/money-query-options";
 import { preferredExpenseCategoryIdForAccountType } from "@/lib/money-seed-defaults";
 import { mostUsedPickId, topUsageItems, usageOrZero } from "@/lib/money-usage-quick-pick";
+import {
+  moneyQuickPickChipCls,
+  moneyQuickPickGroupCls,
+} from "@/lib/money-quick-pick-chip-cls";
 import {
   getRecurrenceFormCadences,
   cadenceLabel,
@@ -176,10 +181,6 @@ function completeTagToken(input: string, tagName: string): string {
   const { committed } = tagInputParts(input);
   const prefix = committed.length > 0 ? `${committed.join(" ")} ` : "";
   return `${prefix}${tagName} `;
-}
-
-function formatTagBudgetPct(progressPct: number): string {
-  return progressPct >= 100 ? progressPct.toFixed(0) : progressPct.toFixed(1);
 }
 
 function tagAutocompleteMatches(
@@ -837,7 +838,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             <div
               role="radiogroup"
               aria-label="Transaction kind"
-              className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+              className={moneyQuickPickGroupCls}
             >
               {KIND_OPTIONS.map(({ value, label }) => {
                 const active = kind === value;
@@ -855,12 +856,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                         setRecurrenceEnabled(false);
                       }
                     }}
-                    className={cn(
-                      "min-w-20 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
-                      active
-                        ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-                        : "text-muted hover:bg-muted-surface hover:text-foreground",
-                    )}
+                    className={moneyQuickPickChipCls(active)}
                   >
                     {label}
                   </button>
@@ -980,6 +976,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             <MoneyLookupQuickPickSkeleton
               legend="Account"
               required
+              withPct
               className="[grid-column:1/-1]"
             />
           ) : (
@@ -1051,6 +1048,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             lookupSkeletonVisible ? (
               <MoneyLookupQuickPickSkeleton
                 legend="Category"
+                withPct
                 className="[grid-column:1/-1]"
               />
             ) : (
@@ -1187,7 +1185,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                                   ),
                                 )}
                               >
-                                {formatTagBudgetPct(fill.progressPct)}%
+                                {formatBudgetUtilizationPct(fill.progressPct)}%
                               </span>
                             ) : null}
                           </button>

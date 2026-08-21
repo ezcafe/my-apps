@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
+import { MoneyQuickPickGroupSkeleton } from "@/components/money-dashboard-skeleton";
 import { queryErrorMessage } from "@/lib/user-facing-error";
 import { resetRequestCircuit } from "@/lib/request-circuit";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
@@ -145,40 +146,65 @@ export function MoneyListSkeleton({
 
   if (variant === "loansTable") {
     return (
-      <div className={cn("space-y-4", className)} aria-hidden>
+      <div className={cn("@container space-y-4", className)} aria-hidden>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Skeleton className="h-5 w-24 rounded-[var(--radius-sm)]" />
-          <div className="inline-flex gap-1 rounded-[var(--radius-sm)] border border-border p-0.5">
-            {Array.from({ length: 5 }, (_, i) => (
-              <Skeleton
-                key={`loan-filter-${i}`}
-                className="h-7 w-16 rounded-[var(--radius-sm)]"
-              />
-            ))}
-          </div>
+          <Skeleton className="h-6 w-24 rounded-[var(--radius-sm)]" />
+          <MoneyQuickPickGroupSkeleton
+            widths={["w-16", "w-16", "w-16", "w-16", "w-16"]}
+          />
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {Array.from({ length: 7 }, (_, i) => (
-                <TableHead key={`loan-table-head-${i}`}>
-                  <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Array.from({ length: 4 }, (_, row) => (
-              <TableRow key={`loan-table-row-${row}`}>
-                {Array.from({ length: 7 }, (_, col) => (
-                  <TableCell key={`loan-table-row-${row}-col-${col}`}>
+        <div className="hidden @md:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {Array.from({ length: 7 }, (_, i) => (
+                  <TableHead key={`loan-table-head-${i}`}>
                     <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
-                  </TableCell>
+                  </TableHead>
                 ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {Array.from({ length: 4 }, (_, row) => (
+                <TableRow key={`loan-table-row-${row}`}>
+                  {Array.from({ length: 7 }, (_, col) => (
+                    <TableCell key={`loan-table-row-${row}-col-${col}`}>
+                      <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <ul className="space-y-3 @md:hidden">
+          {Array.from({ length: 3 }, (_, i) => (
+            <li
+              key={`loan-mobile-card-${i}`}
+              className="rounded-[var(--radius-md)] border border-border p-4"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <Skeleton className="h-5 w-32 rounded-[var(--radius-sm)]" />
+                <Skeleton className="h-5 w-16 rounded-[var(--radius-sm)]" />
+              </div>
+              <div className="mt-3 space-y-1.5">
+                <div className="flex justify-between gap-2">
+                  <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
+                  <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+                </div>
+                <div className="flex justify-between gap-2">
+                  <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+                  <Skeleton className="h-4 w-14 rounded-[var(--radius-sm)]" />
+                </div>
+                <div className="flex justify-between gap-2">
+                  <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+                  <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
+                </div>
+              </div>
+              <Skeleton className="mt-3 h-4 w-24 rounded-[var(--radius-sm)]" />
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
@@ -200,8 +226,8 @@ export function MoneyListSkeleton({
             </div>
             <div className="mt-4">
               <div className="mb-1 flex justify-between gap-2">
-                <Skeleton className="h-3 w-16 rounded-[var(--radius-sm)]" />
-                <Skeleton className="h-3 w-10 rounded-[var(--radius-sm)]" />
+                <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+                <Skeleton className="h-4 w-10 rounded-[var(--radius-sm)]" />
               </div>
               <Skeleton className="h-2 w-full rounded-[var(--radius-sm)]" />
             </div>
@@ -219,7 +245,7 @@ export function MoneyListSkeleton({
                 <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
               </div>
             </div>
-            <Skeleton className="mt-4 h-3 w-24 rounded-[var(--radius-sm)]" />
+            <Skeleton className="mt-4 h-4 w-24 rounded-[var(--radius-sm)]" />
           </Card>
         ))}
       </div>
@@ -243,7 +269,7 @@ export function MoneyListSkeleton({
               <TableRow>
                 {Array.from({ length: 4 }, (_, i) => (
                   <TableHead key={`holdings-head-${i}`}>
-                    <Skeleton className="h-3 w-12 rounded-[var(--radius-sm)]" />
+                    <Skeleton className="h-4 w-12 rounded-[var(--radius-sm)]" />
                   </TableHead>
                 ))}
               </TableRow>
@@ -273,20 +299,46 @@ export function MoneyListSkeleton({
   }
 
   return (
-    <div className={cn("space-y-2", className)} aria-hidden>
-      <Table>
-        <TableBody>
-          {Array.from({ length: 6 }, (_, i) => (
-            <TableRow key={`table-row-${i}`}>
-              {Array.from({ length: 5 }, (_, col) => (
-                <TableCell key={`table-row-${i}-col-${col}`}>
+    <div className={cn("@container space-y-2", className)} aria-hidden>
+      <div className="hidden @md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {Array.from({ length: 6 }, (_, col) => (
+                <TableHead key={`table-head-${col}`}>
                   <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
-                </TableCell>
+                </TableHead>
               ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 6 }, (_, i) => (
+              <TableRow key={`table-row-${i}`}>
+                {Array.from({ length: 6 }, (_, col) => (
+                  <TableCell key={`table-row-${i}-col-${col}`}>
+                    <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="space-y-2 @md:hidden">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div
+            key={`table-mobile-card-${i}`}
+            className="rounded-[var(--radius-sm)] border border-border bg-surface px-3 py-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <Skeleton className="h-5 w-16 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+            </div>
+            <Skeleton className="mt-1 h-4 w-20 rounded-[var(--radius-sm)]" />
+            <Skeleton className="mt-2 h-4 w-24 rounded-[var(--radius-sm)]" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

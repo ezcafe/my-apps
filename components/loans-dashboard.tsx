@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/table";
 import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/cn";
+import { moneyQuickPickChipCls, moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import {
@@ -379,7 +380,7 @@ export function LoansDashboard() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-display text-base font-medium">Your loans</h3>
             <div
-              className="inline-flex rounded-[var(--radius-sm)] border border-border p-0.5"
+              className={moneyQuickPickGroupCls}
               role="group"
               aria-label="Filter loans"
             >
@@ -390,12 +391,7 @@ export function LoansDashboard() {
                     key={value}
                     type="button"
                     onClick={() => setFilter(value)}
-                    className={cn(
-                      "rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-colors duration-150 fx-press",
-                      active
-                        ? "bg-muted-surface text-foreground"
-                        : "text-muted hover:text-foreground",
-                    )}
+                    className={moneyQuickPickChipCls(active)}
                     aria-pressed={active}
                   >
                     {label}

@@ -16,6 +16,7 @@ import {
   moneyUsageQuickPickOtherChipCls,
 } from "@/components/money-usage-quick-pick";
 import { cn } from "@/lib/cn";
+import { moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
 import {
   quickPickIds,
   topUsageItems,
@@ -128,7 +129,7 @@ export function MoneyUsageMultiQuickPick({
       <div
         role="group"
         aria-label={ariaLabel}
-        className="inline-flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1"
+        className={moneyQuickPickGroupCls}
       >
         {(showOther ? quickItems : items).map((item) => {
           const active = selectedSet.has(item.id);

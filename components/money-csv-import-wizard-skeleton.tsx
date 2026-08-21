@@ -1,9 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { MoneyQuickPickGroupSkeleton } from "@/components/money-dashboard-skeleton";
 
-const IMPORT_STEP_COUNT = 4;
 const IMPORT_KIND_COUNT = 8;
+const IMPORT_STEP_WIDTHS = ["w-24", "w-16", "w-12", "w-16"] as const;
 
 /** Mirrors `MoneyCsvImportWizard` type-step chrome while the chunk loads. */
 export function MoneyCsvImportWizardSkeleton({
@@ -20,18 +21,11 @@ export function MoneyCsvImportWizardSkeleton({
     >
       <nav aria-hidden className="space-y-3">
         <div className="flex items-center justify-between">
-          <Skeleton className="h-3 w-20 rounded-[var(--radius-sm)]" />
-          <Skeleton className="h-3 w-16 rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-4 w-24 rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
         </div>
         <Skeleton className="h-2 w-full rounded-full" />
-        <div className="flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border bg-background p-1">
-          {Array.from({ length: IMPORT_STEP_COUNT }, (_, i) => (
-            <Skeleton
-              key={`import-step-${i}`}
-              className="h-8 w-16 rounded-[var(--radius-sm)]"
-            />
-          ))}
-        </div>
+        <MoneyQuickPickGroupSkeleton widths={[...IMPORT_STEP_WIDTHS]} />
       </nav>
 
       <div className="mt-8">

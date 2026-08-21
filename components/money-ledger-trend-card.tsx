@@ -25,7 +25,7 @@ const NetCumulativeFlowCard = dynamic(
         className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
       >
         <Skeleton className="mb-2 h-6 w-40 rounded-[var(--radius-sm)]" />
-        <Skeleton className="mb-2 h-3 w-56 max-w-full rounded-[var(--radius-sm)]" />
+        <Skeleton className="mb-2 h-4 w-56 max-w-full rounded-[var(--radius-sm)]" />
         <Skeleton className="min-h-0 w-full flex-1 rounded-[var(--radius-sm)]" />
       </Card>
     ),

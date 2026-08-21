@@ -1,226 +1,176 @@
 # Workspace app
 
-Multi-feature Next.js workspace built around a small **shell** and a unified **Money** finance module (transactions, investments, loans, and savings-style accounts). Pocket ID OIDC handles auth; Drizzle + PostgreSQL 18 hold the data. The UI is a token-driven **clean-minimal** design system (teal accent, Inter, neutral dark) with CSS-only motion.
+Next.js workspace with a shared **shell** and a **Money** finance module (transactions, investments, loans, savings). Auth is Pocket ID (OIDC); data is PostgreSQL via Drizzle.
 
-> **All UI work must follow [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md).** No hard-coded colors, fonts, radii, shadows, or motion libraries.
+This README is the runbook: **local development** and **production on a server**. Product and UI docs live under [`docs/`](docs/).
 
-## Stack
+## Requirements
 
-- Node.js `^22.22.2 || ^24.15.0 || >=26` and **npm 12+** (Node 25 is not supported by npm 12)
-- Next.js 16 (App Router) + React 19
-- TypeScript 7 (native `tsc`; Next uses `experimental.useTypeScriptCli`)
-- ESLint 10.8 with `eslint-config-next`
-- Tailwind CSS v4 with `@theme inline` token bridge
-- Drizzle ORM + PostgreSQL 18
-- next-auth v5 (Pocket ID OIDC provider)
-- visx for charts (Lightweight Charts allowed only for price charts)
+- **Local app:** Node.js `^22.22.2 || ^24.15.0 || >=26` and **npm 12+** (Node 25 is not supported by npm 12)
+- **Database / production stack:** Docker Engine with the Compose plugin
+- A [Pocket ID](https://pocket-id.org/docs/guides/oidc-client-authentication) OIDC client (needed to sign in)
 
-## Getting started
+Copy [`.env.example`](.env.example) to **`.env`** for both paths. Compose interpolates that file; Next.js loads it too. Never commit real secrets.
+
+---
+
+## Run locally
+
+The app runs on your machine. Docker only starts PostgreSQL.
+
+### 1. Environment
 
 ```bash
 cp .env.example .env
-# fill in AUTH_SECRET, AUTH_POCKET_ID_*, AUTH_URL
-# suggested: AUTH_SECRET=$(openssl rand -base64 32)
+```
 
-# bring up Postgres 18 for local dev (or point DATABASE_URL elsewhere)
+Set at least:
+
+| Variable | Local value |
+|----------|-------------|
+| `DATABASE_URL` | `postgresql://money:money@localhost:5432/money` |
+| `AUTH_SECRET` | `openssl rand -base64 32` |
+| `AUTH_URL` / `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` |
+| `AUTH_POCKET_ID_ISSUER` | Your Pocket ID base URL |
+| `AUTH_POCKET_ID_ID` / `AUTH_POCKET_ID_SECRET` | OIDC client id and secret |
+
+In Pocket ID, add redirect URI `http://localhost:3000/api/auth/callback/pocket-id`.
+
+`CRON_SECRET` is optional locally. Recurrence `POST`s are accepted without a secret when it is unset.
+
+### 2. Database
+
+```bash
 npm run docker:db
-# or: docker compose -f docker-compose-db.yml up -d
+# same as: docker compose -f docker-compose-db.yml up -d
+```
 
-# install + apply schema
-# npm 12 blocks dependency install scripts by default; this repo commits an
-# allowScripts allowlist in package.json (esbuild, sharp, unrs-resolver, …).
+This starts Postgres on `localhost:5432` (user/password/database `money`) and keeps data in the `money_pg_data` volume.
+
+Stop it with `npm run docker:db:down`. Add `-v` to the Compose `down` command if you also want to wipe the volume.
+
+Do not run this file and the production Compose file at the same time — both bind port `5432` and share the same volume name.
+
+### 3. Install, schema, dev server
+
+```bash
 npm install
 npm run db:push
-
-# dev (webpack)
 npm run dev
-# or Turbopack
-npm run dev:turbo
+# or: npm run dev:turbo
 ```
 
-Open <http://localhost:3000>.
+npm 12 blocks dependency install scripts by default; this repo commits an `allowScripts` allowlist in `package.json`.
 
-## Docker (local development DB only)
+Open [http://localhost:3000](http://localhost:3000). Sign in at `/login`.
 
-Use `docker-compose-db.yml` when you only want the local PostgreSQL 18 database for development. The Next.js app still runs directly on your machine with `npm run dev` or `npm run dev:turbo`.
+Useful while developing:
 
 ```bash
-cp .env.example .env
-# optionally override DATABASE_URL if you are not using the default local DB
-
-npm run docker:db
-# or: docker compose -f docker-compose-db.yml up -d
+npm run db:studio          # browse the local DB
+npm run db:migrate         # apply checked-in migrations instead of db:push
+npm run db:reset           # wipe local schema (destructive)
 ```
 
-What this file does:
-
-- Starts `db` on port `5432`
-- Persists data in the named Docker volume `money_pg_data`
-- Exposes the default dev database at `postgresql://money:money@localhost:5432/money`
-
-Docker-specific notes:
-
-- Default container credentials are defined in `docker-compose-db.yml`: user `money`, password `money`, database `money`.
-- For the app running on your machine, use `localhost` in `DATABASE_URL`, not `db`.
-- Stop the database with `npm run docker:db:down` or `docker compose -f docker-compose-db.yml down`; add `-v` if you also want to remove the local volume.
-
-## Docker (production-style)
-
-Use the default `docker-compose.yml` when you want the Next.js app and PostgreSQL to run together as containers with a smaller runtime image.
-
-```bash
-cp .env.example .env
-# set AUTH_SECRET at minimum (recommended: openssl rand -base64 32)
-# fill AUTH_POCKET_ID_* when you want the real login flow to work
-
-npm run docker:up
-# or: docker compose --env-file .env up --build
-```
-
-What Compose does:
-
-- Starts `db` on port `5432`
-- Starts `pgbouncer` on port `6432` (transaction pool mode)
-- Runs a one-shot `migrate` service with checked-in Drizzle migrations
-- Starts the production Next.js container on port `3000` only after migrations succeed
-
-Docker-specific notes:
-
-- Prefer `npm run docker:up` / `--env-file .env` so Compose can interpolate `${POSTGRES_*}` overrides; `.env` is also attached to `app`/`migrate` via `env_file`.
-- **`AUTH_SECRET` and `AUTH_POCKET_ID_*` are required** for the `app` service (Compose refuses to start if they are missing). Generate `AUTH_SECRET` with `openssl rand -base64 32`.
-- Behind **Cloudflare Tunnel** (or any public hostname), set both `AUTH_URL` and `NEXT_PUBLIC_APP_URL` to the public HTTPS origin (e.g. `https://xxx.aaa.vn`), not `http://localhost:3000`. Otherwise Auth.js / OIDC redirects break.
-- The app/migration containers default to `DATABASE_URL=postgresql://…@pgbouncer:5432/…`.
-- For direct SQL from host tools, continue using `localhost:5432` (Postgres) or `localhost:6432` (PgBouncer).
-- The runtime image is built from Next.js standalone output, so it only copies the files needed to serve the app.
-- The Docker build uses `next build --webpack` for production-image stability on Next.js 16, while local development can keep using Turbopack.
-- If `AUTH_POCKET_ID_*` is unset, the app can still boot, but Pocket ID login will not work until those values are configured.
-- Override `NEXT_PUBLIC_APP_URL` if the app is served from anything other than `http://localhost:3000`.
-
-## Scripts
-
-| Script | Purpose |
-|--------|---------|
-| `npm run dev` / `dev:turbo` | Start the dev server (kills any prior `next dev` first). |
-| `npm run build` | Production build. |
-| `npm run start` | Run the production build. |
-| `npm run lint` | ESLint (must be clean). |
-| `npm run typecheck` | TypeScript 7 (`tsc --noEmit` via project-local native compiler). |
-| `npm run test` | Unit tests (`tsx --test` on `lib/**/*.test.ts`). |
-| `npm run db:generate` | Generate a Drizzle migration. |
-| `npm run db:push` | Push schema to the dev DB without a migration. |
-| `npm run db:migrate` | Apply pending migrations. |
-| `npm run db:baseline` | Mark migrations through a tag as applied (see below). |
-| `npm run db:studio` | Open Drizzle Studio. |
-| `npm run db:reset` | Reset the local DB schema (destructive). |
-| `npm run db:recompute-balances` | Recompute Money account balances. |
-
-If `db:migrate` fails on a database that already has schema but an empty `drizzle.__drizzle_migrations` table (common after `db:push`), baseline the last migration that matches your DB, then migrate again:
+If `db:migrate` fails because the schema already exists (typical after `db:push`) but `drizzle.__drizzle_migrations` is empty:
 
 ```bash
 ALLOW_BASELINE_DRIZZLE=1 npm run db:baseline -- --through 0023_money_tx_exclude_from_reports
 npm run db:migrate
 ```
 
-Use `db:reset` instead when you can wipe local data and replay all migrations from scratch.
+### Recurrence (optional)
 
-## Project layout
-
-```
-app/
-  (shell)/             Authenticated chrome (rail + header). Routes here inherit ShellLayout.
-    money/             Money feature pages — own layout + provider tree.
-    settings/          Global settings: appearance, date format, API tokens.
-  api/                 Thin Next.js route entrypoints; logic lives in features/<x>/server or lib/.
-  globals.css          Light/dark token sets + microinteraction utilities.
-  layout.tsx           Root layout, fonts, FOUC pre-paint script.
-  page.tsx             Public landing.
-components/
-  ui/                  Token-driven primitives (Button, Card, Field/Input/Select/Textarea,
-                       Modal, Popover, Tabs, MultiSelect, Tag, Badge, Skeleton, Alert).
-  app-shell.tsx        Desktop rail + mobile header (registry-driven nav).
-  notification-provider.tsx  Toasts.
-  theme-provider.tsx   Appearance provider; persists to localStorage.
-  theme-settings.tsx   Light/dark/system segmented control.
-  money-*              Money-specific surfaces (dashboard, edit form, settings panels…).
-features/
-  money/               Domain server code, barrel re-exports, feature README.
-lib/
-  features/registry.ts Single source of truth for shell nav.
-  theme-chart-palette.ts  Chart palettes; chart components read via colorByIndex.
-  microinteractions.ts withViewTransition + prefersReducedMotion helpers.
-db/                    Drizzle schema and migrations.
-docs/                  Architecture, design guide, feature checklist.
-```
-
-## Design system (mandatory)
-
-- Fixed **clean-minimal** structure (`data-style="quiet"` hook retained):
-  - `style` → `<html data-style="quiet">` (always).
-  - `mode` → `<html class="dark">` for neutral dark + teal; otherwise off-white + teal light.
-- **2 token sets** declared in [`app/globals.css`](app/globals.css). Components never branch on `style`.
-- Compose UI from [`components/ui/`](components/ui/) primitives. They already consume tokens (`rounded-[var(--radius-md)]`, `bg-surface`, `border-border`, etc.). Cards are border-only (no shadow).
-- Microinteractions are CSS-only (`fx-press`, `fx-fade-in`, `fx-shimmer`, `fx-hit-40`). For state-driven transitions, use [`withViewTransition`](lib/microinteractions.ts).
-- Charts: visx + `colorByIndex(resolved, i, style)` from [`lib/theme-chart-palette.ts`](lib/theme-chart-palette.ts). Never hand-pick chart colors.
-- Layout: `shell-main` wrapper + `repeat(auto-fit, minmax(min(100%, …), 1fr))` and container queries. No hard-coded breakpoints for content.
-- Status colors: `--accent` for positive, `--destructive` for negative, `--muted` for flat. No `text-emerald-*` / `text-rose-*`.
-- Verify every change in light and dark modes via `/settings` before merging.
-
-Forbidden: `rounded-md`/`rounded-lg`/`rounded-xl`/`rounded-2xl`, `shadow-sm`/`shadow-md`/`shadow-lg`, hand-picked hex colors or font families, JS animation libraries (Framer Motion / Motion One / GSAP), manual portals for dialogs (use `Modal`), `transition: all`.
-
-Full rules + primitive table + microinteraction utilities: [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md). Spec: [`docs/SPEC.md`](docs/SPEC.md).
-
-## Architecture & adding features
-
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — shell vs feature layers, workspace cookies, where Money bootstrap runs.
-- [`docs/ADDING_A_FEATURE.md`](docs/ADDING_A_FEATURE.md) — checklist for shipping a new product area (Tasks, Notes, …).
-- [`features/money/README.md`](features/money/README.md) — Money-specific server / client conventions and the thin-route pattern.
-
-Shell navigation is registry-driven: edit [`lib/features/registry.ts`](lib/features/registry.ts), not `app-shell.tsx`.
-
-## Auth
-
-next-auth v5 with the Pocket ID OIDC provider. Configure `AUTH_POCKET_ID_*` and redirect URIs per the [Pocket ID OIDC docs](https://pocket-id.org/docs/guides/oidc-client-authentication). The login page is at `/login`.
-
-## External API (Postman / automation)
-
-Personal Bearer tokens (`mny_…`) for GraphQL and REST without a browser session. Create tokens under **Settings → API tokens**. See [`docs/API.md`](docs/API.md), [`docs/openapi.yaml`](docs/openapi.yaml), and `npm run api:export-schema` for Postman.
-
-## Recurring transactions (cron)
-
-Money can auto-post due recurrence templates via a scheduled HTTP job. Each run creates **at most one transaction per template**, then advances the schedule to the next future slot (missed slots are fast-forwarded without posting extra rows).
-
-**Endpoint:** `POST /api/cron/money-recurrence`
-
-**Response:**
-
-```json
-{ "processed": 1, "generated": 1, "errors": [] }
-```
-
-| Field | Meaning |
-|-------|---------|
-| `processed` | Templates checked this run |
-| `generated` | Transactions created |
-| `errors` | Per-template failures (empty when all succeed) |
-
-### 1. Generate a secret
-
-Add `CRON_SECRET` to your environment (see [`.env.example`](.env.example)):
+Create a template under **Money → Settings → Recurrence**, then:
 
 ```bash
-openssl rand -base64 32
+curl -sS -X POST http://localhost:3000/api/cron/money-recurrence
 ```
+
+The create form offers **Every 5 minutes (dev)** only when `NODE_ENV=development`.
+
+---
+
+## Run on a production server
+
+Use the default [`docker-compose.yml`](docker-compose.yml): Postgres, PgBouncer, a one-shot migrator, and the Next.js production image. The app does not need Node installed on the host.
+
+### 1. Server prerequisites
+
+- Docker Engine + Compose plugin
+- Git
+- A public hostname (reverse proxy or [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)) pointing at host port `3000`
+
+Clone the repo onto the server and work from the project root.
+
+### 2. Environment
 
 ```bash
-# .env or production env
-CRON_SECRET=your-generated-secret
+cp .env.example .env
 ```
 
-In **production**, the route returns `401` if `CRON_SECRET` is unset. In **local dev**, the route accepts unauthenticated requests when `CRON_SECRET` is empty so you can test with plain `curl`.
+Generate secrets, then edit `.env`:
 
-### 2. Verify manually
+```bash
+openssl rand -base64 32   # AUTH_SECRET
+openssl rand -base64 32   # CRON_SECRET (if you will schedule recurrence)
+```
 
-Replace the URL and secret for your deployment:
+| Variable | Production |
+|----------|------------|
+| `AUTH_SECRET` | Required. Compose will not start the app without it. |
+| `AUTH_POCKET_ID_ISSUER` / `AUTH_POCKET_ID_ID` / `AUTH_POCKET_ID_SECRET` | Required. Compose will not start the app without them. |
+| `AUTH_URL` and `NEXT_PUBLIC_APP_URL` | Public **HTTPS** origin, e.g. `https://app.example.com`. Do not leave `http://localhost:3000` behind a tunnel or OIDC redirects break. |
+| `CRON_SECRET` | Required in production for `POST /api/cron/money-recurrence` (route returns `401` if unset). |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Override the Compose defaults (`money` / `money` / `money`) on a real server. |
+| `DATABASE_URL` | Host-oriented URL is fine in `.env`. Compose **overrides** it inside `app` and `migrate` to `…@pgbouncer:5432/…`. |
+
+In Pocket ID, add redirect URI `https://your-app.example/api/auth/callback/pocket-id` (same origin as `AUTH_URL`).
+
+### 3. Start the stack
+
+```bash
+docker compose --env-file .env up --build -d
+# foreground equivalent: npm run docker:up
+```
+
+What starts:
+
+1. `db` on host `5432`
+2. `pgbouncer` on host `6432` (transaction pooling)
+3. `migrate` — applies checked-in Drizzle migrations, then exits
+4. `app` on host `3000` — only after migrate succeeds
+
+Check it:
+
+```bash
+docker compose --env-file .env ps
+docker compose --env-file .env logs -f app
+```
+
+Host tools can use `localhost:5432` (Postgres) or `localhost:6432` (PgBouncer). The app container talks to PgBouncer, not `localhost`.
+
+Stop:
+
+```bash
+npm run docker:down
+# or: docker compose --env-file .env down
+```
+
+### 4. Updates
+
+```bash
+git pull
+docker compose --env-file .env up --build -d
+```
+
+The migrator runs again on each `up`. Do not use `db:push` against production.
+
+### 5. Recurring transactions
+
+Money posts due recurrence templates via `POST /api/cron/money-recurrence`. Each run creates **at most one transaction per template** and advances the schedule (missed slots are skipped, not backfilled).
+
+Verify:
 
 ```bash
 curl -sS -X POST \
@@ -228,21 +178,9 @@ curl -sS -X POST \
   https://your-app.example/api/cron/money-recurrence
 ```
 
-Local dev (no secret required):
+Expected body: `{ "processed": n, "generated": n, "errors": [] }`.
 
-```bash
-curl -sS -X POST http://localhost:3000/api/cron/money-recurrence
-```
-
-Create a recurring transaction under **Money → Settings → Recurrence** (or toggle **Repeat this transaction** on `/money/new` → More details) before testing.
-
-### 3. Linux cron
-
-Run every day at 00:05 (server local time). Adjust the schedule to match your timezone needs.
-
-```bash
-crontab -e
-```
+Schedule from the **host** (the app image has no cron). Daily at 00:05 server time:
 
 ```cron
 CRON_SECRET=your-generated-secret
@@ -251,101 +189,39 @@ APP_URL=https://your-app.example
 5 0 * * * curl -sS -f -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/money-recurrence" >> /var/log/money-recurrence-cron.log 2>&1
 ```
 
-Notes:
-
-- Store `CRON_SECRET` in a root-only file (e.g. `/etc/money-cron.env`) and `source` it from the crontab line if you prefer not to inline secrets.
-- Use `-f` so cron mails you on non-2xx responses (when `curl` is built with failure on HTTP errors).
-
-### 4. systemd timer
-
-Useful when you want journald logging and explicit service units.
-
-`/etc/systemd/system/money-recurrence-cron.service`:
-
-```ini
-[Unit]
-Description=Money recurrence cron
-After=network-online.target
-
-[Service]
-Type=oneshot
-EnvironmentFile=/etc/money-cron.env
-ExecStart=/usr/bin/curl -sS -f -X POST -H "Authorization: Bearer ${CRON_SECRET}" "${APP_URL}/api/cron/money-recurrence"
-```
-
-`/etc/systemd/system/money-recurrence-cron.timer`:
-
-```ini
-[Unit]
-Description=Run Money recurrence cron daily
-
-[Timer]
-OnCalendar=*-*-* 00:05:00
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-`/etc/money-cron.env`:
-
-```bash
-CRON_SECRET=your-generated-secret
-APP_URL=https://your-app.example
-```
-
-Enable:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now money-recurrence-cron.timer
-sudo systemctl list-timers | grep money-recurrence
-```
-
-### 5. Docker Compose
-
-If the app runs in Compose, run curl from the host (or a sidecar) against the published port — the Next.js container does not need a separate cron process inside the image.
-
-Example host crontab when the app is on `localhost:3000`:
-
-```cron
-5 0 * * * curl -sS -f -X POST -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/cron/money-recurrence"
-```
-
-Ensure `CRON_SECRET` is set in the app container environment (e.g. in `.env` consumed by `docker compose`).
-
-### 6. Local dev: 5-minute recurrence
-
-The create form shows **Every 5 minutes (dev)** only when `NODE_ENV=development`. Production builds hide it and the API rejects that cadence if sent directly.
-
-To test short intervals locally:
-
-1. Create a recurring transaction with **Every 5 minutes (dev)**.
-2. Trigger the cron on a short interval, for example every minute:
-
-```bash
-while true; do
-  curl -sS -X POST http://localhost:3000/api/cron/money-recurrence
-  echo
-  sleep 60
-done
-```
-
-Each successful call posts at most one transaction and moves `nextRunAt` forward.
-
-### Troubleshooting
+If the hostname is only reachable on the server itself, use `http://127.0.0.1:3000` as `APP_URL`. Keep `CRON_SECRET` in a root-only env file if you do not want it in crontab.
 
 | Symptom | Likely cause |
 |---------|----------------|
-| `401 Unauthorized` | Wrong or missing `CRON_SECRET` in production |
-| `503 db_unavailable` | Postgres not reachable (`DATABASE_URL`) |
-| `"generated": 0` | No active templates with `nextRunAt <= now` |
-| `"errors": [...]` | Invalid template data (account archived, bad category, etc.) |
+| `401 Unauthorized` | Wrong or missing `CRON_SECRET` on the app or the curl |
+| `503 db_unavailable` | Postgres / PgBouncer not reachable |
+| `"generated": 0` | No active template with `nextRunAt <= now` |
 
-See also [`docs/API.md`](docs/API.md) for the REST table entry.
+---
 
-## Verification before merging
+## Commands
 
-- `npm run lint`
-- `npm run build`
-- Walk the changed surface in `/settings` across **light and dark modes**.
+| Command | When |
+|---------|------|
+| `npm run docker:db` / `docker:db:down` | Local Postgres only |
+| `npm run docker:up` / `docker:down` | Full production-style stack |
+| `npm run dev` / `dev:turbo` | Local Next.js (webpack / Turbopack) |
+| `npm run build` / `npm start` | Production Node on the host (you still need Postgres) |
+| `npm run lint` / `typecheck` / `test` | Checks |
+| `npm run db:generate` | Create a Drizzle migration |
+| `npm run db:push` | Push schema in **dev** (no migration file) |
+| `npm run db:migrate` | Apply migrations |
+
+Prefer Compose on a server. `npm run build && npm start` is only useful if you already run PostgreSQL yourself.
+
+---
+
+## Docs
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — shell vs feature layers, Money bootstrap
+- [`docs/ADDING_A_FEATURE.md`](docs/ADDING_A_FEATURE.md) — shipping a new product area
+- [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md) — UI tokens and primitives (mandatory for UI work)
+- [`docs/API.md`](docs/API.md) / [`docs/openapi.yaml`](docs/openapi.yaml) — personal Bearer tokens (`mny_…`); create them under **Settings → API tokens**
+- [`features/money/README.md`](features/money/README.md) — Money server/client conventions
+
+Shell nav is [`lib/features/registry.ts`](lib/features/registry.ts), not `app-shell.tsx`.

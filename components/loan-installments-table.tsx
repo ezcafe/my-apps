@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/cn";
+import { moneyQuickPickChipCls, moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import type { LoanDetail } from "@/lib/loans-query-options";
@@ -199,7 +200,7 @@ export function LoanInstallmentsTable({
           </p>
         </div>
         <div
-          className="inline-flex rounded-[var(--radius-sm)] border border-border p-0.5"
+          className={moneyQuickPickGroupCls}
           role="radiogroup"
           aria-label="Filter installments"
         >
@@ -211,12 +212,7 @@ export function LoanInstallmentsTable({
                 type="button"
                 role="radio"
                 onClick={() => setFilter(value)}
-                className={cn(
-                  "rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-[background-color,color] duration-150 fx-press",
-                  active
-                    ? "bg-muted-surface text-foreground"
-                    : "text-muted hover:text-foreground",
-                )}
+                className={moneyQuickPickChipCls(active)}
                 aria-checked={active}
               >
                 {label}
