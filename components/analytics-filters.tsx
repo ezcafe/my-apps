@@ -191,6 +191,12 @@ function FilterMenu({
       const target = e.target as Node;
       if (rootRef.current?.contains(target)) return;
       if (panelRef.current?.contains(target)) return;
+      if (
+        target instanceof Element &&
+        target.closest("[data-floating-panel]")
+      ) {
+        return;
+      }
       onOpenMenu(null);
     };
     document.addEventListener("mousedown", onDoc);

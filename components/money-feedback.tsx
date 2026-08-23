@@ -74,25 +74,18 @@ export function chartAccentBarClass(index: number): string {
 export function MoneyStatCard({
   label,
   value,
-  accentIndex = 0,
   className,
 }: {
   label: string;
   value: ReactNode;
-  accentIndex?: number;
   className?: string;
 }) {
   return (
-    <Card className={cn("relative overflow-hidden p-4", className)}>
-      <div
-        className={cn(
-          "absolute inset-y-0 start-0 w-1 rounded-s-[var(--radius-sm)]",
-          chartAccentBarClass(accentIndex),
-        )}
-        aria-hidden
-      />
-      <p className="text-sm text-muted">{label}</p>
-      <p className="mt-1 font-display text-2xl font-semibold tabular-nums">{value}</p>
+    <Card className={cn("px-4 py-4", className)}>
+      <p className="text-sm font-medium text-muted">{label}</p>
+      <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+        {value}
+      </p>
     </Card>
   );
 }
@@ -137,7 +130,7 @@ export function MoneyListSkeleton({
               />
             ) : null}
             <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
-            <Skeleton className="mt-2 h-8 w-32 max-w-full rounded-[var(--radius-sm)]" />
+            <Skeleton className="mt-2 h-8 w-32 max-w-full rounded-[var(--radius-sm)] sm:h-9" />
           </Card>
         ))}
       </div>

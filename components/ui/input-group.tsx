@@ -2,7 +2,7 @@ import type { InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 const groupCls =
-  "flex min-w-0 rounded-[var(--radius-md)] border border-border bg-background transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25";
+  "flex w-full min-w-0 rounded-[var(--radius-md)] border border-border bg-background transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25";
 
 const addonCls =
   "inline-flex shrink-0 items-center border-border bg-muted-surface px-4 py-3 text-base font-medium text-muted tabular-nums";

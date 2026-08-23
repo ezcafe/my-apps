@@ -11,7 +11,7 @@ All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analy
 ## Success criteria
 
 - Clean-minimal tokens (teal light / neutral-dark) and Inter type load in both modes; 8px spacing rhythm with readable density and airy section gaps.
-- [`DESIGN_GUIDE.md`](DESIGN_GUIDE.md) is the single source of truth, including distilled minimal-UI rules, default spender IA, and progressive disclosure.
+- [`DESIGN_GUIDE.md`](DESIGN_GUIDE.md) is the single source of truth, including distilled minimal-UI rules, default spender IA, progressive disclosure, and interaction patterns (error/success/empty/loading/search/breadcrumbs/dashboards).
 - Every route under `app/**/page.tsx` and shared components use semantic tokens + `components/ui/*` only — no raw hex, Tailwind radius/shadow presets, or non-token status colors in feature JSX.
 - Money tabs: **Spending** (home / `/money` → `/money/spending`), **Add**, **Insights**, **Settings**; optional tabs remain off by default.
 - Money filter toolbars show Direction, Accounts, Categories, Apply/Reset (plus Workspace/View when present); Date, Merchants, Tags, Recurrence live under **More**.
@@ -21,6 +21,7 @@ All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analy
 - **Default Insights first paint:** summary + distribution only — not full overview, budgets, sankey, or leaders until More insights.
 - Heavy chart/modal modules load via `next/dynamic` (chart cards, DivergingBar, LoanProgressChart, bulk-edit modal).
 - Data tables use [`components/ui/table.tsx`](../components/ui/table.tsx): sticky headers, frozen identity columns where useful, matched header/cell alignment (no center), hairline rows (no zebra), hover/focus row actions with touch fallback; settings entity editors remain divide-y lists.
+- Feedback uses the channel that matches stakes: field errors inline, blocking issues in `Alert`, routine mutations via `useNotify()`, destructive confirms in `Modal`. Copy goes through `toUserFacingMessage`; success names the object. Empty states use `AnalyticsEmptyState` (not error chrome). Nested pages use location breadcrumbs from the section origin.
 - `npm run lint` and `npm run build` pass; light + dark verified via `/settings`.
 
 ## Test plan
@@ -30,8 +31,9 @@ All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analy
 - **Disclosure:** Analytics/Spending desktop strip = Direction/Accounts/Categories/More/Apply; More opens date + merchants + tags + recurrence; page help is an info-icon tooltip; Insights More insights reveals advanced charts.
 - **Network:** Default Insights omit formLookups / full overview / leaders until Add or More insights.
 - **Loan:** primary “Add payment to Money”; mark-paid via More; delete via header More.
-- **Investments settings:** Refresh quotes in More; create instrument behind “Add instrument”.
+- **Investments settings:** Kind / Currency / Account / Profit / Loss use money/new chip pickers; instruments are identified by Symbol (no Name); kinds are Stocks, Fx, Coins, Commodities. Refresh quotes stays on the instruments form.
 - **A11y:** focus rings on teal accent; contrast of accent text; `prefers-reduced-motion` disables `fx-*`; touch targets ≥44×44.
+- **Feedback:** Add transaction shows a named success toast (not “Success”); invalid amount is inline, not only a toast; empty Insights is `AnalyticsEmptyState` with an Add CTA; loan detail has location crumbs `Loans / {name}`.
 - **Regression:** charts recolor via `colorByIndex(resolved, i, style)` with `style === "quiet"`.
 - **Perf smoke:** analytics chart-cards chunk loads after shell; secondary filter fields mount when More opens; deferred analytics queries stay idle until More insights.
 - **Tables:** Spending ledger sort/select/bulk + hover Edit; loans freeze + hover Pay/View; installments sticky scrollport; holdings not Card-wrapped; horizontal freeze on identity columns.

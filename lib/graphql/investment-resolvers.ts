@@ -13,20 +13,27 @@ import {
   updateInvestmentInstrument,
 } from "@/lib/investment-services/instruments";
 import {
+  closeInvestmentActivity,
   createInvestmentActivity,
+  createInvestmentCashMove,
+  createRealizedInvestmentActivity,
   deleteInvestmentActivity,
   getInvestmentActivity,
   listInvestmentActivities,
+  listOpenInvestmentActivities,
   updateInvestmentActivity,
 } from "@/lib/investment-services/activities";
 import {
   investmentPortfolioValueSeries,
   investmentHoldingsSnapshot,
 } from "@/lib/investment-services/portfolio-series";
-import { refreshQuotesForWorkspace } from "@/lib/investment-services/quotes";
+import { refreshQuotesForWorkspace, fetchInvestmentFxRate } from "@/lib/investment-services/quotes";
 import {
   investmentActivitiesQuerySchema,
+  investmentActivityCashMoveSchema,
+  investmentActivityCloseSchema,
   investmentActivityCreateSchema,
+  investmentActivityRealizeSchema,
   investmentActivityUpdateSchema,
   investmentInstrumentCreateSchema,
   investmentInstrumentUpdateSchema,
@@ -54,7 +61,11 @@ function mapInstrument(
     currency: row.currency,
     symbol: row.symbol,
     yahooSymbol: row.yahooSymbol,
+    contractSize: String(row.contractSize ?? "1"),
     archived: row.archived !== 0,
+    moneyAccountId: row.moneyAccountId,
+    incomeCategoryId: row.incomeCategoryId,
+    expenseCategoryId: row.expenseCategoryId,
   };
 }
 
@@ -108,8 +119,7 @@ export const investmentResolvers = {
         getInvestmentActivity(workspaceId, args.id),
       );
       if (!row) return null;
-      const joined = await listInvestmentActivities(workspaceId, { limit: 200 });
-      return joined.items.find((i) => i.id === args.id) ?? null;
+      return row;
     },
     investmentPortfolioValueSeries: async (
       _: unknown,
@@ -121,6 +131,19 @@ export const investmentResolvers = {
         investmentPortfolioValueSeries(workspaceId, args.from, args.to),
       );
     },
+    investmentOpenActivities: async (
+      _: unknown,
+      args: { instrumentId?: string | null },
+      ctx: InvestmentGraphQLContext,
+    ) => {
+      const { workspaceId } = requireInvestmentWorkspace(ctx);
+      return runInWorkspace(workspaceId, () =>
+        listOpenInvestmentActivities(
+          workspaceId,
+          args.instrumentId ?? undefined,
+        ),
+      );
+    },
     investmentHoldingsSnapshot: async (
       _: unknown,
       __: unknown,
@@ -130,6 +153,19 @@ export const investmentResolvers = {
       return runInWorkspace(workspaceId, () =>
         investmentHoldingsSnapshot(workspaceId),
       );
+    },
+    investmentFxRate: async (
+      _: unknown,
+      args: { from: string; to: string },
+      ctx: InvestmentGraphQLContext,
+    ) => {
+      requireInvestmentAuth(ctx);
+      const from = args.from?.trim().toUpperCase() ?? "";
+      const to = args.to?.trim().toUpperCase() ?? "";
+      if (from.length !== 3 || to.length !== 3) {
+        gqlErr("Invalid currency", "BAD_REQUEST");
+      }
+      return fetchInvestmentFxRate(from, to);
     },
   },
   Mutation: {
@@ -191,10 +227,78 @@ export const investmentResolvers = {
           createInvestmentActivity(workspaceId, ctx.userSub!, parsed.data),
         );
         if (!created) gqlErr("Not found", "NOT_FOUND");
-        const joined = await listInvestmentActivities(workspaceId, { limit: 200 });
-        const item = joined.items.find((i) => i.id === created.id);
-        if (!item) gqlErr("Not found", "NOT_FOUND");
-        return item;
+        return created;
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+    investmentActivityClose: async (
+      _: unknown,
+      args: { input: Record<string, unknown> },
+      ctx: InvestmentGraphQLContext,
+    ) => {
+      const { workspaceId } = requireInvestmentWriteWorkspace(ctx);
+      const raw = {
+        ...args.input,
+        feeMinor:
+          args.input.feeMinor != null ? Number(args.input.feeMinor) : undefined,
+      };
+      const parsed = investmentActivityCloseSchema.safeParse(raw);
+      if (!parsed.success) gqlErr("Invalid input", "BAD_REQUEST");
+      try {
+        return await runInWorkspace(workspaceId, () =>
+          closeInvestmentActivity(workspaceId, ctx.userSub!, parsed.data),
+        );
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+    investmentActivityRealize: async (
+      _: unknown,
+      args: { input: Record<string, unknown> },
+      ctx: InvestmentGraphQLContext,
+    ) => {
+      const { workspaceId } = requireInvestmentWriteWorkspace(ctx);
+      const raw = {
+        ...args.input,
+        feeMinor:
+          args.input.feeMinor != null ? Number(args.input.feeMinor) : undefined,
+      };
+      const parsed = investmentActivityRealizeSchema.safeParse(raw);
+      if (!parsed.success) gqlErr("Invalid input", "BAD_REQUEST");
+      try {
+        return await runInWorkspace(workspaceId, () =>
+          createRealizedInvestmentActivity(
+            workspaceId,
+            ctx.userSub!,
+            parsed.data,
+          ),
+        );
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+    investmentActivityCashMove: async (
+      _: unknown,
+      args: { input: Record<string, unknown> },
+      ctx: InvestmentGraphQLContext,
+    ) => {
+      const { workspaceId } = requireInvestmentWriteWorkspace(ctx);
+      const raw = {
+        ...args.input,
+        amountMinor:
+          args.input.amountMinor != null
+            ? Number(args.input.amountMinor)
+            : undefined,
+        feeMinor:
+          args.input.feeMinor != null ? Number(args.input.feeMinor) : undefined,
+      };
+      const parsed = investmentActivityCashMoveSchema.safeParse(raw);
+      if (!parsed.success) gqlErr("Invalid input", "BAD_REQUEST");
+      try {
+        return await runInWorkspace(workspaceId, () =>
+          createInvestmentCashMove(workspaceId, ctx.userSub!, parsed.data),
+        );
       } catch (e) {
         mapServiceError(e);
       }
@@ -217,12 +321,9 @@ export const investmentResolvers = {
       const parsed = investmentActivityUpdateSchema.safeParse(raw);
       if (!parsed.success) gqlErr("Invalid input", "BAD_REQUEST");
       try {
-        await runInWorkspace(workspaceId, () =>
+        const item = await runInWorkspace(workspaceId, () =>
           updateInvestmentActivity(workspaceId, args.id, parsed.data),
         );
-        const joined = await listInvestmentActivities(workspaceId, { limit: 200 });
-        const item = joined.items.find((i) => i.id === args.id);
-        if (!item) gqlErr("Not found", "NOT_FOUND");
         return item;
       } catch (e) {
         mapServiceError(e);

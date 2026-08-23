@@ -46,6 +46,7 @@ export type MoneyAccountLookup = {
   name: string;
   currency: string;
   type: string;
+  systemKey?: string | null;
   balanceMinor: number;
   usageCount?: number;
 };

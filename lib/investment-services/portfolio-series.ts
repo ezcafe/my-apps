@@ -1,27 +1,55 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { investmentInstrument, investmentQuoteDaily } from "@/db/schema/investment";
-import { listWorkspaceInvestmentActivities } from "@/lib/investment-services/activities";
-import { quantityAtDate } from "@/lib/investment-services/positions";
-import { getLatestQuotesForInstruments } from "@/lib/investment-services/quotes";
+import { workspace } from "@/db/schema/workspace";
+import {
+  investmentInstrument,
+  investmentQuoteDaily,
+  investmentTradeJournal,
+} from "@/db/schema/investment";
+import { parseQuantity } from "@/lib/investment-services/positions";
+import {
+  holdingValueMinor,
+  parseContractSize,
+} from "@/lib/investment-contract-size";
+import { parsePriceMajor } from "@/lib/investment-realized-pnl";
+import {
+  computePortfolioValueSeries,
+  type PortfolioLot,
+} from "@/lib/investment-portfolio-value";
+import { occurredAtToActivityDate } from "@/lib/money-investment-activity";
+import {
+  ensureDailyQuotesForRange,
+  fetchInvestmentFxRate,
+  getLatestQuotesForInstruments,
+} from "@/lib/investment-services/quotes";
 
-function addDaysIso(iso: string, days: number): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(Date.UTC(y!, m! - 1, d! + days));
-  return dt.toISOString().slice(0, 10);
-}
+async function loadLots(workspaceId: string): Promise<PortfolioLot[]> {
+  const rows = await db
+    .select({
+      instrumentId: investmentTradeJournal.instrumentId,
+      activityType: investmentTradeJournal.activityType,
+      quantity: investmentTradeJournal.quantity,
+      openPrice: investmentTradeJournal.openPrice,
+      activityDate: investmentTradeJournal.activityDate,
+      status: investmentTradeJournal.status,
+      closedAt: investmentTradeJournal.closedAt,
+      realizedPnlMinor: investmentTradeJournal.realizedPnlMinor,
+    })
+    .from(investmentTradeJournal)
+    .where(eq(investmentTradeJournal.workspaceId, workspaceId));
 
-function priceOnDate(
-  daily: { date: string; closePriceMinor: number }[],
-  asOf: string,
-  fallbackMinor: number,
-): number {
-  let last = fallbackMinor;
-  for (const row of daily) {
-    if (row.date > asOf) break;
-    last = row.closePriceMinor;
-  }
-  return last;
+  return rows.map((row) => ({
+    instrumentId: row.instrumentId,
+    side: row.activityType,
+    quantity: parseQuantity(row.quantity),
+    openPrice: parsePriceMajor(row.openPrice) ?? 0,
+    openDate: row.activityDate,
+    closeDate:
+      row.status === "closed" && row.closedAt
+        ? occurredAtToActivityDate(row.closedAt)
+        : null,
+    realizedPnlMinor: row.realizedPnlMinor ?? 0,
+  }));
 }
 
 export async function investmentPortfolioValueSeries(
@@ -29,6 +57,13 @@ export async function investmentPortfolioValueSeries(
   from: string,
   to: string,
 ): Promise<{ date: string; totalMinor: number }[]> {
+  const [ws] = await db
+    .select({ defaultCurrency: workspace.defaultCurrency })
+    .from(workspace)
+    .where(eq(workspace.id, workspaceId))
+    .limit(1);
+  const workspaceCurrency = (ws?.defaultCurrency ?? "USD").toUpperCase();
+
   const instruments = await db
     .select()
     .from(investmentInstrument)
@@ -39,14 +74,32 @@ export async function investmentPortfolioValueSeries(
       ),
     );
 
-  const activities = await listWorkspaceInvestmentActivities(workspaceId);
+  const lots = await loadLots(workspaceId);
+
+  await Promise.all(
+    instruments
+      .filter((inst) => inst.yahooSymbol)
+      .map((inst) =>
+        ensureDailyQuotesForRange(
+          inst.id,
+          inst.yahooSymbol!,
+          inst.currency,
+          from,
+          to,
+        ),
+      ),
+  );
+
   const instrumentIds = instruments.map((i) => i.id);
   const latestQuotes = await getLatestQuotesForInstruments(instrumentIds);
   const latestByInst = new Map(
     latestQuotes.map((q) => [q.instrumentId, q.priceMinor]),
   );
 
-  const dailyByInst = new Map<string, { date: string; closePriceMinor: number }[]>();
+  const dailyByInst = new Map<
+    string,
+    { date: string; closePriceMinor: number }[]
+  >();
   for (const inst of instruments) {
     const rows = await db
       .select({
@@ -59,33 +112,35 @@ export async function investmentPortfolioValueSeries(
     dailyByInst.set(inst.id, rows);
   }
 
-  const instActivities = instruments.map((inst) => ({
-    inst,
-    acts: activities
-      .filter((a) => a.instrumentId === inst.id)
-      .map((a) => ({
-        activityDate: a.activityDate,
-        type: a.type,
-        quantity: a.quantity,
-      })),
-  }));
+  const currencies = [
+    ...new Set(instruments.map((i) => i.currency.toUpperCase())),
+  ];
+  const fxRateToWorkspace = new Map<string, number>();
+  await Promise.all(
+    currencies.map(async (ccy) => {
+      if (ccy === workspaceCurrency) {
+        fxRateToWorkspace.set(ccy, 1);
+        return;
+      }
+      const fx = await fetchInvestmentFxRate(ccy, workspaceCurrency);
+      if (fx) fxRateToWorkspace.set(ccy, fx.rate);
+    }),
+  );
 
-  const out: { date: string; totalMinor: number }[] = [];
-  let cursor = from;
-  while (cursor <= to) {
-    let totalMinor = 0;
-    for (const { inst, acts } of instActivities) {
-      const qty = quantityAtDate(acts, cursor);
-      if (qty === 0) continue;
-      const fallback = latestByInst.get(inst.id) ?? 0;
-      const daily = dailyByInst.get(inst.id) ?? [];
-      const priceMinor = priceOnDate(daily, cursor, fallback);
-      totalMinor += Math.round(qty * priceMinor);
-    }
-    out.push({ date: cursor, totalMinor });
-    cursor = addDaysIso(cursor, 1);
-  }
-  return out;
+  return computePortfolioValueSeries({
+    from,
+    to,
+    lots,
+    instruments: instruments.map((i) => ({
+      id: i.id,
+      contractSize: String(i.contractSize ?? "1"),
+      currency: i.currency,
+    })),
+    dailyByInst,
+    latestByInst,
+    workspaceCurrency,
+    fxRateToWorkspace,
+  });
 }
 
 export async function investmentHoldingsSnapshot(workspaceId: string) {
@@ -98,32 +153,36 @@ export async function investmentHoldingsSnapshot(workspaceId: string) {
         eq(investmentInstrument.archived, 0),
       ),
     );
-  const activities = await listWorkspaceInvestmentActivities(workspaceId);
+  const lots = await loadLots(workspaceId);
   const quotes = await getLatestQuotesForInstruments(instruments.map((i) => i.id));
   const quoteMap = new Map(quotes.map((q) => [q.instrumentId, q]));
 
-  return instruments.map((inst) => {
-    const acts = activities
-      .filter((a) => a.instrumentId === inst.id)
-      .map((a) => ({
-        activityDate: a.activityDate,
-        type: a.type,
-        quantity: a.quantity,
-      }));
-    const qty = quantityAtDate(acts, "9999-12-31");
-    const quote = quoteMap.get(inst.id);
-    const priceMinor = quote?.priceMinor ?? 0;
-    const valueMinor = Math.round(qty * priceMinor);
-    return {
-      instrumentId: inst.id,
-      kind: inst.kind,
-      name: inst.name,
-      symbol: inst.symbol,
-      currency: inst.currency,
-      quantity: qty,
-      priceMinor,
-      valueMinor,
-      quoteAsOf: quote?.asOf?.toISOString() ?? null,
-    };
-  });
+  return instruments
+    .map((inst) => {
+      const qty = lots
+        .filter((lot) => lot.instrumentId === inst.id && lot.closeDate == null)
+        .reduce((sum, lot) => {
+          const signed = lot.side === "sell" ? -lot.quantity : lot.quantity;
+          return sum + signed;
+        }, 0);
+      const quote = quoteMap.get(inst.id);
+      const priceMinor = quote?.priceMinor ?? 0;
+      const valueMinor = holdingValueMinor(
+        Math.abs(qty),
+        parseContractSize(inst.contractSize),
+        priceMinor,
+      );
+      return {
+        instrumentId: inst.id,
+        kind: inst.kind,
+        name: inst.name,
+        symbol: inst.symbol,
+        currency: inst.currency,
+        quantity: qty,
+        priceMinor,
+        valueMinor,
+        quoteAsOf: quote?.asOf?.toISOString() ?? null,
+      };
+    })
+    .filter((row) => row.quantity !== 0);
 }

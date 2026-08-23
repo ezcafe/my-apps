@@ -7,8 +7,11 @@ import {
 } from "@/lib/money-investment-activity";
 
 describe("investmentActivityTypeToTransactionKind", () => {
-  it("maps buys to expense and dividends to income", () => {
+  it("maps trades to expense and cash funding as usual", () => {
     assert.equal(investmentActivityTypeToTransactionKind("buy"), "expense");
+    assert.equal(investmentActivityTypeToTransactionKind("sell"), "expense");
+    assert.equal(investmentActivityTypeToTransactionKind("deposit"), "income");
+    assert.equal(investmentActivityTypeToTransactionKind("withdraw"), "expense");
     assert.equal(investmentActivityTypeToTransactionKind("dividend"), "income");
   });
 });

@@ -10,10 +10,19 @@ const MoneyTransactionFormLazy = dynamic(
   { loading: () => <MoneyDashboardSkeleton /> },
 );
 
-export default function MoneyNewPage() {
+export default async function MoneyNewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kind?: string; instrumentId?: string }>;
+}) {
+  const { kind, instrumentId } = await searchParams;
   return (
     <div className={MONEY_FULL_SPAN}>
-      <MoneyTransactionFormLazy mode="transaction" />
+      <MoneyTransactionFormLazy
+        mode="transaction"
+        initialKind={kind}
+        initialInstrumentId={instrumentId}
+      />
     </div>
   );
 }

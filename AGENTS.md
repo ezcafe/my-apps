@@ -31,3 +31,5 @@ Hard rules:
 - Verify in light and dark modes before merging.
 
 Polish principles applied automatically by tokens/primitives are documented in DESIGN_GUIDE → "Interface-polish principles" (concentric, optical, shadows-over-borders, interruptible, stagger, exits, icons, tabular, text-wrap, image outlines, scale on press, hit area, transition specificity, will-change). Read that table before adding any new interactive element.
+
+Interaction patterns (error, success, empty, loading, search, breadcrumbs, dashboards) are also in DESIGN_GUIDE. Match feedback scale to stakes; every action needs a visible reaction; empty is not an error; crumbs are location-based from the section origin.

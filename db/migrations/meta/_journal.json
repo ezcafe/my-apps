@@ -211,6 +211,34 @@
       "when": 1779834700000,
       "tag": "0029_money_account_system_key",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1779834800000,
+      "tag": "0030_investment_position_journal",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1779834900000,
+      "tag": "0031_investment_trade_journal",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1779835000000,
+      "tag": "0032_instrument_ledger_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1779835100000,
+      "tag": "0033_investment_instrument_kind_commodities",
+      "breakpoints": true
     }
   ]
 }

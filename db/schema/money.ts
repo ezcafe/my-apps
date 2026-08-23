@@ -260,6 +260,9 @@ export const moneyTransactionInvestment = pgTable(
     activityType: moneyInvestmentActivityTypeEnum("activity_type").notNull(),
     quantity: numeric("quantity", { precision: 24, scale: 8 }),
     unitPriceMinor: bigint("unit_price_minor", { mode: "number" }),
+    openPrice: numeric("open_price", { precision: 24, scale: 8 }),
+    stopLoss: numeric("stop_loss", { precision: 24, scale: 8 }),
+    takeProfit: numeric("take_profit", { precision: 24, scale: 8 }),
   },
   (t) => [
     index("money_tx_investment_instrument_idx").on(t.instrumentId),

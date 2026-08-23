@@ -11,6 +11,7 @@ import {
   MoneyQueryErrorAlert,
   MoneyStatCard,
 } from "@/components/money-feedback";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -19,11 +20,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableRowActions,
 } from "@/components/ui/table";
 import { Tag } from "@/components/ui/tag";
+import { buttonClassName } from "@/components/ui/button";
 import { formatMinor } from "@/lib/format-money";
+import { useFormatDate } from "@/lib/format-date";
 import {
   investmentHoldingsQueryOptions,
+  investmentOpenActivitiesQueryOptions,
   investmentPortfolioSeriesQueryOptions,
 } from "@/lib/investment-query-options";
 import { investmentDefaultChartRange } from "@/lib/money-first-load-filters";
@@ -50,6 +55,7 @@ const HOLDING_SYMBOL_COLORS = [
 
 export function InvestmentDashboard() {
   const { workspaceReady, defaultCurrency } = useInvestmentWorkspace();
+  const { formatDate } = useFormatDate();
   const range = useMemo(() => investmentDefaultChartRange(6), []);
 
   const holdingsQuery = useQuery({
@@ -58,6 +64,10 @@ export function InvestmentDashboard() {
   });
   const seriesQuery = useQuery({
     ...investmentPortfolioSeriesQueryOptions(range.from, range.to),
+    enabled: workspaceReady,
+  });
+  const openQuery = useQuery({
+    ...investmentOpenActivitiesQueryOptions(),
     enabled: workspaceReady,
   });
 
@@ -75,7 +85,21 @@ export function InvestmentDashboard() {
     [seriesQuery.data],
   );
 
+  const lastResultsMinor = lineData.at(-1)?.netMinor ?? 0;
+
   const loading = holdingsQuery.isLoading || seriesQuery.isLoading;
+  const hasHoldings =
+    holdingsQuery.isSuccess && holdingsQuery.data.length > 0;
+  const hasOpenActivities =
+    openQuery.isSuccess && openQuery.data.length > 0;
+  const hasResultsSeries = lineData.some((p) => p.netMinor !== 0);
+  const showEmptyPortfolio =
+    holdingsQuery.isSuccess &&
+    !hasHoldings &&
+    openQuery.isSuccess &&
+    !hasOpenActivities &&
+    seriesQuery.isSuccess &&
+    !hasResultsSeries;
 
   return (
     <div className="min-w-0 space-y-4">
@@ -84,9 +108,10 @@ export function InvestmentDashboard() {
           <MoneyListSkeleton
             variant="summaryTiles"
             tileCount={1}
-            className="max-w-md"
+            showAccentBar={false}
           />
           <MoneyListSkeleton variant="panelCards" />
+          <MoneyListSkeleton variant="tableRows" />
         </>
       ) : null}
 
@@ -98,28 +123,36 @@ export function InvestmentDashboard() {
         />
       ) : null}
 
-      {holdingsQuery.isSuccess && holdingsQuery.data.length === 0 ? (
+      {showEmptyPortfolio ? (
         <MoneyEmptyState
           icon="investment"
           accentChartIndex={4}
           title="No holdings yet"
-          description="Record buys, sells, and dividends to see portfolio value and history here."
+          description="Create an instrument, then open a trade from a holding or Record activity."
           minHeightClass="min-h-[200px]"
           primaryAction={{
             href: "/money/investments/new",
-            label: "Record your first activity",
+            label: "Record activity",
           }}
         />
       ) : null}
 
-      {holdingsQuery.isSuccess && holdingsQuery.data.length > 0 ? (
+      {hasHoldings || hasResultsSeries ? (
         <>
-          <MoneyStatCard
-            label="Portfolio value"
-            value={formatMinor(totalMinor, defaultCurrency)}
-            accentIndex={4}
-            className="max-w-md"
-          />
+          <div
+            className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
+            aria-label="Summary metrics"
+          >
+            <MoneyStatCard
+              label={hasHoldings ? "Portfolio value" : "Results to date"}
+              value={
+                <AnimatedNumber
+                  value={hasHoldings ? totalMinor : lastResultsMinor}
+                  format={(n) => formatMinor(Math.round(n), defaultCurrency)}
+                />
+              }
+            />
+          </div>
 
           <Card className="p-4">
             <h2 className="font-display text-lg font-medium">Value over time</h2>
@@ -144,27 +177,25 @@ export function InvestmentDashboard() {
             </div>
           </Card>
 
+          {hasHoldings ? (
           <section className="w-full min-w-0">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-display text-lg font-medium">Holdings</h2>
-              <Link
-                href="/money/investments/new"
-                className="text-sm font-medium text-foreground underline-offset-2 transition-colors duration-150 hover:underline"
-              >
-                Record activity
-              </Link>
             </div>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead freeze="leading">Symbol</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead align="end">Qty</TableHead>
+                  <TableHead align="end">Volume</TableHead>
                   <TableHead align="end">Value</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {holdingsQuery.data.map((row, index) => (
+                {(holdingsQuery.data ?? []).map((row, index) => (
                   <TableRow key={row.instrumentId}>
                     <TableCell freeze="leading">
                       <Tag
@@ -183,12 +214,114 @@ export function InvestmentDashboard() {
                     <TableCell align="end" numeric className="font-medium">
                       {formatMinor(row.valueMinor, row.currency)}
                     </TableCell>
+                    <TableCell>
+                      <TableRowActions>
+                        <Link
+                          href={`/money/investments/new?instrumentId=${row.instrumentId}`}
+                          aria-label="Record activity"
+                          className={buttonClassName({
+                            variant: "secondary",
+                            size: "sm",
+                          })}
+                        >
+                          Activity
+                        </Link>
+                      </TableRowActions>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </section>
+          ) : null}
         </>
+      ) : null}
+
+      {hasHoldings ||
+      hasOpenActivities ||
+      (holdingsQuery.isSuccess && openQuery.isPending) ? (
+        <section className="w-full min-w-0">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-lg font-medium">Open activities</h2>
+          </div>
+          {openQuery.isLoading ? (
+            <MoneyListSkeleton variant="tableRows" />
+          ) : null}
+          {openQuery.isError ? (
+            <MoneyQueryErrorAlert
+              title="Couldn’t load open activities"
+              error={openQuery.error}
+              onRetry={() => void openQuery.refetch()}
+            />
+          ) : null}
+          {openQuery.isSuccess && openQuery.data.length === 0 ? (
+            <p className="text-sm text-muted">No open activities.</p>
+          ) : null}
+          {openQuery.isSuccess && openQuery.data.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead freeze="leading">Symbol</TableHead>
+                  <TableHead>Direction</TableHead>
+                  <TableHead align="end">Volume</TableHead>
+                  <TableHead align="end">Open price</TableHead>
+                  <TableHead align="end">SL</TableHead>
+                  <TableHead align="end">TP</TableHead>
+                  <TableHead>Opened</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {openQuery.data.map((row, index) => (
+                  <TableRow key={row.id}>
+                    <TableCell freeze="leading">
+                      <Tag
+                        className={cn(
+                          "font-medium",
+                          HOLDING_SYMBOL_COLORS[index % 8],
+                        )}
+                      >
+                        {row.instrumentSymbol}
+                      </Tag>
+                    </TableCell>
+                    <TableCell className="capitalize">{row.type}</TableCell>
+                    <TableCell align="end" numeric>
+                      {row.quantity ?? "—"}
+                    </TableCell>
+                    <TableCell align="end" numeric>
+                      {row.openPrice ?? "—"}
+                    </TableCell>
+                    <TableCell align="end" numeric>
+                      {row.stopLoss ?? "—"}
+                    </TableCell>
+                    <TableCell align="end" numeric>
+                      {row.takeProfit ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-muted">
+                      {formatDate(row.activityDate, { omitYearIfCurrent: true })}
+                    </TableCell>
+                    <TableCell>
+                      <TableRowActions>
+                        <Link
+                          href={`/money/investments/new?mode=close&openActivityId=${row.id}`}
+                          aria-label={`Close ${row.instrumentSymbol}`}
+                          className={buttonClassName({
+                            variant: "secondary",
+                            size: "sm",
+                          })}
+                        >
+                          Close
+                        </Link>
+                      </TableRowActions>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : null}
+        </section>
       ) : null}
     </div>
   );

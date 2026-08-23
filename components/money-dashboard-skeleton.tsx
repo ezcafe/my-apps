@@ -164,6 +164,111 @@ export function MoneyTagsFieldSkeleton({
   );
 }
 
+export function MoneyInputGroupSkeleton({
+  label,
+  required,
+  leading = "—",
+  trailing = "USD",
+}: {
+  label: string;
+  required?: boolean;
+  leading?: string;
+  trailing?: string;
+}) {
+  return (
+    <Field label={label} required={required}>
+      <InputGroup>
+        {leading ? (
+          <InputGroupAddon side="leading" aria-hidden>
+            {leading}
+          </InputGroupAddon>
+        ) : null}
+        <InputGroupInput value="" disabled aria-label={label} />
+        <InputGroupAddon side="trailing" aria-hidden>
+          {trailing}
+        </InputGroupAddon>
+      </InputGroup>
+    </Field>
+  );
+}
+
+/** Chunk placeholder for `/money/investments/new`. */
+export function InvestmentOpenCloseFormSkeleton() {
+  return (
+    <div
+      className="grid min-w-0 gap-4 [&>*]:col-span-full"
+      style={{
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))",
+      }}
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Loading activity form"
+    >
+      <fieldset className="grid min-w-0 gap-1.5 text-sm">
+        <legend className="text-muted">Mode</legend>
+        <div className={moneyQuickPickGroupCls}>
+          <StaticChip label="Trade" active />
+          <StaticChip label="Open" />
+          <StaticChip label="Close" />
+        </div>
+      </fieldset>
+      <MoneyLookupQuickPickSkeleton legend="Symbol" required />
+      <fieldset className="grid min-w-0 gap-1.5 text-sm">
+        <legend className="text-muted">Direction</legend>
+        <div className={moneyQuickPickGroupCls}>
+          <StaticChip label="Buy" active />
+          <StaticChip label="Sell" />
+        </div>
+      </fieldset>
+      <MoneyInputGroupSkeleton label="Quantity" required leading="" trailing="Lots" />
+      <MoneyInputGroupSkeleton label="Open price" required />
+      <MoneyInputGroupSkeleton label="Close price" required />
+      <MoneyInputGroupSkeleton label="Fee" leading="" trailing="USD" />
+      <fieldset className="grid min-w-0 gap-1.5 text-sm">
+        <legend className="text-muted">When</legend>
+        <div className={moneyQuickPickGroupCls}>
+          <StaticChip label="Today" active />
+          <StaticChip label="Yesterday" />
+          <StaticChip label="Select custom date" variant="other" />
+        </div>
+      </fieldset>
+      <Field label="Notes">
+        <Textarea rows={3} value="" disabled />
+      </Field>
+      <Button type="submit" disabled>
+        Save trade
+      </Button>
+    </div>
+  );
+}
+
+/** In-form placeholder while investment activity fields chunk-load. */
+export function InvestmentActivityFieldsSkeleton() {
+  return (
+    <div
+      className="grid min-w-0 gap-4 [grid-column:1/-1]"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading investment fields"
+    >
+      <fieldset className="grid min-w-0 gap-1.5 text-sm">
+        <legend className="text-muted">Direction</legend>
+        <div className={moneyQuickPickGroupCls}>
+          <StaticChip label="Buy" active />
+          <StaticChip label="Sell" />
+        </div>
+      </fieldset>
+      <MoneyLookupQuickPickSkeleton legend="Symbol" required />
+      <MoneyInputGroupSkeleton label="Quantity" required leading="" trailing="Lots" />
+      <MoneyInputGroupSkeleton label="Open price" required />
+      <MoneyInputGroupSkeleton label="Close price" required />
+      <MoneyInputGroupSkeleton label="Fee" leading="" trailing="USD" />
+    </div>
+  );
+}
+
 /** Placeholder for the `/money/new` transaction form while the chunk loads. */
 export function MoneyDashboardSkeleton() {
   return (

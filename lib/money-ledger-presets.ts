@@ -137,14 +137,17 @@ export const MONEY_LEDGER_SAVINGS: MoneyLedgerPreset = {
 export const MONEY_LEDGER_INVESTMENT: MoneyLedgerPreset = {
   title: "Investments",
   description:
-    "Activity on investment accounts (buys, sells, dividends, and cash movements). Default range is the current calendar month — apply to refresh.",
+    "Activity on investment accounts (buys, sells, deposits, and withdrawals). Default range is the current calendar month — apply to refresh.",
   emptyState: {
     title: "No investment account activity",
     description:
-      "Cash movements on investment accounts show here after you record a buy, sell, or dividend.",
+      "Cash movements on investment accounts show here after you create an instrument and record activity from a holding.",
     icon: "investment",
     accentChartIndex: 4,
-    primaryAction: { href: "/money/investments/new", label: "Record activity" },
+    primaryAction: {
+      href: "/money/investments/new",
+      label: "Record activity",
+    },
   },
 
   lockedQuery: {

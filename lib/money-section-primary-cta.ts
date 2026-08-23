@@ -24,12 +24,21 @@ function isMoneyCreateFormPath(pathname: string): boolean {
     pathname === "/money/loans/new" ||
     pathname.startsWith("/money/loans/new/") ||
     pathname === "/money/investments/new" ||
-    pathname.startsWith("/money/investments/new/")
+    pathname.startsWith("/money/investments/new/") ||
+    pathname === "/money/investments/instruments/new" ||
+    pathname.startsWith("/money/investments/instruments/new/")
   );
 }
 
 function isLoanListPath(pathname: string): boolean {
   return pathname === "/money/loans" || pathname === "/money/loans/";
+}
+
+function isInvestmentInstrumentsListPath(pathname: string): boolean {
+  return (
+    pathname === "/money/investments/instruments" ||
+    pathname === "/money/investments/instruments/"
+  );
 }
 
 function isInvestmentListPath(pathname: string): boolean {
@@ -76,6 +85,12 @@ export function moneySectionPrimaryCta(
     return MONEY_LEDGER_INVESTMENT.emptyState.primaryAction ?? {
       href: "/money/investments/new",
       label: "Record activity",
+    };
+  }
+  if (isInvestmentInstrumentsListPath(pathname)) {
+    return {
+      href: "/money/investments/instruments/new",
+      label: "Create instrument",
     };
   }
   if (pathname.startsWith("/money/investments/")) {

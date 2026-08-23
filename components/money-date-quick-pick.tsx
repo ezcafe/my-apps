@@ -1,14 +1,21 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
   MoneyUsageQuickPickOtherChipContent,
   moneyUsageQuickPickChipCls,
   moneyUsageQuickPickOtherChipCls,
 } from "@/components/money-usage-quick-pick";
+import { Popover } from "@/components/ui/popover";
 import { cn } from "@/lib/cn";
 import { moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
 import { useFormatDate } from "@/lib/format-date";
+import {
+  addCalendarMonths,
+  CALENDAR_WEEKDAY_LABELS,
+  calendarMonthCells,
+  parseLocalDateString,
+} from "@/lib/money-date-calendar";
 
 export type MoneyDateQuickPickMode = "today" | "yesterday" | "custom";
 
@@ -59,6 +66,13 @@ function deriveMode(value: string): MoneyDateQuickPickMode {
   return "custom";
 }
 
+function monthTitle(year: number, monthIndex: number): string {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(year, monthIndex, 1));
+}
+
 export function MoneyDateQuickPick({
   value,
   onChange,
@@ -78,8 +92,20 @@ export function MoneyDateQuickPick({
   const { formatDate } = useFormatDate();
   const mode = deriveMode(value);
   const customDate = mode === "custom" ? value : "";
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const parsed = parseLocalDateString(value) ?? new Date();
+  const [view, setView] = useState(() => ({
+    year: parsed.getFullYear(),
+    monthIndex: parsed.getMonth(),
+  }));
+
+  const cells = useMemo(
+    () => calendarMonthCells(view.year, view.monthIndex),
+    [view.year, view.monthIndex],
+  );
 
   const pickMode = (when: Exclude<MoneyDateQuickPickMode, "custom">) => {
+    setCalendarOpen(false);
     if (when === "today") {
       onChange(localDateString());
       return;
@@ -87,10 +113,9 @@ export function MoneyDateQuickPick({
     onChange(yesterdayDateString());
   };
 
-  const handleCustomDateChange = (next: string) => {
-    if (!next) return;
-    onChange(next);
-  };
+  const customLabel = customDate
+    ? formatDate(customDate, { omitYearIfCurrent: true })
+    : "Select custom date";
 
   return (
     <fieldset className={cn("@container grid min-w-0 gap-1.5 text-sm", className)}>
@@ -116,31 +141,89 @@ export function MoneyDateQuickPick({
       >
         {WHEN_OPTIONS.map((opt) => {
           const active = mode === opt.id;
-          const isCustom = opt.id === "custom";
-          const label =
-            isCustom && customDate
-              ? formatDate(customDate, { omitYearIfCurrent: true })
-              : opt.label;
-          if (isCustom) {
+          if (opt.id === "custom") {
             return (
-              <label
+              <Popover
                 key={opt.id}
-                className={cn(
+                align="start"
+                aria-label={customLabel}
+                open={calendarOpen}
+                onOpenChange={(next) => {
+                  setCalendarOpen(next);
+                  if (next) {
+                    const d = parseLocalDateString(value) ?? new Date();
+                    setView({
+                      year: d.getFullYear(),
+                      monthIndex: d.getMonth(),
+                    });
+                  }
+                }}
+                triggerClassName={cn(
                   moneyUsageQuickPickOtherChipCls(active),
                   "shrink-0 min-w-0",
                 )}
+                trigger={
+                  <MoneyUsageQuickPickOtherChipContent label={customLabel} />
+                }
+                className="w-[min(100vw-2rem,20rem)] p-3"
               >
-                <span className="pointer-events-none">
-                  <MoneyUsageQuickPickOtherChipContent label={label} />
-                </span>
-                <input
-                  type="date"
-                  value={customDate || value || ""}
-                  onChange={(e) => handleCustomDateChange(e.target.value)}
-                  aria-label={label}
-                  className="native-date-overlay"
-                />
-              </label>
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex size-11 items-center justify-center rounded-[var(--radius-sm)] text-foreground transition-[background-color] duration-150 hover:bg-muted-surface focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press"
+                      aria-label="Previous month"
+                      onClick={() =>
+                        setView((v) => addCalendarMonths(v.year, v.monthIndex, -1))
+                      }
+                    >
+                      ‹
+                    </button>
+                    <p className="min-w-0 text-center text-sm font-medium">
+                      {monthTitle(view.year, view.monthIndex)}
+                    </p>
+                    <button
+                      type="button"
+                      className="inline-flex size-11 items-center justify-center rounded-[var(--radius-sm)] text-foreground transition-[background-color] duration-150 hover:bg-muted-surface focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press"
+                      aria-label="Next month"
+                      onClick={() =>
+                        setView((v) => addCalendarMonths(v.year, v.monthIndex, 1))
+                      }
+                    >
+                      ›
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 text-center text-sm text-muted">
+                    {CALENDAR_WEEKDAY_LABELS.map((d) => (
+                      <span key={d}>{d}</span>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {cells.map((cell) => {
+                      const selected = cell.date === value;
+                      return (
+                        <button
+                          key={cell.date}
+                          type="button"
+                          onClick={() => {
+                            onChange(cell.date);
+                            setCalendarOpen(false);
+                          }}
+                          className={cn(
+                            "inline-flex min-h-11 items-center justify-center rounded-[var(--radius-sm)] text-sm tabular-nums transition-[background-color,color] duration-150 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
+                            cell.inMonth ? "text-foreground" : "text-muted",
+                            selected
+                              ? "bg-accent text-accent-foreground"
+                              : "hover:bg-muted-surface",
+                          )}
+                        >
+                          {Number(cell.date.slice(8, 10))}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </Popover>
             );
           }
           return (
@@ -156,7 +239,7 @@ export function MoneyDateQuickPick({
               }}
               className={cn(moneyUsageQuickPickChipCls(active), "shrink-0 min-w-0")}
             >
-              {label}
+              {opt.label}
             </button>
           );
         })}

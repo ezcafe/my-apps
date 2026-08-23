@@ -580,16 +580,31 @@ export function MoneySectionTabs() {
       description={description}
       breadcrumbs={breadcrumbs}
       actions={
-        cta ? (
-          <Link
-            href={cta.href}
-            className={buttonClassName({
-              variant: "primary",
-              className: "shrink-0",
-            })}
-          >
-            {cta.label}
-          </Link>
+        resolved.instrumentsHref || cta ? (
+          <>
+            {resolved.instrumentsHref ? (
+              <Link
+                href={resolved.instrumentsHref}
+                className={buttonClassName({
+                  variant: "ghost",
+                  className: "shrink-0",
+                })}
+              >
+                Instruments
+              </Link>
+            ) : null}
+            {cta ? (
+              <Link
+                href={cta.href}
+                className={buttonClassName({
+                  variant: "primary",
+                  className: "shrink-0",
+                })}
+              >
+                {cta.label}
+              </Link>
+            ) : null}
+          </>
         ) : null
       }
     />

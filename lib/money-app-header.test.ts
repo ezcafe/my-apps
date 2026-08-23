@@ -19,11 +19,51 @@ describe("resolveMoneyAppHeader", () => {
     assert.equal(resolveMoneyAppHeader("/money/new").cta, null);
   });
 
-  it("hides CTA on create forms and module settings", () => {
+  it("hides CTA on create forms and nested instrument pages", () => {
     assert.equal(resolveMoneyAppHeader("/money/loans/new").cta, null);
+    assert.equal(resolveMoneyAppHeader("/money/investments/new").cta, null);
+    assert.equal(resolveMoneyAppHeader("/money/investments/new").title, "Record activity");
     assert.equal(resolveMoneyAppHeader("/money/loans/settings").title, "Loans");
     assert.equal(resolveMoneyAppHeader("/money/loans/settings").cta, null);
-    assert.equal(resolveMoneyAppHeader("/money/investments/settings").cta, null);
+    assert.equal(resolveMoneyAppHeader("/money/investments/instruments/new").cta, null);
+    assert.equal(
+      resolveMoneyAppHeader("/money/investments/instruments").instrumentsHref,
+      undefined,
+    );
+    assert.deepEqual(
+      resolveMoneyAppHeader("/money/investments/instruments").breadcrumbs,
+      [
+        { label: "Investments", href: "/money/investments" },
+        { label: "Instruments" },
+      ],
+    );
+    assert.deepEqual(resolveMoneyAppHeader("/money/investments/instruments").cta, {
+      href: "/money/investments/instruments/new",
+      label: "Create instrument",
+    });
+    assert.deepEqual(
+      resolveMoneyAppHeader("/money/investments/instruments/new").breadcrumbs,
+      [
+        { label: "Investments", href: "/money/investments" },
+        { label: "Instruments", href: "/money/investments/instruments" },
+        { label: "Create instrument" },
+      ],
+    );
+  });
+
+  it("exposes instrumentsHref on the investments list only", () => {
+    assert.equal(
+      resolveMoneyAppHeader("/money/investments").instrumentsHref,
+      "/money/investments/instruments",
+    );
+    assert.deepEqual(resolveMoneyAppHeader("/money/investments").cta, {
+      href: "/money/investments/new",
+      label: "Record activity",
+    });
+    assert.equal(
+      resolveMoneyAppHeader("/money/new").instrumentsHref,
+      undefined,
+    );
   });
 
   it("uses subsection title + Settings crumbs on money settings children", () => {

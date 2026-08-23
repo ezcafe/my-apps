@@ -31,7 +31,11 @@ export const investmentTypeDefs = /* GraphQL */ `
     currency: String!
     symbol: String!
     yahooSymbol: String
+    contractSize: String!
     archived: Boolean!
+    moneyAccountId: ID
+    incomeCategoryId: ID
+    expenseCategoryId: ID
   }
 
   type InvestmentActivityRow {
@@ -45,10 +49,15 @@ export const investmentTypeDefs = /* GraphQL */ `
     type: String!
     quantity: String
     unitPriceMinor: BigInt
+    openPrice: String
+    closePrice: String
+    stopLoss: String
+    takeProfit: String
     amountMinor: BigInt
     notes: String
     moneyAccountId: ID
     moneyTransactionId: ID
+    status: String
   }
 
   type InvestmentActivitiesConnection {
@@ -73,12 +82,23 @@ export const investmentTypeDefs = /* GraphQL */ `
     quoteAsOf: String
   }
 
+  type InvestmentFxRate {
+    rate: Float!
+    sourceSymbol: String!
+    inverted: Boolean!
+    asOf: String!
+  }
+
   input InvestmentInstrumentCreateInput {
     kind: String!
-    name: String!
+    name: String
     currency: String
     symbol: String!
     yahooSymbol: String
+    contractSize: String
+    moneyAccountId: ID!
+    incomeCategoryId: ID!
+    expenseCategoryId: ID!
   }
 
   input InvestmentInstrumentUpdateInput {
@@ -87,7 +107,11 @@ export const investmentTypeDefs = /* GraphQL */ `
     currency: String
     symbol: String
     yahooSymbol: String
+    contractSize: String
     archived: Boolean
+    moneyAccountId: ID
+    incomeCategoryId: ID
+    expenseCategoryId: ID
   }
 
   input InvestmentActivityCreateInput {
@@ -96,9 +120,13 @@ export const investmentTypeDefs = /* GraphQL */ `
     type: String!
     quantity: String
     unitPriceMinor: BigInt
+    openPrice: String
+    stopLoss: String
+    takeProfit: String
     amountMinor: BigInt
     notes: String
     moneyAccountId: ID
+    categoryId: ID
     moneyTransactionId: ID
   }
 
@@ -108,10 +136,50 @@ export const investmentTypeDefs = /* GraphQL */ `
     type: String
     quantity: String
     unitPriceMinor: BigInt
+    openPrice: String
+    stopLoss: String
+    takeProfit: String
     amountMinor: BigInt
     notes: String
     moneyAccountId: ID
     moneyTransactionId: ID
+  }
+
+  input InvestmentActivityCloseInput {
+    id: ID!
+    closePrice: String!
+    feeMinor: BigInt
+    activityDate: String
+    notes: String
+    moneyAccountId: ID
+    categoryId: ID
+    fxRate: Float
+  }
+
+  input InvestmentActivityRealizeInput {
+    instrumentId: ID!
+    activityDate: String!
+    quantity: String!
+    openPrice: String!
+    closePrice: String!
+    feeMinor: BigInt
+    type: String!
+    priceCurrency: String!
+    fxRate: Float!
+    notes: String
+    moneyAccountId: ID
+    categoryId: ID
+  }
+
+  input InvestmentActivityCashMoveInput {
+    instrumentId: ID!
+    activityDate: String!
+    type: String!
+    amountMinor: BigInt!
+    feeMinor: BigInt
+    notes: String
+    moneyAccountId: ID
+    categoryId: ID
   }
 
   input InvestmentActivitiesQueryInput {
@@ -127,15 +195,20 @@ export const investmentTypeDefs = /* GraphQL */ `
     investmentBootstrap: InvestmentBootstrapPayload!
     investmentInstruments: [InvestmentInstrument!]!
     investmentActivities(query: InvestmentActivitiesQueryInput): InvestmentActivitiesConnection!
+    investmentOpenActivities(instrumentId: ID): [InvestmentActivityRow!]!
     investmentActivity(id: ID!): InvestmentActivityRow
     investmentPortfolioValueSeries(from: String!, to: String!): [InvestmentPortfolioPoint!]!
     investmentHoldingsSnapshot: [InvestmentHoldingRow!]!
+    investmentFxRate(from: String!, to: String!): InvestmentFxRate
   }
 
   type Mutation {
     investmentInstrumentCreate(input: InvestmentInstrumentCreateInput!): InvestmentInstrument!
     investmentInstrumentUpdate(id: ID!, input: InvestmentInstrumentUpdateInput!): InvestmentInstrument!
     investmentActivityCreate(input: InvestmentActivityCreateInput!): InvestmentActivityRow!
+    investmentActivityClose(input: InvestmentActivityCloseInput!): InvestmentActivityRow!
+    investmentActivityRealize(input: InvestmentActivityRealizeInput!): InvestmentActivityRow!
+    investmentActivityCashMove(input: InvestmentActivityCashMoveInput!): InvestmentActivityRow!
     investmentActivityUpdate(id: ID!, input: InvestmentActivityUpdateInput!): InvestmentActivityRow!
     investmentActivityDelete(id: ID!): InvestmentOk!
     investmentRefreshQuotes: InvestmentOk!

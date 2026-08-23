@@ -1,4 +1,4 @@
-type InstrumentKind = "stocks" | "coins" | "fx";
+import type { InvestmentInstrumentKind } from "@/lib/investment-instrument-kind";
 
 /** Minor units per 1 unit of asset (e.g. USD cents). */
 export function majorToMinor(major: number, currency = "USD"): number {
@@ -11,12 +11,12 @@ export function minorToMajor(minor: number): number {
 }
 
 export function defaultYahooSymbol(
-  kind: InstrumentKind,
+  kind: InvestmentInstrumentKind,
   symbol: string,
   currency: string,
 ): string {
   const s = symbol.trim().toUpperCase();
-  if (kind === "stocks") return s;
+  if (kind === "stocks" || kind === "commodities") return s;
   if (kind === "coins") {
     if (s.includes("-")) return s;
     return `${s}-${currency.toUpperCase()}`;

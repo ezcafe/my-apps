@@ -8,6 +8,8 @@ export type MoneyAppHeaderResolved = {
   title: string;
   breadcrumbs: BreadcrumbItem[];
   cta: MoneySectionPrimaryCta | null;
+  /** Secondary “Instruments” link from the Investments list. */
+  instrumentsHref?: string;
   /** Detail pages should call useSetAppHeader for dynamic title/crumbs. */
   needsOverride?: boolean;
 };
@@ -102,14 +104,63 @@ export function resolveMoneyAppHeader(
     };
   }
 
+  if (
+    pathname === "/money/investments/new" ||
+    pathname.startsWith("/money/investments/new/")
+  ) {
+    return {
+      title: "Record activity",
+      breadcrumbs: [
+        { label: "Investments", href: "/money/investments" },
+        { label: "Record activity" },
+      ],
+      cta: null,
+    };
+  }
+
+  if (
+    pathname === "/money/investments/instruments/new" ||
+    pathname.startsWith("/money/investments/instruments/new/")
+  ) {
+    return {
+      title: "Create instrument",
+      breadcrumbs: [
+        { label: "Investments", href: "/money/investments" },
+        { label: "Instruments", href: "/money/investments/instruments" },
+        { label: "Create instrument" },
+      ],
+      cta: null,
+    };
+  }
+
+  if (
+    pathname === "/money/investments/instruments" ||
+    pathname.startsWith("/money/investments/instruments/")
+  ) {
+    return {
+      title: "Instruments",
+      breadcrumbs: [
+        { label: "Investments", href: "/money/investments" },
+        { label: "Instruments" },
+      ],
+      cta: moneySectionPrimaryCta(pathname),
+    };
+  }
+
   const activeTab =
     SECTION_TABS.find(({ href, exact }) =>
       isTabActive(pathname, href, exact),
     ) ?? SECTION_TABS.find((t) => t.href === "/money/spending");
 
+  const isInvestmentList =
+    pathname === "/money/investments" || pathname === "/money/investments/";
+
   return {
     title: activeTab?.label ?? "Money",
     breadcrumbs: [],
     cta: moneySectionPrimaryCta(pathname),
+    ...(isInvestmentList
+      ? { instrumentsHref: "/money/investments/instruments" }
+      : {}),
   };
 }

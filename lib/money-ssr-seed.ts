@@ -16,8 +16,10 @@ import {
   investmentHoldingsSnapshot,
   investmentPortfolioValueSeries,
 } from "@/lib/investment-services/portfolio-series";
+import { listOpenInvestmentActivities } from "@/lib/investment-services/activities";
 import {
   investmentKeys,
+  type InvestmentActivityRow,
   type InvestmentBootstrapData,
   type InvestmentHoldingRow,
   type InvestmentPortfolioPoint,
@@ -365,11 +367,14 @@ async function seedInvestmentQueries(
     }
     const boot: InvestmentBootstrapData = result.data;
     queryClient.setQueryData(investmentKeys.bootstrap(), boot);
-    const [holdings, series] = await runInWorkspace(boot.workspaceId, () =>
-      Promise.all([
-        investmentHoldingsSnapshot(boot.workspaceId),
-        investmentPortfolioValueSeries(boot.workspaceId, from, to),
-      ]),
+    const [holdings, series, openActivities] = await runInWorkspace(
+      boot.workspaceId,
+      () =>
+        Promise.all([
+          investmentHoldingsSnapshot(boot.workspaceId),
+          investmentPortfolioValueSeries(boot.workspaceId, from, to),
+          listOpenInvestmentActivities(boot.workspaceId),
+        ]),
     );
     queryClient.setQueryData<InvestmentHoldingRow[]>(
       investmentKeys.holdings(),
@@ -378,6 +383,10 @@ async function seedInvestmentQueries(
     queryClient.setQueryData<InvestmentPortfolioPoint[]>(
       investmentKeys.portfolioSeries(from, to),
       series,
+    );
+    queryClient.setQueryData<InvestmentActivityRow[]>(
+      investmentKeys.openActivities(),
+      openActivities,
     );
   } catch (error) {
     recordSeedDbFailure(error);

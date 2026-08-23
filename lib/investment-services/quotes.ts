@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
 import {
   investmentInstrument,
@@ -10,6 +10,7 @@ import {
   fetchYahooQuotes,
   majorToMinor,
 } from "@/lib/investment-yahoo";
+import { yahooFxSymbol } from "@/lib/investment-fx";
 import { listActiveMarketInstruments } from "@/lib/investment-services/instruments";
 
 export async function refreshQuotesForWorkspace(workspaceId: string) {
@@ -107,6 +108,28 @@ export async function backfillDailyQuotes(
   }
 }
 
+/** Fetch Yahoo history when this range has almost no stored daily closes. */
+export async function ensureDailyQuotesForRange(
+  instrumentId: string,
+  yahooSymbol: string,
+  currency: string,
+  from: string,
+  to: string,
+) {
+  const existing = await db
+    .select({ date: investmentQuoteDaily.date })
+    .from(investmentQuoteDaily)
+    .where(
+      and(
+        eq(investmentQuoteDaily.instrumentId, instrumentId),
+        gte(investmentQuoteDaily.date, from),
+        lte(investmentQuoteDaily.date, to),
+      ),
+    );
+  if (existing.length >= 3) return;
+  await backfillDailyQuotes(instrumentId, yahooSymbol, currency, from, to);
+}
+
 export async function getLatestQuotesForInstruments(instrumentIds: string[]) {
   if (instrumentIds.length === 0) return [];
   return db
@@ -126,4 +149,47 @@ export async function getDailyQuotesForRange(
     .select()
     .from(investmentQuoteDaily)
     .where(eq(investmentQuoteDaily.instrumentId, instrumentId));
+}
+
+export async function fetchInvestmentFxRate(
+  fromCurrency: string,
+  toCurrency: string,
+): Promise<{
+  rate: number;
+  sourceSymbol: string;
+  inverted: boolean;
+  asOf: string;
+} | null> {
+  const from = fromCurrency.trim().toUpperCase();
+  const to = toCurrency.trim().toUpperCase();
+  if (from === to) {
+    return {
+      rate: 1,
+      sourceSymbol: `${from}${to}=X`,
+      inverted: false,
+      asOf: new Date().toISOString(),
+    };
+  }
+  const direct = yahooFxSymbol(from, to);
+  const inverse = yahooFxSymbol(to, from);
+  const quotes = await fetchYahooQuotes([direct, inverse]);
+  const d = quotes.get(direct);
+  if (d && d.priceMajor > 0) {
+    return {
+      rate: d.priceMajor,
+      sourceSymbol: direct,
+      inverted: false,
+      asOf: d.asOf.toISOString(),
+    };
+  }
+  const inv = quotes.get(inverse);
+  if (inv && inv.priceMajor > 0) {
+    return {
+      rate: 1 / inv.priceMajor,
+      sourceSymbol: inverse,
+      inverted: true,
+      asOf: inv.asOf.toISOString(),
+    };
+  }
+  return null;
 }

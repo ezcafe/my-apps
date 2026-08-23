@@ -12,10 +12,10 @@ export function investmentActivityTypeToTransactionKind(
 ): "expense" | "income" {
   switch (type) {
     case "buy":
+    case "sell":
     case "fee":
     case "withdraw":
       return "expense";
-    case "sell":
     case "dividend":
     case "deposit":
       return "income";

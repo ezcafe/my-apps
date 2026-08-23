@@ -1,10 +1,13 @@
 "use client";
 
+import { cn } from "@/lib/cn";
 import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useSession } from "next-auth/react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  InvestmentActivityFieldsSkeleton,
   MoneyLookupQuickPickSkeleton,
   MoneyTagsFieldSkeleton,
 } from "@/components/money-dashboard-skeleton";
@@ -33,9 +36,10 @@ import {
 } from "@/components/ui/input-group";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/cn";
+import { instrumentLedgerPrefill, type InstrumentLedgerDefaults } from "@/lib/instrument-ledger-prefill";
 import {
   formatMinor,
+  formatPnlMajorInput,
   getCurrencySymbol,
   minorToMajorInput,
   parseMajorToMinor,
@@ -72,7 +76,19 @@ import {
   type MoneyTagLookup,
 } from "@/lib/money-query-options";
 import { preferredExpenseCategoryIdForAccountType } from "@/lib/money-seed-defaults";
+import {
+  expenseCategoryKindForFormKind,
+  parseInstrumentId,
+  parseMoneyFormKind,
+  preferredAccountIdForFormKind,
+  preferredCategoryIdForFormKind,
+  type MoneyFormKind,
+} from "@/lib/money-form-kind-defaults";
 import { mostUsedPickId, topUsageItems, usageOrZero } from "@/lib/money-usage-quick-pick";
+import type { InvestmentActivityFieldsHandle } from "@/components/investment-activity-fields";
+import { loansGraphQLRequest } from "@/lib/loans-gql-client";
+import { LOAN_INSTALLMENT_PAY_MUTATION } from "@/lib/loans-gql-documents";
+import { loansKeys } from "@/lib/loans-query-options";
 import {
   moneyQuickPickChipCls,
   moneyQuickPickGroupCls,
@@ -90,15 +106,34 @@ const KIND_OPTIONS = [
   { value: "expense", label: "Expense" },
   { value: "income", label: "Income" },
   { value: "transfer", label: "Transfer" },
+  { value: "investment", label: "Investment" },
+  { value: "loan", label: "Loan" },
 ] as const;
 
-type KindValue = (typeof KIND_OPTIONS)[number]["value"];
+type KindValue = MoneyFormKind;
+
+const InvestmentActivityFieldsLazy = dynamic(
+  () =>
+    import("@/components/investment-activity-fields").then((mod) => ({
+      default: mod.InvestmentActivityFields,
+    })),
+  { loading: () => <InvestmentActivityFieldsSkeleton /> },
+);
+
+const LoanPaymentFieldsLazy = dynamic(
+  () =>
+    import("@/components/loan-payment-fields").then((mod) => ({
+      default: mod.LoanPaymentFields,
+    })),
+);
 
 export type MoneyTransactionFormMode = "transaction" | "recurrence";
 
 export type MoneyTransactionFormProps = {
   mode: MoneyTransactionFormMode;
   onSuccess?: () => void;
+  initialKind?: string | null;
+  initialInstrumentId?: string | null;
 };
 
 function dateToOccurredAt(date: string): string {
@@ -108,9 +143,11 @@ function dateToOccurredAt(date: string): string {
 function defaultAccountId(
   accounts: readonly Account[],
   selectedId: string,
+  preferredId?: string,
 ): string {
   if (accounts.length === 0) return "";
   if (selectedId && accounts.some((a) => a.id === selectedId)) return selectedId;
+  if (preferredId && accounts.some((a) => a.id === preferredId)) return preferredId;
   return mostUsedPickId(
     accounts.map((a) => ({
       id: a.id,
@@ -126,11 +163,16 @@ function defaultCategoryPick(
   selectedId: string,
   emptySelectedOnOther: boolean,
   preferredCategoryId?: string,
+  visibleCategoryKind?: "expense" | "income" | null,
 ): { id: string; emptyOnOther: boolean } {
   if (transactionKind === "transfer") {
     return { id: "", emptyOnOther: false };
   }
-  const visible = categoriesOfKind(allCategories, transactionKind);
+  const categoryKind =
+    visibleCategoryKind ??
+    expenseCategoryKindForFormKind(transactionKind) ??
+    "expense";
+  const visible = categoriesOfKind(allCategories, categoryKind);
   if (selectedId && visible.some((c) => c.id === selectedId)) {
     return { id: selectedId, emptyOnOther: emptySelectedOnOther };
   }
@@ -216,7 +258,12 @@ function deriveRecurrenceName(opts: {
   return `Recurring ${opts.kind}`;
 }
 
-export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormProps) {
+export function MoneyTransactionForm({
+  mode,
+  onSuccess,
+  initialKind,
+  initialInstrumentId,
+}: MoneyTransactionFormProps) {
   const isRecurrenceMode = mode === "recurrence";
   const { data: session, status } = useSession();
   const userSub = session?.user?.id;
@@ -228,8 +275,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     refreshWorkspaceCurrency,
     workspaceReady,
   } = useWorkspaceCurrency();
-  const canRunMoneyQueries =
-    status === "authenticated" && typeof window !== "undefined";
+  const canRunMoneyQueries = status === "authenticated";
   const workspaceStateQuery = useQuery({
     ...moneyWorkspaceStateQueryOptions(),
     enabled: canRunMoneyQueries,
@@ -270,7 +316,38 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
 
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
-  const [kind, setKind] = useState<KindValue>("expense");
+  const [kind, setKind] = useState<KindValue>(
+    () => parseMoneyFormKind(initialKind) ?? "expense",
+  );
+  const instrumentPrefillId = parseInstrumentId(initialInstrumentId);
+  const investmentFieldsRef = useRef<InvestmentActivityFieldsHandle>(null);
+  const [investmentPnlMinor, setInvestmentPnlMinor] = useState<number | null>(
+    null,
+  );
+  const [investmentPnlMajor, setInvestmentPnlMajor] = useState<number | null>(
+    null,
+  );
+  const [instrumentLedgerDefaults, setInstrumentLedgerDefaults] =
+    useState<InstrumentLedgerDefaults | null>(null);
+  const handleInvestmentPreview = useCallback(
+    (result: { signedMinor: number; signedMajor: number } | null) => {
+      setInvestmentPnlMinor(result?.signedMinor ?? null);
+      setInvestmentPnlMajor(result?.signedMajor ?? null);
+    },
+    [],
+  );
+  const handleInstrumentLedgerDefaults = useCallback(
+    (defaults: InstrumentLedgerDefaults | null) => {
+      setInstrumentLedgerDefaults(defaults);
+    },
+    [],
+  );
+  const [loanId, setLoanId] = useState("");
+  const [loanInstallmentId, setLoanInstallmentId] = useState("");
+  const handleSelectLoan = useCallback((id: string, installmentId: string) => {
+    setLoanId(id);
+    setLoanInstallmentId(installmentId);
+  }, []);
   const [amountMajor, setAmountMajor] = useState("");
   const [occurredAt, setOccurredAt] = useState(() =>
     dateToOccurredAt(localDateString()),
@@ -394,21 +471,58 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     () => (workspaceSyncPending ? [] : loadedMerchants),
     [workspaceSyncPending, loadedMerchants],
   );
-  const accountId = defaultAccountId(loadedAccounts, selectedAccountId);
+  const kindPreferredAccountId = useMemo(() => {
+    const fromInstrument = instrumentLedgerPrefill(
+      instrumentLedgerDefaults,
+      null,
+    ).accountId;
+    if (fromInstrument) return fromInstrument;
+    return preferredAccountIdForFormKind(kind, loadedAccounts);
+  }, [instrumentLedgerDefaults, kind, loadedAccounts]);
+  const accountId = defaultAccountId(
+    loadedAccounts,
+    selectedAccountId,
+    kindPreferredAccountId,
+  );
   const selectedAccount = useMemo(
     () => loadedAccounts.find((a) => a.id === accountId),
     [loadedAccounts, accountId],
   );
-  const preferredCategoryId = useMemo(
-    () =>
-      kind === "expense"
-        ? preferredExpenseCategoryIdForAccountType(
-            selectedAccount?.type,
-            loadedCategories,
-          )
-        : undefined,
-    [kind, selectedAccount?.type, loadedCategories],
-  );
+  const formCategoryKind = useMemo((): "expense" | "income" | null => {
+    if (kind === "investment") {
+      if (investmentPnlMajor == null) return null;
+      return investmentPnlMajor >= 0 ? "income" : "expense";
+    }
+    return expenseCategoryKindForFormKind(kind);
+  }, [kind, investmentPnlMajor]);
+  const preferredCategoryId = useMemo(() => {
+    const fromInstrument = instrumentLedgerPrefill(
+      instrumentLedgerDefaults,
+      kind === "investment" ? investmentPnlMajor : null,
+    ).categoryId;
+    if (fromInstrument) return fromInstrument;
+    const byKind = preferredCategoryIdForFormKind(kind, loadedCategories);
+    if (byKind) {
+      const row = loadedCategories.find((c) => c.id === byKind);
+      if (formCategoryKind && row && row.kind !== formCategoryKind) {
+        return undefined;
+      }
+      return byKind;
+    }
+    return kind === "expense"
+      ? preferredExpenseCategoryIdForAccountType(
+          selectedAccount?.type,
+          loadedCategories,
+        )
+      : undefined;
+  }, [
+    kind,
+    formCategoryKind,
+    selectedAccount?.type,
+    loadedCategories,
+    instrumentLedgerDefaults,
+    investmentPnlMajor,
+  ]);
   const categorySelection = useMemo(
     () =>
       defaultCategoryPick(
@@ -417,6 +531,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
         selectedCategoryId,
         categoryEmptyOnOther,
         preferredCategoryId,
+        formCategoryKind,
       ),
     [
       loadedCategories,
@@ -424,6 +539,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
       selectedCategoryId,
       categoryEmptyOnOther,
       preferredCategoryId,
+      formCategoryKind,
     ],
   );
   const categoryId = categorySelection.id;
@@ -435,18 +551,17 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
       : "";
   const initialDashboardPending =
     status === "loading" ||
-    workspaceStateQuery.isLoading ||
     !workspaceReady ||
-    (formLookupsQuery.isLoading && !formLookupsQuery.data);
+    (status === "authenticated" &&
+      (!formLookupsQuery.data ||
+        workspaceStateQuery.isLoading ||
+        formLookupsQuery.isLoading));
   const lookupSkeletonVisible = initialDashboardPending;
 
-  const visibleCategories = useMemo(
-    () =>
-      kind === "transfer"
-        ? []
-        : categoriesOfKind(categories, kind),
-    [categories, kind],
-  );
+  const visibleCategories = useMemo(() => {
+    if (!formCategoryKind) return [];
+    return categoriesOfKind(categories, formCategoryKind);
+  }, [categories, formCategoryKind]);
   const categoryById = useMemo(
     () => moneyCategoryById(visibleCategories),
     [visibleCategories],
@@ -500,6 +615,44 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     () => categoryGroups.flatMap((group) => group.options),
     [categoryGroups],
   );
+
+  useEffect(() => {
+    if (kind !== "investment") {
+      setInvestmentPnlMinor(null);
+      setInvestmentPnlMajor(null);
+      setInstrumentLedgerDefaults(null);
+      return;
+    }
+    if (
+      selectedCategoryId &&
+      !visibleCategories.some((c) => c.id === selectedCategoryId)
+    ) {
+      setSelectedCategoryId("");
+      setCategoryEmptyOnOther(false);
+    }
+  }, [kind, selectedCategoryId, visibleCategories]);
+
+  useEffect(() => {
+    if (kind !== "investment") return;
+    const prefillAccountId = instrumentLedgerPrefill(
+      instrumentLedgerDefaults,
+      null,
+    ).accountId;
+    if (prefillAccountId) setSelectedAccountId(prefillAccountId);
+  }, [instrumentLedgerDefaults, kind]);
+
+  useEffect(() => {
+    if (kind !== "investment" || investmentPnlMajor == null) return;
+    const categoryId = instrumentLedgerPrefill(
+      instrumentLedgerDefaults,
+      investmentPnlMajor,
+    ).categoryId;
+    if (categoryId) {
+      setSelectedCategoryId(categoryId);
+      setCategoryEmptyOnOther(false);
+    }
+  }, [instrumentLedgerDefaults, investmentPnlMajor, kind]);
+
   const accountQuickItems = useMemo(
     () =>
       accounts.map((a) => ({
@@ -637,7 +790,11 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     [],
   );
   const recurrenceActive =
-    isRecurrenceMode || (recurrenceEnabled && kind !== "transfer");
+    isRecurrenceMode ||
+    (recurrenceEnabled &&
+      kind !== "transfer" &&
+      kind !== "loan" &&
+      kind !== "investment");
   const selectedMerchantName = merchantId
     ? merchants.find((m) => m.id === merchantId)?.name
     : undefined;
@@ -703,8 +860,57 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
       if (!workspaceReady) throw new Error("Workspace is still loading");
       if (needsCurrencySetup) throw new Error("Set a workspace currency first");
       if (workspaceSyncPending) throw new Error("Workspace is still switching");
-      const minor = parseMajorToMinor(amountMajor, defaultCurrency);
       if (!accountId) throw new Error("Pick an account");
+      if (isRecurrenceMode && (kind === "transfer" || kind === "loan" || kind === "investment")) {
+        throw new Error("This kind cannot be saved as a recurring template");
+      }
+
+      const activityDate = splitDateTimeLocal(occurredAt).date || localDateString();
+
+      if (kind === "investment") {
+        const handle = investmentFieldsRef.current;
+        if (!handle) throw new Error("Investment form is still loading");
+        await handle.save({
+          activityDate,
+          moneyAccountId: accountId,
+          categoryId: categoryId || null,
+          notes: notes.trim() || null,
+          defaultCurrency,
+          amountMinor: null,
+        });
+        resetFormFields();
+        onSuccess?.();
+        return;
+      }
+
+      if (kind === "loan") {
+        if (!loanInstallmentId) throw new Error("Pick a loan installment");
+        const minor = parseMajorToMinor(amountMajor, defaultCurrency);
+        if (minor == null || minor <= 0) throw new Error("Invalid amount");
+        await loansGraphQLRequest(LOAN_INSTALLMENT_PAY_MUTATION, {
+          input: {
+            scheduleInstallmentId: loanInstallmentId,
+            moneyWorkspaceId: activeWorkspaceId,
+            accountId,
+            categoryId: categoryId || null,
+            notes: notes.trim() || null,
+            amountMinor: minor,
+            occurredAt: occurredAt.trim()
+              ? new Date(occurredAt).toISOString()
+              : undefined,
+          },
+        });
+        await queryClient.invalidateQueries({ queryKey: loansKeys.all });
+        await invalidateMoneyWorkspaceQueries(queryClient);
+        notify.success("Payment recorded", "The installment was posted to Money.");
+        resetFormFields();
+        onSuccess?.();
+        return;
+      }
+
+      const ledgerKind = kind;
+
+      const minor = parseMajorToMinor(amountMajor, defaultCurrency);
       if (minor == null || minor <= 0) throw new Error("Invalid amount");
       if (kind === "transfer" && !effectiveToAccountId) {
         throw new Error("Pick a destination account");
@@ -719,7 +925,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
       const body: Record<string, unknown> = {
         accountId,
         amountMinor: minor,
-        kind,
+        kind: ledgerKind,
       };
       if (kind === "transfer") body.toAccountId = effectiveToAccountId;
       if (occurredAt.trim()) {
@@ -745,7 +951,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             notes,
             merchantName: selectedMerchantName,
             categoryLabel: selectedCategoryLabel,
-            kind,
+            kind: ledgerKind,
           }),
         };
       }
@@ -787,6 +993,13 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     }
   }
 
+  const isInvestmentKind = kind === "investment";
+  const showInvestmentResult =
+    isInvestmentKind && investmentPnlMajor != null;
+  const investmentResultTone =
+    (investmentPnlMajor ?? 0) >= 0 ? "text-accent" : "text-destructive";
+  const isSpecialKind = isInvestmentKind || kind === "loan";
+
   const submitDisabled =
     submitting ||
     !workspaceReady ||
@@ -796,6 +1009,8 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     accounts.length === 0 ||
     !accountId ||
     (kind === "transfer" && !effectiveToAccountId) ||
+    (kind === "loan" && !loanInstallmentId) ||
+    (isRecurrenceMode && isSpecialKind) ||
     (isRecurrenceMode && kind === "transfer");
 
   const cardTitle = isRecurrenceMode
@@ -805,7 +1020,11 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
     ? "Saving…"
     : isRecurrenceMode
       ? "Save recurring transaction"
-      : "Save transaction";
+      : isInvestmentKind
+        ? "Save activity"
+        : kind === "loan"
+          ? "Record payment"
+          : "Save transaction";
 
   return (
     <>
@@ -854,6 +1073,24 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                         setToAccountId("");
                       } else if (!isRecurrenceMode) {
                         setRecurrenceEnabled(false);
+                      }
+                      if (value === "investment" || value === "loan") {
+                        setRecurrenceEnabled(false);
+                        const acc = preferredAccountIdForFormKind(
+                          value,
+                          loadedAccounts,
+                        );
+                        setSelectedAccountId(acc ?? "");
+                        if (value === "loan") {
+                          const cat = preferredCategoryIdForFormKind(
+                            value,
+                            loadedCategories,
+                          );
+                          setSelectedCategoryId(cat ?? "");
+                        } else {
+                          setSelectedCategoryId("");
+                        }
+                        setCategoryEmptyOnOther(false);
                       }
                     }}
                     className={moneyQuickPickChipCls(active)}
@@ -919,6 +1156,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             </Field>
           ) : null}
 
+          {kind !== "investment" ? (
           <Field label="Amount" required>
             <InputGroup>
               <InputGroupAddon side="leading" aria-hidden>
@@ -929,7 +1167,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                 onChange={(e) => setAmountMajor(e.target.value)}
                 inputMode="decimal"
                 placeholder={defaultCurrency === "VND" ? "25" : "24.99"}
-                autoFocus
+                autoFocus={kind !== "loan"}
                 required
                 aria-label="Amount"
               />
@@ -937,7 +1175,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                 {defaultCurrency}
               </InputGroupAddon>
             </InputGroup>
-            {topAmounts.length > 0 ? (
+            {topAmounts.length > 0 && kind !== "loan" ? (
               <>
                 <p className="text-sm text-muted">
                   Tap a recent amount to fill · last 90 days
@@ -971,6 +1209,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
               </>
             ) : null}
           </Field>
+          ) : null}
 
           {lookupSkeletonVisible ? (
             <MoneyLookupQuickPickSkeleton
@@ -989,6 +1228,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
               selectedId={accountId}
               onSelect={setSelectedAccountId}
               otherLabel="Other account"
+              searchPlaceholder="Search accounts…"
               emptyMessage={accountEmptyMessage}
               renderPickerRow={(item) =>
                 formatMinor(
@@ -1033,6 +1273,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
                 selectedId={effectiveToAccountId}
                 onSelect={setToAccountId}
                 otherLabel="Other account"
+                searchPlaceholder="Search accounts…"
                 emptyMessage="Add another account to create transfers."
                 renderPickerRow={(item) =>
                   formatMinor(
@@ -1044,7 +1285,7 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             )
           ) : null}
 
-          {kind !== "transfer" ? (
+          {kind !== "transfer" && !isInvestmentKind ? (
             lookupSkeletonVisible ? (
               <MoneyLookupQuickPickSkeleton
                 legend="Category"
@@ -1072,6 +1313,90 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             )
           ) : null}
 
+          {isInvestmentKind ? (
+            <InvestmentActivityFieldsLazy
+              key={instrumentPrefillId ?? "none"}
+              saveRef={investmentFieldsRef}
+              workspaceReady={lookupsReady}
+              initialInstrumentId={instrumentPrefillId}
+              defaultCurrency={defaultCurrency}
+              onPreviewChange={handleInvestmentPreview}
+              onLedgerDefaultsChange={handleInstrumentLedgerDefaults}
+            />
+          ) : null}
+
+          {isInvestmentKind && investmentPnlMajor != null ? (
+            <Field
+              className="[grid-column:1/-1]"
+              label={
+                <span className={investmentResultTone}>
+                  {investmentPnlMajor >= 0 ? "Profit" : "Loss"}
+                </span>
+              }
+            >
+              <InputGroup>
+                <InputGroupAddon side="leading" aria-hidden>
+                  {getCurrencySymbol(defaultCurrency)}
+                </InputGroupAddon>
+                <InputGroupInput
+                  value={formatPnlMajorInput(
+                    investmentPnlMajor,
+                    defaultCurrency,
+                  )}
+                  readOnly
+                  inputMode="decimal"
+                  className={investmentResultTone}
+                  aria-label={
+                    investmentPnlMajor >= 0
+                      ? "Profit amount"
+                      : "Loss amount"
+                  }
+                />
+                <InputGroupAddon side="trailing" aria-hidden>
+                  {defaultCurrency}
+                </InputGroupAddon>
+              </InputGroup>
+            </Field>
+          ) : null}
+
+          {showInvestmentResult ? (
+            lookupSkeletonVisible ? (
+              <MoneyLookupQuickPickSkeleton
+                legend="Category"
+                withPct
+                className="[grid-column:1/-1]"
+              />
+            ) : (
+              <MoneyUsageQuickPick
+                legend="Category"
+                ariaLabel="Category"
+                className="[grid-column:1/-1]"
+                items={categoryQuickItems}
+                pickerItems={categoryPickerItems}
+                selectedId={categoryId}
+                onSelect={(id) => {
+                  setSelectedCategoryId(id);
+                  setCategoryEmptyOnOther(id === "");
+                }}
+                otherLabel="Select other category"
+                emptyCountsAsOther
+                emptySelectedOnOther={categoryOtherSelected}
+                emptyMessage={categoryEmptyMessage}
+                chipBudgetProgressPct={categoryChipBudgetProgressPct}
+              />
+            )
+          ) : null}
+
+          {kind === "loan" ? (
+            <LoanPaymentFieldsLazy
+              workspaceReady={lookupsReady}
+              currency={defaultCurrency}
+              selectedLoanId={loanId}
+              onSelectLoan={handleSelectLoan}
+              onPrefillAmount={setAmountMajor}
+            />
+          ) : null}
+
           <MoneyDateQuickPick
             legend="When"
             ariaLabel="Transaction date"
@@ -1083,7 +1408,15 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             }}
           />
 
-          {!showMoreDetails ? (
+          {isSpecialKind ? (
+            <Field label="Notes" className="[grid-column:1/-1]">
+              <Textarea
+                rows={3}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </Field>
+          ) : !showMoreDetails ? (
             <div className="[grid-column:1/-1]">
               <Button
                 type="button"
@@ -1331,6 +1664,10 @@ export function MoneyTransactionForm({ mode, onSuccess }: MoneyTransactionFormPr
             <span aria-live="polite" className="text-sm text-muted">
               {kind === "transfer"
                 ? "Transfers do not affect totals — only balances."
+                : isInvestmentKind
+                  ? "Posts profit as income or loss as expense."
+                  : kind === "loan"
+                    ? "Marks the installment paid and posts an expense."
                 : recurrenceActive
                   ? "Creates the first entry and schedules future repeats."
                   : kind === "expense"

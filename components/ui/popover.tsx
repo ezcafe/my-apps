@@ -108,6 +108,7 @@ export function Popover({
       role="dialog"
       aria-modal="false"
       data-open={open}
+      data-floating-panel=""
       inert={!open}
       style={
         pos
@@ -117,7 +118,7 @@ export function Popover({
           : undefined
       }
       className={cn(
-        "pointer-events-none fixed z-[100] min-w-[min(100vw-2rem,18rem)] -translate-y-1 rounded-[var(--radius-md)] border border-border bg-surface p-3 opacity-0 shadow-[var(--shadow-md)] transition-[opacity,transform] duration-200 ease-out data-[open=true]:pointer-events-auto data-[open=true]:translate-y-0 data-[open=true]:opacity-100 motion-reduce:transition-none",
+        "pointer-events-none fixed z-[110] min-w-[min(100vw-2rem,18rem)] -translate-y-1 rounded-[var(--radius-md)] border border-border bg-surface p-3 opacity-0 shadow-[var(--shadow-md)] transition-[opacity,transform] duration-200 ease-out data-[open=true]:pointer-events-auto data-[open=true]:translate-y-0 data-[open=true]:opacity-100 motion-reduce:transition-none",
         className,
       )}
     >

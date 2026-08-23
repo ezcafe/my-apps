@@ -27,7 +27,11 @@ export const INVESTMENT_INSTRUMENTS_QUERY = /* GraphQL */ `
       currency
       symbol
       yahooSymbol
+      contractSize
       archived
+      moneyAccountId
+      incomeCategoryId
+      expenseCategoryId
     }
   }
 `;
@@ -46,10 +50,15 @@ export const INVESTMENT_ACTIVITIES_QUERY = /* GraphQL */ `
         type
         quantity
         unitPriceMinor
+        openPrice
+        closePrice
+        stopLoss
+        takeProfit
         amountMinor
         notes
         moneyAccountId
         moneyTransactionId
+        status
       }
       nextCursor
     }
@@ -90,7 +99,11 @@ export const INVESTMENT_INSTRUMENT_CREATE_MUTATION = /* GraphQL */ `
       currency
       symbol
       yahooSymbol
+      contractSize
       archived
+      moneyAccountId
+      incomeCategoryId
+      expenseCategoryId
     }
   }
 `;
@@ -104,7 +117,41 @@ export const INVESTMENT_INSTRUMENT_UPDATE_MUTATION = /* GraphQL */ `
       currency
       symbol
       yahooSymbol
+      contractSize
       archived
+      moneyAccountId
+      incomeCategoryId
+      expenseCategoryId
+    }
+  }
+`;
+
+export const INVESTMENT_OPEN_ACTIVITIES_QUERY = /* GraphQL */ `
+  query InvestmentOpenActivities($instrumentId: ID) {
+    investmentOpenActivities(instrumentId: $instrumentId) {
+      id
+      instrumentId
+      instrumentName
+      instrumentSymbol
+      instrumentCurrency
+      activityDate
+      type
+      quantity
+      openPrice
+      stopLoss
+      takeProfit
+      status
+    }
+  }
+`;
+
+export const INVESTMENT_FX_RATE_QUERY = /* GraphQL */ `
+  query InvestmentFxRate($from: String!, $to: String!) {
+    investmentFxRate(from: $from, to: $to) {
+      rate
+      sourceSymbol
+      inverted
+      asOf
     }
   }
 `;
@@ -113,6 +160,33 @@ export const INVESTMENT_ACTIVITY_CREATE_MUTATION = /* GraphQL */ `
   mutation InvestmentActivityCreate($input: InvestmentActivityCreateInput!) {
     investmentActivityCreate(input: $input) {
       id
+    }
+  }
+`;
+
+export const INVESTMENT_ACTIVITY_CLOSE_MUTATION = /* GraphQL */ `
+  mutation InvestmentActivityClose($input: InvestmentActivityCloseInput!) {
+    investmentActivityClose(input: $input) {
+      id
+      moneyTransactionId
+    }
+  }
+`;
+
+export const INVESTMENT_ACTIVITY_REALIZE_MUTATION = /* GraphQL */ `
+  mutation InvestmentActivityRealize($input: InvestmentActivityRealizeInput!) {
+    investmentActivityRealize(input: $input) {
+      id
+      moneyTransactionId
+    }
+  }
+`;
+
+export const INVESTMENT_ACTIVITY_CASH_MOVE_MUTATION = /* GraphQL */ `
+  mutation InvestmentActivityCashMove($input: InvestmentActivityCashMoveInput!) {
+    investmentActivityCashMove(input: $input) {
+      id
+      moneyTransactionId
     }
   }
 `;

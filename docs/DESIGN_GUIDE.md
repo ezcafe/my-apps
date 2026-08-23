@@ -10,6 +10,7 @@ The non-negotiables:
 4. Layout uses modern CSS (`grid-template-columns: repeat(auto-fit, minmax(...))`, container queries, `clamp()`); no hardcoded breakpoints for content.
 5. Charts use **visx** and read colors via [`colorByIndex(resolved, i, style)`](../lib/theme-chart-palette.ts) so they recolor when the user switches light/dark mode.
 6. Apply the **interface-polish principles**, **clean-minimal rules**, and **8px spacing** below by default.
+7. Every action has a **visible reaction**. Match feedback scale to stakes and frequency (inline → toast → alert → modal). Missing feedback is worse than imperfect feedback.
 
 If a need is not covered here, propose an extension to this doc + a primitive — do **not** ship a one-off.
 
@@ -38,29 +39,53 @@ Desktop (`lg+`): shell uses a fixed icon rail on non-Money routes; Money / Help 
 
 - Structure follows Tailwind Plus application-ui blocks; retokenize onto clean-minimal + [`components/ui/*`](../components/ui/) (`Button` / `buttonClassName`, [`Breadcrumb`](../components/ui/breadcrumb.tsx) from [Simple with chevrons](https://tailwindcss.com/plus/ui-blocks/application-ui/navigation/breadcrumbs)).
 - Hamburger = icon-only (`fx-hit-40`); primary page actions = **text labels only** (e.g. “Create loan”, “Add transaction”).
-- Breadcrumbs sit **above** the title when nested; omit on top-level section pages.
 - Path defaults: [`resolveMoneyAppHeader`](../lib/money-app-header.ts); dynamic pages override via [`useSetAppHeader`](../components/app-header-override.tsx).
+
+Crumbs follow [Pencil & Paper breadcrumb UX](https://www.pencilandpaper.io/articles/breadcrumbs-ux), constrained to **location-based** hierarchy for a mobile-first busy parent. They preserve *where this page sits*, not the click path (browser Back is the path).
+
+| Rule | Practice |
+|------|----------|
+| **Omit on top-level** | Spending, Add, Insights, Settings, Bills, Savings, Loans, Investments lists have **no** crumbs. Nested only (loan detail, settings child, invest activity, instruments). |
+| **Origin** | Start at the **section** (Loans, Settings, Investments) — never Home / Money. The hamburger already locates the app; repeating it is noise. |
+| **Current** | Last item is the page or entity name, not a link (`aria-current="page"`). Title in `PageHeading` can match or be more specific (loan nickname). |
+| **Not a stepper** | CSV import stays a wizard. Filter chips are not crumbs. Do not encode query state in the trail. |
+| **Truncation** | [`Breadcrumb`](../components/ui/breadcrumb.tsx) truncates long labels. Keep the distinctive **end** of names (loan nickname, merchant). Never ellipsis the origin. Wrap on small screens — no horizontal crumb scroll. |
+| **Depth** | Two or three levels max. If a fourth is tempting, the page is probably in the wrong section. |
 
 ### Dashboard layout pattern
 
-Money home surfaces follow **metric cards → (optional chart) → table**, top to bottom:
+Money home surfaces are **product-home + functional** dashboards ([Pencil & Paper dashboard UX](https://www.pencilandpaper.io/articles/ux-pattern-analysis-data-dashboards)): scan totals, then act in the table. They are not live monitoring and not “show every chart we can compute.”
 
-1. **Filters** — compact toolbar; secondary filters under **More**.
-2. **Metric cards** — [`AnalyticsStats`](../components/analytics-stats.tsx) in a responsive `auto-fit` grid of [`Card`](../components/ui/card.tsx) cells.
-3. **Chart** *(optional)* — visx chart card when the ledger preset defines `chart` (e.g. Bills, Savings). **Spending** omits the chart — metrics + table only.
+Stack **metric cards → (optional chart) → table**, top to bottom (F/Z scan: most global numbers first):
+
+1. **Filters** — compact toolbar; secondary filters under **More**. Changing filters must show loading in the metrics/chart/table that will change.
+2. **Metric cards** — [`AnalyticsStats`](../components/analytics-stats.tsx) in a responsive `auto-fit` grid of [`Card`](../components/ui/card.tsx) cells. Same internal layout on every tile (label, value, optional delta).
+3. **Chart** *(optional)* — visx chart card when the ledger preset defines `chart` (e.g. Bills, Savings). **Spending** omits the chart — metrics + table only. Do not add a viz because the data exists.
 4. **Table** — transaction ledger ([`AnalyticsTransactionsTable`](../components/analytics-transactions-table.tsx)) as a flat `<section>` with hairline table chrome — **not** wrapped in a Card.
 
-Wrap page bodies in [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) (`flex flex-col gap-6`) with semantic `<section>` landmarks. Apply [`MONEY_FULL_SPAN`](../lib/money-layout.ts) **once** on the outermost page body in the shell grid — never on nested filters, tables, or section children.
+Wrap page bodies in [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) (`flex flex-col gap-8`) with semantic `<section>` landmarks. Apply [`MONEY_FULL_SPAN`](../lib/money-layout.ts) **once** on the outermost page body in the shell grid — never on nested filters, tables, or section children.
 
 ```text
 [ Crumbs when nested ──────────── ]
 [ Hamburger | Title | Add (text) ]
 [ Filters ─────────────────────── ]
 [ Metric │ Metric │ Metric │ …   ]
+[ Chart (optional) ────────────── ]
 [ Table ───────────────────────── ]
 ```
 
 **Flat surfaces:** Cards are for discrete metrics, charts, and entity tiles. Tables, full-page forms, and settings/help sections sit on the page background with headings + dividers — no Card-in-page or Card-around-table.
+
+| Rule | Practice |
+|------|----------|
+| **One job** | Spending: “where did it go?” Insights: category + income vs expense. Extra charts stay behind **More insights**. |
+| **Defaults** | Sensible date range and primary filters so the first paint answers the job without 12 clicks. |
+| **Deltas** | Relative change (e.g. expense MoM) with direction + `text-accent` / `text-destructive` / `text-muted` — never color alone. |
+| **Jargon** | KPI names and chart titles get [`AboutDisclosure`](../components/ui/about-disclosure.tsx) when the term is not everyday (savings rate, P&L). |
+| **Drill** | Object detail is a **page** (loan, edit transaction), not a drawer. Drawers/popovers are for filters, More, and confirms. |
+| **Empty / load** | [`AnalyticsEmptyState`](../components/analytics-empty-state.tsx) with a next action; [`Skeleton`](../components/ui/skeleton.tsx) while fetching. Empty is not an error. |
+| **Out of scope** | Drag-to-rearrange modules, per-user dashboard builders, rainbow stoplight palettes. Ask before adding. |
+
 ## Clean-minimal rules
 
 Information-grid first: readable density in controls, tables, filters, and forms; generous section whitespace on an **8px grid** (8 / 16 / 24 / 32 / 48 / 64).
@@ -222,14 +247,18 @@ Never hard-code chart hexes; never read only `resolved`. Keep charts restrained 
 | `Badge` / `Tag` | [`badge.tsx`](../components/ui/badge.tsx), [`tag.tsx`](../components/ui/tag.tsx) | Inline status chips — compact pills. |
 | `IconSwap` | [`icon-swap.tsx`](../components/ui/icon-swap.tsx) | Stateful icon cross-fade (opacity-only motion). |
 | `Skeleton` | [`skeleton.tsx`](../components/ui/skeleton.tsx) | Loading (`fx-shimmer`). |
-| `Alert` | [`alert.tsx`](../components/ui/alert.tsx) | Inline error/warning. |
-| Notifications | `useNotify()` | Toasts. |
+| `Alert` | [`alert.tsx`](../components/ui/alert.tsx) | Inline **error/warning** banner (what happened + optional how to fix). Not for success; not for empty. |
+| Notifications | `useNotify()` | Toasts for completed or failed **mutations** that leave the user on the same flow. Specific titles, not “Success”. |
 
 If you need a new primitive, add it under [`components/ui/`](../components/ui/), document it here, and migrate at least one usage in the same PR.
 
 ## Microinteraction utilities
 
-All in [`app/globals.css`](../app/globals.css) `@layer utilities`. Do not author bespoke keyframes.
+Interaction is a conversation with the computer ([Pencil & Paper interaction patterns](https://www.pencilandpaper.io/articles/microinteractions-ux-interaction-patterns)). Quality means the situation is clear, the user stays in control, and **every action has a reaction**. Missing states (no hover, no loading, no success) read as “broken” or “I did it wrong” — worse than an imperfect toast.
+
+Every control must represent **default / hover / focus-visible / disabled / active**. Forms, tables, cards, and filters are CRUD plus edge cases: empty, loading, error, success. Design those four before shipping the happy path.
+
+All utilities live in [`app/globals.css`](../app/globals.css) `@layer utilities`. Do not author bespoke keyframes.
 
 | Class | Effect |
 |-------|--------|
@@ -276,7 +305,7 @@ withViewTransition(() => setTheme("dark"));
 
 - **Container**: `.shell-main` for top-level page padding/max width.
 - **One full-span**: [`MONEY_FULL_SPAN`](../lib/money-layout.ts) once per grid child under Money / ShellMainPage — not on nested filters or tables.
-- **Dashboard stack**: [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) for metric cards + chart + table pages (`gap-6`).
+- **Dashboard stack**: [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) for metric cards + chart + table pages (`gap-8`).
 - **Flat sections**: tables and forms are `<section>` / heading + content on the page background; Cards reserved for metrics, charts, and entity tiles. Settings use [`SettingsSection`](../components/money-settings/money-settings-shared.tsx) (heading + body, no Card).
 - **Multi-column**: `repeat(auto-fit, minmax(min(100%, 22rem), 1fr))` (`.auto-fit-2`). Breakpoint utilities only for shell chrome (hamburger vs rail).
 - **Container queries**: `cqi` / `container-type` / `@container` for filter bars and chart cards.
@@ -319,9 +348,20 @@ Use [`components/ui/table.tsx`](../components/ui/table.tsx) for every HTML data 
 ## Forms
 
 - `Field` + matching primitive for every input.
-- Required: `required` on `Field`.
+- Required: `required` on `Field`. Show constraints in `hint` *before* the user fails (password-length style rules, amount units, date format).
+- Prefer pickers over free text when the value has a format ([`MoneyDateQuickPick`](../components/money-date-quick-pick.tsx), `Select`) — prevent the error instead of explaining it.
 - Radio-cards: `peer sr-only` + `peer-checked:border-foreground peer-checked:ring-1`; outer `--radius-md`, nested `--radius-sm`.
 - Segmented controls: `role="radiogroup"`, outer rounded + `--radius-sm` inner, `fx-press`, `transition-[background-color,color,box-shadow]`.
+
+**Validation timing** ([error feedback](https://www.pencilandpaper.io/articles/ux-pattern-analysis-error-feedback)):
+
+| When | Practice |
+|------|----------|
+| **While typing** | Do not flag errors. |
+| **Blur** | Validate only if the field **has a value**. Empty blur on an optional field is not an error. |
+| **Submit** | Show **all** remaining errors at once (field `error` slots + one form [`Alert`](../components/ui/alert.tsx) if the failure is not field-scoped). Never drip one error per submit. |
+| **Recovery** | Clear the field error as soon as the value is valid. Do not persist a red state after the user has fixed it. |
+| **Invalid input** | Set `aria-invalid` on the control (`Input` already styles it). Focus the first invalid field. |
 
 ## Charts (visx)
 
@@ -329,6 +369,69 @@ Use [`components/ui/table.tsx`](../components/ui/table.tsx) for every HTML data 
 - Always `useTheme()` + `style` into `colorByIndex`.
 - Charts sit in the **dashboard** stack between metrics and table (or as the primary viz on Insights).
 - Empty: [`AnalyticsEmptyState`](../components/analytics-empty-state.tsx) or `Skeleton`.
+- **Color is not the only signal.** Series distinction can use `colorByIndex`; good vs bad uses accent/destructive **and** words, icons, or slope — never red/green chrome as brand.
+- **Labels:** fewer axis ticks that still read (quarters, not every week). Truncate the distinctive part of long category names; denser values live in a tooltip on hover/focus — not a wall of labels.
+- **Hover:** reveal the exact value; do not dump that precision onto the canvas by default.
+- Do not rely on a rainbow of chart colors for status. Status tokens stay on alerts/toasts/deltas, not as extra series paint.
+
+## Feedback (errors & success)
+
+Errors and success are one system ([error feedback](https://www.pencilandpaper.io/articles/ux-pattern-analysis-error-feedback), [success UX](https://www.pencilandpaper.io/articles/success-ux)). Match the **channel** to stakes and how often the action happens. A busy parent logging a coffee does not get a full-page party; a failed CSV import that ate twenty minutes of mapping does not get a silent toast they might miss.
+
+| Stakes | Channel | Primitive |
+|--------|---------|-----------|
+| Field value rejected | Inline under the field | `Field` `error` + `aria-invalid` |
+| Form or page blocked | Banner in context | [`Alert`](../components/ui/alert.tsx) `error` / `warning` |
+| Routine save, copy, refresh | Toast | `useNotify().success` / `.error` |
+| High-stakes confirm (delete, revoke) | Modal, then toast on completion | [`Modal`](../components/ui/modal.tsx) + notify |
+| Background / system status | Persistent inline, not a stacked toast | e.g. quote refresh, import progress |
+| Full-page success | **Do not use** for Money capture | Redirect or stay + toast; next action lives in the heading |
+
+### Error copy
+
+Every error answers three questions: **what happened** (tied to the action, not “Error occurred”), **why** in plain language, **what to do next** (retry, fix this field, sign in). If nothing can be done, say that.
+
+- User-visible strings go through [`toUserFacingMessage`](../lib/user-facing-error.ts) / `presentClientError`. Never dump GraphQL, stack traces, or `ECONNREFUSED` into the UI.
+- No humour, emoji punchlines, or jargon in error titles. Technical detail can live in the console only.
+- Hide or disable actions the user cannot perform (permissions) instead of letting them fail.
+- Communicate as soon as it is relevant (mapping failures on the import step they are on, not after finish).
+- Distinct copy when several tasks can fail at once (“Could not save instrument”, not three× “Something went wrong”).
+
+### Success copy
+
+- Name the object: “Transaction added”, “Loan created”, “Trade saved” — not “Success” or “Saved”.
+- Scale to frequency: Add transaction → toast (~5s). Creating a loan may toast **and** land on the loan where the next action (add payment) is the heading CTA.
+- Put the confirmation **near the action**. Toasts are for mutations after which the form is gone or the list updated; inline checkmarks are for in-place saves (settings rows).
+- Guide the next step only when it is newly available. Do not invent a second primary CTA on the toast.
+- Undo in a toast is allowed only if the mutation is actually reversible in-session (Gmail-style). Do not fake Undo.
+
+## Empty & loading
+
+Empty is a valid zero, not a failure ([interaction patterns](https://www.pencilandpaper.io/articles/microinteractions-ux-interaction-patterns)).
+
+| State | Practice |
+|-------|----------|
+| **Empty** | [`AnalyticsEmptyState`](../components/analytics-empty-state.tsx): what is missing + one next action (“Add a transaction”). No cinematic illustration. |
+| **No search hits** | Same empty primitive or a one-line status: no matches + how to widen the query. |
+| **Loading** | [`Skeleton`](../components/ui/skeleton.tsx) + `fx-shimmer` in the region that will fill. Match duration: short waits stay in-place; long jobs (import, quote refresh) need progress or a toast when they finish. |
+| **Forbidden** | Spinner as the only feedback for a long job; static “Loading” text; error `Alert` for “you have no loans yet.” |
+
+Preserve in-session filters and table sort while the user stays in the section. Cross-session view-pref persistence is out of scope (see Tables).
+
+## Search
+
+Follow [Pencil & Paper search UX](https://www.pencilandpaper.io/articles/search-ux) only where a list is long enough to need find. **Search is not a substitute for navigation.** The hamburger + section tabs are how people move; do not add a global command palette to paper over IA.
+
+This app’s search is **find-in-list** (filter a known corpus), not site search and not Spotlight-style command search.
+
+| Rule | Practice |
+|------|----------|
+| **Need** | Add find when a `Select` / [`MultiSelect`](../components/ui/multi-select.tsx) / table is tedious to scan (categories, merchants, CSV columns). Skip it on short lists. |
+| **Placeholder** | Name the corpus: “Search categories…”, not “Search…”. |
+| **Access** | Icon + focus ring; in `MultiSelect` the search field autofocuses when the panel opens. |
+| **Results** | Keep the list in context (dropdown or table filter). Show a hit count when useful. Highlight the match when implementing typeahead. |
+| **Loading / empty** | Do not freeze the panel with no status. Zero hits get an empty line, not a blank hole. |
+| **Out of scope** | Global command search, advanced query syntax, fuzzy-across-the-whole-app. Ask before adding. |
 
 ## What is forbidden
 
@@ -343,6 +446,10 @@ Use [`components/ui/table.tsx`](../components/ui/table.tsx) for every HTML data 
 - Cinematic photography, hero-scale empty states, theatrical motion.
 - Text below 14px for UI copy (`text-xs` reserved for rare chart ticks).
 - Borders **and** shadows on the same card.
+- Full-page success screens for routine capture; generic “Success” / “Error occurred” copy.
+- Raw system/GraphQL messages in the UI (use `toUserFacingMessage`).
+- Global search as a substitute for hamburger / section navigation.
+- Error `Alert` or destructive styling for empty states.
 
 ## When changing the design system itself
 
@@ -363,5 +470,9 @@ Use [`components/ui/table.tsx`](../components/ui/table.tsx) for every HTML data 
 - [ ] Icon-only: `iconOnly` or `fx-hit-40` (≥44×44); swaps via `IconSwap`.
 - [ ] Explicit `transition-*` properties (never `transition: all`).
 - [ ] Mobile-first: hamburger popup nav, dashboard stack, primary CTA in PageHeading on all breakpoints.
+- [ ] Every action has a reaction: default/hover/focus/disabled; empty ≠ error; loading in the region that changes.
+- [ ] Feedback scale matches stakes (field / Alert / toast / Modal); error copy via `toUserFacingMessage`; success names the object.
+- [ ] Nested pages use location crumbs from the section origin; top-level sections have none.
+- [ ] Dashboards: metrics → optional chart → table; no extra viz “because we have the data.”
 - [ ] Verified light and dark via `/settings`.
 - [ ] `npm run lint` and `npm run build` pass.

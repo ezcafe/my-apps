@@ -50,7 +50,7 @@ export function InvestmentActivitiesPage() {
             icon="investment"
             accentChartIndex={4}
             title="No activities yet"
-            description="Record a buy, sell, or dividend to start building your portfolio history."
+            description="Record a buy, sell, deposit, or withdrawal to start building your portfolio history."
             minHeightClass="min-h-[160px]"
             primaryAction={{
               href: "/money/investments/new",
@@ -68,7 +68,7 @@ export function InvestmentActivitiesPage() {
                   <TableHead freeze="leading">Date</TableHead>
                   <TableHead>Instrument</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead align="end">Qty</TableHead>
+                  <TableHead align="end">Volume</TableHead>
                   <TableHead align="end">Amount</TableHead>
                   <TableHead>Notes</TableHead>
                 </TableRow>

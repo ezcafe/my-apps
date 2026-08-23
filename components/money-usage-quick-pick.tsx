@@ -17,9 +17,11 @@ import {
   type BudgetUtilizationChipFill,
 } from "@/lib/budget-utilization-chart-colors";
 import {
+  QUICK_PICK_N,
   isOtherSelection,
   otherChipLabel,
   quickPickIds,
+  shouldShowOtherChip,
   topUsageItems,
   type UsageRankedItem,
 } from "@/lib/money-usage-quick-pick";
@@ -28,8 +30,6 @@ import {
   moneyQuickPickGroupCls,
   moneyQuickPickOtherChipCls,
 } from "@/lib/money-quick-pick-chip-cls";
-
-const QUICK_PICK_N = 5;
 
 export function moneyUsageQuickPickChipCls(active: boolean) {
   return moneyQuickPickChipCls(active);
@@ -160,9 +160,11 @@ export function MoneyUsageQuickPick({
   required,
   items,
   pickerItems: pickerItemsProp,
+  pinnedItems = [],
   selectedId,
   onSelect,
   otherLabel,
+  searchPlaceholder,
   allowEmpty = false,
   emptyLabel = "—",
   emptyCountsAsOther = false,
@@ -170,33 +172,26 @@ export function MoneyUsageQuickPick({
   emptyMessage = "No options yet.",
   renderPickerRow,
   chipBudgetProgressPct,
-  /** Show only the Other chip + searchable list (dense tables / CSV rows). */
   compact = false,
-  /** Hide the legend (useful when nested inside an existing Field). */
   hideLegend = false,
   className,
 }: {
   legend: ReactNode;
   ariaLabel: string;
   required?: boolean;
-  /** Items used for top-5 quick chips (non-empty ids only). */
   items: readonly UsageRankedItem[];
-  /** Full picker list; defaults to `items` plus optional empty row. */
   pickerItems?: readonly UsageRankedItem[];
+  pinnedItems?: readonly UsageRankedItem[];
   selectedId: string;
   onSelect: (id: string) => void;
   otherLabel: string;
+  searchPlaceholder?: string;
   allowEmpty?: boolean;
-  /** Label for the empty (`""`) picker row when `allowEmpty`. */
   emptyLabel?: string;
-  /** When ≤5 items, include a “No category” (etc.) quick chip from picker items. */
   emptyCountsAsOther?: boolean;
-  /** When true with `selectedId === ""`, Other chip shows the empty option label. */
   emptySelectedOnOther?: boolean;
   emptyMessage?: string;
-  /** Optional extra content per picker row (e.g. account balance). */
   renderPickerRow?: (item: UsageRankedItem) => ReactNode;
-  /** Budget utilization % per item id (fills chip from the left). */
   chipBudgetProgressPct?: (id: string) => number | undefined;
   compact?: boolean;
   hideLegend?: boolean;
@@ -207,13 +202,23 @@ export function MoneyUsageQuickPick({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const pinnedIds = useMemo(
+    () => new Set(pinnedItems.map((i) => i.id)),
+    [pinnedItems],
+  );
   const showOtherOnly = compact || (items.length === 0 && allowEmpty);
 
   const quickItems = useMemo(
     () => (showOtherOnly ? [] : topUsageItems(items, QUICK_PICK_N)),
     [items, showOtherOnly],
   );
-  const showOther = showOtherOnly || items.length > QUICK_PICK_N;
+  const showOther =
+    showOtherOnly ||
+    shouldShowOtherChip({
+      itemCount: items.length,
+      n: QUICK_PICK_N,
+      pinnedCount: pinnedItems.length,
+    });
   const chipItems = useMemo(() => {
     if (showOther) return quickItems;
     if (!emptyCountsAsOther) return quickItems;
@@ -223,17 +228,18 @@ export function MoneyUsageQuickPick({
   }, [showOther, emptyCountsAsOther, quickItems, pickerItemsProp, items]);
   const quickIds = useMemo(() => quickPickIds(quickItems), [quickItems]);
   const allPickerItems = pickerItemsProp ?? items;
+  const searchAria = searchPlaceholder ?? `Search ${ariaLabel}…`;
 
   const labelLookupItems = useMemo(() => {
     const byId = new Map<string, UsageRankedItem>();
-    for (const item of [...items, ...allPickerItems]) {
+    for (const item of [...items, ...allPickerItems, ...pinnedItems]) {
       byId.set(item.id, item);
     }
     if (allowEmpty && !byId.has("")) {
       byId.set("", { id: "", label: emptyLabel, usageCount: 0 });
     }
     return [...byId.values()];
-  }, [items, allPickerItems, allowEmpty, emptyLabel]);
+  }, [items, allPickerItems, pinnedItems, allowEmpty, emptyLabel]);
 
   const otherActive =
     showOther &&
@@ -245,6 +251,7 @@ export function MoneyUsageQuickPick({
           items.length,
           QUICK_PICK_N,
           emptySelectedOnOther,
+          pinnedIds,
         ));
   const otherLabelText = showOtherOnly
     ? selectedId
@@ -260,16 +267,37 @@ export function MoneyUsageQuickPick({
         otherLabel,
         QUICK_PICK_N,
         emptySelectedOnOther,
+        pinnedItems,
       );
 
   const pickerItems = useMemo(() => {
-    const base = allowEmpty
-      ? [{ id: "", label: emptyLabel, usageCount: 0 }, ...allPickerItems]
-      : [...allPickerItems];
+    const seen = new Set<string>();
+    const base: UsageRankedItem[] = [];
+    if (allowEmpty) {
+      base.push({ id: "", label: emptyLabel, usageCount: 0 });
+      seen.add("");
+    }
+    for (const item of allPickerItems) {
+      if (pinnedIds.has(item.id) || seen.has(item.id)) continue;
+      seen.add(item.id);
+      base.push(item);
+    }
+    for (const item of pinnedItems) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      base.push(item);
+    }
     const q = searchQuery.trim().toLowerCase();
     if (!q) return base;
     return base.filter((i) => i.label.toLowerCase().includes(q));
-  }, [allPickerItems, allowEmpty, emptyLabel, searchQuery]);
+  }, [
+    allPickerItems,
+    allowEmpty,
+    emptyLabel,
+    pinnedIds,
+    pinnedItems,
+    searchQuery,
+  ]);
 
   useEffect(() => {
     if (!pickerOpen) return;
@@ -313,7 +341,12 @@ export function MoneyUsageQuickPick({
     </legend>
   );
 
-  if (items.length === 0 && !allowEmpty && allPickerItems.length === 0) {
+  if (
+    items.length === 0 &&
+    !allowEmpty &&
+    allPickerItems.length === 0 &&
+    pinnedItems.length === 0
+  ) {
     return (
       <fieldset className={cn("grid min-w-0 gap-1.5 text-sm", className)}>
         {legendNode}
@@ -377,9 +410,9 @@ export function MoneyUsageQuickPick({
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search…"
+                placeholder={searchAria}
                 className="mb-2"
-                aria-label={`Search ${ariaLabel}`}
+                aria-label={searchAria}
                 autoFocus={pickerOpen}
               />
               <ul
@@ -398,36 +431,38 @@ export function MoneyUsageQuickPick({
                       : null;
                     const selected = selectedId === item.id;
                     return (
-                    <li
-                      key={item.id === "" ? "__none" : item.id}
-                      role="option"
-                      aria-selected={selected}
-                    >
-                      <button
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => pick(item.id)}
-                        className={cn(
-                          "relative isolate flex w-full items-center justify-between gap-2 overflow-hidden rounded-[var(--radius-sm)] py-2 pr-3 text-left text-sm transition-[background-color,color] duration-150",
-                          item.isChild ? "pl-8" : "pl-3",
-                          selected ? "bg-accent" : "hover:bg-muted-surface",
-                          selected ? "text-accent-foreground" : "text-foreground",
-                        )}
-                        title={fill ? budgetFillTitle(fill) : undefined}
+                      <li
+                        key={item.id === "" ? "__none" : item.id}
+                        role="option"
+                        aria-selected={selected}
                       >
-                        <QuickPickChipLabel
-                          label={item.label}
-                          fill={fill}
-                          align="start"
-                          selected={selected}
-                        />
-                        {renderPickerRow ? (
-                          <span className="shrink-0 text-sm text-muted">
-                            {renderPickerRow(item)}
-                          </span>
-                        ) : null}
-                      </button>
-                    </li>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => pick(item.id)}
+                          className={cn(
+                            "relative isolate flex w-full items-center justify-between gap-2 overflow-hidden rounded-[var(--radius-sm)] py-2 pr-3 text-left text-sm transition-[background-color,color] duration-150",
+                            item.isChild ? "pl-8" : "pl-3",
+                            selected ? "bg-accent" : "hover:bg-muted-surface",
+                            selected
+                              ? "text-accent-foreground"
+                              : "text-foreground",
+                          )}
+                          title={fill ? budgetFillTitle(fill) : undefined}
+                        >
+                          <QuickPickChipLabel
+                            label={item.label}
+                            fill={fill}
+                            align="start"
+                            selected={selected}
+                          />
+                          {renderPickerRow ? (
+                            <span className="shrink-0 text-sm text-muted">
+                              {renderPickerRow(item)}
+                            </span>
+                          ) : null}
+                        </button>
+                      </li>
                     );
                   })
                 )}

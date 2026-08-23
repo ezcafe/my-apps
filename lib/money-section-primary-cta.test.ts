@@ -24,12 +24,16 @@ describe("moneySectionPrimaryCta", () => {
     assert.equal(moneySectionPrimaryCta("/money/new"), null);
     assert.equal(moneySectionPrimaryCta("/money/loans/new"), null);
     assert.equal(moneySectionPrimaryCta("/money/investments/new"), null);
+    assert.equal(moneySectionPrimaryCta("/money/investments/instruments/new"), null);
   });
 
-  it("returns null on loan/investment detail and module settings", () => {
+  it("returns create CTAs on nested list routes and null on detail", () => {
     assert.equal(moneySectionPrimaryCta("/money/loans/abc-123"), null);
     assert.equal(moneySectionPrimaryCta("/money/loans/settings"), null);
-    assert.equal(moneySectionPrimaryCta("/money/investments/settings"), null);
+    assert.deepEqual(moneySectionPrimaryCta("/money/investments/instruments"), {
+      href: "/money/investments/instruments/new",
+      label: "Create instrument",
+    });
   });
 
   it("defaults Add transaction on insights, import, money settings hub", () => {

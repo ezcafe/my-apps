@@ -4,8 +4,10 @@ import { gqlMinor } from "@/lib/gql-minor";
 import {
   INVESTMENT_ACTIVITIES_QUERY,
   INVESTMENT_BOOTSTRAP_QUERY,
+  INVESTMENT_FX_RATE_QUERY,
   INVESTMENT_HOLDINGS_QUERY,
   INVESTMENT_INSTRUMENTS_QUERY,
+  INVESTMENT_OPEN_ACTIVITIES_QUERY,
   INVESTMENT_PORTFOLIO_SERIES_QUERY,
 } from "@/lib/investment-gql-documents";
 
@@ -32,7 +34,11 @@ export type InvestmentInstrument = {
   currency: string;
   symbol: string;
   yahooSymbol: string | null;
+  contractSize: string;
   archived: boolean;
+  moneyAccountId: string | null;
+  incomeCategoryId: string | null;
+  expenseCategoryId: string | null;
 };
 
 export type InvestmentActivityRow = {
@@ -46,10 +52,15 @@ export type InvestmentActivityRow = {
   type: string;
   quantity: string | null;
   unitPriceMinor: number | null;
+  openPrice: string | null;
+  closePrice: string | null;
+  stopLoss: string | null;
+  takeProfit: string | null;
   amountMinor: number | null;
   notes: string | null;
   moneyAccountId: string | null;
   moneyTransactionId: string | null;
+  status: string | null;
 };
 
 export type InvestmentPortfolioPoint = {
@@ -84,9 +95,13 @@ export const investmentKeys = {
   instruments: () => [...investmentKeys.all, "instruments"] as const,
   activities: (query?: InvestmentActivitiesQueryInput) =>
     [...investmentKeys.all, "activities", query ?? {}] as const,
+  openActivities: (instrumentId?: string) =>
+    [...investmentKeys.all, "openActivities", instrumentId ?? "all"] as const,
   portfolioSeries: (from: string, to: string) =>
     [...investmentKeys.all, "portfolioSeries", from, to] as const,
   holdings: () => [...investmentKeys.all, "holdings"] as const,
+  fxRate: (from: string, to: string) =>
+    [...investmentKeys.all, "fxRate", from, to] as const,
 };
 
 export function investmentBootstrapQueryOptions() {
@@ -149,6 +164,20 @@ export function investmentActivitiesQueryOptions(
   });
 }
 
+export function investmentOpenActivitiesQueryOptions(instrumentId?: string) {
+  return queryOptions({
+    queryKey: investmentKeys.openActivities(instrumentId),
+    queryFn: async () => {
+      const data = await investmentGraphQLRequest<{
+        investmentOpenActivities: InvestmentActivityRow[];
+      }>(INVESTMENT_OPEN_ACTIVITIES_QUERY, {
+        instrumentId: instrumentId ?? null,
+      });
+      return data.investmentOpenActivities;
+    },
+  });
+}
+
 export function investmentPortfolioSeriesQueryOptions(from: string, to: string) {
   return queryOptions({
     queryKey: investmentKeys.portfolioSeries(from, to),
@@ -163,6 +192,24 @@ export function investmentPortfolioSeriesQueryOptions(from: string, to: string) 
         totalMinor: gqlMinor(row.totalMinor),
       }));
     },
+  });
+}
+
+export function investmentFxRateQueryOptions(from: string, to: string) {
+  return queryOptions({
+    queryKey: investmentKeys.fxRate(from, to),
+    queryFn: async () => {
+      const data = await investmentGraphQLRequest<{
+        investmentFxRate: {
+          rate: number;
+          sourceSymbol: string;
+          inverted: boolean;
+          asOf: string;
+        } | null;
+      }>(INVESTMENT_FX_RATE_QUERY, { from, to });
+      return data.investmentFxRate;
+    },
+    staleTime: 60_000,
   });
 }
 
