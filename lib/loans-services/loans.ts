@@ -545,8 +545,8 @@ async function loadInstallmentAggregatesForLoans(loanIds: string[]) {
   return db
     .select({
       loan_id: sql<string>`${loanScheduleInstallment.loanId}::text`,
-      paid_principal: sql<number>`COALESCE(SUM(CASE WHEN ${loanInstallmentStatus.status} = 'paid' THEN ${loanScheduleInstallment.principalMinor} ELSE 0 END), 0)::int`,
-      remaining_interest: sql<number>`COALESCE(SUM(CASE WHEN ${loanInstallmentStatus.status} = 'pending' THEN ${loanScheduleInstallment.interestMinor} ELSE 0 END), 0)::int`,
+      paid_principal: sql<number>`COALESCE(SUM(CASE WHEN ${loanInstallmentStatus.status} = 'paid' THEN ${loanScheduleInstallment.principalMinor} ELSE 0 END), 0)::bigint`,
+      remaining_interest: sql<number>`COALESCE(SUM(CASE WHEN ${loanInstallmentStatus.status} = 'pending' THEN ${loanScheduleInstallment.interestMinor} ELSE 0 END), 0)::bigint`,
       next_due_date: sql<string | null>`MIN(CASE WHEN ${loanInstallmentStatus.status} = 'pending' THEN ${loanScheduleInstallment.dueDate} END)`,
     })
     .from(loanScheduleInstallment)
@@ -571,8 +571,8 @@ async function loadPaidPrincipalInterestInRange(
   }
   const rows = await db
     .select({
-      principal_minor: sql<number>`COALESCE(SUM(${loanScheduleInstallment.principalMinor}), 0)::int`,
-      interest_minor: sql<number>`COALESCE(SUM(${loanScheduleInstallment.interestMinor}), 0)::int`,
+      principal_minor: sql<number>`COALESCE(SUM(${loanScheduleInstallment.principalMinor}), 0)::bigint`,
+      interest_minor: sql<number>`COALESCE(SUM(${loanScheduleInstallment.interestMinor}), 0)::bigint`,
     })
     .from(loanScheduleInstallment)
     .innerJoin(

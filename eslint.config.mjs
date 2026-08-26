@@ -26,6 +26,12 @@ const eslintConfig = defineConfig([
           message:
             "Do not cast a bound JS array as a PG array in sql`…` (postgres.js sends single-element arrays as plain strings). Use inArray() or sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `). See AGENTS.md → Database / Drizzle.",
         },
+        {
+          selector:
+            'TaggedTemplateExpression[tag.name="sql"]:has(TemplateElement[value.raw=/SUM/i]):has(TemplateElement[value.raw=/\\)::int/])',
+          message:
+            "Do not cast SUM of bigint money columns to ::int (PG error 22003 when totals exceed ~2.1B). Use ::bigint or omit the cast. count(*)::int is OK. See AGENTS.md → Database / Drizzle.",
+        },
       ],
     },
   },

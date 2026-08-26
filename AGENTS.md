@@ -50,3 +50,18 @@ sql`WHERE id IN (${sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `)})`
 ```
 
 ESLint flags `sql` templates whose quasi immediately after an interpolation starts with `::type[]` (e.g. `${ids}::uuid[]`). Prefer `inArray()` or `sql.join` over `ANY(${array}::…[])`.
+
+Money amounts (`*_minor` columns) are **`bigint` in Postgres**. Never cast `SUM` / `COALESCE(SUM(…), 0)` of those columns to `::int` — large loans or VND totals exceed int4 (~2.1B) and fail with PG error `22003`:
+
+```ts
+// BAD
+sql<number>`COALESCE(SUM(${loanScheduleInstallment.principalMinor}), 0)::int`
+
+// GOOD — keep bigint (or omit cast; PG preserves bigint)
+sql<number>`COALESCE(SUM(${loanScheduleInstallment.principalMinor}), 0)::bigint`
+
+// GOOD — counts are fine as int
+sql<number>`count(*)::int`
+```
+
+ESLint flags `sql` templates that contain both `SUM` and `)::int`.
