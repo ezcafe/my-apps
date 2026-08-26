@@ -19,6 +19,7 @@ export default async function MoneyBillsPage() {
         userSub={userSub}
         authenticated={Boolean(userSub)}
         preset={MONEY_LEDGER_BILLS}
+        showSummaryStats
       />
     </HydrationBoundary>
   );

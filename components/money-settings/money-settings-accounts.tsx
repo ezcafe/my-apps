@@ -1,6 +1,7 @@
 "use client";
 
 import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
@@ -187,122 +188,178 @@ export function MoneySettingsAccountsSection() {
           className="mb-8"
         />
       ) : null}
-      <SettingsSection id="money-settings-accounts-page" title="Accounts">
-        <form className="flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
-          <Field label="Name" required>
-            <Input
-              placeholder="Checking"
-              value={newAccount}
-              onChange={(e) => setNewAccount(e.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Type">
-            <Select
-              value={newAccountType}
-              onChange={(e) =>
-                setNewAccountType(e.target.value as (typeof ACCOUNT_TYPES)[number])
-              }
-            >
-              {ACCOUNT_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field
-            label="Balance"
-            hint="Current balance in major units; leave empty for 0."
+      <SettingsSection
+        id="money-settings-accounts-page"
+        title="Accounts"
+        description="Bank, cash, and credit accounts used when you add transactions."
+      >
+        <p className="mb-4 text-sm text-muted">
+          <Link
+            href="/money/import/accounts"
+            className="font-medium text-accent underline-offset-2 hover:underline"
           >
-            <Input
-              inputMode="decimal"
-              placeholder={defaultCurrency === "VND" ? "0" : "0.00"}
-              value={newAccountBalanceMajor}
-              onChange={(e) => setNewAccountBalanceMajor(e.target.value)}
-            />
-          </Field>
-          <Button type="submit" variant="primary" className="self-start">
-            Add account
-          </Button>
-        </form>
-        <div className="mt-8 border-t border-border pt-8">
-          <h3 className="text-sm font-medium text-foreground">Existing accounts</h3>
-          <ul className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm text-muted">
-            {visibleAccounts.map((a) => (
-              <li key={a.id} className="px-3 py-2.5">
-                {editingId === a.id ? (
-                  <form className="flex flex-col gap-3" onSubmit={saveEdit}>
-                    <Field label="Name" required>
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        required
-                      />
-                    </Field>
-                    <Field label="Type">
-                      <Select
-                        value={editType}
-                        onChange={(e) =>
-                          setEditType(e.target.value as (typeof ACCOUNT_TYPES)[number])
-                        }
-                        disabled={Boolean(a.systemKey)}
-                      >
-                        {ACCOUNT_TYPES.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                    <Field label="Balance">
-                      <Input
-                        inputMode="decimal"
-                        value={editBalanceMajor}
-                        onChange={(e) => setEditBalanceMajor(e.target.value)}
-                      />
-                    </Field>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="submit" variant="primary" size="sm">
-                        Save
-                      </Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span>
-                      {a.name} · {a.type} · {defaultCurrency} ·{" "}
-                      {formatMinor(a.balanceMinor, defaultCurrency)}
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => startEdit(a)}
-                      >
-                        Edit
-                      </Button>
-                      {!a.systemKey ? (
+            Import from CSV
+          </Link>
+        </p>
+
+        {visibleAccounts.length > 0 ? (
+          <>
+            <h3 className="text-sm font-medium text-foreground">Existing accounts</h3>
+            <ul className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm">
+              {visibleAccounts.map((a) => (
+                <li key={a.id} className="px-3 py-2.5">
+                  {editingId === a.id ? (
+                    <form className="flex flex-col gap-3" onSubmit={saveEdit}>
+                      <Field label="Name" required>
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          required
+                        />
+                      </Field>
+                      <Field label="Type">
+                        <Select
+                          value={editType}
+                          onChange={(e) =>
+                            setEditType(e.target.value as (typeof ACCOUNT_TYPES)[number])
+                          }
+                          disabled={Boolean(a.systemKey)}
+                        >
+                          {ACCOUNT_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                      <Field label="Balance">
+                        <Input
+                          inputMode="decimal"
+                          value={editBalanceMajor}
+                          onChange={(e) => setEditBalanceMajor(e.target.value)}
+                        />
+                      </Field>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="submit" variant="primary" size="sm">
+                          Save
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">{a.name}</p>
+                        <p className="mt-0.5 text-sm text-muted">
+                          {a.type} · {a.currency} ·{" "}
+                          <span className="tabular-nums">
+                            {formatMinor(a.balanceMinor, defaultCurrency)}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           type="button"
-                          variant="danger"
+                          variant="ghost"
                           size="sm"
-                          onClick={() => void removeAccount(a.id, a.name)}
+                          onClick={() => startEdit(a)}
                         >
-                          Remove
+                          Edit
                         </Button>
-                      ) : null}
+                        {!a.systemKey ? (
+                          <Button
+                            type="button"
+                            variant="danger"
+                            size="sm"
+                            onClick={() => void removeAccount(a.id, a.name)}
+                          >
+                            Remove
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8 border-t border-border pt-8">
+              <h3 className="text-sm font-medium text-foreground">Add account</h3>
+              <form className="mt-3 flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
+                <Field label="Name" required>
+                  <Input
+                    placeholder="Checking"
+                    value={newAccount}
+                    onChange={(e) => setNewAccount(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="Type">
+                  <Select
+                    value={newAccountType}
+                    onChange={(e) =>
+                      setNewAccountType(e.target.value as (typeof ACCOUNT_TYPES)[number])
+                    }
+                  >
+                    {ACCOUNT_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Balance" hint="Leave empty for 0.">
+                  <Input
+                    inputMode="decimal"
+                    placeholder={defaultCurrency === "VND" ? "0" : "0.00"}
+                    value={newAccountBalanceMajor}
+                    onChange={(e) => setNewAccountBalanceMajor(e.target.value)}
+                  />
+                </Field>
+                <Button type="submit" variant="primary" className="self-start">
+                  Add account
+                </Button>
+              </form>
+            </div>
+          </>
+        ) : (
+          <form className="flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
+            <Field label="Name" required>
+              <Input
+                placeholder="Checking"
+                value={newAccount}
+                onChange={(e) => setNewAccount(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Type">
+              <Select
+                value={newAccountType}
+                onChange={(e) =>
+                  setNewAccountType(e.target.value as (typeof ACCOUNT_TYPES)[number])
+                }
+              >
+                {ACCOUNT_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Balance" hint="Leave empty for 0.">
+              <Input
+                inputMode="decimal"
+                placeholder={defaultCurrency === "VND" ? "0" : "0.00"}
+                value={newAccountBalanceMajor}
+                onChange={(e) => setNewAccountBalanceMajor(e.target.value)}
+              />
+            </Field>
+            <Button type="submit" variant="primary" className="self-start">
+              Add account
+            </Button>
+          </form>
+        )}
       </SettingsSection>
     </div>
   );

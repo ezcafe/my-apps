@@ -15,7 +15,7 @@ export function isLoansChromePath(pathname: string): boolean {
 
 /**
  * True when the shell aside / fixed mobile menu should hide in favor of an
- * in-page button menu (Money, Investments, Loans, Help, App settings).
+ * in-page button menu (Money, Investments, Loans, Help, Settings).
  */
 export function hidesShellRailChrome(pathname: string): boolean {
   if (isMoneyTabsChromePath(pathname)) return true;

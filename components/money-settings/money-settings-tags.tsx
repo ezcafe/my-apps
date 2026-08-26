@@ -1,6 +1,7 @@
 "use client";
 
 import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
@@ -126,70 +127,101 @@ export function MoneySettingsTagsSection() {
           className="mb-8"
         />
       ) : null}
-      <SettingsSection id="money-settings-tags-page" title="Tags">
-        <form className="flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
-          <Field label="Name" required>
-            <Input
-              placeholder="vacation"
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              required
-            />
-          </Field>
-          <Button type="submit" variant="primary" className="self-start">
-            Add tag
-          </Button>
-        </form>
-        <div className="mt-8 border-t border-border pt-8">
-          <h3 className="text-sm font-medium text-foreground">Existing tags</h3>
-          <ul className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm text-muted">
-            {tags.map((t) => (
-              <li key={t.id} className="px-3 py-2.5">
-                {editingId === t.id ? (
-                  <form className="flex flex-col gap-3" onSubmit={saveEdit}>
-                    <Field label="Name" required>
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        required
-                      />
-                    </Field>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="submit" variant="primary" size="sm">
-                        Save
-                      </Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>
-                        Cancel
-                      </Button>
+      <SettingsSection
+        id="money-settings-tags-page"
+        title="Tags"
+        description="Optional labels you can add to transactions for filtering."
+      >
+        <p className="mb-4 text-sm text-muted">
+          <Link
+            href="/money/import/tags"
+            className="font-medium text-accent underline-offset-2 hover:underline"
+          >
+            Import from CSV
+          </Link>
+        </p>
+        {tags.length > 0 ? (
+          <>
+            <h3 className="text-sm font-medium text-foreground">Existing tags</h3>
+            <ul className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm text-muted">
+              {tags.map((t) => (
+                <li key={t.id} className="px-3 py-2.5">
+                  {editingId === t.id ? (
+                    <form className="flex flex-col gap-3" onSubmit={saveEdit}>
+                      <Field label="Name" required>
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          required
+                        />
+                      </Field>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="submit" variant="primary" size="sm">
+                          Save
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-foreground">{t.name}</span>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEdit(t)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="danger"
+                          size="sm"
+                          onClick={() => void deleteTag(t.id, t.name)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </div>
-                  </form>
-                ) : (
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-foreground">{t.name}</span>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => startEdit(t)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="danger"
-                        size="sm"
-                        onClick={() => void deleteTag(t.id, t.name)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8 border-t border-border pt-8">
+              <h3 className="text-sm font-medium text-foreground">Add tag</h3>
+              <form className="mt-3 flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
+                <Field label="Name" required>
+                  <Input
+                    placeholder="vacation"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Button type="submit" variant="primary" className="self-start">
+                  Add tag
+                </Button>
+              </form>
+            </div>
+          </>
+        ) : (
+          <form className="flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
+            <Field label="Name" required>
+              <Input
+                placeholder="vacation"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                required
+              />
+            </Field>
+            <Button type="submit" variant="primary" className="self-start">
+              Add tag
+            </Button>
+          </form>
+        )}
       </SettingsSection>
     </div>
   );

@@ -4,6 +4,7 @@ export type LoanAppHeaderResolved = {
   title: string;
   breadcrumbs: BreadcrumbItem[];
   cta: { href: string; label: string } | null;
+  meta?: string;
   needsOverride?: boolean;
 };
 
@@ -34,6 +35,7 @@ export function resolveLoanAppHeader(pathname: string): LoanAppHeaderResolved {
         { label: "Create loan" },
       ],
       cta: null,
+      meta: "Set up a loan with balance, rate, and payment schedule.",
     };
   }
 
@@ -45,6 +47,7 @@ export function resolveLoanAppHeader(pathname: string): LoanAppHeaderResolved {
         { label: "Settings" },
       ],
       cta: null,
+      meta: "Payment reminders and notification preferences.",
     };
   }
 
@@ -52,7 +55,8 @@ export function resolveLoanAppHeader(pathname: string): LoanAppHeaderResolved {
     return {
       title: "Insights",
       breadcrumbs: [],
-      cta: CREATE_CTA,
+      cta: null,
+      meta: "Payoff progress, balance trends, and loan metrics for the selected range.",
     };
   }
 
@@ -73,5 +77,6 @@ export function resolveLoanAppHeader(pathname: string): LoanAppHeaderResolved {
     title: "Loans",
     breadcrumbs: [],
     cta: CREATE_CTA,
+    meta: "Active loans, upcoming payments, and payoff progress.",
   };
 }

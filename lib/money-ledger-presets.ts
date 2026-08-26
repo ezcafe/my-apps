@@ -7,6 +7,7 @@ import {
   MONEY_SEED_BILLS,
   MONEY_SEED_NECESSITIES,
 } from "@/lib/money-seed-defaults";
+import type { AnalyticsStatCardId } from "@/components/analytics-stats";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 
 export type MoneyLedgerScopeId =
@@ -67,12 +68,11 @@ export type MoneyLedgerPreset = {
 
 export const MONEY_LEDGER_SPENDING: MoneyLedgerPreset = {
   title: "Spending",
-  description:
-    "Everyday expenses, income, and transfers on checking, cash, and credit accounts. Default range is the current calendar month — apply to refresh.",
+  description: "Checking, cash, and credit activity this month.",
   emptyState: {
     title: "Nothing in this range",
     description:
-      "Try widening the date range, or add a transaction to track spending and income.",
+      "Widen the date range or add a transaction.",
     icon: "wallet",
     accentChartIndex: 0,
     primaryAction: { href: "/money/new", label: "Add transaction" },
@@ -85,12 +85,11 @@ export const MONEY_LEDGER_SPENDING: MoneyLedgerPreset = {
 
 export const MONEY_LEDGER_BILLS: MoneyLedgerPreset = {
   title: "Bills",
-  description:
-    "Expenses categorized as Bills (under Necessities). Default range is the current calendar month — apply to refresh.",
+  description: "Expenses in your Bills category.",
   emptyState: {
     title: "No bills this month",
     description:
-      "When you categorize an expense as Bills, it will show up here. You can also widen the date range.",
+      "Categorize an expense as Bills, or widen the date range.",
     icon: "bills",
     accentChartIndex: 5,
     primaryAction: { href: "/money/new", label: "Add bill expense" },
@@ -113,12 +112,11 @@ export const MONEY_LEDGER_BILLS: MoneyLedgerPreset = {
 
 export const MONEY_LEDGER_SAVINGS: MoneyLedgerPreset = {
   title: "Savings",
-  description:
-    "Deposits, withdrawals, and interest on savings accounts. Default range is the current calendar month — apply to refresh.",
+  description: "Deposits, withdrawals, and interest on savings accounts.",
   emptyState: {
     title: "No savings activity",
     description:
-      "Transfers and interest on savings accounts appear here. Try a wider date range if you expect older entries.",
+      "Record a transfer or widen the date range.",
     icon: "savings",
     accentChartIndex: 3,
     primaryAction: { href: "/money/new", label: "Record a transfer" },
@@ -243,6 +241,25 @@ export function buildMoneyAnalyticsFilterQuery(
     preset,
     resolvedCategoryIds.length > 0 ? resolvedCategoryIds : undefined,
   );
+}
+
+/** KPI card order tuned per ledger tab scan priority. */
+export function moneyLedgerStatCardOrder(
+  preset: MoneyLedgerPreset | undefined,
+): readonly AnalyticsStatCardId[] {
+  if (!preset) {
+    return ["income", "expense", "net", "savings"];
+  }
+  if (preset.title === "Bills") {
+    return ["expense", "income", "net", "savings"];
+  }
+  if (preset.title === "Savings") {
+    return ["net", "income", "expense", "savings"];
+  }
+  if (preset.title === "Investments") {
+    return ["net", "income", "expense", "savings"];
+  }
+  return ["income", "expense", "net", "savings"];
 }
 
 export function parseMoneyLedgerScopeId(

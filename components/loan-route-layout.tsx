@@ -19,6 +19,7 @@ function LoanSectionHeading() {
   const title = override?.title ?? resolved.title;
   const breadcrumbs = override?.breadcrumbs ?? resolved.breadcrumbs;
   const description = override?.description;
+  const meta = override?.meta ?? resolved.meta;
   const cta =
     override != null && "cta" in override
       ? override.cta ?? null
@@ -30,6 +31,7 @@ function LoanSectionHeading() {
       leading={<MoneyAppMenu />}
       title={title}
       description={description}
+      meta={meta}
       breadcrumbs={breadcrumbs}
       actions={
         cta ? (

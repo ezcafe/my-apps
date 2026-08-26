@@ -16,6 +16,7 @@ import {
   CHART_CARD_LAYOUT,
 } from "@/components/analytics-chart-layout";
 import {
+  AnalyticsStatsSkeleton,
   MoneyAnalyticsChartsSkeleton,
   MoneyAnalyticsFiltersBarSkeleton,
   MoneyAnalyticsPageSkeleton,
@@ -25,6 +26,8 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { AnalyticsStats } from "@/components/analytics-stats";
+import { AnalyticsPeriodChip } from "@/components/analytics-period-chip";
+import { useSetAppHeader } from "@/components/app-header-override";
 import { useTheme } from "@/components/theme-provider";
 import { Alert } from "@/components/ui/alert";
 import { MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK } from "@/lib/money-layout";
@@ -78,7 +81,6 @@ import {
   type MoneyLedgerScopeId,
 } from "@/lib/money-ledger-presets";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
 
 const chartCardLoading = () => (
   <Card
@@ -158,6 +160,9 @@ type AnalyticsInsightsBodyProps = {
   accounts: AnalyticsLookupAccount[];
   tags: AnalyticsLookupTag[];
   onChartDrilldown: (payload: AnalyticsChartDrilldownPayload) => void;
+  /** When parent already loaded ATF summary (KPI row above filters). */
+  summary: MoneyAnalyticsSummaryPayload | null;
+  atfPieSpend?: MoneyAnalyticsDistributionPayload["pieSpend"];
 };
 
 function AnalyticsInsightsBody({
@@ -173,20 +178,13 @@ function AnalyticsInsightsBody({
   accounts,
   tags,
   onChartDrilldown,
+  summary,
+  atfPieSpend,
 }: AnalyticsInsightsBodyProps) {
-  const atfQuery = useQuery({
-    ...moneyAnalyticsAtfQueryOptions(workspaceKey, filterQuery),
-    enabled: Boolean(workspaceKey),
-  });
   const insightsQuery = useQuery({
     ...moneyAnalyticsInsightsQueryOptions(workspaceKey, filterQuery),
     enabled: moreInsights && Boolean(workspaceKey),
   });
-
-  const summary = atfQuery.data?.moneyAnalyticsAtf.summary as
-    | MoneyAnalyticsSummaryPayload
-    | undefined;
-  const atfPieSpend = atfQuery.data?.moneyAnalyticsAtf.pieSpend;
   const insights = insightsQuery.data?.moneyAnalyticsInsights;
   const overview = insights?.overview ?? null;
   const distribution = insights?.distribution ?? null;
@@ -318,7 +316,6 @@ function AnalyticsChartsView({
       | undefined) ?? null;
 
   const summaryStats = summary.stats;
-  const summaryRange = summary.range;
   const overviewColumn = useMemo(() => overview?.column ?? [], [overview?.column]);
   const overviewLineCompare = overview?.lineCompare;
 
@@ -414,13 +411,6 @@ function AnalyticsChartsView({
 
   return (
     <>
-      <AnalyticsStats
-        stats={summaryStats}
-        column={moreInsights ? overviewColumn : undefined}
-        range={summaryRange}
-        currency={defaultCurrency}
-      />
-
       <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:grid-cols-2 md:gap-3 lg:col-span-12">
         <IncomeVsExpenseCard
           overviewReady
@@ -445,15 +435,24 @@ function AnalyticsChartsView({
       </div>
 
       {!moreInsights ? (
-        <div className="col-span-2 flex flex-wrap justify-end gap-3 md:col-span-6 lg:col-span-12">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onExpandMoreInsights}
-          >
-            More insights
-          </Button>
+        <div className="col-span-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 md:col-span-6 lg:col-span-12">
+          {(
+            [
+              { title: "Budget vs actual", hint: "See if you are on track this month" },
+              { title: "Top merchants", hint: "Where you spend the most" },
+              { title: "Recurring spend", hint: "Subscriptions and repeating bills" },
+            ] as const
+          ).map(({ title, hint }) => (
+            <button
+              key={title}
+              type="button"
+              onClick={onExpandMoreInsights}
+              className="rounded-[var(--radius-md)] border border-border bg-surface px-4 py-3 text-left transition-colors duration-200 hover:bg-muted-surface fx-press"
+            >
+              <span className="block text-sm font-medium text-foreground">{title}</span>
+              <span className="mt-1 block text-sm text-muted">{hint}</span>
+            </button>
+          ))}
         </div>
       ) : null}
 
@@ -851,12 +850,47 @@ export function AnalyticsDashboard({
     (queryErrorMessage(merchantLookupsQuery.error)) ??
     (queryErrorMessage(recurrenceLookupsQuery.error));
 
+  useSetAppHeader({
+    meta: "Income, spending, and category trends for the selected range.",
+  });
+
+  const atfQuery = useQuery({
+    ...moneyAnalyticsAtfQueryOptions(activeWorkspaceId, analyticsFilterQuery),
+    enabled:
+      Boolean(activeWorkspaceId) &&
+      !workspaceSyncPending &&
+      lookupsReady,
+  });
+  const atfSummary = (atfQuery.data?.moneyAnalyticsAtf.summary as
+    | MoneyAnalyticsSummaryPayload
+    | undefined) ?? null;
+  const atfPieSpend = atfQuery.data?.moneyAnalyticsAtf.pieSpend;
+
   if (!workspaceReady && !bootstrapQuery.data && !bootstrapQuery.error) {
     return <MoneyAnalyticsPageSkeleton />;
   }
 
   return (
     <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
+      <AnalyticsPeriodChip
+        fromDate={applied.fromDate}
+        toDate={applied.toDate}
+        dirty={dirty}
+      />
+
+      {atfSummary ? (
+        <section aria-label="Summary metrics">
+          <AnalyticsStats
+            stats={atfSummary.stats}
+            range={atfSummary.range}
+            currency={defaultCurrency}
+            showPeriodCaption={false}
+          />
+        </section>
+      ) : activeWorkspaceId && !workspaceSyncPending ? (
+        <AnalyticsStatsSkeleton showPeriodLine={false} />
+      ) : null}
+
       <AnalyticsFiltersBar
         viewFilter={{
           menuLabel: "Ledger",
@@ -907,6 +941,8 @@ export function AnalyticsDashboard({
             accounts={accounts}
             tags={tags}
             onChartDrilldown={handleChartDrilldown}
+            summary={atfSummary}
+            atfPieSpend={atfPieSpend}
           />
         </section>
       ) : (

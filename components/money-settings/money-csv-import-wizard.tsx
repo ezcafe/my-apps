@@ -6,6 +6,7 @@ import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -20,6 +21,7 @@ import {
 import { cn } from "@/lib/cn";
 import { moneyQuickPickChipCls, moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { MoneyStatusEmphasis, MoneyStatusStrip } from "@/lib/money-status-strip";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import type { UsageRankedItem } from "@/lib/money-usage-quick-pick";
 import {
@@ -93,10 +95,22 @@ const STEP_META: Record<
   WizardStep,
   { title: string; hint: string }
 > = {
-  type: { title: "Import type", hint: "Choose what you are importing" },
-  upload: { title: "Upload", hint: "CSV file with a header row" },
-  map: { title: "Map", hint: "Match columns and resolve values" },
-  review: { title: "Review", hint: "Confirm before importing" },
+  type: {
+    title: "Import type",
+    hint: "What are you bringing in? Pick the list that matches your file.",
+  },
+  upload: {
+    title: "Upload",
+    hint: "Use a CSV with a header row. We’ll suggest column matches next.",
+  },
+  map: {
+    title: "Map",
+    hint: "Match columns, then fix any values we couldn’t recognize.",
+  },
+  review: {
+    title: "Review",
+    hint: "Check the summary below, then import.",
+  },
 };
 
 function toCsvCell(value: string): string {
@@ -125,6 +139,53 @@ function toCsvErrorSummary(rawMessage: string): string {
   } catch {
     return rawMessage;
   }
+}
+
+function parseImportErrorMessages(rawMessage: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(rawMessage);
+    if (!Array.isArray(parsed)) return [rawMessage];
+    const messages = parsed
+      .filter((item): item is { message?: unknown } => Boolean(item))
+      .map((item) =>
+        typeof item.message === "string" ? item.message : rawMessage,
+      )
+      .filter(Boolean);
+    return messages.length > 0 ? messages : [rawMessage];
+  } catch {
+    return [rawMessage];
+  }
+}
+
+function requiredColumnsProgress(
+  kind: MoneyImportKind,
+  columnByField: Record<string, string>,
+): { mapped: number; total: number } {
+  let mapped = 0;
+  let total = 0;
+  for (const f of moneyImportFieldDefs(kind)) {
+    if (!f.required) continue;
+    total += 1;
+    if ((columnByField[f.key] ?? "").trim()) mapped += 1;
+  }
+  return { mapped, total };
+}
+
+function missingRequiredFieldLabels(
+  kind: MoneyImportKind,
+  columnByField: Record<string, string>,
+): string[] {
+  return moneyImportFieldDefs(kind)
+    .filter((f) => f.required && !(columnByField[f.key] ?? "").trim())
+    .map((f) => f.label);
+}
+
+function formatImportPreviewCell(value: unknown): string {
+  if (value == null) return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") return value.trim() || "—";
+  return String(value);
 }
 
 function ImportTypeChevron() {
@@ -263,6 +324,7 @@ function ImportProgress({
           style={{ width: `${progressPct}%` }}
         />
       </div>
+      <p className="text-sm text-muted">{STEP_META[current].hint}</p>
       <div
         role="radiogroup"
         aria-label="Import steps"
@@ -693,6 +755,78 @@ export function MoneyCsvImportWizard({
     txAllCategoryEntities,
   ]);
 
+  const unresolvedValueCount = useMemo(() => {
+    if (!kind) return 0;
+    let count = 0;
+    for (const f of valueFields) {
+      const col = columnByField[f.key] ?? "";
+      if (!includeMoneyImportValueMappingColumn(kind, f, col)) continue;
+      if (kind === "categories" && f.key === "parentId") {
+        const nameCol = columnByField.name ?? "";
+        for (let i = 0; i < parsedRows.length; i++) {
+          const row = parsedRows[i]!;
+          const catName = nameCol ? String(row[nameCol] ?? "").trim() : "";
+          if (!catName) continue;
+          const key = categoryImportParentPickKey(i);
+          const pick = valuePicksByField.parentId?.[key];
+          if (!categoryImportParentPickSatisfies(pick)) count += 1;
+        }
+        continue;
+      }
+      const distinct = listDistinctForMoneyImportField(
+        kind,
+        f,
+        parsedRows,
+        columnByField,
+        headers,
+        5000,
+      );
+      const keys = mergeMatchValueRowKeys(distinct, valuePicksByField[f.key]);
+      const entities = f.fk
+        ? kind === "transactions" && f.key === "categoryId" && f.fk === "category_leaf"
+          ? txAllCategoryEntities
+          : fkAllRowsForField(f.fk, accounts, merchants, categories)
+        : [];
+      for (const k of keys) {
+        const pick = valuePicksByField[f.key]?.[k];
+        if (f.valueKind === "enum" || f.valueKind === "bool") {
+          if (!enumBoolPickSatisfiesImport(f, k, pick)) count += 1;
+        } else if (f.fk) {
+          if (!fkPickSatisfiesImport(f, k, pick, entities)) count += 1;
+        }
+      }
+    }
+    return count;
+  }, [
+    valueFields,
+    columnByField,
+    parsedRows,
+    headers,
+    kind,
+    valuePicksByField,
+    accounts,
+    merchants,
+    categories,
+    txAllCategoryEntities,
+  ]);
+
+  const mapRequiredProgress = useMemo(
+    () => (kind ? requiredColumnsProgress(kind, columnByField) : { mapped: 0, total: 0 }),
+    [kind, columnByField],
+  );
+
+  const missingRequiredLabels = useMemo(
+    () => (kind ? missingRequiredFieldLabels(kind, columnByField) : []),
+    [kind, columnByField],
+  );
+
+  const reviewPreviewColumns = useMemo(() => {
+    if (!kind) return [];
+    return moneyImportFieldDefs(kind).filter(
+      (f) => (columnByField[f.key] ?? "").trim().length > 0,
+    );
+  }, [kind, columnByField]);
+
   const refreshEntityLists = useCallback(async () => {
     const [a, m, c, t] = await Promise.all([
       moneyGraphQLRequest<{ moneyAccounts: AccountRow[] }>(MONEY_LIST_ACCOUNTS_QUERY),
@@ -921,16 +1055,32 @@ export function MoneyCsvImportWizard({
 
       {step === "map" && kind ? (
         <div className="mt-8 space-y-10">
+          <MoneyStatusStrip>
+            <MoneyStatusEmphasis>{parsedRows.length}</MoneyStatusEmphasis> rows ·{" "}
+            <MoneyStatusEmphasis>
+              {mapRequiredProgress.mapped}/{mapRequiredProgress.total}
+            </MoneyStatusEmphasis>{" "}
+            required columns
+            {valueFields.length > 0 ? (
+              <>
+                {" "}
+                ·{" "}
+                {unresolvedValueCount > 0 ? (
+                  <>
+                    <MoneyStatusEmphasis>{unresolvedValueCount}</MoneyStatusEmphasis>{" "}
+                    {unresolvedValueCount === 1 ? "value to fix" : "values to fix"}
+                  </>
+                ) : (
+                  <span className="font-medium text-foreground">values ready</span>
+                )}
+              </>
+            ) : null}
+          </MoneyStatusStrip>
+
           <div>
-            <Alert
-              variant="warning"
-              className="mb-4"
-              title="Column mapping"
-              description={`${parsedRows.length} data row(s). Map each CSV column to a field (optional columns can be skipped).`}
-            />
-            <h3 className="text-sm font-medium text-foreground">Column mapping</h3>
+            <h3 className="text-sm font-medium text-foreground">Match your file columns</h3>
             <p className="mt-1 text-sm text-muted">
-              First row shows a sample value from your file for each column.
+              Sample values come from the first row of your file.
             </p>
             <div className="mt-3">
               <Table className="min-w-[32rem]">
@@ -981,16 +1131,30 @@ export function MoneyCsvImportWizard({
                 </TableBody>
               </Table>
             </div>
-            {!allRequiredColumnsMapped(kind, columnByField) ? (
-              <p className="mt-2 text-sm text-destructive">
-                Map all required fields (marked with *).
-              </p>
+            {!allRequiredColumnsMapped(kind, columnByField) && missingRequiredLabels.length > 0 ? (
+              <Alert
+                variant="warning"
+                className="mt-3"
+                title="Required columns missing"
+                description={
+                  <>
+                    Map{" "}
+                    {missingRequiredLabels.map((label, i) => (
+                      <span key={label}>
+                        {i > 0 ? (i === missingRequiredLabels.length - 1 ? ", and " : ", ") : ""}
+                        <span className="font-medium text-foreground">{label}</span>
+                      </span>
+                    ))}{" "}
+                    to continue.
+                  </>
+                }
+              />
             ) : null}
           </div>
 
           {valueFields.length > 0 ? (
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-foreground">Value mapping</h3>
+              <h3 className="text-sm font-medium text-foreground">Fix unrecognized values</h3>
               {valueFields.map((f) => {
                 const entities =
                   f.fk != null
@@ -1017,7 +1181,6 @@ export function MoneyCsvImportWizard({
                     >
                       <h4 className="text-sm font-semibold text-foreground">
                         {f.label}
-                        <span className="ml-2 font-normal text-muted">({f.key})</span>
                       </h4>
                       <p className="mt-1 text-sm text-muted">
                         One parent per imported row. CSV parent values are hints only; the
@@ -1144,7 +1307,6 @@ export function MoneyCsvImportWizard({
                   <div key={f.key} className="rounded-[var(--radius-md)] border border-border p-4">
                     <h4 className="text-sm font-semibold text-foreground">
                       {f.label}
-                      <span className="ml-2 font-normal text-muted">({f.key})</span>
                     </h4>
                     <div className="mt-3">
                       <Table maxHeight="18rem" className="text-sm">
@@ -1464,36 +1626,109 @@ export function MoneyCsvImportWizard({
       ) : null}
 
       {step === "review" && preview && kind ? (
-        <div className="mt-8 space-y-4">
-          <p className="text-sm text-muted">
-            Valid rows: {preview.rows.length}. Row issues: {preview.errors.length}.
-          </p>
-          {preview.errors.length > 0 ? (
-            <div className="space-y-2">
-              <p className="text-sm text-muted">Rows with errors (CSV)</p>
-              <pre className="max-h-44 overflow-auto rounded-[var(--radius-md)] border border-border bg-background p-2 text-sm font-mono text-foreground">
-                {reviewErrorCsv}
-              </pre>
+        <div className="mt-8 space-y-6">
+          <div>
+            <h3 className="text-sm font-medium text-foreground">Review import</h3>
+            <p className="mt-1 text-sm text-muted">
+              Importing{" "}
+              <span className="font-medium text-foreground">
+                {moneyImportSectionTitle[kind]}
+              </span>
+              {" · "}
+              <span className="font-medium text-foreground tabular-nums">
+                {preview.rows.length}
+              </span>{" "}
+              {preview.rows.length === 1 ? "row ready" : "rows ready"}
+            </p>
+          </div>
+
+          <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3">
+            <Card className="px-4 py-4">
+              <p className="text-sm font-medium text-muted">Ready to import</p>
+              <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums text-foreground">
+                {preview.rows.length}
+              </p>
+            </Card>
+            <Card className="px-4 py-4">
+              <p className="text-sm font-medium text-muted">Rows with issues</p>
+              <p
+                className={cn(
+                  "mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums",
+                  preview.errors.length > 0 ? "text-destructive" : "text-foreground",
+                )}
+              >
+                {preview.errors.length}
+              </p>
+            </Card>
+          </div>
+
+          {reviewPreviewColumns.length > 0 && reviewSampleRows.length > 0 ? (
+            <div>
+              <h4 className="text-sm font-medium text-foreground">Preview</h4>
+              <div className="mt-3">
+                <Table className="min-w-[28rem] text-sm">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      {reviewPreviewColumns.map((col) => (
+                        <TableHead key={col.key}>{col.label}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reviewSampleRows.map((row, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="align-top text-muted">{i + 1}</TableCell>
+                        {reviewPreviewColumns.map((col) => (
+                          <TableCell
+                            key={col.key}
+                            className="max-w-[14rem] truncate align-top text-foreground"
+                          >
+                            {formatImportPreviewCell(
+                              (row as Record<string, unknown>)[col.key],
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           ) : null}
-          <Table className="min-w-[28rem] text-sm">
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>Row (JSON)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {reviewSampleRows.map((row, i) => (
-                <TableRow key={i} className="font-mono">
-                  <TableCell className="align-top text-muted">{i + 1}</TableCell>
-                  <TableCell className="max-w-0 break-all text-foreground">
-                    {JSON.stringify(row)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+
+          {preview.errors.length > 0 ? (
+            <Alert
+              variant="error"
+              title={`${preview.errors.length} ${preview.errors.length === 1 ? "row needs" : "rows need"} attention`}
+              list={preview.errors.flatMap((err) =>
+                parseImportErrorMessages(err.message).map(
+                  (msg) => `Row ${err.rowNumber}: ${msg}`,
+                ),
+              )}
+            />
+          ) : null}
+
+          {reviewErrorCsv ? (
+            <p className="text-sm text-muted">
+              <a
+                href={`data:text/csv;charset=utf-8,${encodeURIComponent(reviewErrorCsv)}`}
+                download="import-errors.csv"
+                className="font-medium text-accent underline-offset-2 hover:underline"
+              >
+                Download error report
+              </a>
+            </p>
+          ) : null}
+
+          {preview.rows.length > 0 ? (
+            <p className="text-sm text-foreground">
+              Ready to import{" "}
+              <span className="font-semibold tabular-nums">{preview.rows.length}</span>{" "}
+              {moneyImportSectionTitle[kind].toLowerCase()}.
+            </p>
+          ) : null}
+
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="ghost" onClick={() => setStep("map")}>
               Back
@@ -1504,7 +1739,9 @@ export function MoneyCsvImportWizard({
               disabled={busy !== null || preview.rows.length === 0}
               onClick={() => void runImport()}
             >
-              {busy === "import" ? "Importing…" : `Import ${preview.rows.length} row(s)`}
+              {busy === "import"
+                ? "Importing…"
+                : `Import ${preview.rows.length} ${moneyImportSectionTitle[kind].toLowerCase()}`}
             </Button>
           </div>
         </div>

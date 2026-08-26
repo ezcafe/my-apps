@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { resolveInvestmentAppHeader } from "@/lib/investment-app-header";
+import { MONEY_LEDGER_INVESTMENT } from "@/lib/money-ledger-presets";
 
 describe("resolveInvestmentAppHeader", () => {
   it("exposes instrumentsHref and record CTA on the list only", () => {
@@ -9,12 +10,10 @@ describe("resolveInvestmentAppHeader", () => {
       breadcrumbs: [],
       cta: { href: "/investments/new", label: "Record activity" },
       instrumentsHref: "/investments/instruments",
+      meta: MONEY_LEDGER_INVESTMENT.description,
     });
     assert.equal(resolveInvestmentAppHeader("/investments/insights").title, "Insights");
-    assert.deepEqual(resolveInvestmentAppHeader("/investments/insights").cta, {
-      href: "/investments/new",
-      label: "Record activity",
-    });
+    assert.equal(resolveInvestmentAppHeader("/investments/insights").cta, null);
   });
 
   it("hides CTA on create forms and uses nested crumbs", () => {

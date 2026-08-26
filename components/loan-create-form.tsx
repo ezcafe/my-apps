@@ -12,9 +12,11 @@ import {
 } from "@/components/money-date-quick-pick";
 import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { AboutDisclosure } from "@/components/ui/about-disclosure";
 import {
   Table,
   TableBody,
@@ -571,7 +573,13 @@ export function LoanCreateForm() {
           {ltvLabel != null ? (
             <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]">
               <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 px-3 py-2">
-                <p className="text-sm text-muted">LTV ratio</p>
+                <p className="flex items-center gap-1 text-sm text-muted">
+                  LTV ratio
+                  <AboutDisclosure compact label="About LTV">
+                    Loan amount divided by collateral value — lower is safer for
+                    the lender.
+                  </AboutDisclosure>
+                </p>
                 <p className="mt-0.5 text-sm font-medium tabular-nums">{ltvLabel}</p>
               </div>
               {downPaymentMinor != null ? (
@@ -695,8 +703,8 @@ export function LoanCreateForm() {
                   </span>
                   <p className="mt-0.5 text-sm text-muted">
                     From month {parsedInputs!.initialRateMonths! + 1}, payment
-                    recalculates via PMT on the remaining balance unless you
-                    override it here.
+                    recalculates as an estimated monthly payment on the remaining
+                    balance unless you override it here.
                   </p>
                   {useCustomPaymentAfterRateChange ? (
                     <Field
@@ -723,7 +731,7 @@ export function LoanCreateForm() {
               Optional: link payments to your Money workspace (
               {moneyBootstrap.data?.workspaceId
                 ? "connected"
-                : "open /money to set up"}
+                : "set up in Money settings → Accounts"}
               ).
             </p>
             <div className="mt-3 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
@@ -755,11 +763,15 @@ export function LoanCreateForm() {
             {saving ? "Creating…" : "Create loan"}
           </Button>
           {needsMoneyAccountForAutoMark ? (
-            <p className="text-sm text-muted">
-              {!moneyBootstrap.data?.workspaceId
-                ? "Open /money to set up a workspace before creating transactions for past-due installments."
-                : "Select a pay-from account to create Money transactions for past-due installments."}
-            </p>
+            <Alert
+              variant="warning"
+              title="Account required"
+              description={
+                !moneyBootstrap.data?.workspaceId
+                  ? "Set up a Money workspace in Money settings → Accounts before creating transactions for past-due installments."
+                  : "Select a pay-from account to create Money transactions for past-due installments."
+              }
+            />
           ) : null}
         </form>
     </div>

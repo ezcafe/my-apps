@@ -14,6 +14,8 @@ import type { MoneySectionPrimaryCta } from "@/lib/money-section-primary-cta";
 export type AppHeaderOverride = {
   title?: string;
   description?: ReactNode;
+  /** One-line scope under the title row. */
+  meta?: ReactNode;
   breadcrumbs?: BreadcrumbItem[];
   /** When set, replaces pathname-derived CTA; `null` hides CTA. */
   cta?: MoneySectionPrimaryCta | null;
@@ -59,6 +61,7 @@ export function useSetAppHeader(next: AppHeaderOverride | null): void {
 
   const title = next?.title;
   const description = next?.description;
+  const meta = next?.meta;
   const hasCtaKey = next != null && "cta" in next;
   const ctaHref = next?.cta?.href;
   const ctaLabel = next?.cta?.label;
@@ -70,7 +73,13 @@ export function useSetAppHeader(next: AppHeaderOverride | null): void {
   useEffect(() => {
     if (!setOverride) return;
 
-    if (title == null && description == null && !crumbsKey && !hasCtaKey) {
+    if (
+      title == null &&
+      description == null &&
+      meta == null &&
+      !crumbsKey &&
+      !hasCtaKey
+    ) {
       setOverride(null);
       return () => setOverride(null);
     }
@@ -93,6 +102,7 @@ export function useSetAppHeader(next: AppHeaderOverride | null): void {
     setOverride({
       ...(title != null ? { title } : {}),
       ...(description != null ? { description } : {}),
+      ...(meta != null ? { meta } : {}),
       ...(breadcrumbs.length > 0 ? { breadcrumbs } : {}),
       ...(cta !== undefined ? { cta } : {}),
     });
@@ -102,6 +112,7 @@ export function useSetAppHeader(next: AppHeaderOverride | null): void {
     setOverride,
     title,
     description,
+    meta,
     crumbsKey,
     hasCtaKey,
     ctaHref,

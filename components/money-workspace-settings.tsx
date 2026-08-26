@@ -64,7 +64,7 @@ function LedgerLinkChevron() {
 
 export function MoneyWorkspaceSettings() {
   const notify = useNotify();
-  const { refreshWorkspaceCurrency } = useWorkspaceCurrency();
+  const { refreshWorkspaceCurrency, defaultCurrency } = useWorkspaceCurrency();
   const { visibility, setVisible } = useMoneySectionTabVisibility();
 
   const [workspaceList, setWorkspaceList] = useState<WorkspaceRow[]>([]);
@@ -100,6 +100,8 @@ export function MoneyWorkspaceSettings() {
     };
   }, [refreshMoneyWorkspaceContext]);
 
+  const activeWorkspace = workspaceList.find((w) => w.id === moneyWorkspaceId);
+
   return (
     <div className={MONEY_FULL_SPAN}>
       {bootstrapErr ? (
@@ -111,11 +113,51 @@ export function MoneyWorkspaceSettings() {
         />
       ) : null}
 
+      {activeWorkspace ? (
+        <p className="mb-6 text-sm text-muted">
+          Workspace{" "}
+          <span className="font-medium text-foreground">{activeWorkspace.name}</span>
+          {defaultCurrency ? (
+            <>
+              {" "}
+              ·{" "}
+              <span className="font-medium text-foreground tabular-nums">
+                {defaultCurrency}
+              </span>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+
       <div className="space-y-6">
         <SettingsSection
+          id="money-settings-ledger"
+          title="Accounts & categories"
+          description="Editors for accounts, categories, merchants, tags, budgets, rules, and recurrence."
+        >
+          <ul
+            role="list"
+            className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-px overflow-hidden rounded-[var(--radius-sm)] bg-border"
+            aria-label="Ledger and automation"
+          >
+            {LEDGER_MANAGEMENT_LINKS.map(({ href, label }) => (
+              <li key={href} className="min-w-0">
+                <Link
+                  href={href}
+                  className="relative flex items-center gap-x-3 bg-background px-4 py-4 text-sm font-semibold text-foreground transition-colors duration-200 hover:bg-muted-surface focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground fx-press"
+                >
+                  <span className="min-w-0 flex-1">{label}</span>
+                  <LedgerLinkChevron />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </SettingsSection>
+
+        <SettingsSection
           id="money-settings-section-tabs"
-          title="Section menu"
-          description="Choose which optional sections appear under Money in the navigation menu. Insights, Add transaction, Spending, and Money settings always stay visible. Investments is a separate app in the same menu."
+          title="Show in menu"
+          description="Choose which Money tabs appear in the navigation menu. Insights, Add transaction, Spending, and Money settings always stay visible."
         >
           <ul
             role="list"
@@ -140,30 +182,6 @@ export function MoneyWorkspaceSettings() {
                 </li>
               );
             })}
-          </ul>
-        </SettingsSection>
-
-        <SettingsSection
-          id="money-settings-ledger"
-          title="Accounts & categories"
-          description="Detailed editors open on each page below. Everything applies to your currently selected Money workspace."
-        >
-          <ul
-            role="list"
-            className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-px overflow-hidden rounded-[var(--radius-sm)] bg-border"
-            aria-label="Ledger and automation"
-          >
-            {LEDGER_MANAGEMENT_LINKS.map(({ href, label }) => (
-              <li key={href} className="min-w-0">
-                <Link
-                  href={href}
-                  className="relative flex items-center gap-x-3 bg-background px-4 py-4 text-sm font-semibold text-foreground transition-colors duration-200 hover:bg-muted-surface focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground fx-press"
-                >
-                  <span className="min-w-0 flex-1">{label}</span>
-                  <LedgerLinkChevron />
-                </Link>
-              </li>
-            ))}
           </ul>
         </SettingsSection>
 

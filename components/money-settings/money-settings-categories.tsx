@@ -93,6 +93,14 @@ export function MoneySettingsCategoriesSection() {
         title="Categories"
         description="Create and organize expense and income categories. Subcategories are grouped under their parent."
       >
+        <p className="mb-4 text-sm text-muted">
+          <a
+            href="/money/import/categories"
+            className="font-medium text-accent underline-offset-2 hover:underline"
+          >
+            Import from CSV
+          </a>
+        </p>
         <Tabs
           name="money-settings-category-kind"
           items={[
@@ -303,37 +311,9 @@ function CategoryKindPanel({
   return (
     <>
       <p className="text-sm text-muted">{meta.description}</p>
-      <form className="mt-4 flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
-        <Field label="Name" required>
-          <Input
-            placeholder={meta.placeholder}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            required
-          />
-        </Field>
-        <Field label="Parent (optional)">
-          <Select
-            value={newParentId}
-            onChange={(e) => setNewParentId(e.target.value)}
-          >
-            <option value="">Top-level category</option>
-            {rootCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Button type="submit" variant="primary" className="self-start">
-          Add category
-        </Button>
-      </form>
-      <div className="mt-8 border-t border-border pt-8">
-        <h3 className="text-sm font-medium text-foreground">{meta.allCategoriesHeading}</h3>
-        {groups.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">None yet.</p>
-        ) : (
+      {visible.length > 0 ? (
+        <>
+          <h3 className="mt-4 text-sm font-medium text-foreground">{meta.allCategoriesHeading}</h3>
           <ul className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm text-muted">
             {groups.map((g) =>
               g.type === "single" ? (
@@ -348,8 +328,64 @@ function CategoryKindPanel({
               ),
             )}
           </ul>
-        )}
-      </div>
+          <div className="mt-8 border-t border-border pt-8">
+            <h3 className="text-sm font-medium text-foreground">Add category</h3>
+            <form className="mt-3 flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
+              <Field label="Name" required>
+                <Input
+                  placeholder={meta.placeholder}
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  required
+                />
+              </Field>
+              <Field label="Parent (optional)">
+                <Select
+                  value={newParentId}
+                  onChange={(e) => setNewParentId(e.target.value)}
+                >
+                  <option value="">Top-level category</option>
+                  {rootCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Button type="submit" variant="primary" className="self-start">
+                Add category
+              </Button>
+            </form>
+          </div>
+        </>
+      ) : (
+        <form className="mt-4 flex max-w-xl flex-col gap-3" onSubmit={onSubmit}>
+          <Field label="Name" required>
+            <Input
+              placeholder={meta.placeholder}
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              required
+            />
+          </Field>
+          <Field label="Parent (optional)">
+            <Select
+              value={newParentId}
+              onChange={(e) => setNewParentId(e.target.value)}
+            >
+              <option value="">Top-level category</option>
+              {rootCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Button type="submit" variant="primary" className="self-start">
+            Add category
+          </Button>
+        </form>
+      )}
     </>
   );
 }

@@ -27,10 +27,15 @@ export function MoneySettingsResetSection({ onResetComplete }: Props) {
     <SettingsSection
       id="money-settings-reset"
       title="Reset Money data"
-      description="Permanently remove every account, transaction, category, tag, merchant, budget, rule, and recurrence template in this workspace. Default currency is cleared too—you will be asked to choose it again. Your workspace and members are kept; this cannot be undone."
+      description="Remove all ledger data in this workspace and start fresh. Your workspace and members are kept."
     >
       <div className="rounded-[var(--radius-sm)] bg-destructive-muted-bg p-4">
         <p className="text-sm leading-6 text-foreground">
+          This removes every account, transaction, category, tag, merchant, budget, rule, and
+          recurrence template. Default currency is cleared too.{" "}
+          <span className="font-semibold text-foreground">This cannot be undone.</span>
+        </p>
+        <p className="mt-3 text-sm leading-6 text-muted">
           Type{" "}
           <span className="rounded-[var(--radius-sm)] bg-surface px-1.5 py-0.5 font-mono text-sm font-semibold ring-1 ring-border">
             {CONFIRM_PHRASE}

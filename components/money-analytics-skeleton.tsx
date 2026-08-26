@@ -22,6 +22,31 @@ import { cn } from "@/lib/cn";
 const FILTER_TRIGGER_COUNT = 5;
 /** Investments / Loans Insights: Date · Apply · Reset. */
 const FEATURE_INSIGHTS_FILTER_TRIGGER_COUNT = 1;
+export { FILTER_TRIGGER_COUNT, FEATURE_INSIGHTS_FILTER_TRIGGER_COUNT };
+
+export function AnalyticsPeriodChipSkeleton({
+  dirty = false,
+}: {
+  dirty?: boolean;
+} = {}) {
+  return (
+    <div className="space-y-1" aria-hidden>
+      <Skeleton className="h-4 w-40 max-w-full rounded-[var(--radius-sm)]" />
+      {dirty ? (
+        <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
+      ) : null}
+    </div>
+  );
+}
+
+export function StatusStripSkeleton({ className }: { className?: string } = {}) {
+  return (
+    <Skeleton
+      className={cn("h-4 w-56 max-w-full rounded-[var(--radius-sm)]", className)}
+      aria-hidden
+    />
+  );
+}
 const TABLE_LOADING_ROWS = 6;
 const MOBILE_CARD_COUNT = 4;
 
@@ -61,7 +86,12 @@ const ANALYTICS_INNER_GRID =
 /** Chart grid inside a Money dashboard stack (parent already full-span). */
 export const ANALYTICS_GRID_CLASS = ANALYTICS_INNER_GRID;
 
-export function AnalyticsStatsSkeleton() {
+export function AnalyticsStatsSkeleton({
+  showPeriodLine = true,
+}: {
+  /** When false, period is shown via AnalyticsPeriodChipSkeleton elsewhere. */
+  showPeriodLine?: boolean;
+} = {}) {
   return (
     <div
       className="col-span-2 grid gap-3 md:col-span-6 lg:col-span-12 fx-fade-in"
@@ -70,7 +100,9 @@ export function AnalyticsStatsSkeleton() {
       aria-live="polite"
       aria-label="Loading summary totals"
     >
-      <Skeleton className="h-4 w-52 max-w-full rounded-[var(--radius-sm)]" />
+      {showPeriodLine ? (
+        <Skeleton className="h-4 w-52 max-w-full rounded-[var(--radius-sm)]" />
+      ) : null}
       <div
         className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
         aria-hidden
@@ -115,12 +147,28 @@ function AnalyticsChartCardSkeleton({
   );
 }
 
-/** Default Insights body: stats + income/expense pair + “More insights”. */
+/** Teaser cards that expand into deeper insights charts. */
+function AnalyticsMoreInsightsTeasersSkeleton() {
+  return (
+    <div className="col-span-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 md:col-span-6 lg:col-span-12">
+      {Array.from({ length: 3 }, (_, index) => (
+        <div
+          key={`insights-teaser-${index}`}
+          className="rounded-[var(--radius-md)] border border-border bg-surface px-4 py-3"
+          aria-hidden
+        >
+          <Skeleton className="h-4 w-32 max-w-full rounded-[var(--radius-sm)]" />
+          <Skeleton className="mt-1 h-4 w-full max-w-[14rem] rounded-[var(--radius-sm)]" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Default Insights body: primary chart pair + teaser cards. */
 function AnalyticsCollapsedGridContent() {
   return (
     <>
-      <AnalyticsStatsSkeleton />
-
       <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:grid-cols-2 md:gap-3 lg:col-span-12">
         <AnalyticsChartCardSkeleton
           heightClass={CHART_CARD_HEIGHT_HALF}
@@ -135,9 +183,7 @@ function AnalyticsCollapsedGridContent() {
         />
       </div>
 
-      <div className="col-span-2 flex flex-wrap justify-end gap-3 md:col-span-6 lg:col-span-12">
-        <Skeleton className="h-9 w-28 rounded-[var(--radius-md)]" />
-      </div>
+      <AnalyticsMoreInsightsTeasersSkeleton />
     </>
   );
 }
@@ -309,10 +355,14 @@ export function MoneyAnalyticsPageSkeleton() {
       aria-live="polite"
       aria-label="Loading analytics page"
     >
+      <AnalyticsPeriodChipSkeleton />
+      <section aria-label="Summary metrics">
+        <AnalyticsStatsSkeleton showPeriodLine={false} />
+      </section>
       <MoneyAnalyticsFiltersBarSkeleton />
-      <div className={ANALYTICS_GRID_CLASS}>
+      <section aria-label="Insights dashboard" className={ANALYTICS_GRID_CLASS}>
         <AnalyticsCollapsedGridContent />
-      </div>
+      </section>
     </div>
   );
 }
@@ -327,6 +377,10 @@ export function FeatureInsightsPageSkeleton() {
       aria-live="polite"
       aria-label="Loading insights"
     >
+      <AnalyticsPeriodChipSkeleton />
+      <section aria-label="Summary metrics">
+        <AnalyticsStatsSkeleton showPeriodLine={false} />
+      </section>
       <MoneyAnalyticsFiltersBarSkeleton
         triggerCount={FEATURE_INSIGHTS_FILTER_TRIGGER_COUNT}
       />
@@ -351,8 +405,9 @@ export function MoneyLedgerPageSkeleton({
       aria-live="polite"
       aria-label="Loading ledger page"
     >
+      <AnalyticsPeriodChipSkeleton />
+      {showSummaryStats ? <AnalyticsStatsSkeleton showPeriodLine={false} /> : null}
       <MoneyAnalyticsFiltersBarSkeleton />
-      {showSummaryStats ? <AnalyticsStatsSkeleton /> : null}
       {showChart ? (
         <AnalyticsChartCardSkeleton
           className="w-full"

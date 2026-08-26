@@ -1038,12 +1038,7 @@ export function MoneyTransactionForm({
       ) : null}
 
       <div>
-        <header className="mb-4 flex items-baseline justify-between gap-3">
-          <h2 className="font-display text-lg font-medium tracking-tight">
-            {cardTitle}
-          </h2>
-          <span className="text-sm text-muted">{defaultCurrency}</span>
-        </header>
+        <h2 className="sr-only">{cardTitle}</h2>
         <form
           className="grid min-w-0 gap-4"
           style={{
@@ -1052,56 +1047,6 @@ export function MoneyTransactionForm({
           }}
           onSubmit={saveTransaction}
         >
-          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
-            <legend className="text-muted">Kind</legend>
-            <div
-              role="radiogroup"
-              aria-label="Transaction kind"
-              className={moneyQuickPickGroupCls}
-            >
-              {KIND_OPTIONS.map(({ value, label }) => {
-                const active = kind === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => {
-                      setKind(value);
-                      if (value !== "transfer") {
-                        setToAccountId("");
-                      } else if (!isRecurrenceMode) {
-                        setRecurrenceEnabled(false);
-                      }
-                      if (value === "investment" || value === "loan") {
-                        setRecurrenceEnabled(false);
-                        const acc = preferredAccountIdForFormKind(
-                          value,
-                          loadedAccounts,
-                        );
-                        setSelectedAccountId(acc ?? "");
-                        if (value === "loan") {
-                          const cat = preferredCategoryIdForFormKind(
-                            value,
-                            loadedCategories,
-                          );
-                          setSelectedCategoryId(cat ?? "");
-                        } else {
-                          setSelectedCategoryId("");
-                        }
-                        setCategoryEmptyOnOther(false);
-                      }
-                    }}
-                    className={moneyQuickPickChipCls(active)}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-
           {workspaces.length > 1 ? (
             <Field label="Workspace" className="[grid-column:1/-1]">
               <Select
@@ -1398,7 +1343,7 @@ export function MoneyTransactionForm({
           ) : null}
 
           <MoneyDateQuickPick
-            legend="When"
+            legend="Date"
             ariaLabel="Transaction date"
             className="[grid-column:1/-1]"
             value={splitDateTimeLocal(occurredAt).date}
@@ -1407,6 +1352,56 @@ export function MoneyTransactionForm({
               setOccurredAt(joinDateTimeLocal(date, time));
             }}
           />
+
+          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
+            <legend className="text-muted">Type</legend>
+            <div
+              role="radiogroup"
+              aria-label="Transaction type"
+              className={moneyQuickPickGroupCls}
+            >
+              {KIND_OPTIONS.map(({ value, label }) => {
+                const active = kind === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => {
+                      setKind(value);
+                      if (value !== "transfer") {
+                        setToAccountId("");
+                      } else if (!isRecurrenceMode) {
+                        setRecurrenceEnabled(false);
+                      }
+                      if (value === "investment" || value === "loan") {
+                        setRecurrenceEnabled(false);
+                        const acc = preferredAccountIdForFormKind(
+                          value,
+                          loadedAccounts,
+                        );
+                        setSelectedAccountId(acc ?? "");
+                        if (value === "loan") {
+                          const cat = preferredCategoryIdForFormKind(
+                            value,
+                            loadedCategories,
+                          );
+                          setSelectedCategoryId(cat ?? "");
+                        } else {
+                          setSelectedCategoryId("");
+                        }
+                        setCategoryEmptyOnOther(false);
+                      }
+                    }}
+                    className={moneyQuickPickChipCls(active)}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
 
           {isSpecialKind ? (
             <Field label="Notes" className="[grid-column:1/-1]">
@@ -1424,7 +1419,7 @@ export function MoneyTransactionForm({
                 size="sm"
                 onClick={() => setShowMoreDetails(true)}
               >
-                More details
+                Notes & extras
               </Button>
             </div>
           ) : (

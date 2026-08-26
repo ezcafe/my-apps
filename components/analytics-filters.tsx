@@ -497,16 +497,56 @@ type AnalyticsFiltersFieldsProps = {
   viewFilter?: AnalyticsFilterViewConfig;
 };
 
-/** Date / merchants / tags / recurrence — secondary chrome under More. */
+/** Merchants / tags / recurrence — secondary chrome under More. */
 function secondaryFiltersActive(value: AnalyticsFiltersValue): boolean {
-  const defaults = defaultAnalyticsFilters();
   return (
-    value.fromDate !== defaults.fromDate ||
-    value.toDate !== defaults.toDate ||
     value.merchantIds.length > 0 ||
     value.tagIds.length > 0 ||
     value.recurrence !== "all" ||
     value.recurrenceSourceIds.length > 0
+  );
+}
+
+function dateFiltersActive(value: AnalyticsFiltersValue): boolean {
+  const defaults = defaultAnalyticsFilters();
+  return (
+    value.fromDate !== defaults.fromDate ||
+    value.toDate !== defaults.toDate
+  );
+}
+
+function AnalyticsFiltersDateFields({
+  value,
+  onChange,
+  compact = false,
+}: {
+  value: AnalyticsFiltersValue;
+  onChange: (next: AnalyticsFiltersValue) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid gap-4",
+        compact
+          ? "gap-3"
+          : "[grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]",
+      )}
+    >
+      <MoneyDateQuickPick
+        legend="From"
+        ariaLabel="From date"
+        value={value.fromDate}
+        onChange={(fromDate) => onChange({ ...value, fromDate })}
+      />
+
+      <MoneyDateQuickPick
+        legend="To"
+        ariaLabel="To date"
+        value={value.toDate}
+        onChange={(toDate) => onChange({ ...value, toDate })}
+      />
+    </div>
   );
 }
 
@@ -597,6 +637,10 @@ function AnalyticsFiltersPrimaryFields({
           emptyMessage="No categories"
         />
       )}
+
+      <div className="col-span-full">
+        <AnalyticsFiltersDateFields value={value} onChange={onChange} />
+      </div>
     </div>
   );
 }
@@ -629,20 +673,6 @@ function AnalyticsFiltersSecondaryFields({
           : "[grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]",
       )}
     >
-      <MoneyDateQuickPick
-        legend="From"
-        ariaLabel="From date"
-        value={value.fromDate}
-        onChange={(fromDate) => onChange({ ...value, fromDate })}
-      />
-
-      <MoneyDateQuickPick
-        legend="To"
-        ariaLabel="To date"
-        value={value.toDate}
-        onChange={(toDate) => onChange({ ...value, toDate })}
-      />
-
       <MoneyUsageMultiQuickPick
         legend="Merchants"
         ariaLabel="Filter by merchants"
@@ -821,6 +851,7 @@ export function AnalyticsFiltersBar({
         "Direction");
 
   const secondaryActive = secondaryFiltersActive(value);
+  const datesActive = dateFiltersActive(value);
   const showMobileMore = mobileMoreOpen || secondaryActive;
   const showDesktopMorePanel = openMenu === "more" || morePanelMounted;
 
@@ -898,12 +929,12 @@ export function AnalyticsFiltersBar({
           variant="secondary"
           onClick={() => setMobileFiltersOpen(true)}
           trailing={
-            dirty || secondaryActive ? (
+            dirty || secondaryActive || datesActive ? (
               <span className="size-1.5 rounded-full bg-accent/70" aria-hidden />
             ) : null
           }
         >
-          Filter
+          Filter · {dateLabel}
           {dirty ? (
             <span className="sr-only">Unapplied filter changes</span>
           ) : null}
@@ -927,7 +958,7 @@ export function AnalyticsFiltersBar({
                   Filters
                 </h3>
                 <p className="mt-1 text-sm text-muted">
-                  Workspace switches immediately. Apply to refresh results.
+                  Workspace switches immediately. Tap Apply to update totals and table.
                 </p>
               </div>
               <Button
@@ -951,7 +982,7 @@ export function AnalyticsFiltersBar({
                 onClick={() => setMobileMoreOpen((o) => !o)}
               >
                 <span className="inline-flex items-center gap-2">
-                  More filters
+                  More
                   {secondaryActive ? (
                     <span
                       className="size-1.5 rounded-full bg-accent"
@@ -963,7 +994,6 @@ export function AnalyticsFiltersBar({
               </button>
               {showMobileMore ? (
                 <div className="mt-3 fx-fade-in">
-                  <p className="mb-3 text-sm text-muted">{dateLabel}</p>
                   <AnalyticsFiltersSecondaryFields {...secondaryFieldsProps} />
                 </div>
               ) : null}
@@ -990,7 +1020,7 @@ export function AnalyticsFiltersBar({
               </Button>
               {dirty ? (
                 <span className="text-sm text-muted fx-fade-in">
-                  Unapplied changes — click Apply to refresh.
+                  Unapplied changes — tap Apply to update totals and table.
                 </span>
               ) : null}
             </div>
@@ -1113,6 +1143,21 @@ export function AnalyticsFiltersBar({
           )}
 
           <FilterMenu
+            id="dates"
+            label={dateLabel}
+            isActive={datesActive}
+            openMenu={openMenu}
+            onOpenMenu={onOpenMenu}
+            panelClassName="min-w-[min(100vw-2rem,22rem)]"
+          >
+            <AnalyticsFiltersDateFields
+              value={value}
+              onChange={onChange}
+              compact
+            />
+          </FilterMenu>
+
+          <FilterMenu
             id="more"
             label="More"
             isActive={secondaryActive}
@@ -1122,7 +1167,6 @@ export function AnalyticsFiltersBar({
           >
             {showDesktopMorePanel ? (
               <div className="grid max-h-[min(70vh,32rem)] gap-3 overflow-y-auto">
-                <p className="text-sm text-muted">Date · {dateLabel}</p>
                 <AnalyticsFiltersSecondaryFields
                   {...secondaryFieldsProps}
                   compact
@@ -1276,7 +1320,7 @@ export function InsightsDateRangeFiltersBar({
               </Button>
               {dirty ? (
                 <span className="text-sm text-muted fx-fade-in">
-                  Unapplied changes — click Apply to refresh.
+                  Unapplied changes — tap Apply to update totals and table.
                 </span>
               ) : null}
             </div>

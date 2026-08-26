@@ -19,6 +19,7 @@ export default async function MoneySavingsLedgerPage() {
         userSub={userSub}
         authenticated={Boolean(userSub)}
         preset={MONEY_LEDGER_SAVINGS}
+        showSummaryStats
       />
     </HydrationBoundary>
   );

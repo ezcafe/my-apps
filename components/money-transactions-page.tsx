@@ -21,7 +21,9 @@ import {
   type AnalyticsLookupTag,
   type AnalyticsWorkspaceRow,
 } from "@/components/analytics-filters";
-import { MoneyAnalyticsFiltersBarSkeleton, AnalyticsStatsSkeleton, MoneyAnalyticsTransactionsTableSkeleton } from "@/components/money-analytics-skeleton";
+import { MoneyAnalyticsFiltersBarSkeleton, AnalyticsStatsSkeleton, MoneyAnalyticsTransactionsTableSkeleton, AnalyticsPeriodChipSkeleton } from "@/components/money-analytics-skeleton";
+import { AnalyticsPeriodChip } from "@/components/analytics-period-chip";
+import { useSetAppHeader } from "@/components/app-header-override";
 import { MoneyLedgerSummaryStats } from "@/components/money-ledger-summary-stats";
 import { MoneyLedgerTrendCard } from "@/components/money-ledger-trend-card";
 import { MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK } from "@/lib/money-layout";
@@ -32,6 +34,7 @@ import { buildQuery } from "@/lib/analytics-build-query";
 import {
   defaultFiltersForLedgerPreset,
   mergeLedgerPresetQuery,
+  moneyLedgerStatCardOrder,
   resolveLedgerPresetCategoryIds,
 } from "@/lib/money-ledger-presets";
 import { analyticsFiltersEqual } from "@/lib/analytics-graphql-filters";
@@ -91,6 +94,17 @@ export function MoneyTransactionsPage({
   const router = useRouter();
   const isSection = variant === "section";
   const showStats = !isSection && showSummaryStats;
+  const statCardOrder = useMemo(
+    () => moneyLedgerStatCardOrder(preset),
+    [preset],
+  );
+
+  useSetAppHeader(
+    preset && !isSection
+      ? { meta: preset.description }
+      : null,
+  );
+
   const {
     workspaceId: coreWorkspaceId,
     defaultCurrency,
@@ -336,8 +350,9 @@ export function MoneyTransactionsPage({
           MONEY_DASHBOARD_STACK,
         )}
       >
+        <AnalyticsPeriodChipSkeleton />
+        {showStats ? <AnalyticsStatsSkeleton showPeriodLine={false} /> : null}
         <MoneyAnalyticsFiltersBarSkeleton />
-        {showStats ? <AnalyticsStatsSkeleton /> : null}
         <MoneyAnalyticsTransactionsTableSkeleton selectable />
       </div>
     );
@@ -350,6 +365,26 @@ export function MoneyTransactionsPage({
         MONEY_DASHBOARD_STACK,
       )}
     >
+      <AnalyticsPeriodChip
+        fromDate={applied.fromDate}
+        toDate={applied.toDate}
+        dirty={dirty}
+      />
+
+      {showStats && lookupsReady && activeWorkspaceId ? (
+        <section aria-label="Summary metrics">
+          <MoneyLedgerSummaryStats
+            filterQuery={filterQuery}
+            workspaceId={activeWorkspaceId}
+            currency={defaultCurrency}
+            enabled={!isFilterPending}
+            cardOrder={statCardOrder}
+          />
+        </section>
+      ) : showStats ? (
+        <AnalyticsStatsSkeleton />
+      ) : null}
+
       <AnalyticsFiltersBar
         viewFilter={viewFilter}
         value={draft}
@@ -385,21 +420,19 @@ export function MoneyTransactionsPage({
         <Alert
           variant="warning"
           title="Bills category missing"
-          description='Add a "Bills" category under "Necessities" in Settings → Categories, or reload after the app creates it automatically.'
+          description={
+            <>
+              Add a <span className="font-medium text-foreground">Bills</span>{" "}
+              category under{" "}
+              <span className="font-medium text-foreground">Necessities</span>{" "}
+              in{" "}
+              <a href="/money/settings/categories" className="text-accent underline-offset-2 hover:underline">
+                Settings → Categories
+              </a>{" "}
+              to track bills here.
+            </>
+          }
         />
-      ) : null}
-
-      {showStats && lookupsReady && activeWorkspaceId ? (
-        <section aria-label="Summary metrics">
-          <MoneyLedgerSummaryStats
-            filterQuery={filterQuery}
-            workspaceId={activeWorkspaceId}
-            currency={defaultCurrency}
-            enabled={!isFilterPending}
-          />
-        </section>
-      ) : showStats ? (
-        <AnalyticsStatsSkeleton />
       ) : null}
 
       {!isSection && preset?.chart && lookupsReady && activeWorkspaceId ? (

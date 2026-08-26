@@ -5,6 +5,7 @@ export type InvestmentAppHeaderResolved = {
   title: string;
   breadcrumbs: BreadcrumbItem[];
   cta: { href: string; label: string } | null;
+  meta?: string;
   /** Secondary “Instruments” link from the Investments list. */
   instrumentsHref?: string;
 };
@@ -27,7 +28,8 @@ export function resolveInvestmentAppHeader(
     return {
       title: "Insights",
       breadcrumbs: [],
-      cta: RECORD_CTA,
+      cta: null,
+      meta: "Portfolio performance and trade results for the selected range.",
     };
   }
 
@@ -42,6 +44,7 @@ export function resolveInvestmentAppHeader(
         { label: "Record activity" },
       ],
       cta: null,
+      meta: "Record trades and close open positions. Cash and P&L post to your Money investment account.",
     };
   }
 
@@ -74,6 +77,7 @@ export function resolveInvestmentAppHeader(
         href: "/investments/instruments/new",
         label: "Create instrument",
       },
+      meta: "Symbols, contract sizes, and quote mappings for your trades.",
     };
   }
 
@@ -82,5 +86,6 @@ export function resolveInvestmentAppHeader(
     breadcrumbs: [],
     cta: RECORD_CTA,
     instrumentsHref: "/investments/instruments",
+    meta: MONEY_LEDGER_INVESTMENT.description,
   };
 }

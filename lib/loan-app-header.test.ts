@@ -3,17 +3,15 @@ import { describe, it } from "node:test";
 import { resolveLoanAppHeader } from "@/lib/loan-app-header";
 
 describe("resolveLoanAppHeader", () => {
-  it("exposes create CTA on the list and insights", () => {
+  it("exposes create CTA on the list only", () => {
     assert.deepEqual(resolveLoanAppHeader("/loans"), {
       title: "Loans",
       breadcrumbs: [],
       cta: { href: "/loans/new", label: "Create loan" },
+      meta: "Active loans, upcoming payments, and payoff progress.",
     });
     assert.equal(resolveLoanAppHeader("/loans/insights").title, "Insights");
-    assert.deepEqual(resolveLoanAppHeader("/loans/insights").cta, {
-      href: "/loans/new",
-      label: "Create loan",
-    });
+    assert.equal(resolveLoanAppHeader("/loans/insights").cta, null);
   });
 
   it("hides CTA on create and settings", () => {

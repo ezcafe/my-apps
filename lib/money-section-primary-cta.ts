@@ -56,6 +56,21 @@ export function moneySectionPrimaryCta(
     return MONEY_LEDGER_SPENDING.emptyState.primaryAction ?? DEFAULT_CTA;
   }
 
-  // Insights, settings hub, import, and other Money chrome routes.
+  if (
+    pathname === "/money/import" ||
+    pathname.startsWith("/money/import/")
+  ) {
+    return null;
+  }
+
+  if (
+    pathname === "/money/insights" ||
+    pathname === "/money/analysis" ||
+    pathname.startsWith("/money/insights/")
+  ) {
+    return null;
+  }
+
+  // Settings hub and other Money chrome routes.
   return DEFAULT_CTA;
 }

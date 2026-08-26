@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { memo, useMemo, type Ref } from "react";
 import { Card } from "@/components/ui/card";
+import { AboutDisclosure } from "@/components/ui/about-disclosure";
 import {
   AnalyticsChartContainer,
   AnalyticsEmptyState,
@@ -70,11 +71,16 @@ export const MoneyFlowSankeyCard = memo(function MoneyFlowSankeyCard({
       className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
       ref={cardRef}
     >
-      <h2 className="mb-1 font-display text-lg font-medium">Money flow</h2>
+      <h2 className="mb-1 flex flex-wrap items-center gap-x-2 font-display text-lg font-medium">
+        How does money move between categories?
+        <AboutDisclosure compact label="About money flow">
+          Net income categories flow toward Cash Flow; net expense categories flow out from Cash
+          Flow. When parent and subcategory directions match, the flow chains through parent and
+          child levels.
+        </AboutDisclosure>
+      </h2>
       <p className="mb-2 text-xs text-muted">
-        Net income categories flow toward Cash Flow; net expense categories flow out from Cash
-        Flow. When parent and subcategory directions match, the flow chains through parent and
-        child levels.
+        Income in, expenses out — grouped by category for the selected range.
       </p>
       <AnalyticsChartContainer className="text-foreground">
         {!inView ? (

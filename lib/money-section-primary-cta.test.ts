@@ -16,15 +16,9 @@ describe("moneySectionPrimaryCta", () => {
     assert.equal(moneySectionPrimaryCta("/money/new"), null);
   });
 
-  it("defaults Add transaction on insights, import, money settings hub", () => {
-    assert.deepEqual(moneySectionPrimaryCta("/money/insights"), {
-      href: "/money/new",
-      label: "Add transaction",
-    });
-    assert.deepEqual(moneySectionPrimaryCta("/money/import"), {
-      href: "/money/new",
-      label: "Add transaction",
-    });
+  it("defaults Add transaction on money settings hub; none on insights or import", () => {
+    assert.equal(moneySectionPrimaryCta("/money/insights"), null);
+    assert.equal(moneySectionPrimaryCta("/money/import"), null);
     assert.deepEqual(moneySectionPrimaryCta("/money/settings"), {
       href: "/money/new",
       label: "Add transaction",

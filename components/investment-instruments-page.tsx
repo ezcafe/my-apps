@@ -138,7 +138,7 @@ function InstrumentEditForm({
           required
         />
       </Field>
-      <Field label="Yahoo symbol">
+      <Field label="Quote symbol (optional)">
         <Input value={editYahoo} onChange={(e) => onYahoo(e.target.value)} />
       </Field>
       <Field label="Contract size" required>
@@ -208,15 +208,15 @@ function InstrumentsTable({
       <div className="hidden min-w-0 @md:block">
         <Table>
           <TableCaption>
-            Instruments with kind, currency, lot size, and quote symbol
+            Instruments with kind, currency, contract size, and quote symbol
           </TableCaption>
           <TableHeader>
             <TableRow>
               <TableHead freeze="leading">Symbol</TableHead>
               <TableHead>Kind</TableHead>
               <TableHead>Currency</TableHead>
-              <TableHead align="end">Lot</TableHead>
-              <TableHead>Yahoo</TableHead>
+              <TableHead align="end">Contract size</TableHead>
+              <TableHead>Quote symbol</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -289,11 +289,11 @@ function InstrumentsTable({
                     <dd className="font-medium">{instrument.currency}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt className="text-muted">Lot</dt>
+                    <dt className="text-muted">Contract size</dt>
                     <dd className="tabular-nums">{instrument.contractSize}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt className="text-muted">Yahoo</dt>
+                    <dt className="text-muted">Quote symbol</dt>
                     <dd>{instrument.yahooSymbol ?? "—"}</dd>
                   </div>
                 </dl>
@@ -504,11 +504,7 @@ export function InvestmentInstrumentsPage() {
 
       {instrumentsQuery.isSuccess && visibleInstruments.length > 0 ? (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="font-display text-base font-medium">
-              Your instruments
-            </h3>
-            <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
               <div
                 className={moneyQuickPickGroupCls}
                 role="group"
@@ -537,7 +533,6 @@ export function InvestmentInstrumentsPage() {
               >
                 {refreshing ? "Refreshing…" : "Refresh quotes"}
               </Button>
-            </div>
           </div>
 
           {filteredInstruments.length === 0 ? (

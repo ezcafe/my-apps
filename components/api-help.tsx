@@ -21,7 +21,7 @@ import {
 import { Tabs } from "@/components/ui/tabs";
 import { useNotify } from "@/components/notification-provider";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
-import { ShellMainPage } from "@/components/shell-main-page";
+import { CoreShellPage } from "@/components/core-shell-page";
 import {
   API_HELP_BASE_URL_PLACEHOLDER,
   apiHelpSections,
@@ -480,9 +480,8 @@ export function ApiHelp() {
   );
 
   return (
-    <ShellMainPage
-      title="Help"
-      subtitle="API reference for personal Bearer tokens, GraphQL queries, and import workflows. Each tab explains the purpose of an endpoint, when to use it, what inputs it expects, and shows a copy-ready example."
+    <CoreShellPage
+      description="API reference for personal Bearer tokens, GraphQL queries, and import workflows. Each tab explains the purpose of an endpoint, when to use it, what inputs it expects, and shows a copy-ready example."
     >
       <SettingsSection
         id="help-quick-start"
@@ -566,6 +565,6 @@ export function ApiHelp() {
           <HelpSectionBody section={section} baseUrl={resolvedBase} />
         </SettingsSection>
       ))}
-    </ShellMainPage>
+    </CoreShellPage>
   );
 }

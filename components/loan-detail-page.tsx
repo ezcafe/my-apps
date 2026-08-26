@@ -67,8 +67,8 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-const LOAN_DETAIL_ABOUT =
-  "Track payoff progress, record payments, and review your amortization schedule. Payments can be posted to Money or marked paid without a ledger entry.";
+const LOAN_DETAIL_META =
+  "Track payoff, record payments, and review your schedule.";
 
 function LoanDetailHeaderSync({
   loanName,
@@ -77,7 +77,7 @@ function LoanDetailHeaderSync({
 }) {
   useSetAppHeader({
     title: loanName,
-    description: LOAN_DETAIL_ABOUT,
+    meta: LOAN_DETAIL_META,
     breadcrumbs: [
       { label: "Loans", href: "/loans" },
       { label: loanName },

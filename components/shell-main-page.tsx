@@ -15,10 +15,20 @@ const SHELL_MAIN_GRID =
 export function ShellMainPage({
   title,
   subtitle,
+  meta,
+  description,
+  actions,
+  breadcrumbs,
   children,
 }: {
   title: string;
+  /** @deprecated Use `meta` instead. */
   subtitle?: ReactNode;
+  meta?: ReactNode;
+  /** AboutDisclosure body beside the title. */
+  description?: ReactNode;
+  actions?: ReactNode;
+  breadcrumbs?: import("@/components/ui/breadcrumb").BreadcrumbItem[];
   children: ReactNode;
 }) {
   return (
@@ -27,7 +37,10 @@ export function ShellMainPage({
         className={MONEY_FULL_SPAN}
         leading={<MoneyAppMenu />}
         title={title}
-        meta={subtitle}
+        meta={meta ?? subtitle}
+        description={description}
+        actions={actions}
+        breadcrumbs={breadcrumbs}
       />
       <div className={cn(MONEY_FULL_SPAN, "space-y-6")}>{children}</div>
     </div>

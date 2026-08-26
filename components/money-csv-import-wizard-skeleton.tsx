@@ -2,6 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { MoneyQuickPickGroupSkeleton } from "@/components/money-dashboard-skeleton";
+import { StatusStripSkeleton } from "@/components/money-analytics-skeleton";
 
 const IMPORT_KIND_COUNT = 8;
 const IMPORT_STEP_WIDTHS = ["w-24", "w-16", "w-12", "w-16"] as const;
@@ -28,7 +29,10 @@ export function MoneyCsvImportWizardSkeleton({
         <MoneyQuickPickGroupSkeleton widths={[...IMPORT_STEP_WIDTHS]} />
       </nav>
 
-      <div className="mt-8">
+      <StatusStripSkeleton className="mt-4" />
+      <Skeleton className="mt-2 h-4 w-64 max-w-full rounded-[var(--radius-sm)]" />
+
+      <div className="mt-6">
         <Skeleton className="h-4 w-40 rounded-[var(--radius-sm)]" />
         <Skeleton className="mt-2 h-4 w-72 max-w-full rounded-[var(--radius-sm)]" />
         <ul

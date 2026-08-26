@@ -19,6 +19,21 @@ function readNotificationPermission(): NotificationPermission | "unsupported" {
   return Notification.permission;
 }
 
+function notificationPermissionLabel(
+  permission: NotificationPermission | "unsupported",
+): string {
+  switch (permission) {
+    case "granted":
+      return "Allowed";
+    case "denied":
+      return "Blocked";
+    case "default":
+      return "Not asked yet";
+    case "unsupported":
+      return "Not supported in this browser";
+  }
+}
+
 export function LoansSettingsNotifications() {
   const notify = useNotify();
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
@@ -42,7 +57,7 @@ export function LoansSettingsNotifications() {
       } else {
         notify.warning(
           "Notifications not enabled",
-          "Allow notifications in your browser or set NEXT_PUBLIC_VAPID_PUBLIC_KEY.",
+          "Allow notifications in your browser settings, then try again.",
         );
       }
     } catch (e) {
@@ -75,14 +90,12 @@ export function LoansSettingsNotifications() {
       <SettingsSection
         id="loans-settings-notifications"
         title="Payment reminders"
-        description="In-app banners and toasts appear on the Loans overview when an installment is due. Enable browser notifications to get alerts when the app is in the background (requires VAPID keys on the server)."
+        description="In-app banners and toasts appear on the Loans overview when an installment is due. Enable browser notifications to get alerts when the app is in the background."
       >
         <p className="text-sm text-muted">
           Status:{" "}
           <span className="font-medium text-foreground">
-            {permission === "unsupported"
-              ? "Not supported in this browser"
-              : permission}
+            {notificationPermissionLabel(permission)}
           </span>
         </p>
         <div className="mt-4 flex flex-wrap gap-2">

@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { memo, useMemo, useState, type Ref } from "react";
 import { Card } from "@/components/ui/card";
+import { AboutDisclosure } from "@/components/ui/about-disclosure";
 import {
   AnalyticsChartContainer,
   AnalyticsEmptyState,
@@ -49,7 +50,7 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
   isCurrentMonthCompare,
   defaultCurrency,
   theme,
-  title = "Net cumulative flow",
+  title = "How does net balance change over time?",
   description,
   compareDescription,
   emptyState,
@@ -147,7 +148,13 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
       className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
       ref={cardRef}
     >
-      <h2 className="mb-2 font-display text-lg font-medium">{title}</h2>
+      <h2 className="mb-2 flex flex-wrap items-center gap-x-2 font-display text-lg font-medium">
+        {title}
+        <AboutDisclosure compact label="About net cumulative flow">
+          Running total of income minus expenses across the selected range. Each point adds that
+          day&apos;s net to the line above it.
+        </AboutDisclosure>
+      </h2>
       {overviewLineCompare ? (
         <p className="mb-2 text-xs text-muted">
           {compareDescription ??

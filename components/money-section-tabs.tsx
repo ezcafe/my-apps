@@ -18,20 +18,24 @@ import {
 } from "@/lib/features/registry";
 import { resolveMoneyAppHeader } from "@/lib/money-app-header";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
-import type { MoneyOptionalSectionTabKey } from "@/lib/money-section-tab-visibility";
+import {
+  APP_NAV_GROUP_LABELS,
+  APP_SECTION_NAV,
+  APP_SECTION_ORDER,
+  appSectionItemsByGroup,
+  resolveAppSectionFromPath,
+  visibleAppSectionItems,
+  isAppSectionNavItemActive,
+  type AppSectionKey,
+  type AppSectionTabIconId,
+} from "@/lib/app-section-nav";
+import {
+  useMoneySectionTabVisibility,
+  type MoneyOptionalSectionTabKey,
+} from "@/lib/money-section-tab-visibility";
 import { useMoneyMenuPageActions } from "@/lib/money-menu-page-actions";
 
-type MoneySectionTabIconId =
-  | "new"
-  | "analytics"
-  | "spending"
-  | "bills"
-  | "savings"
-  | "loans"
-  | "investments"
-  | "instruments"
-  | "import"
-  | "settings";
+type MoneySectionTabIconId = AppSectionTabIconId;
 
 function IconMenu(props: SVGProps<SVGSVGElement>) {
   return (
@@ -333,122 +337,19 @@ const menuItemClassName = (active: boolean) =>
       : "text-muted hover:bg-muted-surface hover:text-foreground",
   );
 
-const menuIconButtonClassName = (active: boolean) =>
-  cn(
-    "fx-hit-40 inline-flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-    active
-      ? "bg-muted-surface text-foreground"
-      : "text-muted hover:bg-muted-surface hover:text-foreground",
-  );
+const menuGroupLabelClassName =
+  "px-3 pb-0.5 pt-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-muted first:pt-0";
 
-const tabs: Array<{
-  href: string;
-  label: string;
-  icon: MoneySectionTabIconId;
-  exact: boolean;
-  /** When set, tab is hidden unless user enabled it in Settings. */
-  visibilityKey?: MoneyOptionalSectionTabKey;
-}> = [
-  { href: "/money/insights", label: "Insights", icon: "analytics", exact: false },
-  { href: "/money/new", label: "Add transaction", icon: "new", exact: true },
-  { href: "/money", label: "Spending", icon: "spending", exact: true },
-  {
-    href: "/money/bills",
-    label: "Bills",
-    icon: "bills",
-    exact: false,
-    visibilityKey: "bills",
-  },
-  {
-    href: "/money/savings",
-    label: "Savings",
-    icon: "savings",
-    exact: false,
-    visibilityKey: "savings",
-  },
-  {
-    href: "/money/import",
-    label: "Import data",
-    icon: "import",
-    exact: false,
-    visibilityKey: "import",
-  },
-  {
-    href: "/money/settings",
-    label: "Money settings",
-    icon: "settings",
-    exact: false,
-  },
-];
-
-const investmentTabs: Array<{
-  href: string;
-  label: string;
-  icon: MoneySectionTabIconId;
-  exact: boolean;
-}> = [
-  { href: "/investments", label: "Overview", icon: "investments", exact: true },
-  {
-    href: "/investments/insights",
-    label: "Insights",
-    icon: "analytics",
-    exact: false,
-  },
-  {
-    href: "/investments/new",
-    label: "Record activity",
-    icon: "new",
-    exact: false,
-  },
-  {
-    href: "/investments/instruments",
-    label: "Instruments",
-    icon: "instruments",
-    exact: false,
-  },
-];
-
-const loanTabs: Array<{
-  href: string;
-  label: string;
-  icon: MoneySectionTabIconId;
-  exact: boolean;
-}> = [
-  { href: "/loans", label: "Overview", icon: "loans", exact: true },
-  {
-    href: "/loans/insights",
-    label: "Insights",
-    icon: "analytics",
-    exact: false,
-  },
-  {
-    href: "/loans/new",
-    label: "Create loan",
-    icon: "new",
-    exact: false,
-  },
-  {
-    href: "/loans/settings",
-    label: "Loans settings",
-    icon: "settings",
-    exact: false,
-  },
-];
-
-/** Shell/core items shown under the Money sections (skip Money itself). */
+/** Shell/core items (Help, Settings) — not duplicated in product nav. */
 const moneyMenuShellItems: ShellNavItem[] = shellNavItems.filter(
   (item) => item.kind === "core",
 );
 
-function isTabActive(
-  pathname: string,
-  href: string,
-  exact: boolean,
-): boolean {
-  return exact
-    ? pathname === href
-    : pathname === href || pathname.startsWith(`${href}/`);
-}
+const appSwitcherIcon: Record<AppSectionKey, AppSectionTabIconId> = {
+  money: "spending",
+  investments: "investments",
+  loans: "loans",
+};
 
 function MenuSectionLabel({ children }: { children: ReactNode }) {
   return (
@@ -456,6 +357,10 @@ function MenuSectionLabel({ children }: { children: ReactNode }) {
       {children}
     </p>
   );
+}
+
+function MenuGroupLabel({ children }: { children: ReactNode }) {
+  return <p className={menuGroupLabelClassName}>{children}</p>;
 }
 
 function MoneyAppMenuNavLink({
@@ -472,7 +377,7 @@ function MoneyAppMenuNavLink({
   onNavigate: () => void;
 }) {
   const pathname = usePathname();
-  const active = isTabActive(pathname, href, exact);
+  const active = isAppSectionNavItemActive(pathname, href, exact);
   const Icon = moneySectionTabIcons[icon];
 
   return (
@@ -488,7 +393,116 @@ function MoneyAppMenuNavLink({
   );
 }
 
-function MoneyMenuShellLink({
+function AppSwitcher({
+  currentApp,
+  onNavigate,
+}: {
+  currentApp: AppSectionKey | null;
+  onNavigate: () => void;
+}) {
+  return (
+    <div role="group" aria-label="Switch app">
+      <MenuSectionLabel>Apps</MenuSectionLabel>
+      <div className="flex flex-wrap gap-1 px-1.5">
+        {APP_SECTION_ORDER.map((appKey) => {
+          const config = APP_SECTION_NAV[appKey];
+          const active = currentApp === appKey;
+          const Icon = moneySectionTabIcons[appSwitcherIcon[appKey]];
+
+          return (
+            <Link
+              key={appKey}
+              href={config.homeHref}
+              onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                active
+                  ? "bg-muted-surface text-foreground"
+                  : "text-muted hover:bg-muted-surface hover:text-foreground",
+              )}
+            >
+              <Icon className="size-4 shrink-0" />
+              {config.label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AppSectionNavPanel({
+  appKey,
+  isTabVisible,
+  onNavigate,
+  showAppHeading = true,
+}: {
+  appKey: AppSectionKey;
+  isTabVisible: (key: MoneyOptionalSectionTabKey | undefined) => boolean;
+  onNavigate: () => void;
+  showAppHeading?: boolean;
+}) {
+  const config = APP_SECTION_NAV[appKey];
+  const items = visibleAppSectionItems(appKey, isTabVisible);
+  const groups = appSectionItemsByGroup(items);
+
+  return (
+    <nav className="flex flex-col" aria-label={`${config.label} sections`}>
+      {showAppHeading ? <MenuSectionLabel>{config.label}</MenuSectionLabel> : null}
+      {groups.map(({ group, items: groupItems }) => (
+        <div key={group} className="flex flex-col">
+          <MenuGroupLabel>{APP_NAV_GROUP_LABELS[group]}</MenuGroupLabel>
+          {groupItems.map(({ href, label, icon, exact }) => (
+            <MoneyAppMenuNavLink
+              key={href}
+              href={href}
+              label={label}
+              icon={icon}
+              exact={exact}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+function OtherAppsJumpLinks({
+  currentApp,
+  onNavigate,
+}: {
+  currentApp: AppSectionKey;
+  onNavigate: () => void;
+}) {
+  const others = APP_SECTION_ORDER.filter((key) => key !== currentApp);
+  if (others.length === 0) return null;
+
+  return (
+    <nav className="flex flex-col" aria-label="Other apps">
+      <MenuSectionLabel>Other apps</MenuSectionLabel>
+      {others.map((appKey) => {
+        const config = APP_SECTION_NAV[appKey];
+        const Icon = moneySectionTabIcons[appSwitcherIcon[appKey]];
+
+        return (
+          <Link
+            key={appKey}
+            href={config.homeHref}
+            onClick={onNavigate}
+            className={menuItemClassName(false)}
+          >
+            <Icon className="size-5 shrink-0" />
+            {config.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function MenuFooterLink({
   item,
   onNavigate,
 }: {
@@ -503,12 +517,11 @@ function MoneyMenuShellLink({
     <Link
       href={item.href}
       onClick={onNavigate}
-      title={item.label}
-      aria-label={item.label}
       aria-current={active ? "page" : undefined}
-      className={menuIconButtonClassName(active)}
+      className={menuItemClassName(active)}
     >
       <Icon className="size-5 shrink-0" />
+      {item.label}
     </Link>
   );
 }
@@ -520,39 +533,35 @@ function MoneyMenuAuth({ onNavigate }: { onNavigate: () => void }) {
     return (
       <button
         type="button"
-        title="Sign out"
-        aria-label="Sign out"
-        className={menuIconButtonClassName(false)}
+        className={cn(menuItemClassName(false), "w-full text-left")}
         onClick={() => {
           onNavigate();
           signOut({ redirectTo: "/login" });
         }}
       >
         <IconSignOut className="size-5 shrink-0" />
+        Sign out
       </button>
     );
   }
 
   return (
-    <Link
-      href="/login"
-      onClick={onNavigate}
-      title="Sign in"
-      aria-label="Sign in"
-      className={menuIconButtonClassName(false)}
-    >
+    <Link href="/login" onClick={onNavigate} className={menuItemClassName(false)}>
       <IconSignIn className="size-5 shrink-0" />
+      Sign in
     </Link>
   );
 }
 
 /**
- * Flat Money, Investments, and Loans hamburger (icon-only trigger).
- * All section links render on the first panel; page actions sit at the top when registered.
+ * Context-first app hamburger: current app grouped by task, other apps as jump links.
+ * Page actions sit at the top when registered. Config: {@link APP_SECTION_NAV}.
  */
 export function MoneyAppMenu() {
   const pathname = usePathname();
   const pageActions = useMoneyMenuPageActions();
+  const { isTabVisible } = useMoneySectionTabVisibility();
+  const currentApp = resolveAppSectionFromPath(pathname);
   const [open, setOpen] = useState(false);
   const [menuPath, setMenuPath] = useState(pathname);
 
@@ -562,16 +571,19 @@ export function MoneyAppMenu() {
   }
 
   const close = () => setOpen(false);
+  const menuLabel = currentApp
+    ? `Open ${APP_SECTION_NAV[currentApp].label} menu`
+    : "Open app menu";
 
   return (
     <Popover
       align="start"
-      aria-label="Open navigation menu"
+      aria-label={menuLabel}
       open={open}
       onOpenChange={setOpen}
       trigger={<IconMenu className="size-5" />}
       triggerClassName="fx-hit-40 size-10 shrink-0 p-0"
-      className="flex max-h-[min(70dvh,calc(100dvh-6rem))] min-w-[min(100vw-2rem,18rem)] flex-col p-1.5"
+      className="flex max-h-[min(70dvh,calc(100dvh-6rem))] min-w-[min(100vw-2rem,20rem)] flex-col p-1.5"
     >
       <div className="min-h-0 flex-1 overflow-y-auto">
         {pageActions.length > 0 ? (
@@ -604,47 +616,47 @@ export function MoneyAppMenu() {
           </>
         ) : null}
 
-        <nav className="flex flex-col" aria-label="Money sections">
-          <MenuSectionLabel>Money</MenuSectionLabel>
-          {tabs.map(({ href, label, icon, exact }) => (
-            <MoneyAppMenuNavLink
-              key={href}
-              href={href}
-              label={label}
-              icon={icon}
-              exact={exact}
-              onNavigate={close}
-            />
-          ))}
-        </nav>
+        <AppSwitcher currentApp={currentApp} onNavigate={close} />
 
-        <nav className="flex flex-col" aria-label="Investments sections">
-          <MenuSectionLabel>Investments</MenuSectionLabel>
-          {investmentTabs.map(({ href, label, icon, exact }) => (
-            <MoneyAppMenuNavLink
-              key={href}
-              href={href}
-              label={label}
-              icon={icon}
-              exact={exact}
-              onNavigate={close}
-            />
-          ))}
-        </nav>
+        <div
+          role="separator"
+          aria-hidden
+          className="my-1.5 border-t border-border"
+        />
 
-        <nav className="flex flex-col" aria-label="Loans sections">
-          <MenuSectionLabel>Loans</MenuSectionLabel>
-          {loanTabs.map(({ href, label, icon, exact }) => (
-            <MoneyAppMenuNavLink
-              key={href}
-              href={href}
-              label={label}
-              icon={icon}
-              exact={exact}
+        {currentApp != null ? (
+          <>
+            <AppSectionNavPanel
+              appKey={currentApp}
+              isTabVisible={isTabVisible}
               onNavigate={close}
+              showAppHeading={false}
             />
-          ))}
-        </nav>
+            <div
+              role="separator"
+              aria-hidden
+              className="my-1.5 border-t border-border"
+            />
+            <OtherAppsJumpLinks currentApp={currentApp} onNavigate={close} />
+          </>
+        ) : (
+          APP_SECTION_ORDER.map((appKey, index) => (
+            <div key={appKey}>
+              {index > 0 ? (
+                <div
+                  role="separator"
+                  aria-hidden
+                  className="my-1.5 border-t border-border"
+                />
+              ) : null}
+              <AppSectionNavPanel
+                appKey={appKey}
+                isTabVisible={isTabVisible}
+                onNavigate={close}
+              />
+            </div>
+          ))
+        )}
       </div>
 
       <div
@@ -653,16 +665,9 @@ export function MoneyAppMenu() {
         className="my-1.5 shrink-0 border-t border-border"
       />
 
-      <nav
-        className="flex shrink-0 items-center justify-between gap-1"
-        aria-label="Workspace"
-      >
+      <nav className="flex shrink-0 flex-col" aria-label="Workspace">
         {moneyMenuShellItems.map((item) => (
-          <MoneyMenuShellLink
-            key={item.id}
-            item={item}
-            onNavigate={close}
-          />
+          <MenuFooterLink key={item.id} item={item} onNavigate={close} />
         ))}
         <MoneyMenuAuth onNavigate={close} />
       </nav>
@@ -683,6 +688,7 @@ export function MoneySectionTabs() {
   const breadcrumbs =
     override?.breadcrumbs ?? resolved.breadcrumbs;
   const description = override?.description;
+  const meta = override?.meta;
   const cta =
     override != null && "cta" in override
       ? override.cta ?? null
@@ -694,6 +700,7 @@ export function MoneySectionTabs() {
       leading={<MoneyAppMenu />}
       title={title}
       description={description}
+      meta={meta}
       breadcrumbs={breadcrumbs}
       actions={
         cta ? (

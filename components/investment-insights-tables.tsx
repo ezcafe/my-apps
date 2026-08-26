@@ -62,7 +62,7 @@ export function InvestmentHoldingsTable({
           <TableRow>
             <TableHead freeze="leading">Symbol</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead align="end">Volume</TableHead>
+            <TableHead align="end">Quantity</TableHead>
             <TableHead align="end">Value</TableHead>
             <TableHead>
               <span className="sr-only">Actions</span>
@@ -120,18 +120,18 @@ export function InvestmentOpenActivitiesTable({
   return (
     <section className="w-full min-w-0">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg font-medium">Open activities</h2>
+        <h2 className="font-display text-lg font-medium">Open positions</h2>
       </div>
       {query.isLoading ? <MoneyListSkeleton variant="tableRows" /> : null}
       {query.isError ? (
         <MoneyQueryErrorAlert
-          title="Couldn’t load open activities"
+          title="Couldn’t load open positions"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
       ) : null}
       {query.isSuccess && query.data.length === 0 ? (
-        <p className="text-sm text-muted">No open activities.</p>
+        <p className="text-sm text-muted">No open positions.</p>
       ) : null}
       {query.isSuccess && query.data.length > 0 ? (
         <Table>
@@ -139,7 +139,7 @@ export function InvestmentOpenActivitiesTable({
             <TableRow>
               <TableHead freeze="leading">Symbol</TableHead>
               <TableHead>Direction</TableHead>
-              <TableHead align="end">Volume</TableHead>
+              <TableHead align="end">Quantity</TableHead>
               <TableHead align="end">Open price</TableHead>
               <TableHead align="end">SL</TableHead>
               <TableHead align="end">TP</TableHead>

@@ -454,9 +454,15 @@ export function MoneySettingsBudgetsSection() {
                   ) : (
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className={overBudget ? "text-[color:var(--danger)]" : ""}>
-                        {budgetRowLabel(b, categoryById, accountById, tagById)} ·{" "}
-                        {formatMinor(b.limitAmountMinor, defaultCurrency)} / month
-                        {` · ${formatMinor(spentMinor, defaultCurrency)} spent`}
+                        <span className="tabular-nums font-medium text-foreground">
+                          {formatMinor(spentMinor, defaultCurrency)}
+                        </span>
+                        <span className="text-muted"> spent of </span>
+                        <span className="tabular-nums font-medium text-foreground">
+                          {formatMinor(b.limitAmountMinor, defaultCurrency)}
+                        </span>
+                        <span className="text-muted"> / month</span>
+                        <span className="text-muted"> · {budgetRowLabel(b, categoryById, accountById, tagById)}</span>
                       </span>
                       <div className="flex flex-wrap items-center gap-2">
                         {overBudget ? (

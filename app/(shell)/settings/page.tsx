@@ -4,11 +4,11 @@ import { listApiTokensForUser } from "@/lib/api-token-service";
 import { fetchWorkspacesForUser } from "@/lib/workspace-list";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import { ApiTokenSettings } from "@/components/api-token-settings";
+import { CoreShellPage } from "@/components/core-shell-page";
 import { DateFormatSettings } from "@/components/date-format-settings";
 import { ThemeSettings } from "@/components/theme-settings";
 import { WorkspaceSettings } from "@/components/workspace-settings";
 import { Alert } from "@/components/ui/alert";
-import { ShellMainPage } from "@/components/shell-main-page";
 import { isDbUnreachable } from "@/lib/db-errors";
 
 async function loadSettingsDbData(userSub: string) {
@@ -49,62 +49,14 @@ export default async function SettingsPage() {
       };
 
   return (
-    <ShellMainPage title="Settings">
+    <CoreShellPage>
       {dbUnavailable ? (
         <Alert
           variant="warning"
-          title="Database unavailable"
-          description="Cannot reach PostgreSQL. Start the database (from the apps folder: docker compose -f docker-compose-db.yml up -d) or fix DATABASE_URL."
+          title="Database temporarily unavailable"
+          description="Profile and appearance settings still work. Workspace and API token changes need PostgreSQL — check that the database is running or review DATABASE_URL."
         />
       ) : null}
-
-      <SettingsSection
-        id="settings-account"
-        title="Account"
-        description="Profile comes from your Pocket ID OIDC claims."
-      >
-        <dl className="divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-3 py-2.5">
-            <dt className="text-muted">Name</dt>
-            <dd className="min-w-0 font-medium text-foreground">
-              {session?.user?.name ?? "—"}
-            </dd>
-          </div>
-          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-3 py-2.5">
-            <dt className="text-muted">Email</dt>
-            <dd className="min-w-0 text-foreground">
-              {session?.user?.email ?? "—"}
-            </dd>
-          </div>
-          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-3 py-2.5">
-            <dt className="text-muted">Subject</dt>
-            <dd className="min-w-0 max-w-full font-mono text-sm break-all text-foreground">
-              {session?.user?.id ?? "—"}
-            </dd>
-          </div>
-        </dl>
-      </SettingsSection>
-
-      <SettingsSection
-        id="settings-appearance"
-        title="Appearance"
-        description="Light, dark, or match your OS."
-      >
-        <ThemeSettings embedded />
-      </SettingsSection>
-
-      <SettingsSection
-        id="settings-date-format"
-        title="Date format"
-        description="How dates appear across the app."
-      >
-        <DateFormatSettings embedded />
-      </SettingsSection>
-
-      <WorkspaceSettings
-        initialWorkspaces={workspaces}
-        initialDefaultWorkspaceId={defaultWorkspaceId}
-      />
 
       <SettingsSection
         id="settings-api-tokens"
@@ -133,6 +85,62 @@ export default async function SettingsPage() {
           initialTokens={apiTokens}
         />
       </SettingsSection>
-    </ShellMainPage>
+
+      <WorkspaceSettings
+        initialWorkspaces={workspaces}
+        initialDefaultWorkspaceId={defaultWorkspaceId}
+      />
+
+      <SettingsSection
+        id="settings-account"
+        title="Account"
+        description="Profile comes from your Pocket ID OIDC claims."
+      >
+        <dl className="divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-3 py-2.5">
+            <dt className="text-muted">Name</dt>
+            <dd className="min-w-0 font-medium text-foreground">
+              {session?.user?.name ?? "—"}
+            </dd>
+          </div>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-3 py-2.5">
+            <dt className="text-muted">Email</dt>
+            <dd className="min-w-0 text-foreground">
+              {session?.user?.email ?? "—"}
+            </dd>
+          </div>
+        </dl>
+
+        <details className="mt-4 rounded-[var(--radius-sm)] bg-background">
+          <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium text-muted transition-colors duration-200 hover:text-foreground [&::-webkit-details-marker]:hidden">
+            Advanced
+          </summary>
+          <dl className="border-t border-border text-sm">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-3 py-2.5">
+              <dt className="text-muted">Subject</dt>
+              <dd className="min-w-0 max-w-full font-mono text-sm break-all text-foreground">
+                {session?.user?.id ?? "—"}
+              </dd>
+            </div>
+          </dl>
+        </details>
+      </SettingsSection>
+
+      <SettingsSection
+        id="settings-appearance"
+        title="Appearance"
+        description="Light, dark, or match your OS."
+      >
+        <ThemeSettings embedded />
+      </SettingsSection>
+
+      <SettingsSection
+        id="settings-date-format"
+        title="Date format"
+        description="How dates appear across the app."
+      >
+        <DateFormatSettings embedded />
+      </SettingsSection>
+    </CoreShellPage>
   );
 }

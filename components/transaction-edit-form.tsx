@@ -457,12 +457,7 @@ export function TransactionEditForm({
     <div className={isModal ? "space-y-4" : "min-w-0 max-w-4xl space-y-6"}>
       {err ? <Alert variant="error" title={err} /> : null}
       <div>
-        <header className="mb-4 flex items-baseline justify-between gap-3">
-          <h2 className="font-display text-lg font-medium tracking-tight">
-            Edit transaction
-          </h2>
-          <span className="text-sm text-muted">{defaultCurrency}</span>
-        </header>
+        <h2 className="sr-only">Edit transaction</h2>
         <form
           className="grid min-w-0 gap-4"
           style={{
@@ -471,32 +466,6 @@ export function TransactionEditForm({
           }}
           onSubmit={onSubmit}
         >
-          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
-            <legend className="text-muted">Kind</legend>
-            <div
-              role="radiogroup"
-              aria-label="Transaction kind"
-              className={moneyQuickPickGroupCls}
-            >
-              {KIND_OPTIONS.map(({ value, label, description }) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={kind === value}
-                  title={description}
-                  onClick={() => {
-                    setKind(value);
-                    if (value !== "transfer") setToAccountId("");
-                  }}
-                  className={moneyQuickPickChipCls(kind === value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
           <Field label="Amount" required>
             <InputGroup>
               <InputGroupAddon side="leading" aria-hidden>
@@ -583,6 +552,43 @@ export function TransactionEditForm({
             />
           )}
 
+          <MoneyDateQuickPick
+            legend="Date"
+            ariaLabel="Transaction date"
+            className="[grid-column:1/-1]"
+            value={splitDateTimeLocal(occurredAt).date}
+            onChange={(date) => {
+              const { time } = splitDateTimeLocal(occurredAt);
+              setOccurredAt(joinDateTimeLocal(date, time));
+            }}
+          />
+
+          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
+            <legend className="text-muted">Type</legend>
+            <div
+              role="radiogroup"
+              aria-label="Transaction type"
+              className={moneyQuickPickGroupCls}
+            >
+              {KIND_OPTIONS.map(({ value, label, description }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={kind === value}
+                  title={description}
+                  onClick={() => {
+                    setKind(value);
+                    if (value !== "transfer") setToAccountId("");
+                  }}
+                  className={moneyQuickPickChipCls(kind === value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
           <MoneyUsageQuickPick
             legend="Merchant"
             ariaLabel="Merchant"
@@ -592,17 +598,6 @@ export function TransactionEditForm({
             otherLabel="Select other merchant"
             allowEmpty
             emptyMessage="No merchants yet. Add one in Settings."
-          />
-
-          <MoneyDateQuickPick
-            legend="When"
-            ariaLabel="Transaction date"
-            className="[grid-column:1/-1]"
-            value={splitDateTimeLocal(occurredAt).date}
-            onChange={(date) => {
-              const { time } = splitDateTimeLocal(occurredAt);
-              setOccurredAt(joinDateTimeLocal(date, time));
-            }}
           />
 
           <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">
@@ -699,19 +694,30 @@ export function TransactionEditForm({
                 Cancel
               </Link>
             )}
+            <span aria-live="polite" className="text-sm text-muted">
+              Changes update balances and analytics immediately.
+            </span>
+          </div>
+
+          <div className="border-t border-border pt-6 [grid-column:1/-1]">
+            <h3 className="text-sm font-medium text-foreground">
+              Remove this transaction
+            </h3>
+            <p className="mt-1 text-sm text-muted">
+              Permanently deletes this entry and updates account balances. This
+              cannot be undone.
+            </p>
             <Button
               type="button"
               variant="danger"
               size="sm"
+              className="mt-3"
               disabled={saving || deleting}
               aria-busy={deleting}
               onClick={() => void handleDelete()}
             >
-              {deleting ? "Deleting…" : "Delete"}
+              {deleting ? "Deleting…" : "Delete transaction"}
             </Button>
-            <span aria-live="polite" className="text-sm text-muted">
-              Changes update balances and analytics immediately.
-            </span>
           </div>
         </form>
       </div>

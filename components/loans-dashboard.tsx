@@ -4,15 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import {
-  getLoansTodayIso,
-} from "@/components/loan-list-card";
 import { LoanPayActions } from "@/components/loan-pay-actions";
 import { LoansDueBanner } from "@/components/loans-due-banner";
+import { LoansInsightsStats } from "@/components/loans-insights-stats";
+import { LoansOverviewPageSkeleton } from "@/components/loans-page-skeleton";
 import { useLoansWorkspace } from "@/components/loans-workspace-provider";
 import {
   MoneyEmptyState,
-  MoneyListSkeleton,
   MoneyQueryErrorAlert,
 } from "@/components/money-feedback";
 import {
@@ -30,7 +28,11 @@ import { cn } from "@/lib/cn";
 import { moneyQuickPickChipCls, moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
+import { loansInsightsDefaultRange } from "@/lib/money-first-load-filters";
+import { MoneyStatusEmphasis, MoneyStatusStrip } from "@/lib/money-status-strip";
+import { getLoansTodayIso } from "@/lib/loans-today";
 import {
+  loansInsightsAtfQueryOptions,
   loansListQueryOptions,
   type LoanListItem,
 } from "@/lib/loans-query-options";
@@ -323,13 +325,19 @@ function LoansTable({
 }
 
 export function LoansDashboard() {
-  const { workspaceReady } = useLoansWorkspace();
+  const { workspaceReady, defaultCurrency, dueCount } = useLoansWorkspace();
+  const pageDefault = useMemo(() => loansInsightsDefaultRange(), []);
   const listQuery = useQuery({
     ...loansListQueryOptions(),
     enabled: workspaceReady,
   });
+  const atfQuery = useQuery({
+    ...loansInsightsAtfQueryOptions(pageDefault.from, pageDefault.to),
+    enabled: workspaceReady,
+  });
   const todayIso = getLoansTodayIso();
   const [filter, setFilter] = useState<LoanFilter>("all");
+  const currency = defaultCurrency ?? "USD";
 
   const filteredLoans = useMemo(() => {
     if (!listQuery.data) return [];
@@ -338,17 +346,87 @@ export function LoansDashboard() {
       .sort((a, b) => sortByNextDue(a, b, todayIso));
   }, [filter, listQuery.data, todayIso]);
 
+  const overdueLoanCount = useMemo(() => {
+    if (!listQuery.data) return 0;
+    return listQuery.data.filter((loan) => isOverdue(loan, todayIso)).length;
+  }, [listQuery.data, todayIso]);
+
+  const dueSoonLoanCount = useMemo(() => {
+    if (!listQuery.data) return 0;
+    return listQuery.data.filter(
+      (loan) => isDueSoon(loan, todayIso) && !isOverdue(loan, todayIso),
+    ).length;
+  }, [listQuery.data, todayIso]);
+
+  const showStatusStrip =
+    overdueLoanCount > 0 || dueSoonLoanCount > 0 || dueCount > 0;
+
+  const loading =
+    !workspaceReady ||
+    (listQuery.isLoading && !listQuery.data) ||
+    (atfQuery.isLoading && !atfQuery.data);
+
+  if (loading) {
+    return <LoansOverviewPageSkeleton />;
+  }
+
   return (
     <div className="min-w-0 space-y-4">
       <LoansDueBanner />
 
-      {listQuery.isLoading ? (
-        <MoneyListSkeleton variant="loansTable" />
+      {atfQuery.isError ? (
+        <MoneyQueryErrorAlert
+          title="Couldn't load summary"
+          error={atfQuery.error}
+          onRetry={() => void atfQuery.refetch()}
+        />
+      ) : null}
+
+      {atfQuery.data && atfQuery.data.summary.loanCount > 0 ? (
+        <section aria-label="Loans summary">
+          <LoansInsightsStats
+            atf={atfQuery.data}
+            currency={currency}
+            showPeriodCaption={false}
+            showActiveLoansCaption={false}
+            variant="page"
+            overdueCount={overdueLoanCount}
+          />
+        </section>
+      ) : null}
+
+      {showStatusStrip ? (
+        <MoneyStatusStrip>
+          {overdueLoanCount > 0 ? (
+            <>
+              <MoneyStatusEmphasis>{overdueLoanCount}</MoneyStatusEmphasis>{" "}
+              {overdueLoanCount === 1 ? "loan overdue" : "loans overdue"}
+            </>
+          ) : null}
+          {overdueLoanCount > 0 && (dueSoonLoanCount > 0 || dueCount > 0)
+            ? " · "
+            : null}
+          {dueSoonLoanCount > 0 ? (
+            <>
+              <MoneyStatusEmphasis>{dueSoonLoanCount}</MoneyStatusEmphasis>{" "}
+              {dueSoonLoanCount === 1 ? "loan due soon" : "loans due soon"}
+            </>
+          ) : null}
+          {dueSoonLoanCount > 0 && dueCount > 0 ? " · " : null}
+          {dueCount > 0 ? (
+            <>
+              <MoneyStatusEmphasis>{dueCount}</MoneyStatusEmphasis>{" "}
+              {dueCount === 1
+                ? "installment due or overdue"
+                : "installments due or overdue"}
+            </>
+          ) : null}
+        </MoneyStatusStrip>
       ) : null}
 
       {listQuery.isError ? (
         <MoneyQueryErrorAlert
-          title="Couldn’t load loans"
+          title="Couldn't load loans"
           error={listQuery.error}
           onRetry={() => void listQuery.refetch()}
         />

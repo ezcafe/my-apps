@@ -246,47 +246,40 @@ export function MoneySettingsRecurrenceSection() {
         title="Recurrence"
         description="Manage existing recurring schedules. New ones are created from Add."
       >
-        <div className="rounded-[var(--radius-sm)] bg-background px-4 py-4 text-sm leading-6 text-muted">
-          <p>
-            To add a recurring transaction, open{" "}
+        {recurrent.length === 0 ? (
+          <div className="rounded-[var(--radius-sm)] bg-background px-4 py-4 text-sm leading-6 text-muted">
+            <p className="font-medium text-foreground">No recurring transactions yet</p>
+            <p className="mt-2">
+              To add one, open{" "}
+              <Link
+                href="/money/new"
+                className="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors duration-150 hover:decoration-foreground"
+              >
+                Add
+              </Link>{" "}
+              and:
+            </p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              <li>Enter amount, account, and category.</li>
+              <li>Turn on <span className="text-foreground">Repeat this transaction</span>.</li>
+              <li>Pick how often it repeats, then save.</li>
+            </ol>
             <Link
               href="/money/new"
-              className="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors duration-150 hover:decoration-foreground"
+              className={buttonClassName({ variant: "primary", size: "md", className: "mt-4" })}
             >
-              Add
-            </Link>{" "}
-            and:
-          </p>
-          <ol className="mt-2 list-decimal space-y-1 pl-5">
-            <li>Fill in the transaction details (amount, account, category, and so on).</li>
-            <li>Check <span className="text-foreground">Repeat this transaction</span>.</li>
-            <li>Choose how often it repeats (daily, monthly, or yearly).</li>
-            <li>Save — the first entry is recorded and future runs are scheduled automatically.</li>
-          </ol>
-          <Link
-            href="/money/new"
-            className={buttonClassName({ variant: "primary", size: "md", className: "mt-4" })}
-          >
-            Go to Add
-          </Link>
-        </div>
+              Go to Add
+            </Link>
+          </div>
+        ) : null}
 
-        <div className="mt-8">
+        <div className={recurrent.length === 0 ? "mt-8" : undefined}>
           <SettingsSubsectionHeading
             title="Recurring transactions"
             description="Edit, pause, or remove schedules. Use Generate now to create the next entry immediately."
           />
           {recurrent.length === 0 ? (
-            <p className="mt-5 text-sm text-muted">
-              No recurring schedules yet.{" "}
-              <Link
-                href="/money/new"
-                className="font-medium text-foreground underline decoration-border underline-offset-2 transition-colors duration-150 hover:decoration-foreground"
-              >
-                Add one from Add
-              </Link>
-              .
-            </p>
+            null
           ) : (
             <ul className="mt-5 divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm">
               {recurrent.map((r) => (

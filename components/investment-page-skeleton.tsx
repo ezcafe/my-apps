@@ -1,9 +1,10 @@
-import { MoneyListSkeleton } from "@/components/money-feedback";
 import {
   AnalyticsStatsSkeleton,
   MoneyAnalyticsFiltersBarSkeleton,
   MoneyAnalyticsTransactionsTableSkeleton,
+  AnalyticsPeriodChipSkeleton,
 } from "@/components/money-analytics-skeleton";
+import { MoneyListSkeleton } from "@/components/money-feedback";
 import { MONEY_DASHBOARD_STACK, MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
@@ -46,9 +47,11 @@ export function MoneyInvestmentsPageSkeleton() {
       aria-live="polite"
       aria-label="Loading investments"
     >
+      <AnalyticsStatsSkeleton showPeriodLine={false} />
       <InvestmentPortfolioSnapshotSkeleton />
+      <AnalyticsPeriodChipSkeleton />
+      <AnalyticsStatsSkeleton showPeriodLine={false} />
       <MoneyAnalyticsFiltersBarSkeleton />
-      <AnalyticsStatsSkeleton />
       <MoneyAnalyticsTransactionsTableSkeleton selectable />
     </div>
   );

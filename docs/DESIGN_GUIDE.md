@@ -31,9 +31,26 @@ If a need is not covered here, propose an extension to this doc + a primitive �
 | Surface | Trigger | Panel contents |
 |---------|---------|----------------|
 | App shell | Top-right hamburger ([`app-shell.tsx`](../components/app-shell.tsx)) | Shell routes from [`registry.ts`](../lib/features/registry.ts) + sign in/out |
-| Money / Investments / Loans | Left hamburger ([`MoneyAppMenu`](../components/money-section-tabs.tsx)) | Nested: **Apps** (Money, Investments, Loans) → nested sections; Help / Settings / sign-in at the bottom |
+| Money / Investments / Loans / Help / Settings | Left hamburger ([`MoneyAppMenu`](../components/money-section-tabs.tsx)) | Context-first app nav from [`app-section-nav.ts`](../lib/app-section-nav.ts) + labeled workspace links |
 
 Desktop (`lg+`): shell uses a fixed icon rail on routes that are not Money, Investments, Loans, Help, or App Settings. Those apps hide the rail and use the in-page nested hamburger. Every shell page uses [`PageHeading`](../components/page-heading.tsx) (Tailwind Plus [page headings](https://tailwindcss.com/plus/ui-blocks/application-ui/headings/page-headings)): **With actions** on top-level routes, **With actions and breadcrumbs** when nested. Primary CTA is a **text-only** button in the heading at all breakpoints (no sticky bottom Add bar).
+
+#### Navigation assessment (long nav)
+
+This app is **long navigation** ([Pencil & Paper Navigation Assessment Framework](https://www.pencilandpaper.io/articles/navigation-assessment-framework)): many sibling destinations across Money, Investments, and Loans — not deep breadcrumb chains. Apply these rules when adding or reordering menu items:
+
+| Concept | Practice in this app |
+|---------|----------------------|
+| **Navigation budget** | Every page hop costs reorientation. Prefer fewer, clearer destinations; do not add a nav item for a one-off action — use heading CTAs, drawers, or inline expansion instead. |
+| **Context-first menu** | [`MoneyAppMenu`](../components/money-section-tabs.tsx) detects the active app from the pathname and shows **that app’s full grouped nav first**. Other apps appear as compact jump links to their home route — not a second copy of all their pages. On Help / Settings (no active app), all apps render with group labels. |
+| **Task groups** | Within an app, items are grouped by job — **Review** (Insights), **Capture** (Add / Record / Create), **Browse** (ledgers, lists, instruments), **Configure** (settings, import). Source of truth: [`APP_SECTION_NAV`](../lib/app-section-nav.ts). |
+| **Item order** | Insights → primary capture action → main browse surface → optional ledgers → configure. Match page titles (“Spending”, “Loans”, “Investments”) — not generic “Overview”. |
+| **Low-value cuts** | Optional Money ledgers (Bills, Savings, Import) stay **off by default** ([`money-section-tab-visibility.ts`](../lib/money-section-tab-visibility.ts)); enable in Money settings. Do not add nav rent for empty shells or single-action pages. |
+| **Labeled essentials** | Workspace footer links (API help, Settings, Sign in/out) use **icon + text** rows — never icon-only in the menu panel. Hamburger trigger stays icon-only (`fx-hit-40`). |
+| **Wide vs deep** | Nested routes (loan detail, settings child, instrument create) use **breadcrumbs**, not extra hamburger rows. Do not mirror folder depth in the menu. |
+| **Search is not nav** | Find-in-list search only where a corpus is long (see [Search](#search)). No global command palette to paper over IA. |
+
+When evaluating a new destination, ask: (1) which app and task group does it belong to? (2) does it earn a permanent menu row or should it be progressive disclosure? (3) will a busy parent use it weekly or is it configure-once?
 
 ### Page headings & breadcrumbs
 
@@ -124,7 +141,7 @@ Clarity beats decoration.
 | **Four color roles** | Neutrals (background / surface / muted-surface) + teal **primary** + muted **secondary** + **destructive** / semantic states. Max ~3 chrome colors (grays + accent). |
 | **One primary action per view** | Prefer a single `Button` `primary` per screen region; `secondary` / `ghost` for the rest. |
 | **Alignment & consistency** | Same padding, radius, and component styles everywhere; no one-off card treatments. |
-| **Simple navigation** | Shell nav from [`registry.ts`](../lib/features/registry.ts) only; do not stuff menus. |
+| **Simple navigation** | Shell nav from [`registry.ts`](../lib/features/registry.ts); app sections from [`app-section-nav.ts`](../lib/app-section-nav.ts). Context-first menu — do not flatten all apps into one long list. |
 | **Subtle motion only** | `fx-*` utilities — measured feedback without clutter. |
 | **Never hide essentials** | Minimal ≠ incomplete. Keep required actions visible and labeled. |
 | **Progressive disclosure** | Primary chrome only: one primary CTA + essential filters (e.g. Direction, Accounts, Categories, Apply). Secondary filters/actions and help copy live behind [`MoreMenu`](../components/ui/more-menu.tsx) or an info-icon tooltip ([`AboutDisclosure`](../components/ui/about-disclosure.tsx)). Never hide Workspace, View, Apply, or the primary CTA. |
@@ -316,12 +333,13 @@ withViewTransition(() => setTheme("dark"));
 
 ## Shell & navigation
 
-- Source of truth: [`lib/features/registry.ts`](../lib/features/registry.ts).
-- **Mobile-first:** hamburger → [`Popover`](../components/ui/popover.tsx) popup menu (`aria-label="Open navigation menu"` / Money: `"Open Money menu"`).
+- Source of truth: product apps in [`lib/app-section-nav.ts`](../lib/app-section-nav.ts); shell features in [`lib/features/registry.ts`](../lib/features/registry.ts).
+- **Mobile-first:** hamburger → [`Popover`](../components/ui/popover.tsx) popup menu. App menu: `aria-label="Open {App} menu"`; shell menu: `"Open navigation menu"`.
+- **Context-first app menu:** app switcher → grouped current-app links → other-app jump links → labeled workspace footer (Help, Settings, auth).
 - **Desktop (`lg+`):** icon rail in [`app-shell.tsx`](../components/app-shell.tsx) when not on Money/Help/Settings; otherwise in-page [`PageHeading`](../components/page-heading.tsx) with section-aware text CTA.
-- Active item: `fx-vt-shell-nav-active`.
+- Active item: `fx-vt-shell-nav-active` (rail) or `bg-muted-surface` (menu row).
 - Route changes: `<main key={pathname}>` + `fx-fade-in`.
-- Touch targets: `iconOnly` / `fx-hit-40` (≥44×44) on all menu triggers.
+- Touch targets: `iconOnly` / `fx-hit-40` (≥44×44) on menu **triggers** only; panel rows are labeled text links.
 
 ## Accessibility & motion
 
@@ -459,6 +477,22 @@ This app’s search is **find-in-list** (filter a known corpus), not site search
 2. Update [`lib/theme-chart-palette.ts`](../lib/theme-chart-palette.ts) if chart colors change.
 3. Update this doc + [`SPEC.md`](SPEC.md) if success criteria change.
 
+## Copy & text hierarchy (Money)
+
+Plain language, short helpers, and typography — not color alone — carry scan order on dashboards, wizards, and settings.
+
+| Pattern | Practice |
+|---------|----------|
+| **Page meta** | One `text-sm text-muted` sentence under the h1 via `PageHeading` `meta` — scope in plain language (from ledger presets or section config). |
+| **Period chip** | `Showing {from} – {to}` with dates in `font-medium text-foreground tabular-nums`; suffix `· Apply to update` when filters are dirty. |
+| **Status strip** | Inline counts: bold `tabular-nums` on numbers and blocking words (“left”, “to fix”); remainder muted. |
+| **Blockers** | `Alert` (error/warning) for anything that stops progress — never a muted `<p>` alone. |
+| **Field labels** | Human names only in UI; internal keys and JSON never shown. Jargon behind `AboutDisclosure` when needed. |
+
+Wizard steps: render the step hint under the progress bar. Review/summary steps lead with scannable numbers, then detail, then errors.
+
+**Loading / skeleton parity:** Route `loading.tsx`, Suspense fallbacks, and in-component loading branches must mirror the shipped page stack (period chip → KPIs → status strip → filters → content). Reuse `AnalyticsPeriodChipSkeleton`, `AnalyticsStatsSkeleton`, and shared page skeletons from [`money-analytics-skeleton.tsx`](../components/money-analytics-skeleton.tsx). Verify on slow network in light and dark — chip/KPI positions should not jump when content loads.
+
 ## Quick checklist for any UI change
 
 - [ ] Uses tokens, no raw hex/font/radius/shadow.
@@ -476,5 +510,6 @@ This app’s search is **find-in-list** (filter a known corpus), not site search
 - [ ] Feedback scale matches stakes (field / Alert / toast / Modal); error copy via `toUserFacingMessage`; success names the object.
 - [ ] Nested pages use location crumbs from the section origin; top-level sections have none.
 - [ ] Dashboards: metrics → optional chart → table; no extra viz “because we have the data.”
+- [ ] Skeleton/loading order matches live page stack (chip → KPIs → filters → content).
 - [ ] Verified light and dark via `/settings`.
 - [ ] `npm run lint` and `npm run build` pass.

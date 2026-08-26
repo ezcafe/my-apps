@@ -16,9 +16,13 @@ import type { InvestmentInsightsAtf } from "@/lib/investment-query-options";
 export function InvestmentInsightsStats({
   atf,
   currency,
+  showPeriodCaption = true,
+  variant = "grid",
 }: {
   atf: InvestmentInsightsAtf;
   currency: string;
+  showPeriodCaption?: boolean;
+  variant?: "grid" | "page";
 }) {
   const { resolved, style } = useTheme();
   const { formatPeriod } = useFormatDate();
@@ -34,10 +38,19 @@ export function InvestmentInsightsStats({
   const animationKey = `${atf.range.from}-${atf.range.to}`;
 
   return (
-    <div className="col-span-2 grid gap-3 md:col-span-6 lg:col-span-12 fx-fade-in">
-      <p className="text-sm text-muted">
-        {period ? <>Results for {period}</> : <>Results for the default range</>}
-      </p>
+    <div
+      className={cn(
+        variant === "grid"
+          ? "col-span-2 grid gap-3 md:col-span-6 lg:col-span-12"
+          : "grid gap-3",
+        "fx-fade-in",
+      )}
+    >
+      {showPeriodCaption ? (
+        <p className="text-sm text-muted">
+          {period ? <>Results for {period}</> : <>Results for the default range</>}
+        </p>
+      ) : null}
       <div
         className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
         aria-label="Summary metrics"

@@ -488,7 +488,7 @@ export function AnalyticsTransactionsTable({
           </h2>
           <p className="mb-3 text-sm text-muted">
             {variant === "standalone"
-              ? "Select rows to edit or delete. Filter by date, account, category, and more."
+              ? "Tap a row to edit."
               : "Rows match the applied analytics filters. Sort columns or change page below."}
           </p>
 

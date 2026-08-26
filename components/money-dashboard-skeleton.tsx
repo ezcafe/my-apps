@@ -207,22 +207,15 @@ export function InvestmentOpenCloseFormSkeleton() {
       aria-label="Loading activity form"
     >
       <fieldset className="grid min-w-0 gap-1.5 text-sm">
-        <legend className="text-muted">Mode</legend>
+        <legend className="text-muted">What are you doing?</legend>
         <div className={moneyQuickPickGroupCls}>
           <StaticChip label="Trade" active />
           <StaticChip label="Open" />
           <StaticChip label="Close" />
         </div>
       </fieldset>
-      <MoneyLookupQuickPickSkeleton legend="Symbol" required />
-      <fieldset className="grid min-w-0 gap-1.5 text-sm">
-        <legend className="text-muted">Direction</legend>
-        <div className={moneyQuickPickGroupCls}>
-          <StaticChip label="Buy" active />
-          <StaticChip label="Sell" />
-        </div>
-      </fieldset>
       <MoneyInputGroupSkeleton label="Quantity" required leading="" trailing="Lots" />
+      <MoneyLookupQuickPickSkeleton legend="Symbol" required />
       <MoneyInputGroupSkeleton label="Open price" required />
       <MoneyInputGroupSkeleton label="Close price" required />
       <MoneyInputGroupSkeleton label="Fee" leading="" trailing="USD" />
@@ -238,7 +231,7 @@ export function InvestmentOpenCloseFormSkeleton() {
         <Textarea rows={3} value="" disabled />
       </Field>
       <Button type="submit" disabled>
-        Save trade
+        Record trade
       </Button>
     </div>
   );
@@ -280,12 +273,7 @@ export function MoneyDashboardSkeleton() {
       aria-label="Loading money dashboard"
     >
       <div>
-        <header className="mb-4 flex items-baseline justify-between gap-3">
-          <h2 className="font-display text-lg font-medium tracking-tight">
-            New transaction
-          </h2>
-          <span className="text-sm text-muted">USD</span>
-        </header>
+        <h2 className="sr-only">New transaction</h2>
 
         <form
           className="grid min-w-0 gap-4"
@@ -294,15 +282,6 @@ export function MoneyDashboardSkeleton() {
               "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))",
           }}
         >
-          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
-            <legend className="text-muted">Kind</legend>
-            <div className={moneyQuickPickGroupCls}>
-              <StaticChip label="Expense" active />
-              <StaticChip label="Income" />
-              <StaticChip label="Transfer" />
-            </div>
-          </fieldset>
-
           <Field label="Amount" required>
             <InputGroup>
               <InputGroupAddon side="leading" aria-hidden>
@@ -321,6 +300,15 @@ export function MoneyDashboardSkeleton() {
             </InputGroup>
           </Field>
 
+          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
+            <legend className="text-muted">Type</legend>
+            <div className={moneyQuickPickGroupCls}>
+              <StaticChip label="Expense" active />
+              <StaticChip label="Income" />
+              <StaticChip label="Transfer" />
+            </div>
+          </fieldset>
+
           <MoneyLookupQuickPickSkeleton
             legend="Account"
             required
@@ -335,7 +323,7 @@ export function MoneyDashboardSkeleton() {
           />
 
           <fieldset className="grid min-w-0 gap-1.5 text-sm">
-            <legend className="text-muted">When</legend>
+            <legend className="text-muted">Date</legend>
             <div className={moneyQuickPickGroupCls}>
               <StaticChip label="Today" active />
               <StaticChip label="Yesterday" />
@@ -345,13 +333,9 @@ export function MoneyDashboardSkeleton() {
 
           <div className="[grid-column:1/-1]">
             <Button type="button" variant="ghost" size="sm" disabled>
-              More details
+              Notes &amp; extras
             </Button>
           </div>
-
-          <Field label="Notes" className="[grid-column:1/-1]">
-            <Textarea rows={3} value="" disabled />
-          </Field>
 
           <div className="flex flex-wrap items-center gap-3 [grid-column:1/-1]">
             <Button type="submit" disabled>

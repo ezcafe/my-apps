@@ -84,7 +84,7 @@ const shellNavItemsSource: ShellNavItem[] = [
   {
     kind: "core",
     id: "settings",
-    label: "App settings",
+    label: "Settings",
     href: "/settings",
     order: 20,
     icon: "settings",

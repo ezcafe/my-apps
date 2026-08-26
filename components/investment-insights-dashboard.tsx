@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import { useMemo, useState, useTransition, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { AboutDisclosure } from "@/components/ui/about-disclosure";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import {
@@ -20,10 +19,13 @@ import {
 } from "@/components/analytics-chart-layout";
 import {
   ANALYTICS_GRID_CLASS,
+  AnalyticsStatsSkeleton,
   FeatureInsightsPageSkeleton,
   MoneyAnalyticsChartsSkeleton,
   MoneyAnalyticsFiltersBarSkeleton,
 } from "@/components/money-analytics-skeleton";
+import { AnalyticsPeriodChip } from "@/components/analytics-period-chip";
+import { useSetAppHeader } from "@/components/app-header-override";
 import { InvestmentInsightsStats } from "@/components/investment-insights-stats";
 import { InvestmentResultsOverTimeCard } from "@/components/investment-chart-cards/results-over-time-card";
 import { InvestmentAllocationCard } from "@/components/investment-chart-cards/allocation-card";
@@ -104,12 +106,36 @@ export function InvestmentInsightsDashboard() {
     atf.allocation.length === 0 &&
     !atf.series.some((p) => p.totalMinor !== 0);
 
+  useSetAppHeader({
+    meta: "Portfolio performance and trade results for the selected range.",
+  });
+
   if (!workspaceReady && !atfQuery.data && !atfQuery.error) {
     return <FeatureInsightsPageSkeleton />;
   }
 
   return (
     <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
+      <AnalyticsPeriodChip
+        fromDate={applied.from}
+        toDate={applied.to}
+        dirty={dirty}
+      />
+
+      {atfQuery.isLoading && !atf ? (
+        <AnalyticsStatsSkeleton showPeriodLine={false} />
+      ) : null}
+      {atf && !empty ? (
+        <section aria-label="Summary metrics">
+          <InvestmentInsightsStats
+            atf={atf}
+            currency={defaultCurrency}
+            showPeriodCaption={false}
+            variant="page"
+          />
+        </section>
+      ) : null}
+
       <InsightsDateRangeFiltersBar
         value={{ fromDate: draft.from, toDate: draft.to }}
         onChange={(next) => setDraft({ from: next.fromDate, to: next.toDate })}
@@ -133,7 +159,7 @@ export function InvestmentInsightsDashboard() {
         <AnalyticsEmptyState
           icon="investment"
           accentChartIndex={4}
-          title="No journal results yet"
+          title="No results yet"
           description="Create an instrument, then open a trade or record a closed activity."
           primaryAction={{ href: "/investments/new", label: "Record activity" }}
         />
@@ -141,7 +167,6 @@ export function InvestmentInsightsDashboard() {
 
       {atf && !empty ? (
         <section aria-label="Insights dashboard" className={ANALYTICS_GRID_CLASS}>
-          <InvestmentInsightsStats atf={atf} currency={defaultCurrency} />
           <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:grid-cols-2 md:gap-3 lg:col-span-12">
             <InvestmentResultsOverTimeCard
               ready
@@ -156,15 +181,35 @@ export function InvestmentInsightsDashboard() {
           </div>
 
           {!moreInsights ? (
-            <div className="col-span-2 flex flex-wrap justify-end gap-3 md:col-span-6 lg:col-span-12">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setMoreInsights(true)}
-              >
-                More insights
-              </Button>
+            <div className="col-span-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 md:col-span-6 lg:col-span-12">
+              {(
+                [
+                  {
+                    title: "Realized vs unrealized",
+                    hint: "Closed P&L versus mark-to-market on open lots",
+                  },
+                  {
+                    title: "P&L by symbol",
+                    hint: "Which symbols drive your results",
+                  },
+                  {
+                    title: "Risk metrics",
+                    hint: "Max drawdown and closed-lot hit rate",
+                  },
+                ] as const
+              ).map(({ title, hint }) => (
+                <button
+                  key={title}
+                  type="button"
+                  onClick={() => setMoreInsights(true)}
+                  className="rounded-[var(--radius-md)] border border-border bg-surface px-4 py-3 text-left transition-colors duration-200 hover:bg-muted-surface fx-press"
+                >
+                  <span className="block text-sm font-medium text-foreground">
+                    {title}
+                  </span>
+                  <span className="mt-1 block text-sm text-muted">{hint}</span>
+                </button>
+              ))}
             </div>
           ) : (
             <InvestmentMoreInsights

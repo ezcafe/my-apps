@@ -1,7 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AnalyticsStats } from "@/components/analytics-stats";
+import {
+  AnalyticsStats,
+  type AnalyticsStatCardId,
+} from "@/components/analytics-stats";
 import { AnalyticsStatsSkeleton } from "@/components/money-analytics-skeleton";
 import { moneyAnalyticsSummaryQueryOptions } from "@/lib/money-query-options";
 import type { MoneyAnalyticsSummaryPayload } from "@/lib/money-services/analytics";
@@ -11,11 +14,15 @@ export function MoneyLedgerSummaryStats({
   workspaceId,
   currency,
   enabled,
+  cardOrder,
+  showPeriodCaption = false,
 }: {
   filterQuery: string;
   workspaceId: string;
   currency: string;
   enabled: boolean;
+  cardOrder?: readonly AnalyticsStatCardId[];
+  showPeriodCaption?: boolean;
 }) {
   const summaryQuery = useQuery({
     ...moneyAnalyticsSummaryQueryOptions(workspaceId, filterQuery),
@@ -35,6 +42,8 @@ export function MoneyLedgerSummaryStats({
       stats={summary.stats}
       range={summary.range}
       currency={currency}
+      cardOrder={cardOrder}
+      showPeriodCaption={showPeriodCaption}
     />
   );
 }

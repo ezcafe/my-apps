@@ -12,6 +12,7 @@ import type { ApiTokenListItem } from "@/lib/api-token-service";
 import type { ApiTokenScope } from "@/db/schema/api-token";
 import type { ApiTokenAppKey } from "@/lib/api-auth";
 import { API_TOKEN_APP_KEYS } from "@/lib/api-token-app-keys";
+import { MoneyStatusEmphasis, MoneyStatusStrip } from "@/lib/money-status-strip";
 
 type WorkspaceRow = {
   id: string;
@@ -19,6 +20,142 @@ type WorkspaceRow = {
   kind: string;
   isDefault: boolean;
 };
+
+function TokenCreateForm({
+  appKey,
+  setAppKey,
+  name,
+  setName,
+  workspaceId,
+  setWorkspaceId,
+  workspaces,
+  writeScope,
+  setWriteScope,
+  creating,
+  createToken,
+}: {
+  appKey: ApiTokenAppKey;
+  setAppKey: (key: ApiTokenAppKey) => void;
+  name: string;
+  setName: (name: string) => void;
+  workspaceId: string;
+  setWorkspaceId: (id: string) => void;
+  workspaces: WorkspaceRow[];
+  writeScope: boolean;
+  setWriteScope: (fn: (v: boolean) => boolean) => void;
+  creating: boolean;
+  createToken: () => void;
+}) {
+  return (
+    <div className="space-y-4 rounded-[var(--radius-sm)] bg-background p-4">
+      <div className="grid gap-3">
+        <Field label="App">
+          <Select
+            value={appKey}
+            onChange={(e) => setAppKey(e.target.value as ApiTokenAppKey)}
+          >
+            {API_TOKEN_APP_KEYS.map((key) => (
+              <option key={key} value={key}>
+                {key.charAt(0).toUpperCase() + key.slice(1)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Name" required>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. nightly backup"
+            maxLength={120}
+            required
+          />
+        </Field>
+        <Field label="Workspace" required>
+          <Select
+            value={workspaceId}
+            onChange={(e) => setWorkspaceId(e.target.value)}
+          >
+            {workspaces.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name}
+                {w.isDefault ? " (default)" : ""}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <div className="flex items-center gap-2 text-sm text-foreground">
+          <Checkbox
+            checked={writeScope}
+            onChange={() => setWriteScope((v) => !v)}
+            ariaLabel="Allow write (mutations, imports)"
+          />
+          <span>Allow write (mutations, imports)</span>
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="primary"
+        disabled={creating || !workspaceId}
+        onClick={() => void createToken()}
+      >
+        {creating ? "Creating…" : "Create token"}
+      </Button>
+    </div>
+  );
+}
+
+function TokenList({
+  tokens,
+  workspaceName,
+  revokingId,
+  revoke,
+}: {
+  tokens: ApiTokenListItem[];
+  workspaceName: (id: string) => string;
+  revokingId: string | null;
+  revoke: (id: string) => void;
+}) {
+  if (tokens.length === 0) {
+    return <p className="text-sm text-muted">No API tokens yet.</p>;
+  }
+
+  return (
+    <ul
+      role="list"
+      className="divide-y divide-border rounded-[var(--radius-sm)] bg-background"
+    >
+      {tokens.map((t) => (
+        <li
+          key={t.id}
+          className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <p className="text-sm font-medium text-foreground">{t.name}</p>
+            <p className="mt-1 font-mono text-sm text-muted">
+              {t.keyPrefix}… · {t.appKey} · {workspaceName(t.workspaceId)} ·{" "}
+              {t.scopes.join(", ")}
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              Created {new Date(t.createdAt).toLocaleString()}
+              {t.lastUsedAt
+                ? ` · Last used ${new Date(t.lastUsedAt).toLocaleString()}`
+                : ""}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="danger"
+            size="sm"
+            disabled={revokingId === t.id}
+            onClick={() => void revoke(t.id)}
+          >
+            {revokingId === t.id ? "Revoking…" : "Revoke"}
+          </Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function ApiTokenSettings({
   embedded,
@@ -143,6 +280,22 @@ export function ApiTokenSettings({
     }
   };
 
+  const createFormProps = {
+    appKey,
+    setAppKey,
+    name,
+    setName,
+    workspaceId,
+    setWorkspaceId,
+    workspaces,
+    writeScope,
+    setWriteScope,
+    creating,
+    createToken,
+  };
+
+  const hasTokens = tokens.length > 0;
+
   return (
     <>
       {!embedded ? (
@@ -161,102 +314,49 @@ export function ApiTokenSettings({
         </p>
       ) : null}
 
-      <div className="space-y-4 rounded-[var(--radius-sm)] bg-background p-4">
-        <div className="grid gap-3">
-          <Field label="App">
-            <Select
-              value={appKey}
-              onChange={(e) => setAppKey(e.target.value as ApiTokenAppKey)}
-            >
-              {API_TOKEN_APP_KEYS.map((key) => (
-                <option key={key} value={key}>
-                  {key.charAt(0).toUpperCase() + key.slice(1)}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Name" required>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. nightly backup"
-              maxLength={120}
-              required
-            />
-          </Field>
-          <Field label="Workspace" required>
-            <Select
-              value={workspaceId}
-              onChange={(e) => setWorkspaceId(e.target.value)}
-            >
-              {workspaces.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                  {w.isDefault ? " (default)" : ""}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <div className="flex items-center gap-2 text-sm text-foreground">
-            <Checkbox
-              checked={writeScope}
-              onChange={() => setWriteScope((v) => !v)}
-              ariaLabel="Allow write (mutations, imports)"
-            />
-            <span>Allow write (mutations, imports)</span>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="primary"
-          disabled={creating || !workspaceId}
-          onClick={() => void createToken()}
-        >
-          {creating ? "Creating…" : "Create token"}
-        </Button>
-      </div>
+      {hasTokens ? (
+        <MoneyStatusStrip className="mb-4">
+          <MoneyStatusEmphasis>{tokens.length}</MoneyStatusEmphasis>{" "}
+          active {tokens.length === 1 ? "token" : "tokens"}
+        </MoneyStatusStrip>
+      ) : null}
 
-      <div className="mt-6">
-        <h3 className="text-sm font-medium text-foreground">Active tokens</h3>
-        {tokens.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">No API tokens yet.</p>
-        ) : (
-          <ul
-            role="list"
-            className="mt-3 divide-y divide-border rounded-[var(--radius-sm)] bg-background"
-          >
-            {tokens.map((t) => (
-              <li
-                key={t.id}
-                className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="text-sm font-medium text-foreground">{t.name}</p>
-                  <p className="mt-1 font-mono text-sm text-muted">
-                    {t.keyPrefix}… · {t.appKey} · {workspaceName(t.workspaceId)} ·{" "}
-                    {t.scopes.join(", ")}
-                  </p>
-                  <p className="mt-1 text-sm text-muted">
-                    Created {new Date(t.createdAt).toLocaleString()}
-                    {t.lastUsedAt
-                      ? ` · Last used ${new Date(t.lastUsedAt).toLocaleString()}`
-                      : ""}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
-                  disabled={revokingId === t.id}
-                  onClick={() => void revoke(t.id)}
-                >
-                  {revokingId === t.id ? "Revoking…" : "Revoke"}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {hasTokens ? (
+        <>
+          <div>
+            <h3 className="text-sm font-medium text-foreground">Active tokens</h3>
+            <div className="mt-3">
+              <TokenList
+                tokens={tokens}
+                workspaceName={workspaceName}
+                revokingId={revokingId}
+                revoke={revoke}
+              />
+            </div>
+          </div>
+          <div className="mt-6">
+            <h3 className="text-sm font-medium text-foreground">New token</h3>
+            <div className="mt-3">
+              <TokenCreateForm {...createFormProps} />
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <TokenCreateForm {...createFormProps} />
+          <div className="mt-6">
+            <h3 className="text-sm font-medium text-foreground">Active tokens</h3>
+            <div className="mt-3">
+              <TokenList
+                tokens={tokens}
+                workspaceName={workspaceName}
+                revokingId={revokingId}
+                revoke={revoke}
+              />
+            </div>
+          </div>
+        </>
+      )}
 
       <Modal
         open={revealedToken !== null}

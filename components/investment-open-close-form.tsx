@@ -57,6 +57,12 @@ const FORM_MODES = [
   { value: "close", label: "Close" },
 ] as const;
 
+const MODE_HINTS: Record<FormMode, string> = {
+  trade: "Buy or sell in one step — cash and P&L post immediately.",
+  open: "Start an open lot; cash books when you close it.",
+  close: "Close an open lot and realize P&L.",
+};
+
 type FormMode = (typeof FORM_MODES)[number]["value"];
 
 export function InvestmentOpenCloseForm({
@@ -450,10 +456,10 @@ export function InvestmentOpenCloseForm({
   const submitLabel = submitting
     ? "Saving…"
     : mode === "trade"
-      ? "Save trade"
+      ? "Record trade"
       : mode === "open"
-        ? "Open activity"
-        : "Close activity";
+        ? "Open position"
+        : "Close position";
   const submitHint =
     mode === "open"
       ? "No cash booked until you close the lot."
@@ -469,8 +475,12 @@ export function InvestmentOpenCloseForm({
       onSubmit={(e) => void onSubmit(e)}
     >
       <fieldset className="grid min-w-0 gap-1.5 text-sm">
-        <legend className="text-muted">Mode</legend>
-        <div role="radiogroup" aria-label="Mode" className={moneyQuickPickGroupCls}>
+        <legend className="text-muted">What are you doing?</legend>
+        <div
+          role="radiogroup"
+          aria-label="What are you doing?"
+          className={moneyQuickPickGroupCls}
+        >
           {FORM_MODES.map(({ value, label }) => (
             <button
               key={value}
@@ -484,6 +494,7 @@ export function InvestmentOpenCloseForm({
             </button>
           ))}
         </div>
+        <p className="text-sm text-muted">{MODE_HINTS[mode]}</p>
       </fieldset>
 
       {mode === "close" ? (

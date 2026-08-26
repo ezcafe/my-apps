@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
@@ -29,6 +30,7 @@ import {
   SettingsSection,
 } from "@/components/money-settings/money-settings-shared";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { MoneyStatusEmphasis } from "@/lib/money-status-strip";
 
 type Account = { id: string; name: string; archived?: boolean };
 type Merchant = { id: string; name: string };
@@ -71,6 +73,44 @@ const KIND_META: Record<
       "Match income transactions by merchant and/or account, then assign an income category.",
   },
 };
+
+function ruleRowSummary(
+  r: RuleRow,
+  merchants: Merchant[],
+  accounts: Account[],
+  categoryById: ReturnType<typeof moneyCategoryById>,
+): ReactNode {
+  const merchantLabel = r.match.merchantId
+    ? merchants.find((m) => m.id === r.match.merchantId)?.name ?? "merchant"
+    : null;
+  const accountLabel = r.match.accountId
+    ? accounts.find((a) => a.id === r.match.accountId)?.name ?? "account"
+    : null;
+  const categoryId = r.action.setCategoryId;
+  const category =
+    categoryId != null ? categoryById.get(categoryId) ?? null : null;
+  const categoryLabel = category
+    ? moneyCategoryLabel(category, categoryById)
+    : "category";
+
+  const matchParts: string[] = [];
+  if (merchantLabel) matchParts.push(`merchant is ${merchantLabel}`);
+  if (accountLabel) matchParts.push(`account is ${accountLabel}`);
+  const matchText =
+    matchParts.length > 0 ? matchParts.join(" and ") : "any transaction";
+
+  return (
+    <>
+      If {matchText} → category{" "}
+      <MoneyStatusEmphasis>{categoryLabel}</MoneyStatusEmphasis>
+      {!r.active ? (
+        <span className="text-muted"> · off</span>
+      ) : r.priority > 0 ? (
+        <span className="text-muted"> · priority {r.priority}</span>
+      ) : null}
+    </>
+  );
+}
 
 export function MoneySettingsRulesSection() {
   const notify = useNotify();
@@ -354,14 +394,9 @@ function RulesKindSection({
             onChange={(e) => setRuleName(e.target.value)}
           />
         </Field>
-        <Field label="Priority">
-          <Input
-            type="number"
-            placeholder="Priority"
-            value={rulePriority}
-            onChange={(e) => setRulePriority(Number(e.target.value))}
-          />
-        </Field>
+        <h4 className="text-sm font-medium text-foreground">
+          When a transaction matches…
+        </h4>
         <MoneyUsageQuickPick
           legend="Merchant"
           ariaLabel="Merchant"
@@ -380,6 +415,7 @@ function RulesKindSection({
           otherLabel="Select other account"
           emptyMessage="No accounts yet."
         />
+        <h4 className="text-sm font-medium text-foreground">Then set…</h4>
         <MoneyUsageQuickPick
           legend="Category"
           ariaLabel="Category"
@@ -390,6 +426,14 @@ function RulesKindSection({
           otherLabel="Select other category"
           emptyMessage="No categories yet."
         />
+        <Field label="Priority" hint="Higher numbers run first when several rules match.">
+          <Input
+            type="number"
+            placeholder="0"
+            value={rulePriority}
+            onChange={(e) => setRulePriority(Number(e.target.value))}
+          />
+        </Field>
         <Button type="submit" variant="primary" className="self-start">
           Save rule
         </Button>
@@ -466,8 +510,8 @@ function RulesKindSection({
                   </form>
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span>
-                      {r.name} · priority {r.priority} · {r.active ? "active" : "off"}
+                    <span className="text-foreground">
+                      {ruleRowSummary(r, merchants, accounts, categoryById)}
                     </span>
                     <div className="flex flex-wrap gap-2">
                       <Button
