@@ -33,3 +33,20 @@ Hard rules:
 Polish principles applied automatically by tokens/primitives are documented in DESIGN_GUIDE → "Interface-polish principles" (concentric, optical, shadows-over-borders, interruptible, stagger, exits, icons, tabular, text-wrap, image outlines, scale on press, hit area, transition specificity, will-change). Read that table before adding any new interactive element.
 
 Interaction patterns (error, success, empty, loading, search, breadcrumbs, dashboards) are also in DESIGN_GUIDE. Match feedback scale to stakes; every action needs a visible reaction; empty is not an error; crumbs are location-based from the section origin.
+
+## Database / Drizzle (postgres.js)
+
+This app uses **postgres.js** via Drizzle (`db/index.ts`, `prepare: false`). Do **not** bind JavaScript arrays as PostgreSQL array parameters in raw `sql` templates:
+
+```ts
+// BAD — single-element arrays bind as a plain string; PG error 22P02
+sql`WHERE id = ANY(${ids}::uuid[])`
+
+// GOOD — Drizzle query builder
+.where(inArray(table.id, ids))
+
+// GOOD — raw SQL when no schema: expand scalars
+sql`WHERE id IN (${sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `)})`
+```
+
+ESLint flags `sql` templates whose quasi immediately after an interpolation starts with `::type[]` (e.g. `${ids}::uuid[]`). Prefer `inArray()` or `sql.join` over `ANY(${array}::…[])`.

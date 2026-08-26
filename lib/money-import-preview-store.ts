@@ -32,7 +32,7 @@ async function enforcePreviewCaps(ctx: PreviewCtx) {
     const removeIds = userIds.slice(0, userIds.length - MAX_PREVIEWS_PER_USER + 1);
     await db.execute(sql`
       DELETE FROM money_import_preview
-      WHERE id = ANY(${removeIds}::uuid[])
+      WHERE id IN (${sql.join(removeIds.map((id) => sql`${id}::uuid`), sql`, `)})
     `);
   }
 

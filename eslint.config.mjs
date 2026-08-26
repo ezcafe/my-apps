@@ -15,6 +15,20 @@ const eslintConfig = defineConfig([
       },
     },
   },
+  {
+    files: ["app/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}", "db/**/*.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            'TaggedTemplateExpression[tag.name="sql"]:has(TemplateElement[value.raw=/^::\\w+\\[\\]/])',
+          message:
+            "Do not cast a bound JS array as a PG array in sql`…` (postgres.js sends single-element arrays as plain strings). Use inArray() or sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `). See AGENTS.md → Database / Drizzle.",
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
