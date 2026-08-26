@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { db, runInWorkspace } from "@/db";
 import {
   loan,
@@ -542,26 +542,23 @@ async function loadWorkspaceLoans(workspaceId: string) {
 
 async function loadInstallmentAggregatesForLoans(loanIds: string[]) {
   if (loanIds.length === 0) return [];
-  const rows = await db.execute(sql`
-    SELECT
-      si.loan_id::text AS loan_id,
-      COALESCE(SUM(CASE WHEN lis.status = 'paid' THEN si.principal_minor ELSE 0 END), 0)::int AS paid_principal,
-      COALESCE(SUM(CASE WHEN lis.status = 'pending' THEN si.interest_minor ELSE 0 END), 0)::int AS remaining_interest,
-      MIN(CASE WHEN lis.status = 'pending' THEN si.due_date END) AS next_due_date
-    FROM loan_schedule_installment si
-    INNER JOIN loan_installment_status lis
-      ON lis.schedule_installment_id = si.id
-    WHERE si.loan_id = ANY(${loanIds}::uuid[])
-    GROUP BY si.loan_id
-  `);
-  return Array.from(
-    rows as unknown as Iterable<{
-      loan_id: string;
-      paid_principal: number;
-      remaining_interest: number;
-      next_due_date: string | null;
-    }>,
-  );
+  return db
+    .select({
+      loan_id: sql<string>`${loanScheduleInstallment.loanId}::text`,
+      paid_principal: sql<number>`COALESCE(SUM(CASE WHEN ${loanInstallmentStatus.status} = 'paid' THEN ${loanScheduleInstallment.principalMinor} ELSE 0 END), 0)::int`,
+      remaining_interest: sql<number>`COALESCE(SUM(CASE WHEN ${loanInstallmentStatus.status} = 'pending' THEN ${loanScheduleInstallment.interestMinor} ELSE 0 END), 0)::int`,
+      next_due_date: sql<string | null>`MIN(CASE WHEN ${loanInstallmentStatus.status} = 'pending' THEN ${loanScheduleInstallment.dueDate} END)`,
+    })
+    .from(loanScheduleInstallment)
+    .innerJoin(
+      loanInstallmentStatus,
+      eq(
+        loanInstallmentStatus.scheduleInstallmentId,
+        loanScheduleInstallment.id,
+      ),
+    )
+    .where(inArray(loanScheduleInstallment.loanId, loanIds))
+    .groupBy(loanScheduleInstallment.loanId);
 }
 
 async function loadPaidPrincipalInterestInRange(
@@ -572,25 +569,29 @@ async function loadPaidPrincipalInterestInRange(
   if (loanIds.length === 0) {
     return { principalMinor: 0, interestMinor: 0 };
   }
-  const rows = await db.execute(sql`
-    SELECT
-      COALESCE(SUM(si.principal_minor), 0)::int AS principal_minor,
-      COALESCE(SUM(si.interest_minor), 0)::int AS interest_minor
-    FROM loan_schedule_installment si
-    INNER JOIN loan_installment_status lis
-      ON lis.schedule_installment_id = si.id
-    WHERE si.loan_id = ANY(${loanIds}::uuid[])
-      AND lis.status = 'paid'
-      AND lis.paid_at IS NOT NULL
-      AND lis.paid_at >= ${from}::timestamptz
-      AND lis.paid_at <= ${to}::timestamptz
-  `);
-  const row = Array.from(
-    rows as unknown as Iterable<{
-      principal_minor: number;
-      interest_minor: number;
-    }>,
-  )[0];
+  const rows = await db
+    .select({
+      principal_minor: sql<number>`COALESCE(SUM(${loanScheduleInstallment.principalMinor}), 0)::int`,
+      interest_minor: sql<number>`COALESCE(SUM(${loanScheduleInstallment.interestMinor}), 0)::int`,
+    })
+    .from(loanScheduleInstallment)
+    .innerJoin(
+      loanInstallmentStatus,
+      eq(
+        loanInstallmentStatus.scheduleInstallmentId,
+        loanScheduleInstallment.id,
+      ),
+    )
+    .where(
+      and(
+        inArray(loanScheduleInstallment.loanId, loanIds),
+        eq(loanInstallmentStatus.status, "paid"),
+        isNotNull(loanInstallmentStatus.paidAt),
+        gte(loanInstallmentStatus.paidAt, new Date(from)),
+        lte(loanInstallmentStatus.paidAt, new Date(to)),
+      ),
+    );
+  const row = rows[0];
   return {
     principalMinor: Number(row?.principal_minor ?? 0),
     interestMinor: Number(row?.interest_minor ?? 0),
