@@ -11,13 +11,24 @@ import {
   updateInvestmentActivity,
 } from "@/lib/investment-services/activities";
 import { investmentActivityUpdateSchema } from "@/lib/validators/investment";
-import { readJsonBounded } from "@/lib/request-guards";
+import { assertSameOriginStrict, readJsonBounded } from "@/lib/request-guards";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+async function requireSameOrigin(req: Request): Promise<NextResponse | null> {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.toLowerCase().startsWith("bearer ")) return null;
+  if (!assertSameOriginStrict(req)) {
+    return badRequest("Cross-origin request blocked");
+  }
+  return null;
+}
+
 export async function GET(req: Request, context: RouteContext) {
+  const csrf = await requireSameOrigin(req);
+  if (csrf) return csrf;
   const ctx = await requireInvestmentContext(req);
   if ("error" in ctx) return ctx.error;
   const { id } = await context.params;
@@ -30,6 +41,8 @@ export async function GET(req: Request, context: RouteContext) {
 }
 
 export async function PATCH(req: Request, context: RouteContext) {
+  const csrf = await requireSameOrigin(req);
+  if (csrf) return csrf;
   const ctx = await requireInvestmentContext(req, { requireWrite: true });
   if ("error" in ctx) return ctx.error;
   const { id } = await context.params;
@@ -57,6 +70,8 @@ export async function PATCH(req: Request, context: RouteContext) {
 }
 
 export async function DELETE(req: Request, context: RouteContext) {
+  const csrf = await requireSameOrigin(req);
+  if (csrf) return csrf;
   const ctx = await requireInvestmentContext(req, { requireWrite: true });
   if ("error" in ctx) return ctx.error;
   const { id } = await context.params;

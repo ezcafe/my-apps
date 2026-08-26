@@ -369,11 +369,11 @@ export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
     },
   },
   {
-    id: "query-moneyParseCsv",
+    id: "mutation-moneyParseCsv",
     field: "moneyParseCsv",
-    operationKind: "query",
+    operationKind: "mutation",
     summary:
-      "Parse CSV text into headers and rows for import mapping (JSONObject).",
+      "Parse CSV text into headers and rows for import mapping (JSONObject). Requires write scope.",
     purpose:
       "Parse raw CSV text so you can inspect headers and rows before mapping or importing data.",
     whenToUse:
@@ -385,8 +385,9 @@ export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
     ],
     usageNotes: [
       "This is useful for previewing CSV structure before using the REST import endpoints.",
+      "Requires workspace write scope (session or API token with write).",
     ],
-    query: `query($csv: String!) {
+    query: `mutation($csv: String!) {
   moneyParseCsv(csv: $csv)
 }`,
     variables: {

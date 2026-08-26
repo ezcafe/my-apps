@@ -36,14 +36,24 @@ export function analyticsFiltersFromUrl(url: URL) {
   return analyticsFiltersSchema.safeParse(analyticsFilterFieldsFromUrl(url));
 }
 
-/** Same defaults as GET /api/money/analytics (missing bounds → 90d–now). */
+/** Same defaults as GET /api/money/analytics (missing bounds → 90d–now). Caps to 366d. */
 export function resolveAnalyticsDateBounds(filters: AnalyticsFiltersData): {
   fromISO: string;
   toISO: string;
 } {
-  const fromISO =
-    filters.from ?? new Date(Date.now() - 90 * 86400000).toISOString();
   const toISO = filters.to ?? new Date().toISOString();
+  let fromISO =
+    filters.from ?? new Date(Date.now() - 90 * 86400000).toISOString();
+  const toMs = Date.parse(toISO);
+  const fromMs = Date.parse(fromISO);
+  const maxMs = 366 * 86400000;
+  if (
+    Number.isFinite(fromMs) &&
+    Number.isFinite(toMs) &&
+    toMs - fromMs > maxMs
+  ) {
+    fromISO = new Date(toMs - maxMs).toISOString();
+  }
   return { fromISO, toISO };
 }
 

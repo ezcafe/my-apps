@@ -70,10 +70,12 @@ SSR page seeds call [`lib/money-ssr-seed.ts`](../lib/money-ssr-seed.ts) (Postgre
 
 | Mechanism | Config |
 |-----------|--------|
-| Response cache | In-memory via `@graphql-yoga/plugin-response-cache`; session = `Cookie` header; analytics TTLs 30–45 s; `moneyBootstrap` 60 s; `invalidateViaMutation: true` |
-| Rate limit | `MONEY_GRAPHQL_RPM` (default 60/min per `userSub`, else first `x-forwarded-for` IP) |
-| Query guards | max depth 10, max tokens 1000 (`graphql-armor`) |
+| Response cache | In-memory via `@graphql-yoga/plugin-response-cache`; session = cookie fingerprint + workspace; analytics TTLs 30–45 s; `moneyBootstrap` 60 s; `invalidateViaMutation: true` |
+| Rate limit | `MONEY_GRAPHQL_RPM` (default 60/min per `userSub`, else trusted IP); falls back to in-memory buckets if DB unreachable (not fail-open) |
+| Query guards | max depth 10, max tokens 1000, max aliases 15 (`graphql-armor`) |
+| CSRF | POST-only; cookie sessions require matching `Origin` |
 | DB pool | `PG_POOL_MAX` (default 10), `statement_timeout` 5 s |
+| Balances | Incremental updates in app code; full-recompute trigger removed (use `npm run db:recompute-balances` if needed) |
 
 ### Server-Timing
 
@@ -81,7 +83,7 @@ Successful GraphQL responses include a `Server-Timing` header, e.g. `gql;desc="M
 
 ### Load smoke (local)
 
-With the dev server running:
+With the dev server running (include Origin for cookie-less smoke if testing CSRF paths):
 
 ```bash
 npx autocannon -c 100 -d 30 -m POST \
@@ -98,13 +100,15 @@ Expect fast 429s at `-c 500` when rate limit is hit; repeat requests should hit 
 |----------|---------|---------|
 | `PG_POOL_MAX` | `10` | Max Postgres connections per Node process |
 | `MONEY_GRAPHQL_RPM` | `60` | GraphQL requests per minute per user or IP |
+| `TRUSTED_PROXIES` | unset | When set, `x-forwarded-for` is used for rate-limit principals |
+| `CRON_SECRET` | required | Bearer secret for all `/api/cron/*` routes |
 
 ## Out of scope (follow-up)
 
 - PgBouncer / managed Postgres pooler (required for true 100k concurrent)
 - Redis-backed shared response cache (cache hits across pods)
 - Edge caching of authenticated page HTML
-
+- Pointing Compose PgBouncer at `money_app` (needs multi-user auth list)
 ## Database housekeeping jobs
 
 Schedule these jobs from a cron sidecar (or `pg_cron` when available):

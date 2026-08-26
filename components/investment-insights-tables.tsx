@@ -17,6 +17,7 @@ import {
   MoneyQueryErrorAlert,
 } from "@/components/money-feedback";
 import { formatMinor } from "@/lib/format-money";
+import { formatQuantityDisplay } from "@/lib/investment-services/positions";
 import { useFormatDate } from "@/lib/format-date";
 import { cn } from "@/lib/cn";
 import type {
@@ -42,10 +43,17 @@ export function InvestmentHoldingsTable({
   holdings: InvestmentHoldingRow[];
 }) {
   if (holdings.length === 0) {
-    return <p className="text-sm text-muted">No open holdings.</p>;
+    return (
+      <section className="w-full min-w-0">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-lg font-medium">Holdings</h2>
+        </div>
+        <p className="text-sm text-muted">No open holdings.</p>
+      </section>
+    );
   }
   return (
-    <section className="col-span-2 w-full min-w-0 md:col-span-6 lg:col-span-12">
+    <section className="w-full min-w-0">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-lg font-medium">Holdings</h2>
       </div>
@@ -76,7 +84,7 @@ export function InvestmentHoldingsTable({
               </TableCell>
               <TableCell className="text-muted">{row.name}</TableCell>
               <TableCell align="end" numeric>
-                {row.quantity}
+                {formatQuantityDisplay(row.quantity)}
               </TableCell>
               <TableCell align="end" numeric className="font-medium">
                 {formatMinor(row.valueMinor, row.currency)}
@@ -110,7 +118,7 @@ export function InvestmentOpenActivitiesTable({
 }) {
   const { formatDate } = useFormatDate();
   return (
-    <section className="col-span-2 w-full min-w-0 md:col-span-6 lg:col-span-12">
+    <section className="w-full min-w-0">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-lg font-medium">Open activities</h2>
       </div>
@@ -156,7 +164,7 @@ export function InvestmentOpenActivitiesTable({
                 </TableCell>
                 <TableCell className="capitalize">{row.type}</TableCell>
                 <TableCell align="end" numeric>
-                  {row.quantity ?? "—"}
+                  {formatQuantityDisplay(row.quantity) || "—"}
                 </TableCell>
                 <TableCell align="end" numeric>
                   {row.openPrice ?? "—"}

@@ -1,5 +1,5 @@
-import { MoneyLedgerPageSkeleton } from "@/components/money-analytics-skeleton";
+import { MoneyInvestmentsPageSkeleton } from "@/components/investment-page-skeleton";
 
 export default function InvestmentsLoading() {
-  return <MoneyLedgerPageSkeleton showChart={false} showSummaryStats />;
+  return <MoneyInvestmentsPageSkeleton />;
 }

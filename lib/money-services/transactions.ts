@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { and, asc, count, desc, eq, gte, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
@@ -137,6 +137,7 @@ export async function listMoneyTransactions(
   total: number;
   page: number;
   pageSize: number;
+  nextCursor: string | null;
 }> {
   const parsed = transactionListQuerySchema.safeParse(rawQuery);
   if (!parsed.success) {
@@ -185,8 +186,45 @@ export async function listMoneyTransactions(
   const whereClause = and(...conditions);
   const orderCol = sortColumnMap[q.sort];
   const orderExpr = q.dir === "asc" ? asc(orderCol) : desc(orderCol);
+  const idOrder = q.dir === "asc" ? asc(moneyTransaction.id) : desc(moneyTransaction.id);
 
-  const offset = (q.page - 1) * q.pageSize;
+  const useKeyset = Boolean(q.cursor) && q.sort === "occurredAt";
+  if (useKeyset && q.cursor) {
+    try {
+      const decoded = Buffer.from(q.cursor, "base64url").toString("utf8");
+      const sep = decoded.lastIndexOf("|");
+      if (sep <= 0) throw new Error("bad cursor");
+      const occurredAt = new Date(decoded.slice(0, sep));
+      const id = decoded.slice(sep + 1);
+      if (!Number.isFinite(occurredAt.getTime()) || !id) throw new Error("bad cursor");
+      if (q.dir === "desc") {
+        conditions.push(
+          or(
+            lt(moneyTransaction.occurredAt, occurredAt),
+            and(
+              eq(moneyTransaction.occurredAt, occurredAt),
+              lt(moneyTransaction.id, id),
+            ),
+          )!,
+        );
+      } else {
+        conditions.push(
+          or(
+            sql`${moneyTransaction.occurredAt} > ${occurredAt}`,
+            and(
+              eq(moneyTransaction.occurredAt, occurredAt),
+              sql`${moneyTransaction.id} > ${id}`,
+            ),
+          )!,
+        );
+      }
+    } catch {
+      throw new Error("Invalid cursor");
+    }
+  }
+
+  const listWhere = and(...conditions);
+  const offset = useKeyset ? 0 : (q.page - 1) * q.pageSize;
 
   const [[{ value: total }], rows] = await Promise.all([
     db
@@ -196,8 +234,8 @@ export async function listMoneyTransactions(
     db
       .select()
       .from(moneyTransaction)
-      .where(whereClause)
-      .orderBy(orderExpr)
+      .where(listWhere)
+      .orderBy(orderExpr, idOrder)
       .limit(q.pageSize)
       .offset(offset),
   ]);
@@ -230,6 +268,13 @@ export async function listMoneyTransactions(
     total,
     page: q.page,
     pageSize: q.pageSize,
+    nextCursor:
+      q.sort === "occurredAt" && data.length === q.pageSize
+        ? Buffer.from(
+            `${data[data.length - 1]!.occurredAt}|${data[data.length - 1]!.id}`,
+            "utf8",
+          ).toString("base64url")
+        : null,
   };
 }
 

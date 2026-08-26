@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   moneyAccount,
@@ -29,7 +29,7 @@ import {
   type MoneyInvestmentActivityType,
 } from "@/lib/money-investment-activity";
 import { parseMajorToMinor } from "@/lib/format-money";
-import { parseQuantity } from "@/lib/investment-services/positions";
+import { parseQuantity, formatQuantityDisplay } from "@/lib/investment-services/positions";
 import {
   cashMoveSignedMinor,
   parsePriceMajor,
@@ -93,7 +93,7 @@ function mapJournalRow(row: {
     instrumentCurrency: row.instrumentCurrency,
     activityDate: row.activityDate,
     type: row.activityType,
-    quantity: row.quantity,
+    quantity: formatQuantityDisplay(row.quantity) || null,
     unitPriceMinor: parseMajorToMinor(row.openPrice, row.instrumentCurrency),
     openPrice: row.openPrice,
     closePrice: row.closePrice,
@@ -134,7 +134,7 @@ function mapCashRow(row: {
     instrumentCurrency: row.instrumentCurrency,
     activityDate: occurredAtToActivityDate(row.occurredAt),
     type: row.activityType,
-    quantity: row.quantity,
+    quantity: formatQuantityDisplay(row.quantity) || null,
     unitPriceMinor: row.unitPriceMinor,
     openPrice: row.openPrice,
     closePrice: null,
@@ -213,6 +213,35 @@ async function resolveInvestmentCashAccountId(
     );
   }
   return acc.id;
+}
+
+const TOP_QUANTITIES_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+
+export async function listInvestmentTopQuantities(
+  workspaceId: string,
+  limit = 3,
+) {
+  const since = new Date(Date.now() - TOP_QUANTITIES_WINDOW_MS);
+  const sinceDate = since.toISOString().slice(0, 10);
+  const rows = await db
+    .select({
+      quantity: investmentTradeJournal.quantity,
+      usageCount: sql<number>`count(*)::int`.as("usage_count"),
+    })
+    .from(investmentTradeJournal)
+    .where(
+      and(
+        eq(investmentTradeJournal.workspaceId, workspaceId),
+        gte(investmentTradeJournal.activityDate, sinceDate),
+      ),
+    )
+    .groupBy(investmentTradeJournal.quantity)
+    .orderBy(desc(sql`usage_count`), asc(investmentTradeJournal.quantity))
+    .limit(limit);
+  return rows.map((row) => ({
+    quantity: formatQuantityDisplay(row.quantity),
+    usageCount: row.usageCount,
+  }));
 }
 
 export async function listOpenInvestmentActivities(
@@ -863,7 +892,7 @@ export async function listWorkspaceInvestmentActivities(workspaceId: string) {
       instrumentId: row.instrumentId,
       activityDate: row.activityDate,
       type: row.activityType,
-      quantity: row.quantity,
+      quantity: formatQuantityDisplay(row.quantity) || null,
     });
     if (row.status === "closed" && row.closedAt) {
       const closeDate = occurredAtToActivityDate(row.closedAt);
@@ -871,7 +900,7 @@ export async function listWorkspaceInvestmentActivities(workspaceId: string) {
         instrumentId: row.instrumentId,
         activityDate: closeDate,
         type: row.activityType === "buy" ? "sell" : "buy",
-        quantity: row.quantity,
+        quantity: formatQuantityDisplay(row.quantity) || null,
       });
     }
   }

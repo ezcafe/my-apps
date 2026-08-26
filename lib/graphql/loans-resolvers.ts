@@ -24,17 +24,11 @@ import {
   requireLoansWriteWorkspace,
   type LoansGraphQLContext,
 } from "@/lib/graphql/loans-context";
+import { requireSessionAuth } from "@/lib/graphql/context";
+import { mapServiceError } from "@/lib/graphql/map-service-error";
 
 function gqlErr(message: string, code: string): never {
   throw new GraphQLError(message, { extensions: { code } });
-}
-
-function mapServiceError(e: unknown): never {
-  const msg = e instanceof Error ? e.message : String(e);
-  if (msg === "UNAUTHORIZED") gqlErr("Unauthorized", "UNAUTHORIZED");
-  if (msg === "FORBIDDEN") gqlErr("Forbidden", "FORBIDDEN");
-  if (msg === "NOT_FOUND") gqlErr("Not found", "NOT_FOUND");
-  gqlErr(msg, "BAD_REQUEST");
 }
 
 export const loansResolvers = {
@@ -179,11 +173,11 @@ export const loansResolvers = {
       args: { input: Record<string, unknown> },
       ctx: LoansGraphQLContext,
     ) => {
-      const userSub = requireLoansAuth(ctx);
+      const userSub = requireSessionAuth(ctx);
       try {
         return await saveLoanPushSubscription(userSub, args.input);
       } catch (e) {
-        mapServiceError(e);
+        mapServiceError(e, ctx.requestId);
       }
     },
     loanPushSubscriptionDelete: async (
@@ -191,11 +185,11 @@ export const loansResolvers = {
       args: { input: Record<string, unknown> },
       ctx: LoansGraphQLContext,
     ) => {
-      const userSub = requireLoansAuth(ctx);
+      const userSub = requireSessionAuth(ctx);
       try {
         return await deleteLoanPushSubscription(userSub, args.input);
       } catch (e) {
-        mapServiceError(e);
+        mapServiceError(e, ctx.requestId);
       }
     },
   },

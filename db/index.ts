@@ -80,3 +80,36 @@ export async function withWorkspaceRls<T>(
 }
 
 export const runInWorkspace = withWorkspaceRls;
+
+/** Set `app.workspace_id` on the current transaction (must already be inside one). */
+export async function setWorkspaceRlsConfig(workspaceId: string): Promise<void> {
+  await db.execute(
+    sql`SELECT set_config('app.workspace_id', ${workspaceId}, true)`,
+  );
+}
+
+/**
+ * Run cross-tenant work (cron scans) under the `money_cron` BYPASSRLS role when
+ * available; otherwise fall back to `SET LOCAL row_security = off` (superuser/owner).
+ */
+export async function withBypassRls<T>(run: () => Promise<T>): Promise<T> {
+  return getDbInstance().transaction(async (tx) => {
+    return workspaceDbStorage.run(tx as AppDatabase, async () => {
+      try {
+        await tx.execute(sql`SET LOCAL ROLE money_cron`);
+      } catch {
+        await tx.execute(sql`SET LOCAL row_security = off`);
+      }
+      return run();
+    });
+  });
+}
+
+/** Top-level DB transaction that binds `db` proxy to the tx via ALS. */
+export async function withDbTransaction<T>(
+  run: () => Promise<T>,
+): Promise<T> {
+  return getDbInstance().transaction(async (tx) => {
+    return workspaceDbStorage.run(tx as AppDatabase, () => run());
+  });
+}

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db, runInWorkspace } from "@/db";
 import {
   loan,
@@ -16,18 +16,16 @@ import {
   combineLoanProgressSeries,
   earliestNextDue,
   monthlyObligation,
-  paidPrincipalVsInterest,
   portfolioLtvPct,
   remainingByLoan,
-  remainingInterestMinor,
   remainingTotal,
   weightedAprBps,
 } from "@/lib/loans-insights";
 import type { LoansWorkspaceCtx } from "@/lib/loans-services/types";
+import { payInstallmentMoneyAtomic } from "@/lib/loans-services/pay";
 import {
   loanCreateSchema,
 } from "@/lib/validators/loans";
-import { createMoneyTransaction } from "@/lib/money-services/transactions";
 import { assertWorkspaceMember } from "@/lib/workspace-context";
 import { getWorkspaceDefaultCurrency } from "@/lib/workspace-loans";
 
@@ -270,35 +268,14 @@ export async function createLoan(
   if (pendingMoneyTx.length > 0 && moneyWorkspaceId) {
     const loanName = parsed.data.name;
     for (const item of pendingMoneyTx) {
-      const moneyTx = await runInWorkspace(moneyWorkspaceId, () =>
-        createMoneyTransaction(
-          { userSub: ctx.userSub, workspaceId: moneyWorkspaceId },
-          {
-            accountId: parsed.data.moneyAccountId!,
-            kind: "expense",
-            amountMinor: item.paymentMinor,
-            categoryId: parsed.data.moneyCategoryId ?? undefined,
-            notes: `Loan: ${loanName}`,
-            occurredAt: `${item.dueDate}T12:00:00.000Z`,
-          },
-        ),
-      );
-
-      await runInWorkspace(ctx.workspaceId, async () => {
-        await db
-          .update(loanInstallmentStatus)
-          .set({
-            status: "paid",
-            paidAt: new Date(),
-            paidWithoutTransaction: false,
-            moneyTransactionId: moneyTx.id,
-          })
-          .where(
-            eq(
-              loanInstallmentStatus.scheduleInstallmentId,
-              item.scheduleInstallmentId,
-            ),
-          );
+      await payInstallmentMoneyAtomic(ctx, {
+        scheduleInstallmentId: item.scheduleInstallmentId,
+        moneyWorkspaceId,
+        accountId: parsed.data.moneyAccountId!,
+        categoryId: parsed.data.moneyCategoryId ?? undefined,
+        amountMinor: item.paymentMinor,
+        notes: `Loan: ${loanName}`,
+        occurredAt: `${item.dueDate}T12:00:00.000Z`,
       });
     }
 
@@ -563,6 +540,91 @@ async function loadWorkspaceLoans(workspaceId: string) {
     .orderBy(asc(loan.name));
 }
 
+async function loadInstallmentAggregatesForLoans(loanIds: string[]) {
+  if (loanIds.length === 0) return [];
+  const rows = await db.execute(sql`
+    SELECT
+      si.loan_id::text AS loan_id,
+      COALESCE(SUM(CASE WHEN lis.status = 'paid' THEN si.principal_minor ELSE 0 END), 0)::int AS paid_principal,
+      COALESCE(SUM(CASE WHEN lis.status = 'pending' THEN si.interest_minor ELSE 0 END), 0)::int AS remaining_interest,
+      MIN(CASE WHEN lis.status = 'pending' THEN si.due_date END) AS next_due_date
+    FROM loan_schedule_installment si
+    INNER JOIN loan_installment_status lis
+      ON lis.schedule_installment_id = si.id
+    WHERE si.loan_id = ANY(${loanIds}::uuid[])
+    GROUP BY si.loan_id
+  `);
+  return Array.from(
+    rows as unknown as Iterable<{
+      loan_id: string;
+      paid_principal: number;
+      remaining_interest: number;
+      next_due_date: string | null;
+    }>,
+  );
+}
+
+async function loadPaidPrincipalInterestInRange(
+  loanIds: string[],
+  from: string,
+  to: string,
+) {
+  if (loanIds.length === 0) {
+    return { principalMinor: 0, interestMinor: 0 };
+  }
+  const rows = await db.execute(sql`
+    SELECT
+      COALESCE(SUM(si.principal_minor), 0)::int AS principal_minor,
+      COALESCE(SUM(si.interest_minor), 0)::int AS interest_minor
+    FROM loan_schedule_installment si
+    INNER JOIN loan_installment_status lis
+      ON lis.schedule_installment_id = si.id
+    WHERE si.loan_id = ANY(${loanIds}::uuid[])
+      AND lis.status = 'paid'
+      AND lis.paid_at IS NOT NULL
+      AND lis.paid_at >= ${from}::timestamptz
+      AND lis.paid_at <= ${to}::timestamptz
+  `);
+  const row = Array.from(
+    rows as unknown as Iterable<{
+      principal_minor: number;
+      interest_minor: number;
+    }>,
+  )[0];
+  return {
+    principalMinor: Number(row?.principal_minor ?? 0),
+    interestMinor: Number(row?.interest_minor ?? 0),
+  };
+}
+
+function summarizeLoanRowsFromAggregates(
+  rows: Awaited<ReturnType<typeof loadWorkspaceLoans>>,
+  aggregates: Awaited<ReturnType<typeof loadInstallmentAggregatesForLoans>>,
+) {
+  const byLoan = new Map(aggregates.map((a) => [a.loan_id, a]));
+  return rows.map((row) => {
+    const agg = byLoan.get(row.id);
+    const paidPrincipal = Number(agg?.paid_principal ?? 0);
+    const remainingMinor = Math.max(0, row.principalMinor - paidPrincipal);
+    const percentComplete =
+      row.principalMinor > 0
+        ? Math.min(100, (paidPrincipal / row.principalMinor) * 100)
+        : 100;
+    return {
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      remainingMinor,
+      paymentMinor: row.paymentMinor,
+      annualRateBps: row.annualRateBps,
+      nextDueDate: agg?.next_due_date ?? null,
+      percentComplete,
+      collateralValueMinor: row.collateralValueMinor,
+      remainingInterestMinor: Number(agg?.remaining_interest ?? 0),
+    };
+  });
+}
+
 async function loadInstallmentsForLoans(loanIds: string[]) {
   if (loanIds.length === 0) return [];
   return db
@@ -607,50 +669,18 @@ async function loadSchedulesForLoans(loanIds: string[]) {
     .orderBy(asc(loanScheduleInstallment.installmentNumber));
 }
 
-function summarizeLoanRows(
-  rows: Awaited<ReturnType<typeof loadWorkspaceLoans>>,
-  installments: Awaited<ReturnType<typeof loadInstallmentsForLoans>>,
-) {
-  const byLoan = new Map<string, typeof installments>();
-  for (const row of installments) {
-    const list = byLoan.get(row.loanId) ?? [];
-    list.push(row);
-    byLoan.set(row.loanId, list);
-  }
-  return rows.map((row) => {
-    const inst = byLoan.get(row.id) ?? [];
-    const paidPrincipal = inst
-      .filter((i) => i.status === "paid")
-      .reduce((sum, i) => sum + i.principalMinor, 0);
-    const remainingMinor = Math.max(0, row.principalMinor - paidPrincipal);
-    const percentComplete =
-      row.principalMinor > 0
-        ? Math.min(100, (paidPrincipal / row.principalMinor) * 100)
-        : 100;
-    const nextPending = inst.find((i) => i.status === "pending");
-    return {
-      id: row.id,
-      name: row.name,
-      status: row.status,
-      remainingMinor,
-      paymentMinor: row.paymentMinor,
-      annualRateBps: row.annualRateBps,
-      nextDueDate: nextPending?.dueDate ?? null,
-      percentComplete,
-      collateralValueMinor: row.collateralValueMinor,
-    };
-  });
-}
-
 export async function loansInsightsAtf(
   ctx: LoansWorkspaceCtx,
   from: string,
   to: string,
 ): Promise<LoansInsightsAtfPayload> {
   const rows = await loadWorkspaceLoans(ctx.workspaceId);
-  const installments = await loadInstallmentsForLoans(rows.map((r) => r.id));
-  const summarized = summarizeLoanRows(rows, installments);
-  const paid = paidPrincipalVsInterest(installments, { from, to });
+  const loanIds = rows.map((r) => r.id);
+  const [aggregates, paid] = await Promise.all([
+    loadInstallmentAggregatesForLoans(loanIds),
+    loadPaidPrincipalInterestInRange(loanIds, from, to),
+  ]);
+  const summarized = summarizeLoanRowsFromAggregates(rows, aggregates);
   return {
     range: { from, to },
     summary: {
@@ -673,11 +703,12 @@ export async function loansInsightsMore(
 ): Promise<LoansInsightsMorePayload> {
   const rows = await loadWorkspaceLoans(ctx.workspaceId);
   const loanIds = rows.map((r) => r.id);
-  const [installments, schedules] = await Promise.all([
+  const [aggregates, installments, schedules] = await Promise.all([
+    loadInstallmentAggregatesForLoans(loanIds),
     loadInstallmentsForLoans(loanIds),
     loadSchedulesForLoans(loanIds),
   ]);
-  const summarized = summarizeLoanRows(rows, installments);
+  const summarized = summarizeLoanRowsFromAggregates(rows, aggregates);
   const instByLoan = new Map<string, typeof installments>();
   for (const row of installments) {
     const list = instByLoan.get(row.loanId) ?? [];
@@ -705,7 +736,10 @@ export async function loansInsightsMore(
     });
   });
   return {
-    remainingInterestMinor: remainingInterestMinor(installments),
+    remainingInterestMinor: summarized.reduce(
+      (sum, l) => sum + l.remainingInterestMinor,
+      0,
+    ),
     ltvPct: portfolioLtvPct(summarized),
     progress: summarized
       .filter((l) => l.status !== "paid_off")

@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { InstrumentLedgerDefaultsFields } from "@/components/instrument-ledger-defaults-fields";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/cn";
+import { formatQuantityDisplay } from "@/lib/investment-services/positions";
 import { parseMajorToMinor } from "@/lib/format-money";
 import { defaultContractSize } from "@/lib/investment-contract-size";
 import { convertSignedMajorToMinor } from "@/lib/investment-fx";
@@ -36,6 +38,7 @@ import {
   investmentFxRateQueryOptions,
   investmentInstrumentsQueryOptions,
   investmentOpenActivitiesQueryOptions,
+  investmentTopQuantitiesQueryOptions,
 } from "@/lib/investment-query-options";
 import { instrumentLedgerPrefill } from "@/lib/instrument-ledger-prefill";
 import { previewTradeResult } from "@/lib/investment-realized-pnl";
@@ -81,6 +84,10 @@ export function InvestmentOpenCloseForm({
     ...investmentOpenActivitiesQueryOptions(),
     enabled: workspaceReady,
   });
+  const topQuantitiesQuery = useQuery({
+    ...investmentTopQuantitiesQueryOptions(),
+    enabled: workspaceReady,
+  });
 
   const accounts = useMemo(
     () => lookups.data?.moneyAccounts ?? [],
@@ -89,6 +96,10 @@ export function InvestmentOpenCloseForm({
   const categories = useMemo(
     () => lookups.data?.moneyCategories ?? [],
     [lookups.data?.moneyCategories],
+  );
+  const topQuantities = useMemo(
+    () => topQuantitiesQuery.data ?? [],
+    [topQuantitiesQuery.data],
   );
   const [mode, setMode] = useState<FormMode>(() =>
     initialMode === "trade" || initialMode === "open" || initialMode === "close"
@@ -443,6 +454,10 @@ export function InvestmentOpenCloseForm({
       : mode === "open"
         ? "Open activity"
         : "Close activity";
+  const submitHint =
+    mode === "open"
+      ? "No cash booked until you close the lot."
+      : "Posts profit as income or loss as expense.";
 
   return (
     <form
@@ -613,6 +628,35 @@ export function InvestmentOpenCloseForm({
               required
               aria-label="Quantity"
             />
+            {topQuantities.length > 0 ? (
+              <>
+                <p className="text-sm text-muted">
+                  Tap a recent quantity to fill · last 90 days
+                </p>
+                <div
+                  role="group"
+                  aria-label="Recent quantities"
+                  className="flex min-w-0 flex-wrap gap-1.5"
+                >
+                  {topQuantities.map((row) => {
+                    const label = formatQuantityDisplay(row.quantity);
+                    return (
+                    <button
+                      key={row.quantity}
+                      type="button"
+                      onClick={() => setQuantity(label)}
+                      title={`Use ${label} lots`}
+                      className={cn(
+                        "cursor-pointer rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-sm font-medium tabular-nums text-foreground underline decoration-transparent underline-offset-2 transition-[background-color,border-color,color,text-decoration-color] duration-200 hover:border-foreground/25 hover:bg-muted-surface hover:decoration-foreground/40 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
+                      )}
+                    >
+                      {label}
+                    </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
           </Field>
           <Field label="Open price" required>
             <MoneyInputGroup
@@ -716,9 +760,19 @@ export function InvestmentOpenCloseForm({
       <Field label="Notes">
         <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
-      <Button type="submit" disabled={submitting || !workspaceReady}>
-        {submitLabel}
-      </Button>
+      <div className="flex flex-wrap items-center gap-3 [grid-column:1/-1]">
+        <Button
+          type="submit"
+          size="sm"
+          disabled={submitting || !workspaceReady}
+          aria-busy={submitting}
+        >
+          {submitLabel}
+        </Button>
+        <span aria-live="polite" className="text-sm text-muted">
+          {submitHint}
+        </span>
+      </div>
     </form>
   );
 }

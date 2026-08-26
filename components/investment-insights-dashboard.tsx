@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, useState, useTransition, useCallback } from "react";
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AboutDisclosure } from "@/components/ui/about-disclosure";
@@ -27,22 +27,14 @@ import {
 import { InvestmentInsightsStats } from "@/components/investment-insights-stats";
 import { InvestmentResultsOverTimeCard } from "@/components/investment-chart-cards/results-over-time-card";
 import { InvestmentAllocationCard } from "@/components/investment-chart-cards/allocation-card";
-import {
-  InvestmentHoldingsTable,
-  InvestmentOpenActivitiesTable,
-} from "@/components/investment-insights-tables";
 import { useInvestmentWorkspace } from "@/components/investment-workspace-provider";
 import { MONEY_DASHBOARD_STACK, MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/format-money";
 import { investmentInsightsDefaultRange } from "@/lib/money-first-load-filters";
 import {
-  investmentHoldingsQueryOptions,
   investmentInsightsAtfQueryOptions,
   investmentInsightsMoreQueryOptions,
-  investmentOpenActivitiesQueryOptions,
-  type InvestmentActivityRow,
-  type InvestmentHoldingRow,
   type InvestmentInsightsMore,
 } from "@/lib/investment-query-options";
 import { useInViewOnce } from "@/lib/use-in-view-once";
@@ -99,14 +91,6 @@ export function InvestmentInsightsDashboard() {
   });
   const moreQuery = useQuery({
     ...investmentInsightsMoreQueryOptions(applied.from, applied.to),
-    enabled: moreInsights && workspaceReady,
-  });
-  const holdingsQuery = useQuery({
-    ...investmentHoldingsQueryOptions(),
-    enabled: moreInsights && workspaceReady,
-  });
-  const openQuery = useQuery({
-    ...investmentOpenActivitiesQueryOptions(),
     enabled: moreInsights && workspaceReady,
   });
 
@@ -189,9 +173,6 @@ export function InvestmentInsightsDashboard() {
               moreError={moreQuery.error}
               onRetryMore={() => void moreQuery.refetch()}
               currency={defaultCurrency}
-              holdings={holdingsQuery.data ?? []}
-              holdingsReady={holdingsQuery.isSuccess}
-              openQuery={openQuery}
             />
           )}
         </section>
@@ -206,18 +187,12 @@ function InvestmentMoreInsights({
   moreError,
   onRetryMore,
   currency,
-  holdings,
-  holdingsReady,
-  openQuery,
 }: {
   more: InvestmentInsightsMore | undefined;
   moreReady: boolean;
   moreError: Error | null;
   onRetryMore: () => void;
   currency: string;
-  holdings: InvestmentHoldingRow[];
-  holdingsReady: boolean;
-  openQuery: UseQueryResult<InvestmentActivityRow[]>;
 }) {
   const { ref: pnlRef, isInView: pnlInView } = useInViewOnce();
   const formatY = (minor: number) => formatMinor(minor, currency);
@@ -331,9 +306,6 @@ function InvestmentMoreInsights({
           ) : null}
         </Card>
       </div>
-
-      {holdingsReady ? <InvestmentHoldingsTable holdings={holdings} /> : null}
-      <InvestmentOpenActivitiesTable query={openQuery} />
     </>
   );
 }

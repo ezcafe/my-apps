@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { db } from "@/db";
+import { db, withBypassRls } from "@/db";
 
 type PreviewCtx = { userSub: string; workspaceId: string };
 
@@ -10,9 +10,11 @@ const MAX_PREVIEWS_PER_USER = 5;
 const MAX_PREVIEWS_GLOBAL = 250;
 
 async function pruneExpired() {
-  await db.execute(
-    sql`DELETE FROM money_import_preview WHERE expires_at <= now()`,
-  );
+  await withBypassRls(async () => {
+    await db.execute(
+      sql`DELETE FROM money_import_preview WHERE expires_at <= now()`,
+    );
+  });
 }
 
 async function enforcePreviewCaps(ctx: PreviewCtx) {
@@ -34,19 +36,18 @@ async function enforcePreviewCaps(ctx: PreviewCtx) {
     `);
   }
 
-  const allRows = await db.execute(sql`
-    SELECT id::text AS id
-    FROM money_import_preview
-    ORDER BY created_at ASC
-  `);
-  const allIds = Array.from(allRows as Iterable<{ id: string }>).map((row) => row.id);
-  if (allIds.length >= MAX_PREVIEWS_GLOBAL) {
-    const removeIds = allIds.slice(0, allIds.length - MAX_PREVIEWS_GLOBAL + 1);
+  // Global cap: delete oldest excess without loading every id into memory.
+  await withBypassRls(async () => {
     await db.execute(sql`
       DELETE FROM money_import_preview
-      WHERE id = ANY(${removeIds}::uuid[])
+      WHERE id IN (
+        SELECT id
+        FROM money_import_preview
+        ORDER BY created_at ASC
+        OFFSET ${MAX_PREVIEWS_GLOBAL}
+      )
     `);
-  }
+  });
 }
 
 export async function stashImportPreview(

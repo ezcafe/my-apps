@@ -1,25 +1,17 @@
 import { NextResponse } from "next/server";
+import { withBypassRls } from "@/db";
+import { cronAuthResponse, verifyCronRequest } from "@/lib/cron-auth";
 import { isDbUnreachable } from "@/lib/db-errors";
 import { processDueMoneyRecurrenceTemplates } from "@/lib/money-services/recurrence";
 
 export const dynamic = "force-dynamic";
 
-function verifyCronSecret(request: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) {
-    return process.env.NODE_ENV !== "production";
-  }
-  const auth = request.headers.get("authorization")?.trim();
-  return auth === `Bearer ${secret}`;
-}
-
 export async function POST(request: Request) {
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = cronAuthResponse(verifyCronRequest(request));
+  if (denied) return denied;
 
   try {
-    const result = await processDueMoneyRecurrenceTemplates();
+    const result = await withBypassRls(() => processDueMoneyRecurrenceTemplates());
     return NextResponse.json(result);
   } catch (e: unknown) {
     if (isDbUnreachable(e)) {

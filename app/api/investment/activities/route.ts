@@ -13,11 +13,22 @@ import {
   investmentActivitiesQuerySchema,
   investmentActivityCreateSchema,
 } from "@/lib/validators/investment";
-import { readJsonBounded } from "@/lib/request-guards";
+import { readJsonBounded, assertSameOriginStrict } from "@/lib/request-guards";
 
 export const dynamic = "force-dynamic";
 
+async function requireSameOrigin(req: Request): Promise<NextResponse | null> {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.toLowerCase().startsWith("bearer ")) return null;
+  if (!assertSameOriginStrict(req)) {
+    return badRequest("Cross-origin request blocked");
+  }
+  return null;
+}
+
 export async function GET(req: Request) {
+  const csrf = await requireSameOrigin(req);
+  if (csrf) return csrf;
   const ctx = await requireInvestmentContext(req);
   if ("error" in ctx) return ctx.error;
 
@@ -39,6 +50,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const csrf = await requireSameOrigin(req);
+  if (csrf) return csrf;
   const ctx = await requireInvestmentContext(req, { requireWrite: true });
   if ("error" in ctx) return ctx.error;
 

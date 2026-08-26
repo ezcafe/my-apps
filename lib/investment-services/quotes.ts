@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   investmentInstrument,
@@ -13,7 +13,29 @@ import {
 import { yahooFxSymbol } from "@/lib/investment-fx";
 import { listActiveMarketInstruments } from "@/lib/investment-services/instruments";
 
+const QUOTE_REFRESH_COOLDOWN_MS = 60_000;
+const FX_CACHE_TTL_MS = 5 * 60_000;
+const workspaceRefreshAt = new Map<string, number>();
+const fxCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    value: {
+      rate: number;
+      sourceSymbol: string;
+      inverted: boolean;
+      asOf: string;
+    } | null;
+  }
+>();
+
 export async function refreshQuotesForWorkspace(workspaceId: string) {
+  const last = workspaceRefreshAt.get(workspaceId) ?? 0;
+  if (Date.now() - last < QUOTE_REFRESH_COOLDOWN_MS) {
+    return { updated: 0, skipped: true as const };
+  }
+  workspaceRefreshAt.set(workspaceId, Date.now());
+
   const instruments = await db
     .select()
     .from(investmentInstrument)
@@ -23,66 +45,83 @@ export async function refreshQuotesForWorkspace(workspaceId: string) {
   const symbols = active.map((i) => i.yahooSymbol!);
   const quotes = await fetchYahooQuotes(symbols);
 
-  for (const inst of active) {
-    const q = quotes.get(inst.yahooSymbol!);
-    if (!q) continue;
-    await db
-      .insert(investmentQuote)
-      .values({
+  const rows = active
+    .map((inst) => {
+      const q = quotes.get(inst.yahooSymbol!);
+      if (!q) return null;
+      return {
         instrumentId: inst.id,
         priceMinor: majorToMinor(q.priceMajor, inst.currency),
         asOf: q.asOf,
-        source: "yahoo",
-      })
+        source: "yahoo" as const,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r != null);
+
+  if (rows.length > 0) {
+    await db
+      .insert(investmentQuote)
+      .values(rows)
       .onConflictDoUpdate({
         target: investmentQuote.instrumentId,
         set: {
-          priceMinor: majorToMinor(q.priceMajor, inst.currency),
-          asOf: q.asOf,
-          source: "yahoo",
+          priceMinor: sql`excluded.price_minor`,
+          asOf: sql`excluded.as_of`,
+          source: sql`excluded.source`,
         },
       });
   }
 
-  return { updated: active.length };
+  return { updated: rows.length, skipped: false as const };
 }
 
 export async function refreshAllWorkspaceQuotesCron() {
   const instruments = await listActiveMarketInstruments();
-  const bySymbol = new Map<string, string[]>();
+  const bySymbol = new Map<string, typeof instruments>();
   for (const i of instruments) {
     if (!i.yahooSymbol) continue;
     const list = bySymbol.get(i.yahooSymbol) ?? [];
-    list.push(i.id);
+    list.push(i);
     bySymbol.set(i.yahooSymbol, list);
   }
   const quotes = await fetchYahooQuotes([...bySymbol.keys()]);
-  let updated = 0;
-  for (const [symbol, ids] of bySymbol) {
+  const rows: {
+    instrumentId: string;
+    priceMinor: number;
+    asOf: Date;
+    source: "yahoo";
+  }[] = [];
+  for (const [symbol, insts] of bySymbol) {
     const q = quotes.get(symbol);
     if (!q) continue;
-    for (const instrumentId of ids) {
-      const inst = instruments.find((x) => x.id === instrumentId);
-      if (!inst) continue;
+    for (const inst of insts) {
+      rows.push({
+        instrumentId: inst.id,
+        priceMinor: majorToMinor(q.priceMajor, inst.currency),
+        asOf: q.asOf,
+        source: "yahoo",
+      });
+    }
+  }
+  if (rows.length > 0) {
+    // Chunk to avoid oversized statements.
+    const chunkSize = 200;
+    for (let i = 0; i < rows.length; i += chunkSize) {
+      const chunk = rows.slice(i, i + chunkSize);
       await db
         .insert(investmentQuote)
-        .values({
-          instrumentId,
-          priceMinor: majorToMinor(q.priceMajor, inst.currency),
-          asOf: q.asOf,
-          source: "yahoo",
-        })
+        .values(chunk)
         .onConflictDoUpdate({
           target: investmentQuote.instrumentId,
           set: {
-            priceMinor: majorToMinor(q.priceMajor, inst.currency),
-            asOf: q.asOf,
+            priceMinor: sql`excluded.price_minor`,
+            asOf: sql`excluded.as_of`,
+            source: sql`excluded.source`,
           },
         });
-      updated += 1;
     }
   }
-  return { updated };
+  return { updated: rows.length };
 }
 
 export async function backfillDailyQuotes(
@@ -93,17 +132,21 @@ export async function backfillDailyQuotes(
   to: string,
 ) {
   const hist = await fetchYahooHistoricalCloses(yahooSymbol, from, to);
-  for (const h of hist) {
+  if (hist.length === 0) return;
+  const rows = hist.map((h) => ({
+    instrumentId,
+    date: h.date,
+    closePriceMinor: majorToMinor(h.closeMajor, currency),
+  }));
+  const chunkSize = 200;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
     await db
       .insert(investmentQuoteDaily)
-      .values({
-        instrumentId,
-        date: h.date,
-        closePriceMinor: majorToMinor(h.closeMajor, currency),
-      })
+      .values(chunk)
       .onConflictDoUpdate({
         target: [investmentQuoteDaily.instrumentId, investmentQuoteDaily.date],
-        set: { closePriceMinor: majorToMinor(h.closeMajor, currency) },
+        set: { closePriceMinor: sql`excluded.close_price_minor` },
       });
   }
 }
@@ -162,34 +205,50 @@ export async function fetchInvestmentFxRate(
 } | null> {
   const from = fromCurrency.trim().toUpperCase();
   const to = toCurrency.trim().toUpperCase();
+  const cacheKey = `${from}:${to}`;
+  const cached = fxCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+
   if (from === to) {
-    return {
+    const value = {
       rate: 1,
       sourceSymbol: `${from}${to}=X`,
       inverted: false,
       asOf: new Date().toISOString(),
     };
+    fxCache.set(cacheKey, { expiresAt: Date.now() + FX_CACHE_TTL_MS, value });
+    return value;
   }
   const direct = yahooFxSymbol(from, to);
   const inverse = yahooFxSymbol(to, from);
   const quotes = await fetchYahooQuotes([direct, inverse]);
+  let value: {
+    rate: number;
+    sourceSymbol: string;
+    inverted: boolean;
+    asOf: string;
+  } | null = null;
   const d = quotes.get(direct);
   if (d && d.priceMajor > 0) {
-    return {
+    value = {
       rate: d.priceMajor,
       sourceSymbol: direct,
       inverted: false,
       asOf: d.asOf.toISOString(),
     };
+  } else {
+    const inv = quotes.get(inverse);
+    if (inv && inv.priceMajor > 0) {
+      value = {
+        rate: 1 / inv.priceMajor,
+        sourceSymbol: inverse,
+        inverted: true,
+        asOf: inv.asOf.toISOString(),
+      };
+    }
   }
-  const inv = quotes.get(inverse);
-  if (inv && inv.priceMajor > 0) {
-    return {
-      rate: 1 / inv.priceMajor,
-      sourceSymbol: inverse,
-      inverted: true,
-      asOf: inv.asOf.toISOString(),
-    };
-  }
-  return null;
+  fxCache.set(cacheKey, { expiresAt: Date.now() + FX_CACHE_TTL_MS, value });
+  return value;
 }

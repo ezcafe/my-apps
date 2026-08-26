@@ -1,29 +1,21 @@
 import { NextResponse } from "next/server";
+import { cronAuthResponse, verifyCronRequest } from "@/lib/cron-auth";
 import { isDbUnreachable } from "@/lib/db-errors";
 import { sendLoanDuePush } from "@/lib/loans-push-server";
 import {
   listDueRemindersForCron,
   markInstallmentNotified,
 } from "@/lib/loans-services/reminders";
+import { withBypassRls } from "@/db";
 
 export const dynamic = "force-dynamic";
 
-function verifyCronSecret(request: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) {
-    return process.env.NODE_ENV !== "production";
-  }
-  const auth = request.headers.get("authorization")?.trim();
-  return auth === `Bearer ${secret}`;
-}
-
 export async function POST(request: Request) {
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = cronAuthResponse(verifyCronRequest(request));
+  if (denied) return denied;
 
   try {
-    const due = await listDueRemindersForCron();
+    const due = await withBypassRls(() => listDueRemindersForCron());
     let pushSent = 0;
     let pushFailed = 0;
     let notified = 0;
@@ -32,7 +24,7 @@ export async function POST(request: Request) {
       const result = await sendLoanDuePush(row);
       pushSent += result.sent;
       pushFailed += result.failed;
-      await markInstallmentNotified(row.scheduleInstallmentId);
+      await withBypassRls(() => markInstallmentNotified(row.scheduleInstallmentId));
       notified += 1;
     }
 

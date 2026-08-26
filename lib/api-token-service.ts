@@ -4,6 +4,7 @@ import { apiToken, type ApiTokenScope } from "@/db/schema/api-token";
 import {
   generateApiTokenSecret,
   hashApiTokenForStorage,
+  apiTokenLookupHash,
   API_TOKEN_PREFIX_LENGTH,
   type ApiTokenAppKey,
 } from "@/lib/api-auth";
@@ -72,6 +73,7 @@ export async function createApiTokenForUser(
   const secret = await generateApiTokenSecret(input.appKey);
   const keyHash = await hashApiTokenForStorage(secret);
   const keyPrefix = secret.slice(0, API_TOKEN_PREFIX_LENGTH);
+  const keyLookup = apiTokenLookupHash(secret);
 
   const [row] = await db
     .insert(apiToken)
@@ -82,6 +84,7 @@ export async function createApiTokenForUser(
       name: input.name,
       keyPrefix,
       keyHash,
+      keyLookup,
       scopes: input.scopes,
       expiresAt: input.expiresAt,
     })

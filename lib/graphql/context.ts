@@ -31,10 +31,12 @@ export async function createMoneyGraphQLContext(
   requestId: string,
   responseHeaders: Headers,
   request?: Request,
+  /** When set (e.g. from the route rate-limit pass), skip a second auth resolve/scrypt. */
+  preResolvedAuth?: ResolvedRequestAuth,
 ): Promise<MoneyGraphQLContext> {
   let auth: ResolvedRequestAuth;
   try {
-    auth = await resolveRequestAuth(request);
+    auth = preResolvedAuth ?? (await resolveRequestAuth(request));
   } catch (e) {
     if (isDbUnreachable(e)) {
       return {

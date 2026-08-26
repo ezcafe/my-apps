@@ -25,6 +25,8 @@ export const apiToken = pgTable(
     /** First 12 characters of the full token (includes `mny_` prefix) */
     keyPrefix: text("key_prefix").notNull(),
     keyHash: text("key_hash").notNull(),
+    /** SHA-256 hex of secret for O(1) lookup; null on legacy tokens */
+    keyLookup: text("key_lookup"),
     scopes: jsonb("scopes").$type<ApiTokenScope[]>().notNull(),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
     expiresAt: timestamp("expires_at", { withTimezone: true }),

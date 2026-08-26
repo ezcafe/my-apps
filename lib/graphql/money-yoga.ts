@@ -9,10 +9,12 @@ import { createSchema, createYoga, type Plugin } from "graphql-yoga";
 import { moneyTypeDefs } from "@/lib/graphql/money-typeDefs";
 import { moneyResolvers } from "@/lib/graphql/money-resolvers";
 import { apiTokenLogFingerprint, isApiTokenSecret } from "@/lib/api-auth";
+import type { ResolvedRequestAuth } from "@/lib/api-auth";
 import {
   createMoneyGraphQLContext,
   type MoneyGraphQLContext,
 } from "@/lib/graphql/context";
+import { maxAliasesPlugin } from "@escape.tech/graphql-armor-max-aliases";
 
 const schema = createSchema({
   typeDefs: moneyTypeDefs,
@@ -20,6 +22,7 @@ const schema = createSchema({
 });
 
 const responseHeadersByRequest = new WeakMap<Request, Headers>();
+const preResolvedAuthByRequest = new WeakMap<Request, ResolvedRequestAuth>();
 const MONEY_WORKSPACE_COOKIE = "ctx_workspace_money";
 
 function getCookieValue(cookieHeader: string, name: string): string | null {
@@ -133,7 +136,13 @@ const yoga = createYoga({
     const requestId =
       responseHeaders.get("x-request-id") ?? randomUUID();
     responseHeaders.set("x-request-id", requestId);
-    return createMoneyGraphQLContext(requestId, responseHeaders, request);
+    const preAuth = preResolvedAuthByRequest.get(request);
+    return createMoneyGraphQLContext(
+      requestId,
+      responseHeaders,
+      request,
+      preAuth,
+    );
   },
   maskedErrors: process.env.NODE_ENV !== "development",
   plugins: [
@@ -158,16 +167,24 @@ const yoga = createYoga({
     }),
     maxDepthPlugin({ n: 10 }),
     maxTokensPlugin({ n: 1000 }),
+    maxAliasesPlugin({ n: 15 }),
     useIntrospectionGuardPlugin(),
     useRequestIdErrorPlugin(),
     useServerTimingPlugin(),
   ],
 });
 
-export function handleMoneyGraphQL(request: Request, responseHeaders: Headers) {
+export function handleMoneyGraphQL(
+  request: Request,
+  responseHeaders: Headers,
+  preResolvedAuth?: ResolvedRequestAuth,
+) {
   if (!responseHeaders.has("x-request-id")) {
     responseHeaders.set("x-request-id", randomUUID());
   }
   responseHeadersByRequest.set(request, responseHeaders);
+  if (preResolvedAuth) {
+    preResolvedAuthByRequest.set(request, preResolvedAuth);
+  }
   return yoga.fetch(request);
 }

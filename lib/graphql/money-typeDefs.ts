@@ -51,6 +51,13 @@ export const moneyTypeDefs = /* GraphQL */ `
     total: Int!
     page: Int!
     pageSize: Int!
+    nextCursor: String
+  }
+
+  type MoneyParseCsvResult {
+    headers: [String!]!
+    rows: [JSONObject!]!
+    truncated: Boolean
   }
 
   type MoneyCurrencyPatch {
@@ -226,7 +233,6 @@ export const moneyTypeDefs = /* GraphQL */ `
     moneyRules: [JSONObject!]!
     moneyRecurrenceTemplates: [JSONObject!]!
     moneyTransaction(id: ID!): JSONObject
-    moneyParseCsv(csv: String!): JSONObject!
   }
 
   type Mutation {
@@ -234,6 +240,8 @@ export const moneyTypeDefs = /* GraphQL */ `
     moneyWorkspaceCurrency(workspaceId: ID!, defaultCurrency: String!): MoneyCurrencyPatch!
     moneyWorkspaceClone(targetWorkspaceId: ID!): MoneyWorkspaceCloneResult!
     moneyWorkspaceReset: MoneyWorkspaceResetResult!
+
+    moneyParseCsv(csv: String!): MoneyParseCsvResult!
 
     moneyAccountCreate(input: MoneyAccountCreateInput!): JSONObject!
     moneyAccountUpdate(id: ID!, input: MoneyAccountUpdateInput!): JSONObject!

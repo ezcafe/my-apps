@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  appNavMenuPanelForPath,
   hidesShellRailChrome,
   isInvestmentsChromePath,
   isLoansChromePath,
@@ -23,10 +22,4 @@ describe("chrome paths", () => {
     assert.equal(hidesShellRailChrome("/settings"), true);
   });
 
-  it("opens the nested hamburger on the current app", () => {
-    assert.equal(appNavMenuPanelForPath("/money"), "money");
-    assert.equal(appNavMenuPanelForPath("/investments/new"), "investments");
-    assert.equal(appNavMenuPanelForPath("/loans/insights"), "loans");
-    assert.equal(appNavMenuPanelForPath("/help"), "root");
-  });
 });

@@ -133,6 +133,12 @@ export const INVESTMENT_HOLDINGS_QUERY = /* GraphQL */ `
   }
 `;
 
+export const INVESTMENT_TOP_QUANTITIES_QUERY = /* GraphQL */ `
+  query InvestmentTopQuantities {
+    investmentTopQuantities
+  }
+`;
+
 export const INVESTMENT_INSTRUMENT_CREATE_MUTATION = /* GraphQL */ `
   mutation InvestmentInstrumentCreate($input: InvestmentInstrumentCreateInput!) {
     investmentInstrumentCreate(input: $input) {

@@ -10,6 +10,11 @@ type RateLimitOptions = {
   userKey?: string | null;
 };
 
+type MemoryBucket = { count: number; bucketStartMs: number };
+
+const memoryBuckets = new Map<string, MemoryBucket>();
+const MEMORY_BUCKET_MAX_KEYS = 10_000;
+
 function normalizeIp(value: string | null): string | null {
   if (!value) return null;
   const ip = value.split(",")[0]?.trim();
@@ -34,6 +39,27 @@ export function rateLimitPrincipal(
   return "anon";
 }
 
+function enforceMemoryRateLimit(
+  key: string,
+  points: number,
+  durationSeconds: number,
+): boolean {
+  const now = Date.now();
+  const bucketMs = durationSeconds * 1000;
+  const bucketStartMs = Math.floor(now / bucketMs) * bucketMs;
+  const existing = memoryBuckets.get(key);
+  if (!existing || existing.bucketStartMs !== bucketStartMs) {
+    if (memoryBuckets.size >= MEMORY_BUCKET_MAX_KEYS) {
+      // Fail closed under memory pressure rather than allow unlimited traffic.
+      return false;
+    }
+    memoryBuckets.set(key, { count: 1, bucketStartMs });
+    return true;
+  }
+  existing.count += 1;
+  return existing.count <= points;
+}
+
 export async function enforceRateLimit(opts: RateLimitOptions): Promise<boolean> {
   const principal = rateLimitPrincipal(opts.request, opts.userKey);
   const now = Date.now();
@@ -55,7 +81,8 @@ export async function enforceRateLimit(opts: RateLimitOptions): Promise<boolean>
     return count <= opts.points;
   } catch (e) {
     if (isDbUnreachable(e)) {
-      return true;
+      // Prefer in-memory fallback over fail-open when the rate-limit store is down.
+      return enforceMemoryRateLimit(key, opts.points, opts.durationSeconds);
     }
     throw e;
   }

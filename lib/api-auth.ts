@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { auth } from "@/auth";
@@ -108,6 +108,11 @@ export async function hashApiTokenForStorage(secret: string): Promise<string> {
   return hashApiToken(secret);
 }
 
+/** Stable SHA-256 hex of the secret for unique O(1) lookup (not a substitute for scrypt verify). */
+export function apiTokenLookupHash(secret: string): string {
+  return createHash("sha256").update(secret, "utf8").digest("hex");
+}
+
 type ApiTokenRow = {
   id: string;
   userSub: string;
@@ -121,9 +126,10 @@ async function findActiveTokenBySecret(
 ): Promise<ApiTokenRow | null> {
   const expectedApp = appKeyFromTokenSecret(secret);
   if (!expectedApp || !isApiTokenSecret(secret)) return null;
+  const lookup = apiTokenLookupHash(secret);
   const prefix = tokenPrefix(secret);
 
-  const rows = await db
+  const byLookup = await db
     .select({
       id: apiToken.id,
       userSub: apiToken.userSub,
@@ -137,16 +143,43 @@ async function findActiveTokenBySecret(
     .from(apiToken)
     .where(
       and(
-        eq(apiToken.keyPrefix, prefix),
+        eq(apiToken.keyLookup, lookup),
         isNull(apiToken.revokedAt),
         or(
           isNull(apiToken.expiresAt),
           sql`${apiToken.expiresAt} > now()`,
         ),
       ),
-    );
+    )
+    .limit(1);
 
-  for (const row of rows) {
+  const candidateRows =
+    byLookup.length > 0
+      ? byLookup
+      : await db
+          .select({
+            id: apiToken.id,
+            userSub: apiToken.userSub,
+            workspaceId: apiToken.workspaceId,
+            appKey: apiToken.appKey,
+            keyHash: apiToken.keyHash,
+            scopes: apiToken.scopes,
+            expiresAt: apiToken.expiresAt,
+            revokedAt: apiToken.revokedAt,
+          })
+          .from(apiToken)
+          .where(
+            and(
+              eq(apiToken.keyPrefix, prefix),
+              isNull(apiToken.revokedAt),
+              or(
+                isNull(apiToken.expiresAt),
+                sql`${apiToken.expiresAt} > now()`,
+              ),
+            ),
+          );
+
+  for (const row of candidateRows) {
     if (row.appKey !== expectedApp) continue;
     const ok = await verifyApiTokenHash(secret, row.keyHash);
     if (!ok) continue;

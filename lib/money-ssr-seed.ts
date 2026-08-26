@@ -12,11 +12,18 @@ import {
   moneyLedgerFirstLoadFilterQuery,
 } from "@/lib/money-first-load-filters";
 import { fetchInvestmentBootstrapSafe } from "@/lib/investment-services/bootstrap";
-import { investmentInsightsAtf } from "@/lib/investment-services/portfolio-series";
+import {
+  listInvestmentTopQuantities,
+  listOpenInvestmentActivities,
+} from "@/lib/investment-services/activities";
+import { investmentInsightsAtf, investmentHoldingsSnapshot } from "@/lib/investment-services/portfolio-series";
 import {
   investmentKeys,
+  type InvestmentActivityRow,
   type InvestmentBootstrapData,
+  type InvestmentHoldingRow,
   type InvestmentInsightsAtf,
+  type InvestmentTopQuantityLookup,
 } from "@/lib/investment-query-options";
 import { fetchLoansBootstrapSafe } from "@/lib/loans-services/bootstrap";
 import { listLoans, loansInsightsAtf } from "@/lib/loans-services/loans";
@@ -379,6 +386,46 @@ export async function seedLoansInsightsPage(
     queryClient.setQueryData<LoansInsightsAtf>(
       loansKeys.insightsAtf(range.from, range.to),
       atf,
+    );
+  } catch (error) {
+    recordSeedDbFailure(error);
+  }
+}
+
+/** Overview: open holdings + open activities. */
+export async function seedInvestmentOverview(
+  queryClient: QueryClient,
+  userSub: string,
+): Promise<void> {
+  if (isRequestCircuitOpen()) return;
+  try {
+    const result = await fetchInvestmentBootstrapSafe(userSub);
+    if (!result.ok) {
+      recordSeedSafeFailure(result.code);
+      return;
+    }
+    const boot: InvestmentBootstrapData = result.data;
+    queryClient.setQueryData(investmentKeys.bootstrap(), boot);
+    const [holdings, openActivities, topQuantities] = await runInWorkspace(
+      boot.workspaceId,
+      () =>
+        Promise.all([
+          investmentHoldingsSnapshot(boot.workspaceId),
+          listOpenInvestmentActivities(boot.workspaceId),
+          listInvestmentTopQuantities(boot.workspaceId),
+        ]),
+    );
+    queryClient.setQueryData<InvestmentHoldingRow[]>(
+      investmentKeys.holdings(),
+      holdings,
+    );
+    queryClient.setQueryData<InvestmentActivityRow[]>(
+      investmentKeys.openActivities("all"),
+      openActivities,
+    );
+    queryClient.setQueryData<InvestmentTopQuantityLookup[]>(
+      investmentKeys.topQuantities(),
+      topQuantities,
     );
   } catch (error) {
     recordSeedDbFailure(error);

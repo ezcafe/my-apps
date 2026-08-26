@@ -263,7 +263,9 @@ export const moneyAccountTypeFilterSchema = z.enum([
   "other",
 ]);
 
-export const analyticsFiltersSchema = z.object({
+export const ANALYTICS_MAX_RANGE_MS = 366 * 24 * 60 * 60 * 1000;
+
+const analyticsFiltersObjectSchema = z.object({
   from: z.string().datetime({ offset: true }).optional(),
   to: z.string().datetime({ offset: true }).optional(),
   accountIds: z.array(z.string().uuid()).optional(),
@@ -279,6 +281,33 @@ export const analyticsFiltersSchema = z.object({
   recurrenceSourceIds: z.array(z.string().uuid()).optional(),
 });
 
+function refineAnalyticsRange(
+  val: { from?: string; to?: string },
+  ctx: z.RefinementCtx,
+) {
+  if (!val.from || !val.to) return;
+  const fromMs = Date.parse(val.from);
+  const toMs = Date.parse(val.to);
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs)) return;
+  if (fromMs > toMs) {
+    ctx.addIssue({
+      code: "custom",
+      message: "from must be before to",
+      path: ["from"],
+    });
+  }
+  if (toMs - fromMs > ANALYTICS_MAX_RANGE_MS) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Analytics date range cannot exceed 366 days",
+      path: ["to"],
+    });
+  }
+}
+
+export const analyticsFiltersSchema =
+  analyticsFiltersObjectSchema.superRefine(refineAnalyticsRange);
+
 export const transactionListSortSchema = z.enum([
   "occurredAt",
   "amountMinor",
@@ -288,9 +317,13 @@ export const transactionListSortSchema = z.enum([
 
 export type TransactionListSortKey = z.infer<typeof transactionListSortSchema>;
 
-export const transactionListQuerySchema = analyticsFiltersSchema.extend({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  sort: transactionListSortSchema.default("occurredAt"),
-  dir: z.enum(["asc", "desc"]).default("desc"),
-});
+export const transactionListQuerySchema = analyticsFiltersObjectSchema
+  .extend({
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    sort: transactionListSortSchema.default("occurredAt"),
+    dir: z.enum(["asc", "desc"]).default("desc"),
+    /** Keyset cursor: base64url(`${occurredAt}|${id}`) for occurredAt sort. */
+    cursor: z.string().min(1).max(512).optional(),
+  })
+  .superRefine(refineAnalyticsRange);

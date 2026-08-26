@@ -89,23 +89,14 @@ import {
   requireWriteScope,
   type MoneyGraphQLContext,
 } from "@/lib/graphql/context";
+import { mapServiceError as mapGqlServiceError } from "@/lib/graphql/map-service-error";
 
 function gqlErr(message: string, code: string): never {
   throw new GraphQLError(message, { extensions: { code } });
 }
 
-function mapServiceError(e: unknown): never {
-  const msg = e instanceof Error ? e.message : String(e);
-  if (msg === "UNAUTHORIZED") gqlErr("Unauthorized", "UNAUTHORIZED");
-  if (msg === "FORBIDDEN") gqlErr("Forbidden", "FORBIDDEN");
-  if (msg === "NOT_FOUND") gqlErr("Not found", "NOT_FOUND");
-  if (msg === "DB_UNAVAILABLE") {
-    gqlErr(
-      "Cannot reach PostgreSQL. Start the database or fix DATABASE_URL.",
-      "DB_UNAVAILABLE",
-    );
-  }
-  gqlErr(msg, "BAD_REQUEST");
+function mapServiceError(e: unknown, ctx?: MoneyGraphQLContext): never {
+  return mapGqlServiceError(e, ctx?.requestId);
 }
 
 function filtersFromInput(raw: Record<string, unknown> | null | undefined) {
@@ -568,6 +559,23 @@ const moneyMutations = withMutationGuard(
         mapServiceError(e);
       }
     },
+
+    moneyParseCsv: async (
+      _: unknown,
+      args: { csv: string },
+      ctx: MoneyGraphQLContext,
+    ) => {
+      try {
+        requireMoneyWorkspace(ctx);
+        const size = new TextEncoder().encode(args.csv).length;
+        if (size > MAX_IMPORT_BYTES) {
+          gqlErr(`CSV exceeds ${MAX_IMPORT_BYTES} bytes`, "BAD_REQUEST");
+        }
+        return parseMoneyImportCsv(args.csv);
+      } catch (e) {
+        mapServiceError(e, ctx);
+      }
+    },
   } as Record<string, ResolverHandler>,
   (ctx) => {
     requireWriteScope(ctx);
@@ -876,24 +884,7 @@ export const moneyResolvers = {
         const { workspaceId } = requireMoneyWorkspace(ctx);
         return await getMoneyTransaction(workspaceId, args.id);
       } catch (e) {
-        mapServiceError(e);
-      }
-    },
-
-    moneyParseCsv: async (
-      _: unknown,
-      args: { csv: string },
-      ctx: MoneyGraphQLContext,
-    ) => {
-      try {
-        requireMoneyWorkspace(ctx);
-        const size = new TextEncoder().encode(args.csv).length;
-        if (size > MAX_IMPORT_BYTES) {
-          gqlErr(`CSV exceeds ${MAX_IMPORT_BYTES} bytes`, "BAD_REQUEST");
-        }
-        return parseMoneyImportCsv(args.csv);
-      } catch (e) {
-        mapServiceError(e);
+        mapServiceError(e, ctx);
       }
     },
     }),

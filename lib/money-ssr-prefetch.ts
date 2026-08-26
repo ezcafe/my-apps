@@ -4,6 +4,7 @@ import type { MoneyWorkspaceBootstrapData } from "@/lib/money-workspace-bootstra
 import {
   seedMoneyAnalyticsPage,
   seedMoneyBootstrap,
+  seedInvestmentOverview,
   seedMoneyInvestmentsHome,
   seedMoneyInvestmentsLayout,
   seedMoneyLedgerPage,
@@ -70,6 +71,14 @@ export async function prefetchMoneyInvestmentsLayout(
   userSub: string,
 ) {
   await seedMoneyInvestmentsLayout(queryClient, userSub);
+}
+
+/** Investments overview — holdings + open activities above ledger. */
+export async function prefetchInvestmentOverview(
+  queryClient: QueryClient,
+  userSub: string,
+) {
+  await seedInvestmentOverview(queryClient, userSub);
 }
 
 /** Investments insights — ATF summary + series + allocation. */

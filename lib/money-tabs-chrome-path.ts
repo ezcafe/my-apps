@@ -13,16 +13,6 @@ export function isLoansChromePath(pathname: string): boolean {
   return pathname === "/loans" || pathname.startsWith("/loans/");
 }
 
-export type AppNavMenuPanel = "root" | "money" | "investments" | "loans";
-
-/** Nested hamburger: open on the app that matches the current route. */
-export function appNavMenuPanelForPath(pathname: string): AppNavMenuPanel {
-  if (isInvestmentsChromePath(pathname)) return "investments";
-  if (isLoansChromePath(pathname)) return "loans";
-  if (isMoneyTabsChromePath(pathname)) return "money";
-  return "root";
-}
-
 /**
  * True when the shell aside / fixed mobile menu should hide in favor of an
  * in-page button menu (Money, Investments, Loans, Help, App settings).

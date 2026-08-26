@@ -11,6 +11,7 @@ import {
   INVESTMENT_INSTRUMENTS_QUERY,
   INVESTMENT_OPEN_ACTIVITIES_QUERY,
   INVESTMENT_PORTFOLIO_SERIES_QUERY,
+  INVESTMENT_TOP_QUANTITIES_QUERY,
 } from "@/lib/investment-gql-documents";
 
 export type InvestmentBootstrapData = {
@@ -82,6 +83,11 @@ export type InvestmentHoldingRow = {
   quoteAsOf: string | null;
 };
 
+export type InvestmentTopQuantityLookup = {
+  quantity: string;
+  usageCount?: number;
+};
+
 export type InvestmentActivitiesQueryInput = {
   instrumentId?: string;
   kind?: string;
@@ -123,6 +129,7 @@ export const investmentKeys = {
   portfolioSeries: (from: string, to: string) =>
     [...investmentKeys.all, "portfolioSeries", from, to] as const,
   holdings: () => [...investmentKeys.all, "holdings"] as const,
+  topQuantities: () => [...investmentKeys.all, "topQuantities"] as const,
   insightsAtf: (from: string, to: string) =>
     [...investmentKeys.all, "insightsAtf", from, to] as const,
   insightsMore: (from: string, to: string) =>
@@ -271,6 +278,19 @@ export function investmentHoldingsQueryOptions() {
         valueMinor: gqlMinor(row.valueMinor),
       }));
     },
+  });
+}
+
+export function investmentTopQuantitiesQueryOptions() {
+  return queryOptions({
+    queryKey: investmentKeys.topQuantities(),
+    queryFn: async () => {
+      const data = await investmentGraphQLRequest<{
+        investmentTopQuantities: InvestmentTopQuantityLookup[];
+      }>(INVESTMENT_TOP_QUANTITIES_QUERY);
+      return data.investmentTopQuantities;
+    },
+    staleTime: 60_000,
   });
 }
 

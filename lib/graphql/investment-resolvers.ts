@@ -6,6 +6,7 @@ import {
   requireInvestmentWriteWorkspace,
   type InvestmentGraphQLContext,
 } from "@/lib/graphql/investment-context";
+import { mapServiceError } from "@/lib/graphql/map-service-error";
 import { fetchInvestmentBootstrapSafe } from "@/lib/investment-services/bootstrap";
 import {
   createInvestmentInstrument,
@@ -20,6 +21,7 @@ import {
   deleteInvestmentActivity,
   getInvestmentActivity,
   listInvestmentActivities,
+  listInvestmentTopQuantities,
   listOpenInvestmentActivities,
   updateInvestmentActivity,
 } from "@/lib/investment-services/activities";
@@ -43,14 +45,6 @@ import {
 
 function gqlErr(message: string, code: string): never {
   throw new GraphQLError(message, { extensions: { code } });
-}
-
-function mapServiceError(e: unknown): never {
-  const msg = e instanceof Error ? e.message : String(e);
-  if (msg === "UNAUTHORIZED") gqlErr("Unauthorized", "UNAUTHORIZED");
-  if (msg === "FORBIDDEN") gqlErr("Forbidden", "FORBIDDEN");
-  if (msg === "NOT_FOUND") gqlErr("Not found", "NOT_FOUND");
-  gqlErr(msg, "BAD_REQUEST");
 }
 
 function mapInstrument(
@@ -154,6 +148,16 @@ export const investmentResolvers = {
       const { workspaceId } = requireInvestmentWorkspace(ctx);
       return runInWorkspace(workspaceId, () =>
         investmentHoldingsSnapshot(workspaceId),
+      );
+    },
+    investmentTopQuantities: async (
+      _: unknown,
+      __: unknown,
+      ctx: InvestmentGraphQLContext,
+    ) => {
+      const { workspaceId } = requireInvestmentWorkspace(ctx);
+      return runInWorkspace(workspaceId, () =>
+        listInvestmentTopQuantities(workspaceId),
       );
     },
     investmentInsightsAtf: async (

@@ -5,7 +5,7 @@ import {
   holdingValueMinor,
   parseContractSize,
 } from "@/lib/investment-contract-size";
-import { quantityDelta } from "@/lib/investment-services/positions";
+import { quantityDelta, formatQuantityDisplay } from "@/lib/investment-services/positions";
 import {
   investmentActivityCreateSchema,
   investmentActivityTypeSchema,
@@ -29,6 +29,15 @@ describe("holdingValueMinor", () => {
       holdingValueMinor(0.01, parseContractSize("100"), priceMinor),
       Math.round(0.01 * 100 * 340012),
     );
+  });
+});
+
+describe("formatQuantityDisplay", () => {
+  it("strips PG numeric trailing zeros", () => {
+    assert.equal(formatQuantityDisplay("0.01000000"), "0.01");
+    assert.equal(formatQuantityDisplay("1.00000000"), "1");
+    assert.equal(formatQuantityDisplay("0.01"), "0.01");
+    assert.equal(formatQuantityDisplay(0.01), "0.01");
   });
 });
 

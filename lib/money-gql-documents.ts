@@ -194,11 +194,14 @@ export const MONEY_TRANSACTIONS_QUERY = /* GraphQL */ `
   }
 `;
 
-export const MONEY_PARSE_CSV_QUERY = /* GraphQL */ `
-  query MoneyParseCsv($csv: String!) {
+export const MONEY_PARSE_CSV_MUTATION = /* GraphQL */ `
+  mutation MoneyParseCsv($csv: String!) {
     moneyParseCsv(csv: $csv)
   }
 `;
+
+/** @deprecated Use MONEY_PARSE_CSV_MUTATION — parse is a write-scoped mutation. */
+export const MONEY_PARSE_CSV_QUERY = MONEY_PARSE_CSV_MUTATION;
 
 export const MONEY_LIST_ACCOUNTS_QUERY = /* GraphQL */ `
   query MoneyListAccounts {

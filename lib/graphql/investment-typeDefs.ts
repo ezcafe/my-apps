@@ -239,6 +239,7 @@ export const investmentTypeDefs = /* GraphQL */ `
     investmentActivity(id: ID!): InvestmentActivityRow
     investmentPortfolioValueSeries(from: String!, to: String!): [InvestmentPortfolioPoint!]!
     investmentHoldingsSnapshot: [InvestmentHoldingRow!]!
+    investmentTopQuantities: [JSONObject!]!
     investmentInsightsAtf(from: String!, to: String!): InvestmentInsightsAtf!
     investmentInsightsMore(from: String!, to: String!): InvestmentInsightsMore!
     investmentFxRate(from: String!, to: String!): InvestmentFxRate

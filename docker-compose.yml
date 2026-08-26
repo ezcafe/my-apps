@@ -72,6 +72,8 @@ services:
         required: false
     environment:
       # Override host-oriented DATABASE_URL from .env for in-compose networking.
+      # Local Compose keeps the owner role through PgBouncer (single-user auth).
+      # Production should use `money_app` (no BYPASSRLS); see docs/API.md.
       DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://${POSTGRES_USER:-money}:${POSTGRES_PASSWORD:-money}@pgbouncer:5432/${POSTGRES_DB:-money}}
       PG_STARTUP_TIMEOUTS: "0"
       # Public URL must match the browser origin (Cloudflare Tunnel hostname, not localhost).

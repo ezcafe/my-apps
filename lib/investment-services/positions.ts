@@ -13,6 +13,22 @@ export function parseQuantity(value: string | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Human-readable lots/volume; strips PG numeric(24,8) trailing zeros. */
+export function formatQuantityDisplay(
+  value: string | number | null | undefined,
+): string {
+  if (value == null || value === "") return "";
+  const raw =
+    typeof value === "number"
+      ? Number.isFinite(value)
+        ? String(value)
+        : ""
+      : value.trim();
+  if (!raw) return "";
+  if (!raw.includes(".")) return raw;
+  return raw.replace(/(\.\d*?[1-9])0+$/, "$1").replace(/\.0+$/, "");
+}
+
 export function quantityDelta(
   type: ActivityType,
   quantity: number,
