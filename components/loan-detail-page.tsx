@@ -79,7 +79,7 @@ function LoanDetailHeaderSync({
     title: loanName,
     description: LOAN_DETAIL_ABOUT,
     breadcrumbs: [
-      { label: "Loans", href: "/money/loans" },
+      { label: "Loans", href: "/loans" },
       { label: loanName },
     ],
     cta: null,
@@ -186,7 +186,7 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
           }
         />
         <Link
-          href="/money/loans"
+          href="/loans"
           className={buttonClassName({
             variant: "secondary",
             size: "md",

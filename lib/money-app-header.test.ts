@@ -4,66 +4,14 @@ import { resolveMoneyAppHeader } from "@/lib/money-app-header";
 
 describe("resolveMoneyAppHeader", () => {
   it("resolves list / capture section titles and CTAs without breadcrumbs", () => {
-    assert.deepEqual(resolveMoneyAppHeader("/money/spending"), {
+    assert.deepEqual(resolveMoneyAppHeader("/money"), {
       title: "Spending",
       breadcrumbs: [],
       cta: { href: "/money/new", label: "Add transaction" },
     });
-    assert.equal(resolveMoneyAppHeader("/money/loans").title, "Loans");
-    assert.deepEqual(resolveMoneyAppHeader("/money/loans").cta, {
-      href: "/money/loans/new",
-      label: "Create loan",
-    });
-    assert.equal(resolveMoneyAppHeader("/money/analytics").title, "Insights");
+    assert.equal(resolveMoneyAppHeader("/money/insights").title, "Insights");
     assert.equal(resolveMoneyAppHeader("/money/new").title, "Add transaction");
     assert.equal(resolveMoneyAppHeader("/money/new").cta, null);
-  });
-
-  it("hides CTA on create forms and nested instrument pages", () => {
-    assert.equal(resolveMoneyAppHeader("/money/loans/new").cta, null);
-    assert.equal(resolveMoneyAppHeader("/money/investments/new").cta, null);
-    assert.equal(resolveMoneyAppHeader("/money/investments/new").title, "Record activity");
-    assert.equal(resolveMoneyAppHeader("/money/loans/settings").title, "Loans");
-    assert.equal(resolveMoneyAppHeader("/money/loans/settings").cta, null);
-    assert.equal(resolveMoneyAppHeader("/money/investments/instruments/new").cta, null);
-    assert.equal(
-      resolveMoneyAppHeader("/money/investments/instruments").instrumentsHref,
-      undefined,
-    );
-    assert.deepEqual(
-      resolveMoneyAppHeader("/money/investments/instruments").breadcrumbs,
-      [
-        { label: "Investments", href: "/money/investments" },
-        { label: "Instruments" },
-      ],
-    );
-    assert.deepEqual(resolveMoneyAppHeader("/money/investments/instruments").cta, {
-      href: "/money/investments/instruments/new",
-      label: "Create instrument",
-    });
-    assert.deepEqual(
-      resolveMoneyAppHeader("/money/investments/instruments/new").breadcrumbs,
-      [
-        { label: "Investments", href: "/money/investments" },
-        { label: "Instruments", href: "/money/investments/instruments" },
-        { label: "Create instrument" },
-      ],
-    );
-  });
-
-  it("exposes instrumentsHref on the investments list only", () => {
-    assert.equal(
-      resolveMoneyAppHeader("/money/investments").instrumentsHref,
-      "/money/investments/instruments",
-    );
-    assert.deepEqual(resolveMoneyAppHeader("/money/investments").cta, {
-      href: "/money/investments/new",
-      label: "Record activity",
-    });
-    assert.equal(
-      resolveMoneyAppHeader("/money/new").instrumentsHref,
-      undefined,
-    );
   });
 
   it("uses subsection title + Settings crumbs on money settings children", () => {
@@ -87,17 +35,6 @@ describe("resolveMoneyAppHeader", () => {
       breadcrumbs: [],
       cta: { href: "/money/new", label: "Add transaction" },
     });
-  });
-
-  it("marks loan detail for override (placeholder title, no CTA)", () => {
-    const header = resolveMoneyAppHeader("/money/loans/abc-123");
-    assert.equal(header.title, "Loan");
-    assert.equal(header.cta, null);
-    assert.deepEqual(header.breadcrumbs, [
-      { label: "Loans", href: "/money/loans" },
-      { label: "Loan" },
-    ]);
-    assert.equal(header.needsOverride, true);
   });
 
   it("marks transaction edit for override", () => {

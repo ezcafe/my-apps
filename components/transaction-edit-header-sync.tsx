@@ -4,27 +4,40 @@ import { useSetAppHeader } from "@/components/app-header-override";
 
 function resolveTransactionEditReturnTo(raw: string | null | undefined): string {
   if (
+    raw === "/money" ||
     raw === "/money/spending" ||
     raw === "/money/transactions" ||
     raw === "/money/bills" ||
     raw === "/money/savings" ||
-    raw === "/money/investments" ||
     raw === "/money/loans" ||
-    raw === "/money/analytics"
+    raw === "/loans" ||
+    raw === "/money/insights" ||
+    raw === "/money/analytics" ||
+    raw === "/investments" ||
+    raw === "/investments/insights"
   ) {
-    return raw === "/money/transactions" ? "/money/spending" : raw;
+    if (raw === "/money/transactions" || raw === "/money/spending") return "/money";
+    if (raw === "/money/analytics") return "/money/insights";
+    if (raw === "/money/loans") return "/loans";
+    return raw;
   }
-  return "/money/spending";
+  return "/money";
 }
 
 function transactionEditReturnLabel(returnTo: string): string {
-  if (returnTo === "/money/spending" || returnTo === "/money/transactions") {
+  if (
+    returnTo === "/money" ||
+    returnTo === "/money/spending" ||
+    returnTo === "/money/transactions"
+  ) {
     return "Spending";
   }
   if (returnTo === "/money/bills") return "Bills";
   if (returnTo === "/money/savings") return "Savings";
-  if (returnTo === "/money/investments") return "Investments";
-  if (returnTo === "/money/loans") return "Loans";
+  if (returnTo === "/investments" || returnTo === "/investments/insights") {
+    return "Investments";
+  }
+  if (returnTo === "/loans" || returnTo === "/money/loans") return "Loans";
   return "Insights";
 }
 

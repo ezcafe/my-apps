@@ -39,6 +39,7 @@ import type {
   MoneyWorkspaceBootstrapData,
   MoneyWorkspaceCoreData,
 } from "@/lib/money-workspace-bootstrap-data";
+import { invalidateInvestmentWorkspaceQueries } from "@/lib/investment-query-options";
 import type { TransactionListSortKey } from "@/lib/validators/money";
 
 export type MoneyAccountLookup = {
@@ -112,7 +113,13 @@ export type MoneyFormBudgetStatusMaps = {
 };
 
 export async function invalidateMoneyWorkspaceQueries(queryClient: QueryClient) {
-  await queryClient.invalidateQueries({ queryKey: moneyRootQueryKey });
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: moneyRootQueryKey,
+      refetchType: "all",
+    }),
+    invalidateInvestmentWorkspaceQueries(queryClient),
+  ]);
 }
 
 /** Refetch form chip budget utilization after posting an expense. */

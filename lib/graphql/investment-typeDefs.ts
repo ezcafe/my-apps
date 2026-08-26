@@ -82,6 +82,46 @@ export const investmentTypeDefs = /* GraphQL */ `
     quoteAsOf: String
   }
 
+  type InvestmentInsightsRange {
+    from: String!
+    to: String!
+  }
+
+  type InvestmentInsightsSummary {
+    resultsMinor: BigInt!
+    openNotionalMinor: BigInt!
+    realizedPnlMinor: BigInt!
+    openLotsCount: Int!
+  }
+
+  type InvestmentInsightsSlice {
+    label: String!
+    kind: String
+    valueMinor: BigInt!
+  }
+
+  type InvestmentInsightsAtf {
+    range: InvestmentInsightsRange!
+    summary: InvestmentInsightsSummary!
+    series: [InvestmentPortfolioPoint!]!
+    allocation: [InvestmentInsightsSlice!]!
+  }
+
+  type InvestmentInsightsPnlRow {
+    symbol: String!
+    label: String!
+    valueMinor: BigInt!
+  }
+
+  type InvestmentInsightsMore {
+    realizedMinor: BigInt!
+    unrealizedMinor: BigInt!
+    maxDrawdownMinor: BigInt!
+    closedCount: Int!
+    winningClosedCount: Int!
+    pnlBySymbol: [InvestmentInsightsPnlRow!]!
+  }
+
   type InvestmentFxRate {
     rate: Float!
     sourceSymbol: String!
@@ -199,6 +239,8 @@ export const investmentTypeDefs = /* GraphQL */ `
     investmentActivity(id: ID!): InvestmentActivityRow
     investmentPortfolioValueSeries(from: String!, to: String!): [InvestmentPortfolioPoint!]!
     investmentHoldingsSnapshot: [InvestmentHoldingRow!]!
+    investmentInsightsAtf(from: String!, to: String!): InvestmentInsightsAtf!
+    investmentInsightsMore(from: String!, to: String!): InvestmentInsightsMore!
     investmentFxRate(from: String!, to: String!): InvestmentFxRate
   }
 

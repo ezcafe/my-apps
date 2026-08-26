@@ -7,8 +7,6 @@ export const MONEY_SECTION_TABS_STORAGE_KEY = "money_section_tabs";
 export const MONEY_OPTIONAL_SECTION_TAB_KEYS = [
   "bills",
   "savings",
-  "loans",
-  "investments",
   "import",
 ] as const;
 
@@ -23,8 +21,6 @@ export type MoneySectionTabVisibility = Record<
 export const DEFAULT_MONEY_SECTION_TAB_VISIBILITY: MoneySectionTabVisibility = {
   bills: false,
   savings: false,
-  loans: false,
-  investments: false,
   import: false,
 };
 
@@ -34,8 +30,6 @@ export const MONEY_OPTIONAL_SECTION_TAB_LABELS: Record<
 > = {
   bills: "Bills",
   savings: "Savings",
-  loans: "Loans",
-  investments: "Investments",
   import: "Import data",
 };
 

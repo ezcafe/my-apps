@@ -36,8 +36,8 @@ import {
   INVESTMENT_REFRESH_QUOTES_MUTATION,
 } from "@/lib/investment-gql-documents";
 import {
+  invalidateInvestmentWorkspaceQueries,
   investmentInstrumentsQueryOptions,
-  investmentKeys,
   type InvestmentInstrument,
 } from "@/lib/investment-query-options";
 import { defaultContractSize } from "@/lib/investment-contract-size";
@@ -402,7 +402,7 @@ export function InvestmentInstrumentsPage() {
         },
       });
       cancelEdit();
-      await queryClient.invalidateQueries({ queryKey: investmentKeys.all });
+      await invalidateInvestmentWorkspaceQueries(queryClient);
       notify.success("Instrument saved");
     } catch (err) {
       notify.error(
@@ -426,7 +426,7 @@ export function InvestmentInstrumentsPage() {
         input: { archived: true },
       });
       if (editingId === id) setEditingId(null);
-      await queryClient.invalidateQueries({ queryKey: investmentKeys.all });
+      await invalidateInvestmentWorkspaceQueries(queryClient);
       notify.success("Instrument removed");
     } catch (err) {
       notify.error(
@@ -440,7 +440,7 @@ export function InvestmentInstrumentsPage() {
     setRefreshing(true);
     try {
       await investmentGraphQLRequest(INVESTMENT_REFRESH_QUOTES_MUTATION);
-      await queryClient.invalidateQueries({ queryKey: investmentKeys.all });
+      await invalidateInvestmentWorkspaceQueries(queryClient);
       notify.success("Quotes refreshed");
     } catch (err) {
       notify.error("Could not refresh quotes", toUserFacingMessage(err));
@@ -496,7 +496,7 @@ export function InvestmentInstrumentsPage() {
           description="Add a symbol to open trades and track holdings."
           minHeightClass="min-h-[200px]"
           primaryAction={{
-            href: "/money/investments/instruments/new",
+            href: "/investments/instruments/new",
             label: "Create instrument",
           }}
         />

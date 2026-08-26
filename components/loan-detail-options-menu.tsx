@@ -52,7 +52,7 @@ export function LoanDetailOptionsMenu({
       await queryClient.invalidateQueries({ queryKey: loansKeys.all });
       notify.success("Loan deleted", `${loanName} was removed from your overview.`);
       setConfirmOpen(false);
-      router.push("/money/loans");
+      router.push("/loans");
     } catch (e) {
       notify.error(
         "Could not delete loan",

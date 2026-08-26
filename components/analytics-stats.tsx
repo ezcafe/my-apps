@@ -62,6 +62,7 @@ export function AnalyticsStats({
   const expenseColor = chartExpenseColor(resolved, style);
   const netColor = stats.netMinor >= 0 ? incomeColor : expenseColor;
   const animationKey = `${range.from}-${range.to}`;
+
   const savingsLabel =
     stats.savingsRatePct == null
       ? "—"
@@ -79,7 +80,9 @@ export function AnalyticsStats({
         aria-label="Summary metrics"
       >
         <Card className="px-4 py-4">
-          <p className="text-sm font-medium text-muted">Income</p>
+          <p className="text-sm font-medium text-muted">
+            Income
+          </p>
           <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
             <AnimatedNumber
               value={stats.incomeMinor}

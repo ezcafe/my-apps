@@ -35,7 +35,6 @@ import {
 import {
   investmentFxRateQueryOptions,
   investmentInstrumentsQueryOptions,
-  investmentKeys,
   investmentOpenActivitiesQueryOptions,
 } from "@/lib/investment-query-options";
 import { instrumentLedgerPrefill } from "@/lib/instrument-ledger-prefill";
@@ -412,7 +411,6 @@ export function InvestmentOpenCloseForm({
         setStopLoss("");
         setTakeProfit("");
       }
-      await queryClient.invalidateQueries({ queryKey: investmentKeys.all });
       await invalidateMoneyWorkspaceQueries(queryClient);
     } catch (err) {
       notify.error(

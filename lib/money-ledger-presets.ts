@@ -145,19 +145,13 @@ export const MONEY_LEDGER_INVESTMENT: MoneyLedgerPreset = {
     icon: "investment",
     accentChartIndex: 4,
     primaryAction: {
-      href: "/money/investments/new",
+      href: "/investments/new",
       label: "Record activity",
     },
   },
 
   lockedQuery: {
     accountTypes: ["investment"],
-  },
-  chart: {
-    title: "Investment cash flow",
-    description:
-      "Cumulative net cash movement on investment accounts for the selected range.",
-    compareHint: "Solid: this month through today. Dashed: prior month.",
   },
 };
 
@@ -171,7 +165,7 @@ export const MONEY_LEDGER_LOAN: MoneyLedgerPreset = {
       "Payments and adjustments on loan accounts appear here after you add a payment from a loan.",
     icon: "loan",
     accentChartIndex: 6,
-    primaryAction: { href: "/money/loans/new", label: "Create loan" },
+    primaryAction: { href: "/loans/new", label: "Create loan" },
   },
   lockedQuery: {
     accountTypes: ["loan"],

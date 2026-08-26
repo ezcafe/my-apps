@@ -1,0 +1,86 @@
+import type { BreadcrumbItem } from "@/components/ui/breadcrumb";
+import { MONEY_LEDGER_INVESTMENT } from "@/lib/money-ledger-presets";
+
+export type InvestmentAppHeaderResolved = {
+  title: string;
+  breadcrumbs: BreadcrumbItem[];
+  cta: { href: string; label: string } | null;
+  /** Secondary “Instruments” link from the Investments list. */
+  instrumentsHref?: string;
+};
+
+const RECORD_CTA = MONEY_LEDGER_INVESTMENT.emptyState.primaryAction ?? {
+  href: "/investments/new",
+  label: "Record activity",
+};
+
+/**
+ * Pathname → page heading defaults for `/investments`.
+ */
+export function resolveInvestmentAppHeader(
+  pathname: string,
+): InvestmentAppHeaderResolved {
+  if (
+    pathname === "/investments/insights" ||
+    pathname.startsWith("/investments/insights/")
+  ) {
+    return {
+      title: "Insights",
+      breadcrumbs: [],
+      cta: RECORD_CTA,
+    };
+  }
+
+  if (
+    pathname === "/investments/new" ||
+    pathname.startsWith("/investments/new/")
+  ) {
+    return {
+      title: "Record activity",
+      breadcrumbs: [
+        { label: "Investments", href: "/investments" },
+        { label: "Record activity" },
+      ],
+      cta: null,
+    };
+  }
+
+  if (
+    pathname === "/investments/instruments/new" ||
+    pathname.startsWith("/investments/instruments/new/")
+  ) {
+    return {
+      title: "Create instrument",
+      breadcrumbs: [
+        { label: "Investments", href: "/investments" },
+        { label: "Instruments", href: "/investments/instruments" },
+        { label: "Create instrument" },
+      ],
+      cta: null,
+    };
+  }
+
+  if (
+    pathname === "/investments/instruments" ||
+    pathname.startsWith("/investments/instruments/")
+  ) {
+    return {
+      title: "Instruments",
+      breadcrumbs: [
+        { label: "Investments", href: "/investments" },
+        { label: "Instruments" },
+      ],
+      cta: {
+        href: "/investments/instruments/new",
+        label: "Create instrument",
+      },
+    };
+  }
+
+  return {
+    title: "Investments",
+    breadcrumbs: [],
+    cta: RECORD_CTA,
+    instrumentsHref: "/investments/instruments",
+  };
+}

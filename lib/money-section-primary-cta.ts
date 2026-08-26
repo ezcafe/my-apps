@@ -1,7 +1,5 @@
 import {
   MONEY_LEDGER_BILLS,
-  MONEY_LEDGER_INVESTMENT,
-  MONEY_LEDGER_LOAN,
   MONEY_LEDGER_SAVINGS,
   MONEY_LEDGER_SPENDING,
 } from "@/lib/money-ledger-presets";
@@ -20,30 +18,7 @@ const DEFAULT_CTA: MoneySectionPrimaryCta = {
 function isMoneyCreateFormPath(pathname: string): boolean {
   return (
     pathname === "/money/new" ||
-    pathname.startsWith("/money/new/") ||
-    pathname === "/money/loans/new" ||
-    pathname.startsWith("/money/loans/new/") ||
-    pathname === "/money/investments/new" ||
-    pathname.startsWith("/money/investments/new/") ||
-    pathname === "/money/investments/instruments/new" ||
-    pathname.startsWith("/money/investments/instruments/new/")
-  );
-}
-
-function isLoanListPath(pathname: string): boolean {
-  return pathname === "/money/loans" || pathname === "/money/loans/";
-}
-
-function isInvestmentInstrumentsListPath(pathname: string): boolean {
-  return (
-    pathname === "/money/investments/instruments" ||
-    pathname === "/money/investments/instruments/"
-  );
-}
-
-function isInvestmentListPath(pathname: string): boolean {
-  return (
-    pathname === "/money/investments" || pathname === "/money/investments/"
+    pathname.startsWith("/money/new/")
   );
 }
 
@@ -57,7 +32,7 @@ function isMoneySettingsChildPath(pathname: string): boolean {
 /**
  * Primary add CTA for the Money section header, by route.
  * Labels match ledger empty-state actions.
- * No CTA on create forms, loan/investment detail, module settings, or settings children.
+ * No CTA on create forms, module settings, or settings children.
  */
 export function moneySectionPrimaryCta(
   pathname: string,
@@ -72,31 +47,9 @@ export function moneySectionPrimaryCta(
   if (pathname === "/money/savings" || pathname.startsWith("/money/savings/")) {
     return MONEY_LEDGER_SAVINGS.emptyState.primaryAction ?? DEFAULT_CTA;
   }
-  if (isLoanListPath(pathname)) {
-    return MONEY_LEDGER_LOAN.emptyState.primaryAction ?? {
-      href: "/money/loans/new",
-      label: "Create loan",
-    };
-  }
-  if (pathname.startsWith("/money/loans/")) {
-    return null;
-  }
-  if (isInvestmentListPath(pathname)) {
-    return MONEY_LEDGER_INVESTMENT.emptyState.primaryAction ?? {
-      href: "/money/investments/new",
-      label: "Record activity",
-    };
-  }
-  if (isInvestmentInstrumentsListPath(pathname)) {
-    return {
-      href: "/money/investments/instruments/new",
-      label: "Create instrument",
-    };
-  }
-  if (pathname.startsWith("/money/investments/")) {
-    return null;
-  }
   if (
+    pathname === "/money" ||
+    pathname === "/money/" ||
     pathname === "/money/spending" ||
     pathname.startsWith("/money/spending/")
   ) {

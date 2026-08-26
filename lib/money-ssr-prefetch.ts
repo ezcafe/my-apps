@@ -5,8 +5,11 @@ import {
   seedMoneyAnalyticsPage,
   seedMoneyBootstrap,
   seedMoneyInvestmentsHome,
+  seedMoneyInvestmentsLayout,
   seedMoneyLedgerPage,
   seedMoneyLoansHome,
+  seedLoansInsightsPage,
+  seedLoansLayout,
 } from "@/lib/money-ssr-seed";
 
 /** Prefetch bootstrap only (money layout — must hydrate above MoneyWorkspaceProvider). */
@@ -38,6 +41,14 @@ export async function prefetchMoneyAnalytics(
   await seedMoneyAnalyticsPage(queryClient, userSub);
 }
 
+/** Loans layout — money + loans bootstrap. */
+export async function prefetchLoansLayout(
+  queryClient: QueryClient,
+  userSub: string,
+) {
+  await seedLoansLayout(queryClient, userSub);
+}
+
 /** Loans home — money + loans bootstrap and loan list. */
 export async function prefetchMoneyLoansHome(
   queryClient: QueryClient,
@@ -46,7 +57,22 @@ export async function prefetchMoneyLoansHome(
   await seedMoneyLoansHome(queryClient, userSub);
 }
 
-/** Investments home — money + investment bootstrap, holdings, default series. */
+export async function prefetchLoansInsights(
+  queryClient: QueryClient,
+  userSub: string,
+) {
+  await seedLoansInsightsPage(queryClient, userSub);
+}
+
+/** Investments layout — money + investment bootstrap. */
+export async function prefetchMoneyInvestmentsLayout(
+  queryClient: QueryClient,
+  userSub: string,
+) {
+  await seedMoneyInvestmentsLayout(queryClient, userSub);
+}
+
+/** Investments insights — ATF summary + series + allocation. */
 export async function prefetchMoneyInvestmentsHome(
   queryClient: QueryClient,
   userSub: string,

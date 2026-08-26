@@ -23,6 +23,13 @@ import {
   type MoneyOptionalSectionTabKey,
 } from "@/lib/money-section-tab-visibility";
 import { useMoneyMenuPageActions } from "@/lib/money-menu-page-actions";
+import {
+  appNavMenuPanelForPath,
+  isInvestmentsChromePath,
+  isLoansChromePath,
+  isMoneyTabsChromePath,
+  type AppNavMenuPanel,
+} from "@/lib/money-tabs-chrome-path";
 
 type MoneySectionTabIconId =
   | "new"
@@ -43,6 +50,34 @@ function IconMenu(props: SVGProps<SVGSVGElement>) {
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconChevronLeft(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M15 6 9 12l6 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconChevronRight(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M9 6l6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -300,7 +335,7 @@ const shellMenuIcons: Record<
   home: IconHome,
   money: IconMoney,
   savings: IconSavings,
-  investment: IconAnalytics,
+  investment: IconInvestments,
   loans: IconLoans,
   help: IconHelp,
   settings: IconSettings,
@@ -330,9 +365,9 @@ const tabs: Array<{
   /** When set, tab is hidden unless user enabled it in Settings. */
   visibilityKey?: MoneyOptionalSectionTabKey;
 }> = [
-  { href: "/money/analytics", label: "Insights", icon: "analytics", exact: false },
+  { href: "/money/insights", label: "Insights", icon: "analytics", exact: false },
   { href: "/money/new", label: "Add transaction", icon: "new", exact: true },
-  { href: "/money/spending", label: "Spending", icon: "spending", exact: false },
+  { href: "/money", label: "Spending", icon: "spending", exact: true },
   {
     href: "/money/bills",
     label: "Bills",
@@ -348,20 +383,6 @@ const tabs: Array<{
     visibilityKey: "savings",
   },
   {
-    href: "/money/loans",
-    label: "Loans",
-    icon: "loans",
-    exact: false,
-    visibilityKey: "loans",
-  },
-  {
-    href: "/money/investments",
-    label: "Investments",
-    icon: "investments",
-    exact: false,
-    visibilityKey: "investments",
-  },
-  {
     href: "/money/import",
     label: "Import data",
     icon: "import",
@@ -371,6 +392,60 @@ const tabs: Array<{
   {
     href: "/money/settings",
     label: "Money settings",
+    icon: "settings",
+    exact: false,
+  },
+];
+
+const investmentTabs: Array<{
+  href: string;
+  label: string;
+  icon: MoneySectionTabIconId;
+  exact: boolean;
+}> = [
+  { href: "/investments", label: "Overview", icon: "investments", exact: true },
+  {
+    href: "/investments/insights",
+    label: "Insights",
+    icon: "analytics",
+    exact: false,
+  },
+  {
+    href: "/investments/new",
+    label: "Record activity",
+    icon: "new",
+    exact: false,
+  },
+  {
+    href: "/investments/instruments",
+    label: "Instruments",
+    icon: "settings",
+    exact: false,
+  },
+];
+
+const loanTabs: Array<{
+  href: string;
+  label: string;
+  icon: MoneySectionTabIconId;
+  exact: boolean;
+}> = [
+  { href: "/loans", label: "Overview", icon: "loans", exact: true },
+  {
+    href: "/loans/insights",
+    label: "Insights",
+    icon: "analytics",
+    exact: false,
+  },
+  {
+    href: "/loans/new",
+    label: "Create loan",
+    icon: "new",
+    exact: false,
+  },
+  {
+    href: "/loans/settings",
+    label: "Loans settings",
     icon: "settings",
     exact: false,
   },
@@ -450,7 +525,7 @@ function MoneyMenuAuth({ onNavigate }: { onNavigate: () => void }) {
 }
 
 /**
- * Merged Money + workspace menu (icon-only trigger).
+ * Nested Money, Investments, and Loans hamburger (icon-only trigger).
  * Page-specific actions (e.g. Delete loan) render at the top when registered.
  */
 export function MoneyAppMenu() {
@@ -458,11 +533,15 @@ export function MoneyAppMenu() {
   const { isTabVisible } = useMoneySectionTabVisibility();
   const pageActions = useMoneyMenuPageActions();
   const [open, setOpen] = useState(false);
+  const [panel, setPanel] = useState<AppNavMenuPanel>(() =>
+    appNavMenuPanelForPath(pathname),
+  );
   const [menuPath, setMenuPath] = useState(pathname);
 
   if (pathname !== menuPath) {
     setMenuPath(pathname);
     if (open) setOpen(false);
+    setPanel(appNavMenuPanelForPath(pathname));
   }
 
   const close = () => setOpen(false);
@@ -471,12 +550,19 @@ export function MoneyAppMenu() {
     isTabVisible(visibilityKey),
   );
 
+  const onMoney = isMoneyTabsChromePath(pathname);
+  const onInvestments = isInvestmentsChromePath(pathname);
+  const onLoans = isLoansChromePath(pathname);
+
   return (
     <Popover
       align="start"
-      aria-label="Open Money menu"
+      aria-label="Open navigation menu"
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) setPanel(appNavMenuPanelForPath(pathname));
+      }}
       trigger={<IconMenu className="size-5" />}
       triggerClassName="fx-hit-40 size-10 shrink-0 p-0"
       className="min-w-[min(100vw-2rem,18rem)] p-1.5"
@@ -511,25 +597,117 @@ export function MoneyAppMenu() {
         </>
       ) : null}
 
-      <nav className="flex flex-col" aria-label="Money sections">
-        {visibleTabs.map(({ href, label, icon, exact }) => {
-          const active = isTabActive(pathname, href, exact);
-          const Icon = moneySectionTabIcons[icon];
+      {panel !== "root" ? (
+        <button
+          type="button"
+          className={cn(menuItemClassName(false), "mb-0.5 w-full")}
+          onClick={() => setPanel("root")}
+        >
+          <IconChevronLeft className="size-5 shrink-0" />
+          Apps
+        </button>
+      ) : null}
 
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={active ? "page" : undefined}
-              onClick={close}
-              className={menuItemClassName(active)}
-            >
-              <Icon className="size-5 shrink-0" />
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
+      {panel === "root" ? (
+        <nav className="flex flex-col" aria-label="Apps">
+          <button
+            type="button"
+            className={cn(menuItemClassName(onMoney), "w-full")}
+            aria-current={onMoney ? "page" : undefined}
+            onClick={() => setPanel("money")}
+          >
+            <IconMoney className="size-5 shrink-0" />
+            <span className="min-w-0 flex-1 text-start">Money</span>
+            <IconChevronRight className="size-5 shrink-0 text-muted" />
+          </button>
+          <button
+            type="button"
+            className={cn(menuItemClassName(onInvestments), "w-full")}
+            aria-current={onInvestments ? "page" : undefined}
+            onClick={() => setPanel("investments")}
+          >
+            <IconInvestments className="size-5 shrink-0" />
+            <span className="min-w-0 flex-1 text-start">Investments</span>
+            <IconChevronRight className="size-5 shrink-0 text-muted" />
+          </button>
+          <button
+            type="button"
+            className={cn(menuItemClassName(onLoans), "w-full")}
+            aria-current={onLoans ? "page" : undefined}
+            onClick={() => setPanel("loans")}
+          >
+            <IconLoans className="size-5 shrink-0" />
+            <span className="min-w-0 flex-1 text-start">Loans</span>
+            <IconChevronRight className="size-5 shrink-0 text-muted" />
+          </button>
+        </nav>
+      ) : null}
+
+      {panel === "money" ? (
+        <nav className="flex flex-col" aria-label="Money sections">
+          {visibleTabs.map(({ href, label, icon, exact }) => {
+            const active = isTabActive(pathname, href, exact);
+            const Icon = moneySectionTabIcons[icon];
+
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                onClick={close}
+                className={menuItemClassName(active)}
+              >
+                <Icon className="size-5 shrink-0" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+      ) : null}
+
+      {panel === "investments" ? (
+        <nav className="flex flex-col" aria-label="Investments sections">
+          {investmentTabs.map(({ href, label, icon, exact }) => {
+            const active = isTabActive(pathname, href, exact);
+            const Icon = moneySectionTabIcons[icon];
+
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                onClick={close}
+                className={menuItemClassName(active)}
+              >
+                <Icon className="size-5 shrink-0" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+      ) : null}
+
+      {panel === "loans" ? (
+        <nav className="flex flex-col" aria-label="Loans sections">
+          {loanTabs.map(({ href, label, icon, exact }) => {
+            const active = isTabActive(pathname, href, exact);
+            const Icon = moneySectionTabIcons[icon];
+
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                onClick={close}
+                className={menuItemClassName(active)}
+              >
+                <Icon className="size-5 shrink-0" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+      ) : null}
 
       <div
         role="separator"
@@ -580,31 +758,16 @@ export function MoneySectionTabs() {
       description={description}
       breadcrumbs={breadcrumbs}
       actions={
-        resolved.instrumentsHref || cta ? (
-          <>
-            {resolved.instrumentsHref ? (
-              <Link
-                href={resolved.instrumentsHref}
-                className={buttonClassName({
-                  variant: "ghost",
-                  className: "shrink-0",
-                })}
-              >
-                Instruments
-              </Link>
-            ) : null}
-            {cta ? (
-              <Link
-                href={cta.href}
-                className={buttonClassName({
-                  variant: "primary",
-                  className: "shrink-0",
-                })}
-              >
-                {cta.label}
-              </Link>
-            ) : null}
-          </>
+        cta ? (
+          <Link
+            href={cta.href}
+            className={buttonClassName({
+              variant: "primary",
+              className: "shrink-0",
+            })}
+          >
+            {cta.label}
+          </Link>
         ) : null
       }
     />

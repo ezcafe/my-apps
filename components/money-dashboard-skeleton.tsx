@@ -192,7 +192,7 @@ export function MoneyInputGroupSkeleton({
   );
 }
 
-/** Chunk placeholder for `/money/investments/new`. */
+/** Chunk placeholder for `/investments/new`. */
 export function InvestmentOpenCloseFormSkeleton() {
   return (
     <div

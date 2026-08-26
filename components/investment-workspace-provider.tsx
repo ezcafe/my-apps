@@ -9,8 +9,8 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import {
+  invalidateInvestmentWorkspaceQueries,
   investmentBootstrapQueryOptions,
-  investmentKeys,
 } from "@/lib/investment-query-options";
 
 type InvestmentWorkspaceContextValue = {
@@ -55,7 +55,7 @@ export function InvestmentWorkspaceProvider({
   const needsCurrencySetup = bootstrapQuery.data?.needsCurrencySetup ?? false;
 
   const refresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: investmentKeys.all });
+    await invalidateInvestmentWorkspaceQueries(queryClient);
   }, [queryClient]);
 
   const value = useMemo<InvestmentWorkspaceContextValue>(

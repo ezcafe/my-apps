@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Alias for the analytics dashboard. */
+/** Alias for the Insights dashboard. */
 export default function MoneyAnalysisPage() {
-  redirect("/money/analytics");
+  redirect("/money/insights");
 }

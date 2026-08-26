@@ -28,10 +28,13 @@ export function AboutDisclosure({
   children,
   label = "About this page",
   className,
+  compact = false,
 }: {
   children: ReactNode;
   label?: string;
   className?: string;
+  /** Match text-sm metric labels (~20px) instead of a 28px hit box in-flow. */
+  compact?: boolean;
 }) {
   const tooltipId = useId();
 
@@ -41,9 +44,12 @@ export function AboutDisclosure({
         type="button"
         aria-label={label}
         aria-describedby={tooltipId}
-        className="inline-flex size-7 items-center justify-center rounded-[var(--radius-sm)] text-muted transition-colors duration-200 hover:bg-muted-surface hover:text-foreground focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-hit-40 fx-press"
+        className={cn(
+          "inline-flex items-center justify-center rounded-[var(--radius-sm)] text-muted transition-colors duration-200 hover:bg-muted-surface hover:text-foreground focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-hit-40 fx-press",
+          compact ? "size-5" : "size-7",
+        )}
       >
-        <InfoIcon className="size-4" />
+        <InfoIcon className={compact ? "size-3.5" : "size-4"} />
       </button>
       <span
         id={tooltipId}

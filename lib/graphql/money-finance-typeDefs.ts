@@ -122,6 +122,47 @@ export const moneyFinanceTypeDefs = /* GraphQL */ `
     moneyCategoryId: ID
   }
 
+  type LoansInsightsSummary {
+    remainingMinor: BigInt!
+    monthlyObligationMinor: BigInt!
+    weightedAprBps: Int
+    nextDueDate: String
+    loanCount: Int!
+  }
+
+  type LoansInsightsSlice {
+    id: ID!
+    label: String!
+    valueMinor: BigInt!
+  }
+
+  type LoansInsightsRange {
+    from: String!
+    to: String!
+  }
+
+  type LoansInsightsAtf {
+    range: LoansInsightsRange!
+    summary: LoansInsightsSummary!
+    remainingByLoan: [LoansInsightsSlice!]!
+    paidPrincipalMinor: BigInt!
+    paidInterestMinor: BigInt!
+  }
+
+  type LoansInsightsProgressRow {
+    id: ID!
+    name: String!
+    remainingMinor: BigInt!
+    percentComplete: Float!
+  }
+
+  type LoansInsightsMore {
+    remainingInterestMinor: BigInt!
+    ltvPct: Float
+    progress: [LoansInsightsProgressRow!]!
+    combinedChart: [LoanChartPoint!]!
+  }
+
   input LoanCreateInput {
     name: String!
     principalMinor: BigInt!
@@ -246,6 +287,46 @@ export const moneyFinanceTypeDefs = /* GraphQL */ `
     quoteAsOf: String
   }
 
+  type InvestmentInsightsRange {
+    from: String!
+    to: String!
+  }
+
+  type InvestmentInsightsSummary {
+    resultsMinor: BigInt!
+    openNotionalMinor: BigInt!
+    realizedPnlMinor: BigInt!
+    openLotsCount: Int!
+  }
+
+  type InvestmentInsightsSlice {
+    label: String!
+    kind: String
+    valueMinor: BigInt!
+  }
+
+  type InvestmentInsightsAtf {
+    range: InvestmentInsightsRange!
+    summary: InvestmentInsightsSummary!
+    series: [InvestmentPortfolioPoint!]!
+    allocation: [InvestmentInsightsSlice!]!
+  }
+
+  type InvestmentInsightsPnlRow {
+    symbol: String!
+    label: String!
+    valueMinor: BigInt!
+  }
+
+  type InvestmentInsightsMore {
+    realizedMinor: BigInt!
+    unrealizedMinor: BigInt!
+    maxDrawdownMinor: BigInt!
+    closedCount: Int!
+    winningClosedCount: Int!
+    pnlBySymbol: [InvestmentInsightsPnlRow!]!
+  }
+
   type InvestmentFxRate {
     rate: Float!
     sourceSymbol: String!
@@ -360,6 +441,8 @@ export const moneyFinanceTypeDefs = /* GraphQL */ `
     loans: [LoanListItem!]!
     loan(id: ID!): LoanDetail!
     loansDueInstallments: [LoanDueInstallment!]!
+    loansInsightsAtf(from: String!, to: String!): LoansInsightsAtf!
+    loansInsightsMore(from: String!, to: String!): LoansInsightsMore!
     investmentBootstrap: InvestmentBootstrapPayload!
     investmentInstruments: [InvestmentInstrument!]!
     investmentActivities(query: InvestmentActivitiesQueryInput): InvestmentActivitiesConnection!
@@ -367,6 +450,8 @@ export const moneyFinanceTypeDefs = /* GraphQL */ `
     investmentActivity(id: ID!): InvestmentActivityRow
     investmentPortfolioValueSeries(from: String!, to: String!): [InvestmentPortfolioPoint!]!
     investmentHoldingsSnapshot: [InvestmentHoldingRow!]!
+    investmentInsightsAtf(from: String!, to: String!): InvestmentInsightsAtf!
+    investmentInsightsMore(from: String!, to: String!): InvestmentInsightsMore!
     investmentFxRate(from: String!, to: String!): InvestmentFxRate
   }
 

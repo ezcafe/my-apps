@@ -51,8 +51,8 @@ import {
 } from "@/lib/money-gql-documents";
 import {
   findCachedMoneyTransaction,
+  invalidateMoneyWorkspaceQueries,
   moneyFormLookupsQueryOptions,
-  moneyRootQueryKey,
   moneyTransactionQueryOptions,
   type MoneyTransactionDetail,
 } from "@/lib/money-query-options";
@@ -73,17 +73,24 @@ function isoToDatetimeLocal(iso: string): string {
 
 function resolveTransactionEditReturnTo(raw: string | null): string {
   if (
+    raw === "/money" ||
     raw === "/money/spending" ||
     raw === "/money/transactions" ||
     raw === "/money/bills" ||
     raw === "/money/savings" ||
-    raw === "/money/investments" ||
     raw === "/money/loans" ||
-    raw === "/money/analytics"
+    raw === "/loans" ||
+    raw === "/money/insights" ||
+    raw === "/money/analytics" ||
+    raw === "/investments" ||
+    raw === "/investments/insights"
   ) {
-    return raw === "/money/transactions" ? "/money/spending" : raw;
+    if (raw === "/money/transactions" || raw === "/money/spending") return "/money";
+    if (raw === "/money/analytics") return "/money/insights";
+    if (raw === "/money/loans") return "/loans";
+    return raw;
   }
-  return "/money/spending";
+  return "/money";
 }
 
 export function TransactionEditForm({
@@ -296,7 +303,7 @@ export function TransactionEditForm({
   };
 
   const finishSuccess = async () => {
-    await queryClient.invalidateQueries({ queryKey: moneyRootQueryKey });
+    await invalidateMoneyWorkspaceQueries(queryClient);
     onSaved?.();
     if (isModal) {
       onClose?.();

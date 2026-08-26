@@ -20,13 +20,19 @@ import { cn } from "@/lib/cn";
 
 /** Desktop filter triggers: Ledger · Direction · Accounts · Categories · More. */
 const FILTER_TRIGGER_COUNT = 5;
+/** Investments / Loans Insights: Date · Apply · Reset. */
+const FEATURE_INSIGHTS_FILTER_TRIGGER_COUNT = 1;
 const TABLE_LOADING_ROWS = 6;
 const MOBILE_CARD_COUNT = 4;
 
 const LEGEND_GRID_SKELETON =
   "grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] gap-2 md:grid-rows-1 md:[grid-template-columns:minmax(0,20%)_minmax(0,80%)] md:gap-3";
 
-export function MoneyAnalyticsFiltersBarSkeleton() {
+export function MoneyAnalyticsFiltersBarSkeleton({
+  triggerCount = FILTER_TRIGGER_COUNT,
+}: {
+  triggerCount?: number;
+} = {}) {
   return (
     <section className="@container" aria-hidden>
       <div className="flex justify-end @md:hidden">
@@ -34,7 +40,7 @@ export function MoneyAnalyticsFiltersBarSkeleton() {
       </div>
 
       <MoneyFilterToolbar className="mt-3 hidden @md:flex">
-        {Array.from({ length: FILTER_TRIGGER_COUNT }, (_, index) => (
+        {Array.from({ length: triggerCount }, (_, index) => (
           <Skeleton
             key={`analytics-filter-trigger-${index}`}
             className="mx-1 h-11 w-20 shrink-0 self-center rounded-[var(--radius-sm)]"
@@ -307,6 +313,24 @@ export function MoneyAnalyticsPageSkeleton() {
       <div className={ANALYTICS_GRID_CLASS}>
         <AnalyticsCollapsedGridContent />
       </div>
+    </div>
+  );
+}
+
+/** Insights with date-range filter chrome (investments / loans). */
+export function FeatureInsightsPageSkeleton() {
+  return (
+    <div
+      className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Loading insights"
+    >
+      <MoneyAnalyticsFiltersBarSkeleton
+        triggerCount={FEATURE_INSIGHTS_FILTER_TRIGGER_COUNT}
+      />
+      <MoneyAnalyticsChartsSkeleton />
     </div>
   );
 }

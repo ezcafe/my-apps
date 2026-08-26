@@ -19,7 +19,7 @@ Use this doc to verify regressions after changes that affect bundles, data fetch
    | Shared root + polyfill | ~168 kB | All routes |
    | `/login` | ~16 kB page + root | Static, no shell SessionProvider |
    | `/settings` | ~33 kB page + root | Shell + settings widgets |
-   | `/money/analytics` | ~97 kB page + root | ATF card shells in initial chunk; visx charts stay separate dynamics |
+   | `/money/insights` | ~97 kB page + root | ATF card shells in initial chunk; visx charts stay separate dynamics |
 
 2. **Bundle analyzer** (optional treemap):
 
@@ -29,10 +29,10 @@ Use this doc to verify regressions after changes that affect bundles, data fetch
 
 3. **Chrome DevTools → Performance / Lighthouse** (mobile + desktop):
 
-   - LCP, TBT, and **JS transfer size** for `/login`, `/settings`, `/money/spending` (signed-in `/` redirects here), and `/money/analytics`.
+   - LCP, TBT, and **JS transfer size** for `/login`, `/settings`, `/money` (signed-in `/` redirects here), and `/money/insights`.
    - Compare **number of requests** before first meaningful paint on Money tabs.
-   - **SSR hydration check:** on a cold load of `/money/spending` (signed in), document/RSC work should seed bootstrap + page-1 transactions via **direct service calls** — Network should **not** show loopback `POST /api/graphql` for `MoneyBootstrap` / `MoneyTransactions` during SSR. After hydrate, the client should **not** immediately re-request the same React Query keys while `staleTime` holds (30s default; bootstrap 5m). Repeat for `/money/analytics` (`MoneyAnalyticsAtf` seed in parallel with bootstrap lookups; no overview until “More insights”), `/money/loans`, `/money/investments`.
-   - **HTML payload:** money layout dehydrates bootstrap + chart lookups only; `/money/analytics` dehydrates `MoneyAnalyticsAtf` only (no duplicated bootstrap JSON).
+   - **SSR hydration check:** on a cold load of `/money` (signed in), document/RSC work should seed bootstrap + page-1 transactions via **direct service calls** — Network should **not** show loopback `POST /api/graphql` for `MoneyBootstrap` / `MoneyTransactions` during SSR. After hydrate, the client should **not** immediately re-request the same React Query keys while `staleTime` holds (30s default; bootstrap 5m). Repeat for `/money/insights` (`MoneyAnalyticsAtf` seed in parallel with bootstrap lookups; no overview until “More insights”), `/loans`, `/investments`, `/investments/insights`.
+   - **HTML payload:** money layout dehydrates bootstrap + chart lookups only; `/money/insights` dehydrates `MoneyAnalyticsAtf` only (no duplicated bootstrap JSON). `/investments` layout dehydrates Money + investment bootstrap; `/investments/insights` dehydrates `investmentInsightsAtf` only (no open activities); `/loans/insights` dehydrates `loansInsightsAtf` only; `/investments` home dehydrates the investment ledger.
    - **Timezone sync:** first Money visit in a tab may `PATCH /api/workspace/timezone` after idle; later navigations in that tab should skip the PATCH when the IANA zone is unchanged. It must **not** run in the first milliseconds after hydrate (competes with ATF chart chunks).
    - **Settings:** `/settings` should not refetch `/api/workspace/list` on mount when SSR passed `initialWorkspaces`.
    - **Mutation check:** after create/edit transaction or loan pay, lists/KPIs update via React Query invalidate — no full page reload.
@@ -51,6 +51,10 @@ SSR page seeds call [`lib/money-ssr-seed.ts`](../lib/money-ssr-seed.ts) (Postgre
    - SSR: workspace id is resolved first, then **ATF aggregates run in parallel** with full bootstrap lookups (accounts/categories/tags + usage counts).
    - `POST /api/graphql` — **`MoneyAnalyticsAtf`** (summary + spend pie; SSR-seeded for the default month)
    - `POST /api/graphql` — **`MoneyAnalyticsInsights`** (overview + full distribution; only after “More insights”)
+   - `POST /api/graphql/investment` — **`InvestmentInsightsAtf`** (SSR-seeded on `/investments/insights`)
+   - `POST /api/graphql/investment` — **`InvestmentInsightsMore`** (only after “More insights”)
+   - `POST /api/graphql/loans` — **`LoansInsightsAtf`** (SSR-seeded on `/loans/insights`)
+   - `POST /api/graphql/loans` — **`LoansInsightsMore`** (only after “More insights”)
    - `POST /api/graphql` — `MoneyAnalyticsBudgets`, `MoneyAnalyticsSankey`, `MoneyAnalyticsLeaders` (lazy, in-view)
    - `POST /api/graphql` — `MoneyTransactions` (transactions table)
 

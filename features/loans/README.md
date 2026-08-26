@@ -1,17 +1,18 @@
 # Loans feature
 
-Workspace-backed loan tracking with SC spreadsheet amortization, progress charts, and payment reminders. Shipped as a **Money module** (not a separate shell app).
+Workspace-backed loan tracking with SC spreadsheet amortization, progress charts, and payment reminders. Top-level shell UI at `/loans` (same `workspaceAppKey: "money"` as Money; GraphQL uses `ctx_workspace_loans`).
 
 ## Routes
 
 | Path | Purpose |
 |------|---------|
-| `/money/loans` | Home: due panel, summary, loans table |
-| `/money/loans/new` | Create amortized loan |
-| `/money/loans/settings` | Browser push + Money workspace note |
-| `/money/loans/[id]` | Detail, chart, pay actions, schedule |
+| `/loans` | Home: due panel, filters, loans table |
+| `/loans/insights` | Date-range filter bar; remaining, monthly obligation, weighted APR, next due (as-of now); remaining-by-loan + paid principal vs interest in the selected period; extra charts behind More insights |
+| `/loans/new` | Create amortized loan |
+| `/loans/settings` | Browser push + Money workspace note |
+| `/loans/[id]` | Detail, chart, pay actions, schedule |
 
-Legacy `/loans/*` and `/money/loans/manage` redirect to the Money paths above.
+Legacy `/money/loans/*` redirects to these paths (temporary). `/loans/manage` redirects to `/loans`.
 
 GraphQL: `POST /api/graphql/loans` (cookie `ctx_workspace_loans`).
 
@@ -50,8 +51,7 @@ Loan optional fields `moneyAccountId` / `moneyCategoryId` are validated against 
 ### In-app
 
 - Due banner on loans home (`loansDueInstallments`) with inline Pay
-- Tab badge when `dueCount > 0`
-- One toast per session when opening Loans tabs layout
+- One toast per session when opening Loans
 
 ### Browser push
 
@@ -61,7 +61,7 @@ Loan optional fields `moneyAccountId` / `moneyCategoryId` are validated against 
    - `VAPID_SUBJECT` (e.g. `mailto:you@example.com`)
 2. Set client:
    - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (same as public key)
-3. User enables notifications under `/money/loans/settings`
+3. User enables notifications under `/loans/settings`
 4. Cron: `POST /api/cron/loan-reminders` with `Authorization: Bearer $CRON_SECRET`
 
 Service worker: [`public/sw.js`](../../public/sw.js).
@@ -73,11 +73,7 @@ Service worker: [`public/sw.js`](../../public/sw.js).
 - [ ] Pay from due banner or table row → Money transaction + progress update
 - [ ] Detail chart: scheduled vs paid vs projected
 - [ ] Mark paid without transaction → no Money tx, progress updates
-- [ ] Due installment → banner + badge; toast on first visit
-- [ ] `/money/loans/manage` redirects to `/money/loans`
+- [ ] Due installment → banner + toast on first visit
+- [ ] `/money/loans/manage` redirects to `/loans`
 - [ ] Push (with VAPID): cron sends notification; click opens loan
 - [ ] Light and dark mode on charts and table
-
-## Workspace key
-
-Registered as `loans` in `WORKSPACE_APP_KEYS`. Bootstrap seeds `user_workspace_default` for `loans` alongside `money`.

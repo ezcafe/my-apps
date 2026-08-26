@@ -121,6 +121,47 @@ export const loansTypeDefs = /* GraphQL */ `
     moneyCategoryId: ID
   }
 
+  type LoansInsightsSummary {
+    remainingMinor: BigInt!
+    monthlyObligationMinor: BigInt!
+    weightedAprBps: Int
+    nextDueDate: String
+    loanCount: Int!
+  }
+
+  type LoansInsightsSlice {
+    id: ID!
+    label: String!
+    valueMinor: BigInt!
+  }
+
+  type LoansInsightsRange {
+    from: String!
+    to: String!
+  }
+
+  type LoansInsightsAtf {
+    range: LoansInsightsRange!
+    summary: LoansInsightsSummary!
+    remainingByLoan: [LoansInsightsSlice!]!
+    paidPrincipalMinor: BigInt!
+    paidInterestMinor: BigInt!
+  }
+
+  type LoansInsightsProgressRow {
+    id: ID!
+    name: String!
+    remainingMinor: BigInt!
+    percentComplete: Float!
+  }
+
+  type LoansInsightsMore {
+    remainingInterestMinor: BigInt!
+    ltvPct: Float
+    progress: [LoansInsightsProgressRow!]!
+    combinedChart: [LoanChartPoint!]!
+  }
+
   input LoanCreateInput {
     name: String!
     principalMinor: BigInt!
@@ -169,6 +210,8 @@ export const loansTypeDefs = /* GraphQL */ `
     loans: [LoanListItem!]!
     loan(id: ID!): LoanDetail!
     loansDueInstallments: [LoanDueInstallment!]!
+    loansInsightsAtf(from: String!, to: String!): LoansInsightsAtf!
+    loansInsightsMore(from: String!, to: String!): LoansInsightsMore!
   }
 
   type Mutation {

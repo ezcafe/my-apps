@@ -12,11 +12,23 @@ import {
   parseContractSize,
 } from "@/lib/investment-contract-size";
 import { parsePriceMajor } from "@/lib/investment-realized-pnl";
+import { getCurrencyFractionDigits } from "@/lib/format-money";
 import {
   computePortfolioValueSeries,
   type PortfolioLot,
 } from "@/lib/investment-portfolio-value";
+import { tradeGrossPnlMinor } from "@/lib/investment-realized-pnl";
+import {
+  allocationByKind,
+  closedTradeHitRate,
+  maxDrawdownMinor,
+  openLotsCount,
+  pnlBySymbol,
+  realizedPnlMinor,
+} from "@/lib/investment-insights";
 import { occurredAtToActivityDate } from "@/lib/money-investment-activity";
+import { dateRangeParams } from "@/lib/analytics-build-query";
+import { computeMoneyAnalyticsSummary } from "@/lib/money-services/analytics";
 import {
   ensureDailyQuotesForRange,
   fetchInvestmentFxRate,
@@ -64,15 +76,7 @@ export async function investmentPortfolioValueSeries(
     .limit(1);
   const workspaceCurrency = (ws?.defaultCurrency ?? "USD").toUpperCase();
 
-  const instruments = await db
-    .select()
-    .from(investmentInstrument)
-    .where(
-      and(
-        eq(investmentInstrument.workspaceId, workspaceId),
-        eq(investmentInstrument.archived, 0),
-      ),
-    );
+  const instruments = await loadInstruments(workspaceId);
 
   const lots = await loadLots(workspaceId);
 
@@ -143,20 +147,37 @@ export async function investmentPortfolioValueSeries(
   });
 }
 
-export async function investmentHoldingsSnapshot(workspaceId: string) {
-  const instruments = await db
-    .select()
-    .from(investmentInstrument)
-    .where(
-      and(
-        eq(investmentInstrument.workspaceId, workspaceId),
-        eq(investmentInstrument.archived, 0),
-      ),
-    );
-  const lots = await loadLots(workspaceId);
-  const quotes = await getLatestQuotesForInstruments(instruments.map((i) => i.id));
-  const quoteMap = new Map(quotes.map((q) => [q.instrumentId, q]));
+export type InvestmentInsightsAtfPayload = {
+  range: { from: string; to: string };
+  summary: {
+    resultsMinor: number;
+    openNotionalMinor: number;
+    realizedPnlMinor: number;
+    openLotsCount: number;
+  };
+  series: { date: string; totalMinor: number }[];
+  allocation: { label: string; kind?: string; valueMinor: number }[];
+};
 
+export type InvestmentInsightsMorePayload = {
+  realizedMinor: number;
+  unrealizedMinor: number;
+  maxDrawdownMinor: number;
+  closedCount: number;
+  winningClosedCount: number;
+  pnlBySymbol: { symbol: string; label: string; valueMinor: number }[];
+};
+
+function minorToMajor(minor: number, currency: string): number {
+  const scale = 10 ** getCurrencyFractionDigits(currency);
+  return minor / scale;
+}
+
+function holdingsFromLots(
+  instruments: Awaited<ReturnType<typeof loadInstruments>>,
+  lots: PortfolioLot[],
+  quoteMap: Map<string, { priceMinor: number; asOf: Date | null }>,
+) {
   return instruments
     .map((inst) => {
       const qty = lots
@@ -185,4 +206,104 @@ export async function investmentHoldingsSnapshot(workspaceId: string) {
       };
     })
     .filter((row) => row.quantity !== 0);
+}
+
+async function loadInstruments(workspaceId: string) {
+  return db
+    .select()
+    .from(investmentInstrument)
+    .where(
+      and(
+        eq(investmentInstrument.workspaceId, workspaceId),
+        eq(investmentInstrument.archived, 0),
+      ),
+    );
+}
+
+export async function investmentHoldingsSnapshot(workspaceId: string) {
+  const instruments = await loadInstruments(workspaceId);
+  const lots = await loadLots(workspaceId);
+  const quotes = await getLatestQuotesForInstruments(instruments.map((i) => i.id));
+  const quoteMap = new Map(
+    quotes.map((q) => [q.instrumentId, { priceMinor: q.priceMinor, asOf: q.asOf }]),
+  );
+  return holdingsFromLots(instruments, lots, quoteMap);
+}
+
+export async function investmentInsightsAtf(
+  workspaceId: string,
+  from: string,
+  to: string,
+): Promise<InvestmentInsightsAtfPayload> {
+  const series = await investmentPortfolioValueSeries(workspaceId, from, to);
+  const holdings = await investmentHoldingsSnapshot(workspaceId);
+  const lots = await loadLots(workspaceId);
+  const openNotionalMinor = holdings.reduce((sum, row) => sum + row.valueMinor, 0);
+  const cashBounds = dateRangeParams(from, to);
+  const cashSummary = await computeMoneyAnalyticsSummary(workspaceId, {
+    from: cashBounds.from,
+    to: cashBounds.to,
+    accountTypes: ["investment"],
+  });
+  return {
+    range: { from, to },
+    summary: {
+      resultsMinor: cashSummary.stats.netMinor,
+      openNotionalMinor,
+      realizedPnlMinor: realizedPnlMinor(lots),
+      openLotsCount: openLotsCount(lots),
+    },
+    series,
+    allocation: allocationByKind(holdings),
+  };
+}
+
+export async function investmentInsightsMore(
+  workspaceId: string,
+  from: string,
+  to: string,
+): Promise<InvestmentInsightsMorePayload> {
+  const [series, instruments, lots] = await Promise.all([
+    investmentPortfolioValueSeries(workspaceId, from, to),
+    loadInstruments(workspaceId),
+    loadLots(workspaceId),
+  ]);
+  const quotes = await getLatestQuotesForInstruments(instruments.map((i) => i.id));
+  const quoteMap = new Map(quotes.map((q) => [q.instrumentId, q]));
+
+  let unrealizedMinor = 0;
+  const pnlRows: { symbol: string; name: string; pnlMinor: number }[] = [];
+  for (const inst of instruments) {
+    let pnlMinor = 0;
+    for (const lot of lots) {
+      if (lot.instrumentId !== inst.id) continue;
+      if (lot.closeDate != null) {
+        pnlMinor += lot.realizedPnlMinor;
+        continue;
+      }
+      const priceMinor = quoteMap.get(inst.id)?.priceMinor ?? 0;
+      const u = tradeGrossPnlMinor({
+        side: lot.side,
+        lots: lot.quantity,
+        contractSize: String(inst.contractSize ?? "1"),
+        openPrice: lot.openPrice,
+        closePrice: minorToMajor(priceMinor, inst.currency),
+        currency: inst.currency,
+      });
+      pnlMinor += u;
+      unrealizedMinor += u;
+    }
+    if (pnlMinor !== 0) {
+      pnlRows.push({ symbol: inst.symbol, name: inst.name, pnlMinor });
+    }
+  }
+  const hit = closedTradeHitRate(lots);
+  return {
+    realizedMinor: realizedPnlMinor(lots),
+    unrealizedMinor,
+    maxDrawdownMinor: maxDrawdownMinor(series),
+    closedCount: hit.closedCount,
+    winningClosedCount: hit.winningClosedCount,
+    pnlBySymbol: pnlBySymbol(pnlRows),
+  };
 }

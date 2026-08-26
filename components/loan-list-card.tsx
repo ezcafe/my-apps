@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { AnimatedNumber } from "@/components/ui/animated-number";
-import { chartExpenseColor } from "@/components/charts/chart-income-expense-colors";
-import { Card } from "@/components/ui/card";
 import { Tag } from "@/components/ui/tag";
-import { useTheme } from "@/components/theme-provider";
+import { Card } from "@/components/ui/card";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import type { LoanListItem } from "@/lib/loans-query-options";
@@ -33,7 +30,7 @@ export function LoanListCard({
   const tone = dueTone(loan.nextDueDate, todayIso);
 
   return (
-    <Link href={`/money/loans/${loan.id}`} className="fx-press block h-full">
+    <Link href={`/loans/${loan.id}`} className="fx-press block h-full">
       <Card className="flex h-full flex-col p-6 transition-[border-color] duration-200 hover:border-accent/40">
         <div className="flex items-start justify-between gap-2">
           <h2 className="font-display text-lg font-semibold leading-tight">
@@ -95,59 +92,6 @@ export function LoanListCard({
         <p className="mt-4 text-sm font-medium text-accent">View details →</p>
       </Card>
     </Link>
-  );
-}
-
-export function LoansOverviewSummary({
-  loans,
-  currency,
-}: {
-  loans: LoanListItem[];
-  currency: string;
-}) {
-  const { resolved, style } = useTheme();
-  const amountColor = chartExpenseColor(resolved, style);
-  const active = loans.filter((l) => l.status !== "paid_off");
-  const remainingTotal = active.reduce((s, l) => s + l.remainingMinor, 0);
-  const paymentTotal = active.reduce((s, l) => s + l.paymentMinor, 0);
-
-  if (loans.length === 0) return null;
-
-  return (
-    <div
-      className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
-      aria-label="Summary metrics"
-    >
-      <Card className="px-4 py-4">
-        <p className="text-sm font-medium text-muted">Active loans</p>
-        <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-          <AnimatedNumber
-            value={active.length}
-            format={(n) => String(Math.round(n))}
-          />
-        </p>
-      </Card>
-      <Card className="px-4 py-4">
-        <p className="text-sm font-medium text-muted">Total remaining</p>
-        <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-          <AnimatedNumber
-            value={remainingTotal}
-            format={(n) => formatMinor(Math.round(n), currency)}
-            style={{ color: amountColor }}
-          />
-        </p>
-      </Card>
-      <Card className="px-4 py-4">
-        <p className="text-sm font-medium text-muted">Monthly payments</p>
-        <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-          <AnimatedNumber
-            value={paymentTotal}
-            format={(n) => formatMinor(Math.round(n), currency)}
-            style={{ color: amountColor }}
-          />
-        </p>
-      </Card>
-    </div>
   );
 }
 

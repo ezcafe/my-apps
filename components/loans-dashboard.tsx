@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
   getLoansTodayIso,
-  LoansOverviewSummary,
 } from "@/components/loan-list-card";
 import { LoanPayActions } from "@/components/loan-pay-actions";
 import { LoansDueBanner } from "@/components/loans-due-banner";
@@ -159,11 +158,11 @@ function LoansTable({
                 <TableRow
                   key={loan.id}
                   clickable
-                  onClick={() => router.push(`/money/loans/${loan.id}`)}
+                  onClick={() => router.push(`/loans/${loan.id}`)}
                 >
                   <TableCell freeze="leading" className="max-w-0 truncate font-medium">
                     <Link
-                      href={`/money/loans/${loan.id}`}
+                      href={`/loans/${loan.id}`}
                       className="block truncate hover:text-accent"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -218,7 +217,7 @@ function LoansTable({
                         </div>
                       ) : (
                         <Link
-                          href={`/money/loans/${loan.id}`}
+                          href={`/loans/${loan.id}`}
                           className="text-sm font-medium text-accent transition-colors duration-150 hover:underline"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -250,7 +249,7 @@ function LoansTable({
             >
               <div className="flex items-start justify-between gap-2">
                 <Link
-                  href={`/money/loans/${loan.id}`}
+                  href={`/loans/${loan.id}`}
                   className="font-display text-base font-semibold leading-tight hover:text-accent"
                 >
                   {loan.name}
@@ -308,7 +307,7 @@ function LoansTable({
                   />
                 ) : (
                   <Link
-                    href={`/money/loans/${loan.id}`}
+                    href={`/loans/${loan.id}`}
                     className="text-sm font-medium text-accent"
                   >
                     View details →
@@ -324,13 +323,12 @@ function LoansTable({
 }
 
 export function LoansDashboard() {
-  const { workspaceReady, defaultCurrency } = useLoansWorkspace();
+  const { workspaceReady } = useLoansWorkspace();
   const listQuery = useQuery({
     ...loansListQueryOptions(),
     enabled: workspaceReady,
   });
   const todayIso = getLoansTodayIso();
-  const currency = defaultCurrency ?? "USD";
   const [filter, setFilter] = useState<LoanFilter>("all");
 
   const filteredLoans = useMemo(() => {
@@ -345,10 +343,7 @@ export function LoansDashboard() {
       <LoansDueBanner />
 
       {listQuery.isLoading ? (
-        <>
-          <MoneyListSkeleton variant="summaryTiles" showAccentBar={false} />
-          <MoneyListSkeleton variant="loansTable" />
-        </>
+        <MoneyListSkeleton variant="loansTable" />
       ) : null}
 
       {listQuery.isError ? (
@@ -367,7 +362,7 @@ export function LoansDashboard() {
           description="Create a loan to track payments, due dates, and payoff progress in one place."
           minHeightClass="min-h-[200px]"
           primaryAction={{
-            href: "/money/loans/new",
+            href: "/loans/new",
             label: "Create your first loan",
           }}
         />
@@ -375,8 +370,6 @@ export function LoansDashboard() {
 
       {listQuery.isSuccess && listQuery.data.length > 0 ? (
         <>
-          <LoansOverviewSummary loans={listQuery.data} currency={currency} />
-
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-display text-base font-medium">Your loans</h3>
             <div

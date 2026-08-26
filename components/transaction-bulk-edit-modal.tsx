@@ -20,8 +20,8 @@ import {
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import {
+  invalidateMoneyWorkspaceQueries,
   moneyAnalyticsMerchantLookupsQueryOptions,
-  moneyRootQueryKey,
   type MoneyTransactionListRow,
 } from "@/lib/money-query-options";
 
@@ -257,7 +257,7 @@ export function TransactionBulkEditModal({
       );
 
       const failed = results.filter((r) => r.status === "rejected").length;
-      await queryClient.invalidateQueries({ queryKey: moneyRootQueryKey });
+      await invalidateMoneyWorkspaceQueries(queryClient);
 
       if (failed > 0) {
         setErr(

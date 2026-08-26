@@ -115,7 +115,7 @@ export function MoneyWorkspaceSettings() {
         <SettingsSection
           id="money-settings-section-tabs"
           title="Section menu"
-          description="Choose which optional sections appear in the Money menu. Insights, Add transaction, Spending, and Money settings always stay visible."
+          description="Choose which optional sections appear under Money in the navigation menu. Insights, Add transaction, Spending, and Money settings always stay visible. Investments is a separate app in the same menu."
         >
           <ul
             role="list"

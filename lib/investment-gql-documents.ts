@@ -74,6 +74,49 @@ export const INVESTMENT_PORTFOLIO_SERIES_QUERY = /* GraphQL */ `
   }
 `;
 
+export const INVESTMENT_INSIGHTS_ATF_QUERY = /* GraphQL */ `
+  query InvestmentInsightsAtf($from: String!, $to: String!) {
+    investmentInsightsAtf(from: $from, to: $to) {
+      range {
+        from
+        to
+      }
+      summary {
+        resultsMinor
+        openNotionalMinor
+        realizedPnlMinor
+        openLotsCount
+      }
+      series {
+        date
+        totalMinor
+      }
+      allocation {
+        label
+        kind
+        valueMinor
+      }
+    }
+  }
+`;
+
+export const INVESTMENT_INSIGHTS_MORE_QUERY = /* GraphQL */ `
+  query InvestmentInsightsMore($from: String!, $to: String!) {
+    investmentInsightsMore(from: $from, to: $to) {
+      realizedMinor
+      unrealizedMinor
+      maxDrawdownMinor
+      closedCount
+      winningClosedCount
+      pnlBySymbol {
+        symbol
+        label
+        valueMinor
+      }
+    }
+  }
+`;
+
 export const INVESTMENT_HOLDINGS_QUERY = /* GraphQL */ `
   query InvestmentHoldingsSnapshot {
     investmentHoldingsSnapshot {

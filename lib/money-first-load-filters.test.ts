@@ -4,6 +4,8 @@ import { buildQuery } from "@/lib/analytics-build-query";
 import { defaultAnalyticsFilters } from "@/lib/analytics-default-filters";
 import {
   investmentDefaultChartRange,
+  investmentInsightsDefaultRange,
+  loansInsightsDefaultRange,
   moneyDefaultMonthFilterQuery,
   moneyLedgerFirstLoadFilterQuery,
 } from "@/lib/money-first-load-filters";
@@ -93,5 +95,20 @@ describe("investmentDefaultChartRange", () => {
     const range = investmentDefaultChartRange(6, FIXED);
     assert.equal(range.to, "2026-08-01");
     assert.equal(range.from, "2026-02-01");
+  });
+});
+
+describe("investmentInsightsDefaultRange", () => {
+  it("matches the ledger current calendar month", () => {
+    const range = investmentInsightsDefaultRange(FIXED);
+    assert.equal(range.from, "2026-08-01");
+    assert.equal(range.to, "2026-08-31");
+  });
+
+  it("loansInsightsDefaultRange shares the same month", () => {
+    assert.deepEqual(
+      loansInsightsDefaultRange(FIXED),
+      investmentInsightsDefaultRange(FIXED),
+    );
   });
 });

@@ -1,4 +1,4 @@
-/** Budget utilization tones aligned with /money/analytics chart palette (--chart-* tokens). */
+/** Budget utilization tones aligned with /money/insights chart palette (--chart-* tokens). */
 
 export type BudgetUtilizationTone = "ok" | "warn" | "danger";
 
@@ -57,7 +57,7 @@ export function budgetUtilizationOverBudget(
   return progressPct != null && Number.isFinite(progressPct) && progressPct > 100;
 }
 
-/** Fill aligned with /money/analytics budget bars (accent / destructive). */
+/** Fill aligned with /money/insights budget bars (accent / destructive). */
 export function budgetUtilizationAnalyticsFill(
   progressPct: number | undefined | null,
 ): BudgetUtilizationChipFill | null {

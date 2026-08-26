@@ -13,11 +13,13 @@ All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analy
 - Clean-minimal tokens (teal light / neutral-dark) and Inter type load in both modes; 8px spacing rhythm with readable density and airy section gaps.
 - [`DESIGN_GUIDE.md`](DESIGN_GUIDE.md) is the single source of truth, including distilled minimal-UI rules, default spender IA, progressive disclosure, and interaction patterns (error/success/empty/loading/search/breadcrumbs/dashboards).
 - Every route under `app/**/page.tsx` and shared components use semantic tokens + `components/ui/*` only — no raw hex, Tailwind radius/shadow presets, or non-token status colors in feature JSX.
-- Money tabs: **Spending** (home / `/money` → `/money/spending`), **Add**, **Insights**, **Settings**; optional tabs remain off by default.
-- Money filter toolbars show Direction, Accounts, Categories, Apply/Reset (plus Workspace/View when present); Date, Merchants, Tags, Recurrence live under **More**.
+- Money tabs: **Spending** (home `/money`), **Add**, **Insights**, **Settings**; optional Bills / Savings / Import stay off by default. Investments (`/investments`) and Loans (`/loans`) are shell features, not Money tabs.
+- Money filter toolbars show Direction, Accounts, Categories, Apply/Reset (plus Workspace/View when present); Date, Merchants, Tags, Recurrence live under **More**. Investments and Loans Insights use the same toolbar chrome with **date range only** (Apply/Reset).
 - Primary CTAs stay visible; secondary actions use [`MoreMenu`](../components/ui/more-menu.tsx); help copy uses [`AboutDisclosure`](../components/ui/about-disclosure.tsx) (info icon + tooltip).
 - Unified [`PageHeading`](../components/page-heading.tsx) (Tailwind Plus page heading) on all shell routes: hamburger + title + text-only primary CTA; breadcrumbs above title when nested; primary CTA in the header on all breakpoints (no sticky mobile Add bar).
 - Default Insights shows KPIs + spend-by-category + income vs expense; remaining charts behind **More insights** (unmounted until expanded).
+- Investments Insights (`/investments/insights`) shows results + allocation on first paint; extra journal charts and holdings tables behind **More insights**.
+- Loans Insights (`/loans/insights`) shows remaining + paid principal vs interest on first paint; combined payoff and LTV behind **More insights**.
 - **Default Insights first paint:** summary + distribution only — not full overview, budgets, sankey, or leaders until More insights.
 - Heavy chart/modal modules load via `next/dynamic` (chart cards, DivergingBar, LoanProgressChart, bulk-edit modal).
 - Data tables use [`components/ui/table.tsx`](../components/ui/table.tsx): sticky headers, frozen identity columns where useful, matched header/cell alignment (no center), hairline rows (no zebra), hover/focus row actions with touch fallback; settings entity editors remain divide-y lists.
@@ -28,8 +30,8 @@ All product UI: Money, Loans, Investments, Savings, Settings, Help, Login, Analy
 
 - **Static:** grep for forbidden `#hex` (except token sources), `rounded-md|lg|xl|2xl`, `shadow-sm|md|lg` Tailwind presets outside token sources, `#356089`, `IBM Plex Sans` in UI.
 - **Visual:** light + dark on login, Spending (money home), Insights, Add, loan detail, investments, settings.
-- **Disclosure:** Analytics/Spending desktop strip = Direction/Accounts/Categories/More/Apply; More opens date + merchants + tags + recurrence; page help is an info-icon tooltip; Insights More insights reveals advanced charts.
-- **Network:** Default Insights omit formLookups / full overview / leaders until Add or More insights.
+- **Disclosure:** Analytics/Spending desktop strip = Direction/Accounts/Categories/More/Apply; More opens date + merchants + tags + recurrence; Investments/Loans Insights strip = Date/Apply/Reset; page help is an info-icon tooltip; Insights More insights reveals advanced charts.
+- **Network:** Default Insights omit formLookups / full overview / leaders until Add or More insights. Investments Insights omit `investmentInsightsMore` / holdings / open activities until More insights. Loans Insights omit `loansInsightsMore` until More insights.
 - **Loan:** primary “Add payment to Money”; mark-paid via More; delete via header More.
 - **Investments settings:** Kind / Currency / Account / Profit / Loss use money/new chip pickers; instruments are identified by Symbol (no Name); kinds are Stocks, Fx, Coins, Commodities. Refresh quotes stays on the instruments form.
 - **A11y:** focus rings on teal accent; contrast of accent text; `prefers-reduced-motion` disables `fx-*`; touch targets ≥44×44.

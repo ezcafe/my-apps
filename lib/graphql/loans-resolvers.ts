@@ -7,6 +7,8 @@ import {
   createLoan,
   getLoanDetail,
   listLoans,
+  loansInsightsAtf,
+  loansInsightsMore,
 } from "@/lib/loans-services/loans";
 import {
   markLoanInstallmentPaid,
@@ -67,6 +69,34 @@ export const loansResolvers = {
       try {
         return await runInWorkspace(workspaceId, () =>
           getLoanDetail({ userSub: ctx.userSub!, workspaceId }, args.id),
+        );
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+    loansInsightsAtf: async (
+      _: unknown,
+      args: { from: string; to: string },
+      ctx: LoansGraphQLContext,
+    ) => {
+      const { workspaceId } = requireLoansWorkspace(ctx);
+      try {
+        return await runInWorkspace(workspaceId, () =>
+          loansInsightsAtf({ userSub: ctx.userSub!, workspaceId }, args.from, args.to),
+        );
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+    loansInsightsMore: async (
+      _: unknown,
+      args: { from: string; to: string },
+      ctx: LoansGraphQLContext,
+    ) => {
+      const { workspaceId } = requireLoansWorkspace(ctx);
+      try {
+        return await runInWorkspace(workspaceId, () =>
+          loansInsightsMore({ userSub: ctx.userSub!, workspaceId }, args.from, args.to),
         );
       } catch (e) {
         mapServiceError(e);

@@ -5,7 +5,9 @@ import { moneyDefaultMonthFilterQuery } from "@/lib/money-first-load-filters";
 import {
   applyMoneyAnalyticsAtfSeed,
   applyMoneyBootstrapSeed,
+  dehydrateLoansInsightsPageState,
   dehydrateMoneyAnalyticsPageState,
+  dehydrateMoneyInvestmentsPageState,
   dehydrateMoneyLayoutState,
 } from "@/lib/money-ssr-seed";
 import {
@@ -18,6 +20,8 @@ import {
   moneyBootstrapQueryKey,
 } from "@/lib/money-query-options";
 import type { MoneyWorkspaceBootstrapData } from "@/lib/money-workspace-bootstrap-data";
+import { investmentKeys } from "@/lib/investment-query-options";
+import { loansKeys } from "@/lib/loans-query-options";
 
 const FIXED = new Date(2026, 7, 1);
 
@@ -173,5 +177,71 @@ describe("money dehydrate splits", () => {
     assert.equal(slots.has("bootstrap"), false);
     assert.equal(slots.has("analyticsChartLookups"), false);
     assert.equal(slots.has("analyticsSummary"), false);
+  });
+
+  it("investments page dehydrate keeps insights ATF and drops bootstrap", () => {
+    const qc = new QueryClient();
+    applyMoneyBootstrapSeed(qc, boot);
+    qc.setQueryData(investmentKeys.bootstrap(), {
+      workspaceId: boot.workspaceId,
+      defaultCurrency: "USD",
+      needsCurrencySetup: false,
+      defaultWorkspaceId: boot.workspaceId,
+      instrumentCount: 0,
+      workspaces: [],
+    });
+    qc.setQueryData(investmentKeys.insightsAtf("2026-01-01", "2026-08-01"), {
+      range: { from: "2026-01-01", to: "2026-08-01" },
+      summary: {
+        resultsMinor: 0,
+        openNotionalMinor: 0,
+        realizedPnlMinor: 0,
+        openLotsCount: 0,
+      },
+      series: [],
+      allocation: [],
+    });
+
+    const state = dehydrateMoneyInvestmentsPageState(qc);
+    const slots = new Set(
+      state.queries.map((query) => String(query.queryKey[1])),
+    );
+    assert.equal(slots.has("insightsAtf"), true);
+    assert.equal(slots.has("holdings"), false);
+    assert.equal(slots.has("openActivities"), false);
+    assert.equal(slots.has("bootstrap"), false);
+  });
+
+  it("loans insights dehydrate keeps ranged ATF and drops bootstrap", () => {
+    const qc = new QueryClient();
+    applyMoneyBootstrapSeed(qc, boot);
+    qc.setQueryData(loansKeys.bootstrap(), {
+      workspaceId: boot.workspaceId,
+      defaultCurrency: "USD",
+      needsCurrencySetup: false,
+      defaultWorkspaceId: boot.workspaceId,
+      dueCount: 0,
+      workspaces: [],
+    });
+    qc.setQueryData(loansKeys.insightsAtf("2026-08-01", "2026-08-31"), {
+      range: { from: "2026-08-01", to: "2026-08-31" },
+      summary: {
+        remainingMinor: 0,
+        monthlyObligationMinor: 0,
+        weightedAprBps: null,
+        nextDueDate: null,
+        loanCount: 0,
+      },
+      remainingByLoan: [],
+      paidPrincipalMinor: 0,
+      paidInterestMinor: 0,
+    });
+
+    const state = dehydrateLoansInsightsPageState(qc);
+    const slots = new Set(
+      state.queries.map((query) => String(query.queryKey[1])),
+    );
+    assert.equal(slots.has("insightsAtf"), true);
+    assert.equal(slots.has("bootstrap"), false);
   });
 });

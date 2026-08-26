@@ -27,7 +27,6 @@ import {
 import {
   investmentFxRateQueryOptions,
   investmentInstrumentsQueryOptions,
-  investmentKeys,
 } from "@/lib/investment-query-options";
 import { defaultContractSize } from "@/lib/investment-contract-size";
 import {
@@ -312,7 +311,6 @@ export function InvestmentActivityFields({
       });
       notify.success("Trade saved", "P&L was posted to Money.");
 
-      await queryClient.invalidateQueries({ queryKey: investmentKeys.all });
       await invalidateMoneyWorkspaceQueries(queryClient);
       resetAmounts();
     },

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function MoneyTransactionsListRedirect() {
-  redirect("/money/spending");
+export default function MoneyTransactionsAliasPage() {
+  redirect("/money");
 }

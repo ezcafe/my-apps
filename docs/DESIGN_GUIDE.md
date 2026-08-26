@@ -31,9 +31,9 @@ If a need is not covered here, propose an extension to this doc + a primitive �
 | Surface | Trigger | Panel contents |
 |---------|---------|----------------|
 | App shell | Top-right hamburger ([`app-shell.tsx`](../components/app-shell.tsx)) | Shell routes from [`registry.ts`](../lib/features/registry.ts) + sign in/out |
-| Money sections | Left hamburger ([`MoneyAppMenu`](../components/money-section-tabs.tsx)) | Spending, Add, Insights, Settings, optional tabs, shell links |
+| Money / Investments / Loans | Left hamburger ([`MoneyAppMenu`](../components/money-section-tabs.tsx)) | Nested: **Apps** (Money, Investments, Loans) → nested sections; Help / Settings / sign-in at the bottom |
 
-Desktop (`lg+`): shell uses a fixed icon rail on non-Money routes; Money / Help / App Settings hide the rail and use the in-page hamburger. Every shell page uses [`PageHeading`](../components/page-heading.tsx) (Tailwind Plus [page headings](https://tailwindcss.com/plus/ui-blocks/application-ui/headings/page-headings)): **With actions** on top-level routes, **With actions and breadcrumbs** when nested. Primary CTA is a **text-only** button in the heading at all breakpoints (no sticky bottom Add bar).
+Desktop (`lg+`): shell uses a fixed icon rail on routes that are not Money, Investments, Loans, Help, or App Settings. Those apps hide the rail and use the in-page nested hamburger. Every shell page uses [`PageHeading`](../components/page-heading.tsx) (Tailwind Plus [page headings](https://tailwindcss.com/plus/ui-blocks/application-ui/headings/page-headings)): **With actions** on top-level routes, **With actions and breadcrumbs** when nested. Primary CTA is a **text-only** button in the heading at all breakpoints (no sticky bottom Add bar).
 
 ### Page headings & breadcrumbs
 
@@ -78,7 +78,7 @@ Wrap page bodies in [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) (`flex fle
 
 | Rule | Practice |
 |------|----------|
-| **One job** | Spending: “where did it go?” Insights: category + income vs expense. Extra charts stay behind **More insights**. |
+| **One job** | Spending: “where did it go?” Money Insights: category + income vs expense. Investments Insights: results + allocation. Loans Insights: remaining + principal vs interest. Extra charts stay behind **More insights**. |
 | **Defaults** | Sensible date range and primary filters so the first paint answers the job without 12 clicks. |
 | **Deltas** | Relative change (e.g. expense MoM) with direction + `text-accent` / `text-destructive` / `text-muted` — never color alone. |
 | **Jargon** | KPI names and chart titles get [`AboutDisclosure`](../components/ui/about-disclosure.tsx) when the term is not everyday (savings rate, P&L). |
@@ -132,14 +132,16 @@ Clarity beats decoration.
 
 ## Default spender experience (Money)
 
-Default audience is a **busy parent**: log a spend in seconds, then scan where money went. Power tools (loans, investments, import, advanced charts) stay reachable via the hamburger menu but out of the default path.
+Default audience is a **busy parent**: log a spend in seconds, then scan where money went. Power tools (import, advanced charts) stay reachable via the Money hamburger; **Investments** and **Loans** are top-level shell apps.
 
 | Tab / route | Job |
 |-------------|-----|
-| **Spending** `/money/spending` (home) | Default landing: full ledger. `/money` and signed-in `/` redirect here. |
+| **Spending** `/money` (home) | Default landing: full ledger. Signed-in `/` redirects here. `/money/spending` redirects here. |
 | **Add** `/money/new` | Capture a transaction (form lookups load here, not on Insights). |
-| **Insights** `/money/analytics` | KPIs + spend-by-category + income vs expense. Remaining charts behind **More insights**. |
-| **Settings** `/money/settings` | Workspace config; optional section tabs (Bills, Savings, Loans, Invest, Import) stay off by default. |
+| **Insights** `/money/insights` | KPIs + spend-by-category + income vs expense. Remaining charts behind **More insights**. |
+| **Investments Insights** `/investments/insights` | Results, open notional, realized P&amp;L, open lots; results-over-time + allocation. Holdings tables behind **More insights**. |
+| **Loans Insights** `/loans/insights` | Remaining, monthly obligation, weighted APR, next due; remaining-by-loan + paid principal vs interest. Extra payoff charts behind **More insights**. |
+| **Settings** `/money/settings` | Workspace config; optional section tabs (Bills, Savings, Import) stay off by default. |
 
 Avoid: purple gradients, rainbow multi-color chrome, text below 14px for UI copy, heavy drop shadows, cinematic hero layouts.
 

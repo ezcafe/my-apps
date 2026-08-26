@@ -363,7 +363,7 @@ export function LoanCreateForm() {
         },
       });
       notify.success("Loan created");
-      router.push(`/money/loans/${result.loanCreate.id}`);
+      router.push(`/loans/${result.loanCreate.id}`);
     } catch (err) {
       notify.error(
         "Could not create loan",

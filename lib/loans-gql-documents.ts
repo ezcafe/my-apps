@@ -112,6 +112,52 @@ export const LOANS_DUE_QUERY = /* GraphQL */ `
   }
 `;
 
+export const LOANS_INSIGHTS_ATF_QUERY = /* GraphQL */ `
+  query LoansInsightsAtf($from: String!, $to: String!) {
+    loansInsightsAtf(from: $from, to: $to) {
+      range {
+        from
+        to
+      }
+      summary {
+        remainingMinor
+        monthlyObligationMinor
+        weightedAprBps
+        nextDueDate
+        loanCount
+      }
+      remainingByLoan {
+        id
+        label
+        valueMinor
+      }
+      paidPrincipalMinor
+      paidInterestMinor
+    }
+  }
+`;
+
+export const LOANS_INSIGHTS_MORE_QUERY = /* GraphQL */ `
+  query LoansInsightsMore($from: String!, $to: String!) {
+    loansInsightsMore(from: $from, to: $to) {
+      remainingInterestMinor
+      ltvPct
+      progress {
+        id
+        name
+        remainingMinor
+        percentComplete
+      }
+      combinedChart {
+        label
+        scheduledCumulativeMinor
+        actualCumulativeMinor
+        projectedCumulativeMinor
+      }
+    }
+  }
+`;
+
 export const LOAN_CREATE_MUTATION = /* GraphQL */ `
   mutation LoanCreate($input: LoanCreateInput!) {
     loanCreate(input: $input) {

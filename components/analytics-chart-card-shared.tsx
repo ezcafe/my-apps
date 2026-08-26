@@ -7,7 +7,7 @@ import type { AnalyticsChartDrilldownPayload } from "@/lib/analytics-build-query
 import type { StylePreset } from "@/components/theme-provider";
 
 export const CHART_EMPTY_TRANSACTION_ACTIONS = {
-  action: { href: "/money/spending", label: "View transactions" },
+  action: { href: "/money", label: "View transactions" },
   secondaryAction: { href: "/money/new", label: "Add transaction" },
 } as const;
 

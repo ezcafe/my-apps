@@ -38,7 +38,7 @@ import {
   type MoneyCategoryRow,
 } from "@/lib/money-category-ui";
 import {
-  moneyRootQueryKey,
+  invalidateMoneyWorkspaceQueries,
   moneyTransactionsQueryOptions,
   type MoneyTransactionListRow,
 } from "@/lib/money-query-options";
@@ -233,7 +233,7 @@ export function AnalyticsTransactionsTable({
         ),
       );
       const failed = results.filter((r) => r.status === "rejected").length;
-      await queryClient.invalidateQueries({ queryKey: moneyRootQueryKey });
+      await invalidateMoneyWorkspaceQueries(queryClient);
       clearSelection();
 
       if (failed > 0) {
@@ -442,7 +442,7 @@ export function AnalyticsTransactionsTable({
     action:
       variant === "standalone"
         ? { href: "/money/new", label: "Add transaction" }
-        : { href: "/money/spending", label: "View transactions" },
+        : { href: "/money", label: "View transactions" },
   };
 
   const resolvedEmpty = emptyState
@@ -465,7 +465,7 @@ export function AnalyticsTransactionsTable({
             : undefined,
         secondaryAction:
           variant === "analytics"
-            ? { href: "/money/spending", label: "Open spending ledger" }
+            ? { href: "/money", label: "Open spending ledger" }
             : undefined,
       };
 

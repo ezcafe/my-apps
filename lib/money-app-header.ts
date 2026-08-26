@@ -8,8 +8,6 @@ export type MoneyAppHeaderResolved = {
   title: string;
   breadcrumbs: BreadcrumbItem[];
   cta: MoneySectionPrimaryCta | null;
-  /** Secondary “Instruments” link from the Investments list. */
-  instrumentsHref?: string;
   /** Detail pages should call useSetAppHeader for dynamic title/crumbs. */
   needsOverride?: boolean;
 };
@@ -19,13 +17,11 @@ const SECTION_TABS: Array<{
   label: string;
   exact: boolean;
 }> = [
-  { href: "/money/analytics", label: "Insights", exact: false },
+  { href: "/money/insights", label: "Insights", exact: false },
   { href: "/money/new", label: "Add transaction", exact: true },
-  { href: "/money/spending", label: "Spending", exact: false },
+  { href: "/money", label: "Spending", exact: true },
   { href: "/money/bills", label: "Bills", exact: false },
   { href: "/money/savings", label: "Savings", exact: false },
-  { href: "/money/loans", label: "Loans", exact: false },
-  { href: "/money/investments", label: "Investments", exact: false },
   { href: "/money/import", label: "Import data", exact: false },
   { href: "/money/settings", label: "Money settings", exact: false },
 ];
@@ -47,14 +43,6 @@ function isTabActive(pathname: string, href: string, exact: boolean): boolean {
     : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function loanDetailId(pathname: string): string | null {
-  const loanSeg = /^\/money\/loans\/([^/]+)/.exec(pathname)?.[1];
-  if (loanSeg != null && loanSeg !== "new" && loanSeg !== "settings") {
-    return loanSeg;
-  }
-  return null;
-}
-
 function settingsChildLabel(pathname: string): string | null {
   if (!pathname.startsWith("/money/settings/")) return null;
   const rest = pathname.slice("/money/settings/".length).split("/")[0];
@@ -64,7 +52,7 @@ function settingsChildLabel(pathname: string): string | null {
 
 /**
  * Pathname → page heading defaults (title, breadcrumbs, primary CTA).
- * Dynamic pages (loan detail, transaction edit) set `needsOverride` and
+ * Dynamic pages (transaction edit) set `needsOverride` and
  * should refine via {@link useSetAppHeader}.
  */
 export function resolveMoneyAppHeader(
@@ -82,19 +70,6 @@ export function resolveMoneyAppHeader(
     };
   }
 
-  const loanId = loanDetailId(pathname);
-  if (loanId) {
-    return {
-      title: "Loan",
-      breadcrumbs: [
-        { label: "Loans", href: "/money/loans" },
-        { label: "Loan" },
-      ],
-      cta: null,
-      needsOverride: true,
-    };
-  }
-
   if (/^\/money\/transactions\/[^/]+/.test(pathname)) {
     return {
       title: "Edit transaction",
@@ -104,63 +79,14 @@ export function resolveMoneyAppHeader(
     };
   }
 
-  if (
-    pathname === "/money/investments/new" ||
-    pathname.startsWith("/money/investments/new/")
-  ) {
-    return {
-      title: "Record activity",
-      breadcrumbs: [
-        { label: "Investments", href: "/money/investments" },
-        { label: "Record activity" },
-      ],
-      cta: null,
-    };
-  }
-
-  if (
-    pathname === "/money/investments/instruments/new" ||
-    pathname.startsWith("/money/investments/instruments/new/")
-  ) {
-    return {
-      title: "Create instrument",
-      breadcrumbs: [
-        { label: "Investments", href: "/money/investments" },
-        { label: "Instruments", href: "/money/investments/instruments" },
-        { label: "Create instrument" },
-      ],
-      cta: null,
-    };
-  }
-
-  if (
-    pathname === "/money/investments/instruments" ||
-    pathname.startsWith("/money/investments/instruments/")
-  ) {
-    return {
-      title: "Instruments",
-      breadcrumbs: [
-        { label: "Investments", href: "/money/investments" },
-        { label: "Instruments" },
-      ],
-      cta: moneySectionPrimaryCta(pathname),
-    };
-  }
-
   const activeTab =
     SECTION_TABS.find(({ href, exact }) =>
       isTabActive(pathname, href, exact),
-    ) ?? SECTION_TABS.find((t) => t.href === "/money/spending");
-
-  const isInvestmentList =
-    pathname === "/money/investments" || pathname === "/money/investments/";
+    ) ?? SECTION_TABS.find((t) => t.href === "/money");
 
   return {
     title: activeTab?.label ?? "Money",
     breadcrumbs: [],
     cta: moneySectionPrimaryCta(pathname),
-    ...(isInvestmentList
-      ? { instrumentsHref: "/money/investments/instruments" }
-      : {}),
   };
 }

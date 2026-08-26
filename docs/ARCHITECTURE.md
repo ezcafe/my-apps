@@ -19,13 +19,13 @@ Every first-class module (Money today; Tasks, Notes, etc. later) **must**:
 3. Resolve membership + `workspaceId` in API handlers the same way Money does (see [`requireMoneyContext`](../lib/api-money.ts) and `/api/workspace/active`).
 4. Register shell navigation in [`lib/features/registry.ts`](../lib/features/registry.ts) with `kind: "feature"` and **`workspaceAppKey` required`.
 
-Finance domains (investments, loans, savings movements) are **modules under Money**, not separate `WorkspaceAppKey` entries. Investment activities live in `money_transaction` + `money_transaction_investment`; loan payments are `money_transaction` rows linked from installment status.
+Finance domains: **Investments** (`/investments`) and **Loans** (`/loans`) are top-level shell routes that still use `workspaceAppKey: "money"` for the Money cookie (loans GraphQL also uses `ctx_workspace_loans`). Investment activities live in `money_transaction` + `money_transaction_investment`; loan payments are `money_transaction` rows linked from installment status. Savings movements stay a Money module.
 
 **Core** routes (Home, Settings) use `kind: "core"` and do not declare an app key; they must not depend on a feature’s bootstrap APIs.
 
 ## Money bootstrap (scoped)
 
-Money workspace bootstrap runs under [`MoneyWorkspaceProvider`](../components/money-workspace-provider.tsx), mounted from [`money/layout.tsx`](../app/(shell)/money/layout.tsx) via [`MoneyRouteChrome`](../components/money-route-layout.tsx) + [`MoneyHydratedWorkspace`](../components/money-route-layout.tsx).
+Money workspace bootstrap runs under [`MoneyWorkspaceProvider`](../components/money-workspace-provider.tsx), mounted from [`money/layout.tsx`](../app/(shell)/money/layout.tsx) via [`MoneyRouteChrome`](../components/money-route-layout.tsx) + [`MoneyHydratedWorkspace`](../components/money-route-layout.tsx). `/investments` and `/loans` remount the same Money provider (plus investment or loans workspace providers) from their layouts.
 
 **First load (SSR):** authenticated Money layouts/pages seed TanStack Query from **service functions** (not HTTP GraphQL loopback) via [`money-ssr-seed.ts`](../lib/money-ssr-seed.ts) / [`money-ssr-prefetch.ts`](../lib/money-ssr-prefetch.ts) into a per-request client ([`getQueryClient`](../lib/get-query-client.ts)). Tab chrome streams immediately; bootstrap hydrates above `MoneyWorkspaceProvider`. Client `queryFn`s still use GraphQL after hydration.
 
@@ -38,9 +38,9 @@ Other shell routes (e.g. `/settings`) **do not** call Money bootstrap on load.
 - Root layout: [`app/layout.tsx`](../app/layout.tsx) — fonts, metadata, [`RootProviders`](../components/root-providers.tsx) (theme, toasts).
 - Authenticated chrome: [`app/(shell)/layout.tsx`](../app/(shell)/layout.tsx) loads the session on the server and passes it into `ShellLayout` → `SessionProvider` + `AppShell`.
 
-## Analytics and Money
+## Analytics, Investments, and Money
 
-Money insights live under **`/money/analytics`**, so they inherit `MoneyWorkspaceProvider`. If you add top-level routes that need Money currency context, keep them under the `money` segment **or** refactor to a neutral API that does not require `useWorkspaceCurrency` without the provider.
+Money insights live under **`/money/insights`**. Investments insights at **`/investments/insights`** and loans insights at **`/loans/insights`**. Default pages (`/money`, `/investments`, `/loans`) are list/ledger surfaces.
 
 ## Feature registry
 

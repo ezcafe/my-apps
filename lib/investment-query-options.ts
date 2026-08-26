@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import { investmentGraphQLRequest } from "@/lib/investment-gql-client";
 import { gqlMinor } from "@/lib/gql-minor";
 import {
@@ -6,6 +6,8 @@ import {
   INVESTMENT_BOOTSTRAP_QUERY,
   INVESTMENT_FX_RATE_QUERY,
   INVESTMENT_HOLDINGS_QUERY,
+  INVESTMENT_INSIGHTS_ATF_QUERY,
+  INVESTMENT_INSIGHTS_MORE_QUERY,
   INVESTMENT_INSTRUMENTS_QUERY,
   INVESTMENT_OPEN_ACTIVITIES_QUERY,
   INVESTMENT_PORTFOLIO_SERIES_QUERY,
@@ -89,6 +91,27 @@ export type InvestmentActivitiesQueryInput = {
   cursor?: string;
 };
 
+export type InvestmentInsightsAtf = {
+  range: { from: string; to: string };
+  summary: {
+    resultsMinor: number;
+    openNotionalMinor: number;
+    realizedPnlMinor: number;
+    openLotsCount: number;
+  };
+  series: InvestmentPortfolioPoint[];
+  allocation: Array<{ label: string; kind?: string | null; valueMinor: number }>;
+};
+
+export type InvestmentInsightsMore = {
+  realizedMinor: number;
+  unrealizedMinor: number;
+  maxDrawdownMinor: number;
+  closedCount: number;
+  winningClosedCount: number;
+  pnlBySymbol: Array<{ symbol: string; label: string; valueMinor: number }>;
+};
+
 export const investmentKeys = {
   all: ["investment"] as const,
   bootstrap: () => [...investmentKeys.all, "bootstrap"] as const,
@@ -100,9 +123,22 @@ export const investmentKeys = {
   portfolioSeries: (from: string, to: string) =>
     [...investmentKeys.all, "portfolioSeries", from, to] as const,
   holdings: () => [...investmentKeys.all, "holdings"] as const,
+  insightsAtf: (from: string, to: string) =>
+    [...investmentKeys.all, "insightsAtf", from, to] as const,
+  insightsMore: (from: string, to: string) =>
+    [...investmentKeys.all, "insightsMore", from, to] as const,
   fxRate: (from: string, to: string) =>
     [...investmentKeys.all, "fxRate", from, to] as const,
 };
+
+export async function invalidateInvestmentWorkspaceQueries(
+  queryClient: QueryClient,
+) {
+  await queryClient.invalidateQueries({
+    queryKey: investmentKeys.all,
+    refetchType: "all",
+  });
+}
 
 export function investmentBootstrapQueryOptions() {
   return queryOptions({
@@ -181,6 +217,8 @@ export function investmentOpenActivitiesQueryOptions(instrumentId?: string) {
 export function investmentPortfolioSeriesQueryOptions(from: string, to: string) {
   return queryOptions({
     queryKey: investmentKeys.portfolioSeries(from, to),
+    staleTime: 0,
+    refetchOnMount: "always" as const,
     queryFn: async () => {
       const data = await investmentGraphQLRequest<{
         investmentPortfolioValueSeries: Array<
@@ -216,6 +254,8 @@ export function investmentFxRateQueryOptions(from: string, to: string) {
 export function investmentHoldingsQueryOptions() {
   return queryOptions({
     queryKey: investmentKeys.holdings(),
+    staleTime: 0,
+    refetchOnMount: "always" as const,
     queryFn: async () => {
       const data = await investmentGraphQLRequest<{
         investmentHoldingsSnapshot: Array<
@@ -230,6 +270,88 @@ export function investmentHoldingsQueryOptions() {
         priceMinor: gqlMinor(row.priceMinor),
         valueMinor: gqlMinor(row.valueMinor),
       }));
+    },
+  });
+}
+
+export function investmentInsightsAtfQueryOptions(from: string, to: string) {
+  return queryOptions({
+    queryKey: investmentKeys.insightsAtf(from, to),
+    staleTime: 0,
+    refetchOnMount: "always" as const,
+    queryFn: async () => {
+      const data = await investmentGraphQLRequest<{
+        investmentInsightsAtf: {
+          range: { from: string; to: string };
+          summary: {
+            resultsMinor: unknown;
+            openNotionalMinor: unknown;
+            realizedPnlMinor: unknown;
+            openLotsCount: number;
+          };
+          series: Array<{ date: string; totalMinor: unknown }>;
+          allocation: Array<{
+            label: string;
+            kind?: string | null;
+            valueMinor: unknown;
+          }>;
+        };
+      }>(INVESTMENT_INSIGHTS_ATF_QUERY, { from, to });
+      const atf = data.investmentInsightsAtf;
+      return {
+        range: atf.range,
+        summary: {
+          resultsMinor: gqlMinor(atf.summary.resultsMinor),
+          openNotionalMinor: gqlMinor(atf.summary.openNotionalMinor),
+          realizedPnlMinor: gqlMinor(atf.summary.realizedPnlMinor),
+          openLotsCount: atf.summary.openLotsCount,
+        },
+        series: atf.series.map((row) => ({
+          date: row.date,
+          totalMinor: gqlMinor(row.totalMinor),
+        })),
+        allocation: atf.allocation.map((row) => ({
+          label: row.label,
+          kind: row.kind,
+          valueMinor: gqlMinor(row.valueMinor),
+        })),
+      } satisfies InvestmentInsightsAtf;
+    },
+  });
+}
+
+export function investmentInsightsMoreQueryOptions(from: string, to: string) {
+  return queryOptions({
+    queryKey: investmentKeys.insightsMore(from, to),
+    staleTime: 0,
+    queryFn: async () => {
+      const data = await investmentGraphQLRequest<{
+        investmentInsightsMore: {
+          realizedMinor: unknown;
+          unrealizedMinor: unknown;
+          maxDrawdownMinor: unknown;
+          closedCount: number;
+          winningClosedCount: number;
+          pnlBySymbol: Array<{
+            symbol: string;
+            label: string;
+            valueMinor: unknown;
+          }>;
+        };
+      }>(INVESTMENT_INSIGHTS_MORE_QUERY, { from, to });
+      const more = data.investmentInsightsMore;
+      return {
+        realizedMinor: gqlMinor(more.realizedMinor),
+        unrealizedMinor: gqlMinor(more.unrealizedMinor),
+        maxDrawdownMinor: gqlMinor(more.maxDrawdownMinor),
+        closedCount: more.closedCount,
+        winningClosedCount: more.winningClosedCount,
+        pnlBySymbol: more.pnlBySymbol.map((row) => ({
+          symbol: row.symbol,
+          label: row.label,
+          valueMinor: gqlMinor(row.valueMinor),
+        })),
+      } satisfies InvestmentInsightsMore;
     },
   });
 }

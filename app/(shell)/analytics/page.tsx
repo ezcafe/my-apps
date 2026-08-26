@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function AnalyticsRedirectPage() {
-  redirect("/money/analytics");
+  redirect("/money/insights");
 }

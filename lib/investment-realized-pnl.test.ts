@@ -4,6 +4,7 @@ import {
   cashMoveSignedMinor,
   previewTradeResult,
   realizeNetPnl,
+  ledgerToSignedPnl,
   signedPnlToLedger,
   tradeGrossPnlMinor,
   tradeNetPnlMinor,
@@ -69,6 +70,14 @@ describe("signedPnlToLedger", () => {
       kind: "expense",
       amountMinor: 40,
     });
+  });
+});
+
+describe("ledgerToSignedPnl", () => {
+  it("inverts signedPnlToLedger", () => {
+    assert.equal(ledgerToSignedPnl("income", 12), 12);
+    assert.equal(ledgerToSignedPnl("expense", 40), -40);
+    assert.equal(ledgerToSignedPnl("transfer", 99), 0);
   });
 });
 

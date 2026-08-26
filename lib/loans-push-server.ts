@@ -26,7 +26,7 @@ export async function sendLoanDuePush(
   const payload = JSON.stringify({
     title: "Loan payment due",
     body,
-    url: `/money/loans/${reminder.loanId}`,
+    url: `/loans/${reminder.loanId}`,
   });
 
   let sent = 0;

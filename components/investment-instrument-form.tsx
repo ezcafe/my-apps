@@ -17,7 +17,7 @@ import { defaultContractSize } from "@/lib/investment-contract-size";
 import { isPriceCurrency } from "@/lib/investment-fx";
 import { investmentGraphQLRequest } from "@/lib/investment-gql-client";
 import { INVESTMENT_INSTRUMENT_CREATE_MUTATION } from "@/lib/investment-gql-documents";
-import { investmentKeys } from "@/lib/investment-query-options";
+import { invalidateInvestmentWorkspaceQueries } from "@/lib/investment-query-options";
 import type { InvestmentInstrumentKind } from "@/lib/investment-instrument-kind";
 import { categoriesOfKind } from "@/lib/money-category-ui";
 import {
@@ -100,9 +100,9 @@ export function InvestmentInstrumentForm() {
           expenseCategoryId: createExpenseCategoryId,
         },
       });
-      await queryClient.invalidateQueries({ queryKey: investmentKeys.all });
+      await invalidateInvestmentWorkspaceQueries(queryClient);
       notify.success("Instrument added");
-      router.push("/money/investments/instruments");
+      router.push("/investments/instruments");
     } catch (err) {
       notify.error("Could not create instrument", toUserFacingMessage(err));
     } finally {

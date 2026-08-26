@@ -4,40 +4,20 @@ import { moneySectionPrimaryCta } from "@/lib/money-section-primary-cta";
 
 describe("moneySectionPrimaryCta", () => {
   it("returns section CTAs on list routes", () => {
-    assert.deepEqual(moneySectionPrimaryCta("/money/spending"), {
+    assert.deepEqual(moneySectionPrimaryCta("/money"), {
       href: "/money/new",
       label: "Add transaction",
     });
     assert.equal(moneySectionPrimaryCta("/money/bills")?.label, "Add bill expense");
     assert.equal(moneySectionPrimaryCta("/money/savings")?.label, "Record a transfer");
-    assert.deepEqual(moneySectionPrimaryCta("/money/loans"), {
-      href: "/money/loans/new",
-      label: "Create loan",
-    });
-    assert.deepEqual(moneySectionPrimaryCta("/money/investments"), {
-      href: "/money/investments/new",
-      label: "Record activity",
-    });
   });
 
   it("returns null on create forms", () => {
     assert.equal(moneySectionPrimaryCta("/money/new"), null);
-    assert.equal(moneySectionPrimaryCta("/money/loans/new"), null);
-    assert.equal(moneySectionPrimaryCta("/money/investments/new"), null);
-    assert.equal(moneySectionPrimaryCta("/money/investments/instruments/new"), null);
-  });
-
-  it("returns create CTAs on nested list routes and null on detail", () => {
-    assert.equal(moneySectionPrimaryCta("/money/loans/abc-123"), null);
-    assert.equal(moneySectionPrimaryCta("/money/loans/settings"), null);
-    assert.deepEqual(moneySectionPrimaryCta("/money/investments/instruments"), {
-      href: "/money/investments/instruments/new",
-      label: "Create instrument",
-    });
   });
 
   it("defaults Add transaction on insights, import, money settings hub", () => {
-    assert.deepEqual(moneySectionPrimaryCta("/money/analytics"), {
+    assert.deepEqual(moneySectionPrimaryCta("/money/insights"), {
       href: "/money/new",
       label: "Add transaction",
     });

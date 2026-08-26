@@ -53,7 +53,7 @@ export function InvestmentActivitiesPage() {
             description="Record a buy, sell, deposit, or withdrawal to start building your portfolio history."
             minHeightClass="min-h-[160px]"
             primaryAction={{
-              href: "/money/investments/new",
+              href: "/investments/new",
               label: "Record activity",
             }}
           />

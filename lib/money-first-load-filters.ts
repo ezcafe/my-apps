@@ -51,6 +51,16 @@ export function investmentDefaultChartRange(
   return { from: localDateString(from), to: localDateString(to) };
 }
 
+/** Same calendar month as Money Insights and the investments ledger tiles. */
+export function investmentInsightsDefaultRange(
+  now: Date = new Date(),
+): { from: string; to: string } {
+  const filters = defaultAnalyticsFilters(now);
+  return { from: filters.fromDate, to: filters.toDate };
+}
+
+export const loansInsightsDefaultRange = investmentInsightsDefaultRange;
+
 function localDateString(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");

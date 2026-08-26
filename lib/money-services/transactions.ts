@@ -31,6 +31,10 @@ import {
   transactionUpdateSchema,
   categoryKindForTransactionKind,
 } from "@/lib/validators/money";
+import {
+  deleteJournalLotsForLedgerTransaction,
+  syncJournalLotsForLedgerTransaction,
+} from "@/lib/investment-services/journal-ledger-sync";
 import type { MoneyWorkspaceCtx } from "@/lib/money-services/types";
 
 const TOP_AMOUNTS_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
@@ -727,7 +731,18 @@ export async function updateMoneyTransaction(
       );
     }
 
-    return row;
+      await syncJournalLotsForLedgerTransaction(tx, ctx.workspaceId, {
+        transactionId: id,
+        kind: nextKind,
+        amountMinor: patch.amountMinor ?? existing.amountMinor,
+        occurredAt: patch.occurredAt
+          ? new Date(patch.occurredAt)
+          : existing.occurredAt,
+        notes: patch.notes ?? existing.notes,
+        accountId: nextAccountId,
+      });
+
+      return row;
   });
 
   return serializeRow(updated, uniqueTags);
@@ -751,6 +766,7 @@ export async function deleteMoneyTransaction(
   };
 
   await db.transaction(async (tx) => {
+    await deleteJournalLotsForLedgerTransaction(tx, ctx.workspaceId, id);
     await applyBalanceAfterTransactionDelete(tx, ctx.workspaceId, deleted);
   });
 

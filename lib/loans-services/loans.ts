@@ -12,6 +12,17 @@ import {
   computeLoanSummary,
   type AmortizationScheduleRow,
 } from "@/lib/loans-amortization";
+import {
+  combineLoanProgressSeries,
+  earliestNextDue,
+  monthlyObligation,
+  paidPrincipalVsInterest,
+  portfolioLtvPct,
+  remainingByLoan,
+  remainingInterestMinor,
+  remainingTotal,
+  weightedAprBps,
+} from "@/lib/loans-insights";
 import type { LoansWorkspaceCtx } from "@/lib/loans-services/types";
 import {
   loanCreateSchema,
@@ -511,4 +522,199 @@ export async function cancelLoan(
     .returning({ id: loan.id });
   if (!updated.length) throw new Error("NOT_FOUND");
   return { ok: true };
+}
+
+export type LoansInsightsAtfPayload = {
+  range: { from: string; to: string };
+  summary: {
+    remainingMinor: number;
+    monthlyObligationMinor: number;
+    weightedAprBps: number | null;
+    nextDueDate: string | null;
+    loanCount: number;
+  };
+  remainingByLoan: { id: string; label: string; valueMinor: number }[];
+  paidPrincipalMinor: number;
+  paidInterestMinor: number;
+};
+
+export type LoansInsightsMorePayload = {
+  remainingInterestMinor: number;
+  ltvPct: number | null;
+  progress: Array<{
+    id: string;
+    name: string;
+    remainingMinor: number;
+    percentComplete: number;
+  }>;
+  combinedChart: ReturnType<typeof buildProgressChartSeries>;
+};
+
+async function loadWorkspaceLoans(workspaceId: string) {
+  return db
+    .select()
+    .from(loan)
+    .where(
+      and(
+        eq(loan.workspaceId, workspaceId),
+        inArray(loan.status, ["active", "paid_off"]),
+      ),
+    )
+    .orderBy(asc(loan.name));
+}
+
+async function loadInstallmentsForLoans(loanIds: string[]) {
+  if (loanIds.length === 0) return [];
+  return db
+    .select({
+      loanId: loanScheduleInstallment.loanId,
+      scheduleInstallmentId: loanScheduleInstallment.id,
+      installmentNumber: loanScheduleInstallment.installmentNumber,
+      dueDate: loanScheduleInstallment.dueDate,
+      paymentMinor: loanScheduleInstallment.paymentMinor,
+      principalMinor: loanScheduleInstallment.principalMinor,
+      interestMinor: loanScheduleInstallment.interestMinor,
+      balanceAfterMinor: loanScheduleInstallment.balanceAfterMinor,
+      status: loanInstallmentStatus.status,
+      paidAt: loanInstallmentStatus.paidAt,
+    })
+    .from(loanScheduleInstallment)
+    .innerJoin(
+      loanInstallmentStatus,
+      eq(
+        loanInstallmentStatus.scheduleInstallmentId,
+        loanScheduleInstallment.id,
+      ),
+    )
+    .where(inArray(loanScheduleInstallment.loanId, loanIds))
+    .orderBy(asc(loanScheduleInstallment.installmentNumber));
+}
+
+async function loadSchedulesForLoans(loanIds: string[]) {
+  if (loanIds.length === 0) return [];
+  return db
+    .select({
+      loanId: loanScheduleInstallment.loanId,
+      installmentNumber: loanScheduleInstallment.installmentNumber,
+      dueDate: loanScheduleInstallment.dueDate,
+      paymentMinor: loanScheduleInstallment.paymentMinor,
+      principalMinor: loanScheduleInstallment.principalMinor,
+      interestMinor: loanScheduleInstallment.interestMinor,
+      balanceAfterMinor: loanScheduleInstallment.balanceAfterMinor,
+    })
+    .from(loanScheduleInstallment)
+    .where(inArray(loanScheduleInstallment.loanId, loanIds))
+    .orderBy(asc(loanScheduleInstallment.installmentNumber));
+}
+
+function summarizeLoanRows(
+  rows: Awaited<ReturnType<typeof loadWorkspaceLoans>>,
+  installments: Awaited<ReturnType<typeof loadInstallmentsForLoans>>,
+) {
+  const byLoan = new Map<string, typeof installments>();
+  for (const row of installments) {
+    const list = byLoan.get(row.loanId) ?? [];
+    list.push(row);
+    byLoan.set(row.loanId, list);
+  }
+  return rows.map((row) => {
+    const inst = byLoan.get(row.id) ?? [];
+    const paidPrincipal = inst
+      .filter((i) => i.status === "paid")
+      .reduce((sum, i) => sum + i.principalMinor, 0);
+    const remainingMinor = Math.max(0, row.principalMinor - paidPrincipal);
+    const percentComplete =
+      row.principalMinor > 0
+        ? Math.min(100, (paidPrincipal / row.principalMinor) * 100)
+        : 100;
+    const nextPending = inst.find((i) => i.status === "pending");
+    return {
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      remainingMinor,
+      paymentMinor: row.paymentMinor,
+      annualRateBps: row.annualRateBps,
+      nextDueDate: nextPending?.dueDate ?? null,
+      percentComplete,
+      collateralValueMinor: row.collateralValueMinor,
+    };
+  });
+}
+
+export async function loansInsightsAtf(
+  ctx: LoansWorkspaceCtx,
+  from: string,
+  to: string,
+): Promise<LoansInsightsAtfPayload> {
+  const rows = await loadWorkspaceLoans(ctx.workspaceId);
+  const installments = await loadInstallmentsForLoans(rows.map((r) => r.id));
+  const summarized = summarizeLoanRows(rows, installments);
+  const paid = paidPrincipalVsInterest(installments, { from, to });
+  return {
+    range: { from, to },
+    summary: {
+      remainingMinor: remainingTotal(summarized),
+      monthlyObligationMinor: monthlyObligation(summarized),
+      weightedAprBps: weightedAprBps(summarized),
+      nextDueDate: earliestNextDue(summarized),
+      loanCount: rows.length,
+    },
+    remainingByLoan: remainingByLoan(summarized),
+    paidPrincipalMinor: paid.principalMinor,
+    paidInterestMinor: paid.interestMinor,
+  };
+}
+
+export async function loansInsightsMore(
+  ctx: LoansWorkspaceCtx,
+  _from?: string,
+  _to?: string,
+): Promise<LoansInsightsMorePayload> {
+  const rows = await loadWorkspaceLoans(ctx.workspaceId);
+  const loanIds = rows.map((r) => r.id);
+  const [installments, schedules] = await Promise.all([
+    loadInstallmentsForLoans(loanIds),
+    loadSchedulesForLoans(loanIds),
+  ]);
+  const summarized = summarizeLoanRows(rows, installments);
+  const instByLoan = new Map<string, typeof installments>();
+  for (const row of installments) {
+    const list = instByLoan.get(row.loanId) ?? [];
+    list.push(row);
+    instByLoan.set(row.loanId, list);
+  }
+  const schedByLoan = new Map<string, typeof schedules>();
+  for (const row of schedules) {
+    const list = schedByLoan.get(row.loanId) ?? [];
+    list.push(row);
+    schedByLoan.set(row.loanId, list);
+  }
+  const charts = rows.map((row) => {
+    const schedule = schedByLoan.get(row.id) ?? [];
+    const inst = instByLoan.get(row.id) ?? [];
+    return buildProgressChartSeries({
+      principalMinor: row.principalMinor,
+      schedule,
+      installments: inst.map((i) => ({
+        installmentNumber: i.installmentNumber,
+        principalMinor: i.principalMinor,
+        status: i.status,
+        dueDate: i.dueDate,
+      })),
+    });
+  });
+  return {
+    remainingInterestMinor: remainingInterestMinor(installments),
+    ltvPct: portfolioLtvPct(summarized),
+    progress: summarized
+      .filter((l) => l.status !== "paid_off")
+      .map((l) => ({
+        id: l.id,
+        name: l.name,
+        remainingMinor: l.remainingMinor,
+        percentComplete: l.percentComplete,
+      })),
+    combinedChart: combineLoanProgressSeries(charts),
+  };
 }

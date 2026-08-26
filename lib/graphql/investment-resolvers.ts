@@ -26,6 +26,8 @@ import {
 import {
   investmentPortfolioValueSeries,
   investmentHoldingsSnapshot,
+  investmentInsightsAtf,
+  investmentInsightsMore,
 } from "@/lib/investment-services/portfolio-series";
 import { refreshQuotesForWorkspace, fetchInvestmentFxRate } from "@/lib/investment-services/quotes";
 import {
@@ -152,6 +154,26 @@ export const investmentResolvers = {
       const { workspaceId } = requireInvestmentWorkspace(ctx);
       return runInWorkspace(workspaceId, () =>
         investmentHoldingsSnapshot(workspaceId),
+      );
+    },
+    investmentInsightsAtf: async (
+      _: unknown,
+      args: { from: string; to: string },
+      ctx: InvestmentGraphQLContext,
+    ) => {
+      const { workspaceId } = requireInvestmentWorkspace(ctx);
+      return runInWorkspace(workspaceId, () =>
+        investmentInsightsAtf(workspaceId, args.from, args.to),
+      );
+    },
+    investmentInsightsMore: async (
+      _: unknown,
+      args: { from: string; to: string },
+      ctx: InvestmentGraphQLContext,
+    ) => {
+      const { workspaceId } = requireInvestmentWorkspace(ctx);
+      return runInWorkspace(workspaceId, () =>
+        investmentInsightsMore(workspaceId, args.from, args.to),
       );
     },
     investmentFxRate: async (

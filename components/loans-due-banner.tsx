@@ -32,7 +32,7 @@ export function LoansDueBanner() {
             >
               <span className="min-w-0">
                 <Link
-                  href={`/money/loans/${item.loanId}`}
+                  href={`/loans/${item.loanId}`}
                   className="font-semibold text-foreground transition-colors duration-150 hover:text-accent"
                 >
                   {item.loanName}

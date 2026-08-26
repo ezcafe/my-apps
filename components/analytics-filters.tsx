@@ -1159,6 +1159,170 @@ export function AnalyticsFiltersBar({
   );
 }
 
+export type InsightsDateRangeValue = {
+  fromDate: string;
+  toDate: string;
+};
+
+/** Date-only Insights toolbar (Investments / Loans) — same chrome as Money Insights. */
+export function InsightsDateRangeFiltersBar({
+  value,
+  onChange,
+  onApply,
+  onReset,
+  applying,
+  dirty,
+}: {
+  value: InsightsDateRangeValue;
+  onChange: (next: InsightsDateRangeValue) => void;
+  onApply: () => void;
+  onReset: () => void;
+  applying: boolean;
+  dirty: boolean;
+}) {
+  const { formatDate } = useFormatDate();
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const defaults = defaultAnalyticsFilters();
+  const dateActive =
+    value.fromDate !== defaults.fromDate || value.toDate !== defaults.toDate;
+  const dateLabel = `${formatDate(value.fromDate, { omitYear: true }) || "—"} – ${formatDate(value.toDate, { omitYear: true }) || "—"}`;
+
+  const dateFields = (
+    <div className="grid gap-4">
+      <MoneyDateQuickPick
+        legend="From"
+        ariaLabel="From date"
+        value={value.fromDate}
+        onChange={(fromDate) => onChange({ ...value, fromDate })}
+      />
+      <MoneyDateQuickPick
+        legend="To"
+        ariaLabel="To date"
+        value={value.toDate}
+        onChange={(toDate) => onChange({ ...value, toDate })}
+      />
+    </div>
+  );
+
+  return (
+    <section className={cn("@container fx-fade-in")} aria-label="Insights filters">
+      <div className="flex justify-end @md:hidden">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setMobileFiltersOpen(true)}
+          trailing={
+            dirty || dateActive ? (
+              <span className="size-1.5 rounded-full bg-accent/70" aria-hidden />
+            ) : null
+          }
+        >
+          Filter
+          {dirty ? (
+            <span className="sr-only">Unapplied filter changes</span>
+          ) : null}
+        </Button>
+      </div>
+
+      {mobileFiltersOpen ? (
+        <Modal
+          open
+          onClose={() => setMobileFiltersOpen(false)}
+          bare
+          labelledBy="insights-date-filters-modal-heading"
+        >
+          <div className="fx-fade-in">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <h3
+                  id="insights-date-filters-modal-heading"
+                  className="font-display text-lg font-medium tracking-tight"
+                >
+                  Filters
+                </h3>
+                <p className="mt-1 text-sm text-muted">{dateLabel}</p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setMobileFiltersOpen(false)}
+                aria-label="Close filters"
+              >
+                ✕
+              </Button>
+            </div>
+            <div className="mt-4">{dateFields}</div>
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => {
+                  onApply();
+                  setMobileFiltersOpen(false);
+                }}
+                disabled={applying || !dirty}
+              >
+                {applying ? "Loading…" : "Apply filters"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onReset}
+                disabled={applying}
+              >
+                Reset
+              </Button>
+              {dirty ? (
+                <span className="text-sm text-muted fx-fade-in">
+                  Unapplied changes — click Apply to refresh.
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      <MoneyFilterToolbar className="mt-3 hidden @md:flex">
+        <FilterMenu
+          id="date"
+          label={dateLabel}
+          isActive={dateActive}
+          openMenu={openMenu}
+          onOpenMenu={setOpenMenu}
+          panelClassName="min-w-[min(100vw-2rem,22rem)]"
+        >
+          {dateFields}
+        </FilterMenu>
+        <div className="ms-2 flex shrink-0 items-center gap-2 border-s border-border ps-3">
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              onApply();
+              setOpenMenu(null);
+            }}
+            disabled={applying || !dirty}
+          >
+            {applying ? "Loading…" : "Apply"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onReset}
+            disabled={applying}
+          >
+            Reset
+          </Button>
+        </div>
+      </MoneyFilterToolbar>
+    </section>
+  );
+}
+
 /**
  * A single View filter menu (Activity / Portfolio, etc.) for pages
  * without the full analytics filter bar.

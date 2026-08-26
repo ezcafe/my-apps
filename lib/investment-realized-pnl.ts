@@ -66,6 +66,16 @@ export function signedPnlToLedger(signedMinor: number): {
   return { kind: "expense", amountMinor: -signedMinor };
 }
 
+/** Inverse of {@link signedPnlToLedger} for journal P&L after ledger edits. */
+export function ledgerToSignedPnl(
+  kind: string,
+  amountMinor: number,
+): number {
+  if (kind === "income") return amountMinor;
+  if (kind === "expense") return -amountMinor;
+  return 0;
+}
+
 /** Client/server preview: net signed P&L plus ledger kind/amount. */
 export function previewTradeResult(input: {
   side: "buy" | "sell";

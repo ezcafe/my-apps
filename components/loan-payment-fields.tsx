@@ -89,7 +89,7 @@ export function LoanPaymentFields({
       <p className="text-sm text-muted [grid-column:1/-1]">
         No payable installments.{" "}
         <Link
-          href="/money/loans/new"
+          href="/loans/new"
           className="font-medium text-foreground underline-offset-2 hover:underline"
         >
           Create a loan

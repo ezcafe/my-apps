@@ -7,29 +7,24 @@ import {
 import { runInWorkspace } from "@/db";
 import { filterQueryToGraphQLAnalyticsInput } from "@/lib/analytics-graphql-filters";
 import {
-  investmentDefaultChartRange,
+  investmentInsightsDefaultRange,
   moneyDefaultMonthFilterQuery,
   moneyLedgerFirstLoadFilterQuery,
 } from "@/lib/money-first-load-filters";
 import { fetchInvestmentBootstrapSafe } from "@/lib/investment-services/bootstrap";
-import {
-  investmentHoldingsSnapshot,
-  investmentPortfolioValueSeries,
-} from "@/lib/investment-services/portfolio-series";
-import { listOpenInvestmentActivities } from "@/lib/investment-services/activities";
+import { investmentInsightsAtf } from "@/lib/investment-services/portfolio-series";
 import {
   investmentKeys,
-  type InvestmentActivityRow,
   type InvestmentBootstrapData,
-  type InvestmentHoldingRow,
-  type InvestmentPortfolioPoint,
+  type InvestmentInsightsAtf,
 } from "@/lib/investment-query-options";
 import { fetchLoansBootstrapSafe } from "@/lib/loans-services/bootstrap";
-import { listLoans } from "@/lib/loans-services/loans";
+import { listLoans, loansInsightsAtf } from "@/lib/loans-services/loans";
 import {
   loansKeys,
   type LoanListItem,
   type LoansBootstrapData,
+  type LoansInsightsAtf,
 } from "@/lib/loans-query-options";
 import type { MoneyLedgerPreset } from "@/lib/money-ledger-presets";
 import {
@@ -79,6 +74,10 @@ const MONEY_LAYOUT_DEHYDRATE_SLOTS = new Set([
 
 const MONEY_ANALYTICS_PAGE_DEHYDRATE_SLOTS = new Set(["analyticsAtf"]);
 
+const MONEY_INVESTMENTS_PAGE_DEHYDRATE_SLOTS = new Set(["insightsAtf"]);
+
+const LOANS_INSIGHTS_PAGE_DEHYDRATE_SLOTS = new Set(["insightsAtf"]);
+
 const loadMoneyWorkspaceState = cache((userSub: string) =>
   fetchMoneyWorkspaceStateSafe(userSub),
 );
@@ -112,6 +111,21 @@ export function dehydrateMoneyAnalyticsPageState(queryClient: QueryClient) {
   return dehydrateMoneyQuerySlots(
     queryClient,
     MONEY_ANALYTICS_PAGE_DEHYDRATE_SLOTS,
+  );
+}
+
+/** Insights ATF — layout already hydrates bootstraps. */
+export function dehydrateMoneyInvestmentsPageState(queryClient: QueryClient) {
+  return dehydrateMoneyQuerySlots(
+    queryClient,
+    MONEY_INVESTMENTS_PAGE_DEHYDRATE_SLOTS,
+  );
+}
+
+export function dehydrateLoansInsightsPageState(queryClient: QueryClient) {
+  return dehydrateMoneyQuerySlots(
+    queryClient,
+    LOANS_INSIGHTS_PAGE_DEHYDRATE_SLOTS,
   );
 }
 
@@ -341,18 +355,57 @@ async function seedLoansQueries(queryClient: QueryClient, userSub: string) {
   }
 }
 
+export async function seedLoansInsightsPage(
+  queryClient: QueryClient,
+  userSub: string,
+): Promise<void> {
+  if (isRequestCircuitOpen()) return;
+  try {
+    const result = await fetchLoansBootstrapSafe(userSub);
+    if (!result.ok) {
+      recordSeedSafeFailure(result.code);
+      return;
+    }
+    const boot: LoansBootstrapData = result.data;
+    queryClient.setQueryData(loansKeys.bootstrap(), boot);
+    const range = investmentInsightsDefaultRange();
+    const atf = await runInWorkspace(boot.workspaceId, () =>
+      loansInsightsAtf(
+        { userSub, workspaceId: boot.workspaceId },
+        range.from,
+        range.to,
+      ),
+    );
+    queryClient.setQueryData<LoansInsightsAtf>(
+      loansKeys.insightsAtf(range.from, range.to),
+      atf,
+    );
+  } catch (error) {
+    recordSeedDbFailure(error);
+  }
+}
+
+/** Layout: Money + investment bootstrap (page seeds holdings separately). */
+export async function seedMoneyInvestmentsLayout(
+  queryClient: QueryClient,
+  userSub: string,
+): Promise<void> {
+  await Promise.all([
+    seedMoneyBootstrap(queryClient, userSub),
+    seedInvestmentBootstrapOnly(queryClient, userSub),
+  ]);
+}
+
+/** Insights dashboard: ATF summary + series + allocation. */
 export async function seedMoneyInvestmentsHome(
   queryClient: QueryClient,
   userSub: string,
 ): Promise<void> {
-  const range = investmentDefaultChartRange(6);
-  await Promise.all([
-    seedMoneyBootstrap(queryClient, userSub),
-    seedInvestmentQueries(queryClient, userSub, range.from, range.to),
-  ]);
+  const range = investmentInsightsDefaultRange();
+  await seedInvestmentInsightsAtf(queryClient, userSub, range.from, range.to);
 }
 
-async function seedInvestmentQueries(
+async function seedInvestmentInsightsAtf(
   queryClient: QueryClient,
   userSub: string,
   from: string,
@@ -367,30 +420,26 @@ async function seedInvestmentQueries(
     }
     const boot: InvestmentBootstrapData = result.data;
     queryClient.setQueryData(investmentKeys.bootstrap(), boot);
-    const [holdings, series, openActivities] = await runInWorkspace(
-      boot.workspaceId,
-      () =>
-        Promise.all([
-          investmentHoldingsSnapshot(boot.workspaceId),
-          investmentPortfolioValueSeries(boot.workspaceId, from, to),
-          listOpenInvestmentActivities(boot.workspaceId),
-        ]),
+    const atf = await runInWorkspace(boot.workspaceId, () =>
+      investmentInsightsAtf(boot.workspaceId, from, to),
     );
-    queryClient.setQueryData<InvestmentHoldingRow[]>(
-      investmentKeys.holdings(),
-      holdings,
-    );
-    queryClient.setQueryData<InvestmentPortfolioPoint[]>(
-      investmentKeys.portfolioSeries(from, to),
-      series,
-    );
-    queryClient.setQueryData<InvestmentActivityRow[]>(
-      investmentKeys.openActivities(),
-      openActivities,
+    queryClient.setQueryData<InvestmentInsightsAtf>(
+      investmentKeys.insightsAtf(from, to),
+      atf,
     );
   } catch (error) {
     recordSeedDbFailure(error);
   }
+}
+
+export async function seedLoansLayout(
+  queryClient: QueryClient,
+  userSub: string,
+): Promise<void> {
+  await Promise.all([
+    seedMoneyBootstrap(queryClient, userSub),
+    seedLoansBootstrapOnly(queryClient, userSub),
+  ]);
 }
 
 export async function seedLoansBootstrapOnly(

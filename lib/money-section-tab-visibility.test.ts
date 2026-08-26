@@ -51,7 +51,6 @@ describe("parseMoneySectionTabVisibility", () => {
         bills: true,
         savings: "yes",
         loans: 1,
-        investments: false,
         import: null,
         new: true,
         settings: true,
@@ -60,9 +59,8 @@ describe("parseMoneySectionTabVisibility", () => {
     );
     assert.equal(parsed.bills, true);
     assert.equal(parsed.savings, false);
-    assert.equal(parsed.loans, false);
-    assert.equal(parsed.investments, false);
     assert.equal(parsed.import, false);
+    assert.ok(!("loans" in parsed));
     assert.ok(!("new" in parsed));
     assert.ok(!("settings" in parsed));
     assert.ok(!("extra" in parsed));
@@ -74,8 +72,6 @@ describe("serializeMoneySectionTabVisibility", () => {
     const input = {
       bills: true,
       savings: false,
-      loans: true,
-      investments: false,
       import: true,
     };
     const roundTripped = parseMoneySectionTabVisibility(
