@@ -247,7 +247,7 @@ function LoansTable({
           return (
             <li
               key={loan.id}
-              className="rounded-[var(--radius-md)] border border-border p-4"
+              className="rounded-[var(--radius-md)] border border-border bg-surface p-4"
             >
               <div className="flex items-start justify-between gap-2">
                 <Link

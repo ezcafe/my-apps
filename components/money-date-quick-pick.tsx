@@ -104,6 +104,10 @@ export function MoneyDateQuickPick({
     [view.year, view.monthIndex],
   );
 
+  const customLabel = customDate
+    ? formatDate(customDate, { omitYearIfCurrent: true })
+    : "Select custom date";
+
   const pickMode = (when: Exclude<MoneyDateQuickPickMode, "custom">) => {
     setCalendarOpen(false);
     if (when === "today") {
@@ -112,10 +116,6 @@ export function MoneyDateQuickPick({
     }
     onChange(yesterdayDateString());
   };
-
-  const customLabel = customDate
-    ? formatDate(customDate, { omitYearIfCurrent: true })
-    : "Select custom date";
 
   return (
     <fieldset className={cn("@container grid min-w-0 gap-1.5 text-sm", className)}>
@@ -134,10 +134,7 @@ export function MoneyDateQuickPick({
       <div
         role="radiogroup"
         aria-label={ariaLabel}
-        className={cn(
-          moneyQuickPickGroupCls,
-          "w-max max-w-full @[22rem]:flex-nowrap",
-        )}
+        className={moneyQuickPickGroupCls}
       >
         {WHEN_OPTIONS.map((opt) => {
           const active = mode === opt.id;
@@ -158,9 +155,10 @@ export function MoneyDateQuickPick({
                     });
                   }
                 }}
+                containerClassName="basis-full @md:basis-auto w-full @md:w-auto"
                 triggerClassName={cn(
                   moneyUsageQuickPickOtherChipCls(active),
-                  "shrink-0 min-w-0",
+                  "w-full @md:w-auto",
                 )}
                 trigger={
                   <MoneyUsageQuickPickOtherChipContent label={customLabel} />
@@ -237,7 +235,7 @@ export function MoneyDateQuickPick({
                   pickMode(opt.id);
                 }
               }}
-              className={cn(moneyUsageQuickPickChipCls(active), "shrink-0 min-w-0")}
+              className={moneyUsageQuickPickChipCls(active)}
             >
               {opt.label}
             </button>

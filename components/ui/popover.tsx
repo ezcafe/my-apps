@@ -20,6 +20,7 @@ const subscribeNoop = () => () => {};
 export function Popover({
   trigger,
   triggerClassName,
+  containerClassName,
   align = "end",
   className,
   "aria-label": ariaLabel,
@@ -29,6 +30,7 @@ export function Popover({
 }: {
   trigger: ReactNode;
   triggerClassName?: string;
+  containerClassName?: string;
   align?: "start" | "end";
   className?: string;
   "aria-label"?: string;
@@ -51,9 +53,13 @@ export function Popover({
   const panelRef = useRef<HTMLDivElement>(null);
   const id = useId();
   const onOpenChangeRef = useRef(onOpenChange);
-  const [pos, setPos] = useState<{ top: number; left: number; right: number } | null>(
-    null,
-  );
+  const [pos, setPos] = useState<{
+    top: number;
+    left?: number;
+    right?: number;
+    strategy: "fixed" | "absolute";
+  } | null>(null);
+  const [panelHost, setPanelHost] = useState<HTMLElement | null>(null);
 
   const mounted = useSyncExternalStore(
     subscribeNoop,
@@ -71,11 +77,28 @@ export function Popover({
     const updatePos = () => {
       const triggerEl = triggerRef.current;
       if (!triggerEl) return;
+      const dialog = triggerEl.closest("dialog");
       const rect = triggerEl.getBoundingClientRect();
+
+      if (dialog) {
+        const dialogRect = dialog.getBoundingClientRect();
+        setPanelHost(dialog);
+        setPos({
+          top: rect.bottom - dialogRect.top + 8,
+          left: align === "start" ? rect.left - dialogRect.left : undefined,
+          right:
+            align === "end" ? dialogRect.right - rect.right : undefined,
+          strategy: "absolute",
+        });
+        return;
+      }
+
+      setPanelHost(document.body);
       setPos({
         top: rect.bottom + 8,
-        left: rect.left,
-        right: rect.right,
+        left: align === "start" ? rect.left : undefined,
+        right: align === "end" ? window.innerWidth - rect.right : undefined,
+        strategy: "fixed",
       });
     };
 
@@ -101,6 +124,8 @@ export function Popover({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open, isControlled]);
 
+  const inModal = panelHost?.tagName === "DIALOG";
+
   const panel = (
     <div
       ref={panelRef}
@@ -112,13 +137,17 @@ export function Popover({
       inert={!open}
       style={
         pos
-          ? align === "end"
-            ? { top: pos.top, right: `calc(100vw - ${pos.right}px)` }
-            : { top: pos.top, left: pos.left }
+          ? {
+              position: pos.strategy,
+              top: pos.top,
+              ...(pos.left !== undefined ? { left: pos.left } : {}),
+              ...(pos.right !== undefined ? { right: pos.right } : {}),
+            }
           : undefined
       }
       className={cn(
-        "pointer-events-none fixed z-[110] min-w-[min(100vw-2rem,18rem)] -translate-y-1 rounded-[var(--radius-md)] border border-border bg-surface p-3 opacity-0 shadow-[var(--shadow-md)] transition-[opacity,transform] duration-200 ease-out data-[open=true]:pointer-events-auto data-[open=true]:translate-y-0 data-[open=true]:opacity-100 motion-reduce:transition-none",
+        "pointer-events-none min-w-[min(100vw-2rem,18rem)] max-w-[calc(100vw-1.5rem)] -translate-y-1 rounded-[var(--radius-md)] border border-border bg-surface p-3 opacity-0 shadow-[var(--shadow-md)] transition-[opacity,transform] duration-200 ease-out data-[open=true]:pointer-events-auto data-[open=true]:translate-y-0 data-[open=true]:opacity-100 motion-reduce:transition-none",
+        inModal ? "z-[60]" : "z-[110]",
         className,
       )}
     >
@@ -127,7 +156,7 @@ export function Popover({
   );
 
   return (
-    <div ref={rootRef} className="relative inline-flex">
+    <div ref={rootRef} className={cn("relative inline-flex", containerClassName)}>
       <button
         ref={triggerRef}
         type="button"
@@ -142,7 +171,7 @@ export function Popover({
       >
         {trigger}
       </button>
-      {mounted ? createPortal(panel, document.body) : null}
+      {mounted && panelHost ? createPortal(panel, panelHost) : null}
     </div>
   );
 }

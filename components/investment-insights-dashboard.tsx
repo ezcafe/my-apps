@@ -32,7 +32,7 @@ import { InvestmentAllocationCard } from "@/components/investment-chart-cards/al
 import { useInvestmentWorkspace } from "@/components/investment-workspace-provider";
 import { MONEY_DASHBOARD_STACK, MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cn } from "@/lib/cn";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor, formatCompactMinor } from "@/lib/format-money";
 import { investmentInsightsDefaultRange } from "@/lib/money-first-load-filters";
 import {
   investmentInsightsAtfQueryOptions,
@@ -96,7 +96,7 @@ export function InvestmentInsightsDashboard() {
     enabled: moreInsights && workspaceReady,
   });
 
-  const formatY = (minor: number) => formatMinor(minor, defaultCurrency);
+  const formatY = (minor: number) => formatCompactMinor(minor, defaultCurrency);
   const atf = atfQuery.data;
   const empty =
     atf != null &&
@@ -240,7 +240,7 @@ function InvestmentMoreInsights({
   currency: string;
 }) {
   const { ref: pnlRef, isInView: pnlInView } = useInViewOnce();
-  const formatY = (minor: number) => formatMinor(minor, currency);
+  const formatY = (minor: number) => formatCompactMinor(minor, currency);
   const hitRate =
     more && more.closedCount > 0
       ? `${Math.round((more.winningClosedCount / more.closedCount) * 100)}%`
@@ -323,11 +323,14 @@ function InvestmentMoreInsights({
       <div className="col-span-2 grid gap-3 md:col-span-6 lg:col-span-12 md:grid-cols-2">
         <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Max drawdown</p>
-          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+          <p
+            title={more ? formatMinor(more.maxDrawdownMinor, currency) : undefined}
+            className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+          >
             {more ? (
               <AnimatedNumber
                 value={more.maxDrawdownMinor}
-                format={(n) => formatMinor(Math.round(n), currency)}
+                format={(n) => formatCompactMinor(Math.round(n), currency)}
               />
             ) : (
               "—"

@@ -4,6 +4,24 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+## Communication, writing & decision standards
+
+### Plain and simple language
+- **Everyday words**: Always use simple, plain words for comments, documents, plans, logs, and chat/console interactions. Avoid dense jargon, buzzwords, or convoluted phrasing.
+- **Direct & clear**: Keep sentences short and clear. Write so any developer can understand immediately without rereading.
+
+### Developer eye flow & visual hierarchy
+- **Scannable layout**: Organize content following natural reading eye flow (top-to-bottom, left-to-right).
+- **Lead with key points**: Put conclusions, core takeaways, and action items first.
+- **Clear structure**: Use concise section headers (`##`, `###`), short paragraphs (1–3 sentences), and bullet points with leading **bold labels** to guide the eye.
+
+### Decision options format
+Whenever presenting options for decisions or architectural choices:
+- **Explanation**: Provide a clear, plain-language explanation for each option (what it does and why).
+- **Concrete examples**: Always include a concrete example for every option (code snippet, config, data structure, or command).
+- **Pros & cons**: List explicit pros and cons for each option.
+- **Recommendation**: Clearly indicate the recommended choice and the reason behind it.
+
 ## Workspace features
 
 Before adding routes, API handlers, or shell navigation for a **product feature** (anything with its own workspace and data):

@@ -29,7 +29,7 @@ import { Alert } from "@/components/ui/alert";
 import { buttonClassName } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor, formatCompactMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { toggleSetKey } from "@/lib/chart-legend-toggle";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
@@ -115,7 +115,7 @@ function LoanPayoffProgressCard({ loan }: { loan: LoanDetail }) {
         key,
         label,
         color: colors[key],
-        valueText: formatMinor(
+        valueText: formatCompactMinor(
           lastPoint
             ? key === "actual"
               ? lastPoint.actualCumulativeMinor
@@ -154,7 +154,7 @@ function LoanPayoffProgressCard({ loan }: { loan: LoanDetail }) {
       >
         <LoanProgressChart
           data={loan.chart}
-          formatY={(minor) => formatMinor(minor, loan.currency)}
+          formatY={(minor) => formatCompactMinor(minor, loan.currency)}
           hiddenSeries={hiddenSeries}
         />
       </AnalyticsChartContainer>

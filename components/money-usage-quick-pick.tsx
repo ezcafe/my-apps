@@ -45,10 +45,12 @@ export function MoneyUsageQuickPickOtherChipContent({
   label: ReactNode;
 }) {
   return (
-    <span className="relative z-[1] inline-flex min-w-0 max-w-full items-center gap-1.5">
-      <OtherPickerGlyph />
-      <span className="min-w-0 truncate">{label}</span>
-      <OtherChipChevron className="opacity-55" />
+    <span className="relative z-[1] inline-flex min-w-0 max-w-full flex-1 items-center justify-between gap-2">
+      <span className="inline-flex min-w-0 items-center gap-1.5 truncate">
+        <OtherPickerGlyph />
+        <span className="min-w-0 truncate">{label}</span>
+      </span>
+      <OtherChipChevron className="shrink-0 opacity-55" />
     </span>
   );
 }
@@ -348,7 +350,7 @@ export function MoneyUsageQuickPick({
     pinnedItems.length === 0
   ) {
     return (
-      <fieldset className={cn("grid min-w-0 gap-1.5 text-sm", className)}>
+      <fieldset className={cn("@container grid min-w-0 gap-1.5 text-sm", className)}>
         {legendNode}
         <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
           {emptyMessage}
@@ -358,7 +360,7 @@ export function MoneyUsageQuickPick({
   }
 
   return (
-    <fieldset className={cn("grid min-w-0 gap-1.5 text-sm", className)}>
+    <fieldset className={cn("@container grid min-w-0 gap-1.5 text-sm", className)}>
       {legendNode}
       <div
         role="radiogroup"
@@ -385,13 +387,22 @@ export function MoneyUsageQuickPick({
           );
         })}
         {showOther ? (
-          <div ref={otherRef} className="relative inline-flex">
+          <div
+            ref={otherRef}
+            className={cn(
+              "relative inline-flex basis-full @md:basis-auto",
+              showOtherOnly ? "w-full" : "w-full @md:w-auto",
+            )}
+          >
             <button
               type="button"
               role="radio"
               aria-checked={otherActive}
               onClick={() => setPickerOpen((o) => !o)}
-              className={otherChipCls(otherActive)}
+              className={cn(
+                otherChipCls(otherActive),
+                showOtherOnly ? "w-full" : "w-full @md:w-auto",
+              )}
             >
               <MoneyUsageQuickPickOtherChipContent label={otherLabelText} />
             </button>

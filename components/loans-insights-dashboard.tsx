@@ -32,7 +32,7 @@ import { LoansPaidPrincipalInterestCard } from "@/components/loan-chart-cards/pa
 import { useLoansWorkspace } from "@/components/loans-workspace-provider";
 import { MONEY_DASHBOARD_STACK, MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { cn } from "@/lib/cn";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor, formatCompactMinor } from "@/lib/format-money";
 import { loansInsightsDefaultRange } from "@/lib/money-first-load-filters";
 import {
   loansInsightsAtfQueryOptions,
@@ -90,7 +90,7 @@ export function LoansInsightsDashboard() {
     enabled: moreInsights && workspaceReady,
   });
 
-  const formatY = (minor: number) => formatMinor(minor, currency);
+  const formatY = (minor: number) => formatCompactMinor(minor, currency);
   const atf = atfQuery.data;
   const empty = atf != null && atf.summary.loanCount === 0;
 
@@ -231,7 +231,7 @@ function LoansMoreInsights({
   currency: string;
 }) {
   const { ref: chartRef, isInView: chartInView } = useInViewOnce();
-  const formatY = (minor: number) => formatMinor(minor, currency);
+  const formatY = (minor: number) => formatCompactMinor(minor, currency);
 
   return (
     <>
@@ -276,11 +276,14 @@ function LoansMoreInsights({
       <div className="col-span-2 grid gap-3 md:col-span-6 lg:col-span-12 md:grid-cols-2">
         <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Interest still scheduled</p>
-          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+          <p
+            title={more ? formatMinor(more.remainingInterestMinor, currency) : undefined}
+            className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+          >
             {more ? (
               <AnimatedNumber
                 value={more.remainingInterestMinor}
-                format={(n) => formatMinor(Math.round(n), currency)}
+                format={(n) => formatCompactMinor(Math.round(n), currency)}
               />
             ) : (
               "—"
@@ -323,7 +326,7 @@ function LoansMoreInsights({
                     <span className="font-medium">{loan.name}</span>
                     <span className="tabular-nums text-muted">
                       {loan.percentComplete.toFixed(1)}% ·{" "}
-                      {formatMinor(loan.remainingMinor, currency)}
+                      {formatCompactMinor(loan.remainingMinor, currency)}
                     </span>
                   </div>
                   <div

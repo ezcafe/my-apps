@@ -15,7 +15,7 @@ import {
 import { ChartLegendList } from "@/components/charts/chart-legend-list";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { toggleSetKey } from "@/lib/chart-legend-toggle";
-import { formatMinor } from "@/lib/format-money";
+import { formatCompactMinor } from "@/lib/format-money";
 import type { MoneyAnalyticsDistributionPayload } from "@/lib/money-services/analytics";
 import {
   categoryIdForDrilldown,
@@ -67,7 +67,7 @@ export const IncomeByCategoryCard = memo(function IncomeByCategoryCard({
         key: p.label,
         label: p.label,
         color: colorByIndex(resolved, i, style),
-        valueText: formatMinor(p.valueMinor, defaultCurrency),
+        valueText: formatCompactMinor(p.valueMinor, defaultCurrency),
       })),
     [distribution?.pieIncome, resolved, style, defaultCurrency],
   );

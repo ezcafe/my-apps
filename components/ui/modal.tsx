@@ -92,7 +92,7 @@ export function Modal({
         // overflow, Safari resolves that to ~0px — a bordered “line” centered
         // by inset-0 + m-auto. Desktop Chrome often still sizes from content,
         // so the bug is easy to miss locally.
-        "fixed inset-0 z-50 m-auto max-h-[min(90dvh,52rem)] w-[min(100%-2rem,56rem)] max-w-[calc(100%-2rem)] overflow-visible rounded-[var(--radius-md)] border border-border bg-surface p-0 text-foreground shadow-[var(--shadow-md)] backdrop:bg-black/45 open:flex open:flex-col fx-overlay",
+        "fixed inset-0 z-50 m-auto max-h-[min(90dvh,52rem)] w-[min(100%-1.5rem,56rem)] max-w-[calc(100%-1.5rem)] overflow-visible rounded-[var(--radius-md)] border border-border bg-surface p-0 text-foreground shadow-[var(--shadow-md)] backdrop:bg-black/45 open:flex open:flex-col sm:w-[min(100%-2rem,56rem)] sm:max-w-[calc(100%-2rem)] fx-overlay",
         className,
       )}
       aria-labelledby={ariaLabelledBy}
@@ -101,7 +101,7 @@ export function Modal({
       <div className="flex max-h-[inherit] min-h-0 min-w-0 w-full flex-col overflow-hidden rounded-[inherit]">
         {!bare && title ? (
           <>
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-6 py-4">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3.5 sm:px-6 sm:py-4">
               <h2
                 id="modal-dialog-title"
                 className="text-lg font-medium tracking-tight"
@@ -119,12 +119,12 @@ export function Modal({
                 ✕
               </Button>
             </div>
-            <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-6">
+            <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
               {children}
             </div>
           </>
         ) : (
-          <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-6">
+          <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
             {children}
           </div>
         )}

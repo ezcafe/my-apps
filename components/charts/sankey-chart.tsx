@@ -9,7 +9,7 @@ import { ChartShell } from "@/components/charts/chart-shell";
 import type { ChartTooltipPayload } from "@/components/charts/use-chart-tooltip";
 import type { StylePreset } from "@/components/theme-provider";
 import { useTheme } from "@/components/theme-provider";
-import { formatMinor } from "@/lib/format-money";
+import { formatCompactMinor } from "@/lib/format-money";
 
 type Link = {
   source: string;
@@ -239,7 +239,7 @@ function SankeyInner({
                     const amount = Number(link.value ?? 0);
                     const tipLabel = `${sourceNode.label} → ${targetNode.label}`;
                     const percent = link.percentage;
-                    const tipValue = `${formatMinor(amount, currency)}${
+                    const tipValue = `${formatCompactMinor(amount, currency)}${
                       typeof percent === "number" ? ` (${percent.toFixed(1)}%)` : ""
                     }`;
                     const hitW = Math.max(14, strokeW * 2.5);
@@ -304,7 +304,7 @@ function SankeyInner({
                     );
                     const tipLabel = nd.label;
                     const pct = nd.percentage;
-                    const tipValue = `Total through: ${formatMinor(nodeThrough, currency)}${
+                    const tipValue = `Total through: ${formatCompactMinor(nodeThrough, currency)}${
                       typeof pct === "number" ? ` (${pct.toFixed(1)}%)` : ""
                     }`;
                     const nodeW = x1 - x0;

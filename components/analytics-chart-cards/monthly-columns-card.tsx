@@ -18,7 +18,7 @@ import {
   chartIncomeColor,
 } from "@/components/charts/chart-income-expense-colors";
 import { toggleSetKey } from "@/lib/chart-legend-toggle";
-import { formatMinor } from "@/lib/format-money";
+import { formatCompactMinor } from "@/lib/format-money";
 import type { MoneyAnalyticsOverviewPayload } from "@/lib/money-services/analytics";
 import {
   calendarMonthBounds,
@@ -76,13 +76,13 @@ export const MonthlyColumnsCard = memo(function MonthlyColumnsCard({
         key: "expense",
         label: "Expense",
         color: chartExpenseColor(resolved, style),
-        valueText: formatMinor(columnExpenseTotal, defaultCurrency),
+        valueText: formatCompactMinor(columnExpenseTotal, defaultCurrency),
       },
       {
         key: "income",
         label: "Income",
         color: chartIncomeColor(resolved, style),
-        valueText: formatMinor(columnIncomeTotal, defaultCurrency),
+        valueText: formatCompactMinor(columnIncomeTotal, defaultCurrency),
       },
     ],
     [resolved, style, columnExpenseTotal, columnIncomeTotal, defaultCurrency],

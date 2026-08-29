@@ -8,7 +8,7 @@ import {
   chartExpenseColor,
   chartIncomeColor,
 } from "@/components/charts/chart-income-expense-colors";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor, formatCompactMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { cn } from "@/lib/cn";
 import type { InvestmentInsightsAtf } from "@/lib/investment-query-options";
@@ -63,10 +63,13 @@ export function InvestmentInsightsStats({
               expenses) — the same Net as the investments ledger.
             </AboutDisclosure>
           </p>
-          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+          <p
+            title={formatMinor(atf.summary.resultsMinor, currency)}
+            className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+          >
             <AnimatedNumber
               value={atf.summary.resultsMinor}
-              format={(n) => formatMinor(Math.round(n), currency)}
+              format={(n) => formatCompactMinor(Math.round(n), currency)}
               style={{ color: resultsColor }}
               animationKey={animationKey}
             />
@@ -79,20 +82,26 @@ export function InvestmentInsightsStats({
               Absolute exposure of open lots: volume × contract size × price.
             </AboutDisclosure>
           </p>
-          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+          <p
+            title={formatMinor(atf.summary.openNotionalMinor, currency)}
+            className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+          >
             <AnimatedNumber
               value={atf.summary.openNotionalMinor}
-              format={(n) => formatMinor(Math.round(n), currency)}
+              format={(n) => formatCompactMinor(Math.round(n), currency)}
               animationKey={animationKey}
             />
           </p>
         </Card>
         <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Realized P&amp;L</p>
-          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+          <p
+            title={formatMinor(atf.summary.realizedPnlMinor, currency)}
+            className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+          >
             <AnimatedNumber
               value={atf.summary.realizedPnlMinor}
-              format={(n) => formatMinor(Math.round(n), currency)}
+              format={(n) => formatCompactMinor(Math.round(n), currency)}
               style={{ color: realizedColor }}
               animationKey={animationKey}
             />

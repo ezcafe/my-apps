@@ -19,7 +19,7 @@ import {
   chartIncomeColor,
 } from "@/components/charts/chart-income-expense-colors";
 import { toggleSetKey } from "@/lib/chart-legend-toggle";
-import { formatMinor } from "@/lib/format-money";
+import { formatCompactMinor } from "@/lib/format-money";
 import type { MoneyAnalyticsOverviewPayload } from "@/lib/money-services/analytics";
 import {
   calendarDayBounds,
@@ -116,7 +116,7 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
         key: "primary",
         label: isCurrentMonthCompare ? "This month" : "Selected range",
         color: linePrimaryColor,
-        valueText: formatMinor(
+        valueText: formatCompactMinor(
           overviewLine[overviewLine.length - 1]?.netMinor ?? 0,
           defaultCurrency,
         ),
@@ -130,7 +130,7 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
         key: "compare",
         label: lineCompareLabel,
         color: "var(--muted)",
-        valueText: formatMinor(compareLast, defaultCurrency),
+        valueText: formatCompactMinor(compareLast, defaultCurrency),
       });
     }
     return items;
@@ -199,7 +199,7 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
                   : undefined
               }
               xMode={overviewLineMode}
-              formatY={(minor) => formatMinor(minor, defaultCurrency)}
+              formatY={(minor) => formatCompactMinor(minor, defaultCurrency)}
               hiddenSeries={hiddenLineSeries}
               animate={inView}
               onItemClick={handleLineClick}

@@ -269,7 +269,7 @@ function InstrumentsTable({
         {instruments.map((instrument) => (
           <li
             key={instrument.id}
-            className="rounded-[var(--radius-md)] border border-border p-4"
+            className="rounded-[var(--radius-md)] border border-border bg-surface p-4"
           >
             {editingId === instrument.id ? (
               renderEditForm()

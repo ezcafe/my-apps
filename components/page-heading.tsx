@@ -49,7 +49,7 @@ export function PageHeading({
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         {leading}
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <h1 className="min-w-0 truncate font-display text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="min-w-0 truncate font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             {title}
           </h1>
           {description ? (

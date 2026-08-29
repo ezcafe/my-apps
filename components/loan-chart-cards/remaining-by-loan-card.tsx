@@ -12,7 +12,7 @@ import {
 import { ChartLegendList } from "@/components/charts/chart-legend-list";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { toggleSetKey } from "@/lib/chart-legend-toggle";
-import { formatMinor } from "@/lib/format-money";
+import { formatCompactMinor } from "@/lib/format-money";
 import { useTheme } from "@/components/theme-provider";
 import {
   CHART_CARD_HEIGHT_HALF,
@@ -50,7 +50,7 @@ export const LoansRemainingByLoanCard = memo(function LoansRemainingByLoanCard({
         key: p.label,
         label: p.label,
         color: colorByIndex(resolved, i, style),
-        valueText: formatMinor(p.valueMinor, currency),
+        valueText: formatCompactMinor(p.valueMinor, currency),
       })),
     [slices, resolved, style, currency],
   );
@@ -86,7 +86,7 @@ export const LoansRemainingByLoanCard = memo(function LoansRemainingByLoanCard({
             }))}
             hiddenLabels={hidden}
             hoveredLabel={hovered}
-            formatValue={(minor) => formatMinor(minor, currency)}
+            formatValue={(minor) => formatCompactMinor(minor, currency)}
             centerTotalMinor={total}
             centerLabel="Owed"
             onItemClick={(item) => {

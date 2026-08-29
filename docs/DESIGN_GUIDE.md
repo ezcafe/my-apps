@@ -117,6 +117,41 @@ Information-grid first: readable density in controls, tables, filters, and forms
 | **Restrained geometry** | `--radius-md` 8px outer / `--radius-sm` 6px nested. Tables stay sharp (no radius). |
 | **Clean type** | Inter for UI + headings. IBM Plex Mono for code only. Body ≥16px; metadata ≥14px (`text-sm`). H1 ~32px with `-0.02em` tracking. |
 
+### Modern Minimal UI style (Diana Malewicz)
+
+Modern Minimal UI combines functional minimalism with warmth and high visual polish:
+
+1. **Whitespace as primary structure:** Whitespace is not empty space; it organizes sections, creates calm scannability, and eliminates visual clutter.
+2. **Subtly rounded elements:** Softly rounded corners (`--radius-md` 8px outer, `--radius-sm` 6px inner) make surfaces feel organic and tactile without looking cartoonish or over-rounded.
+3. **Large, high-contrast, accessible typography:** Clear weight hierarchy (Inter), strong contrast ratios (≥4.5:1), and tabular figures for numbers eliminate ambiguity. Body inputs stay ≥16px to prevent viewport zoom on mobile browsers.
+4. **Restrained color architecture:** Strict 4-role palette (neutrals + 1 teal accent + muted secondary + semantic status). No multi-color gradient chrome.
+5. **Hairline depth over heavy shadows:** Cards use 1px hairline borders (`border-border`) with flat surfaces; elevation shadows (`--shadow-md`) are reserved for interactive overlays (popovers, modals).
+
+## 10 Mobile UX principles for 2026 (UXCam)
+
+Mobile UX is a distinct discipline designed for thumb-driven input, distracted contexts, variable networks, and varied devices.
+
+| # | Principle | Implementation in this app |
+|---|-----------|----------------------------|
+| 1 | **Understand actual users** | Design for a busy parent operating with one hand in seconds; test on real mobile viewports. |
+| 2 | **Design for the thumb zone** | Primary CTAs and frequent controls sit within easy reach; top corners reserved for navigation and low-frequency utility. |
+| 3 | **Minimize input friction** | Use explicit `inputMode` (`decimal`, `numeric`, `email`, `tel`), `enterKeyHint`, and pickers ([`MoneyDateQuickPick`](../components/money-date-quick-pick.tsx), [`MoneyUsageQuickPick`](../components/money-usage-quick-pick.tsx)) instead of freeform typing. |
+| 4 | **Lean flow to value** | First meaningful action completed in seconds without multi-step friction. |
+| 5 | **Respect the back button & gestures** | Standard system back dismissal for modals and popovers (`cancel` event listeners, swipe-safe dialogs). |
+| 6 | **Performance is UX** | Zero Cumulative Layout Shift (CLS) through skeleton parity ([`money-analytics-skeleton.tsx`](../components/money-analytics-skeleton.tsx)); `touch-action: manipulation` for instant touch response (no 300ms delay). |
+| 7 | **Graceful, actionable error recovery** | Every error message explains what happened, why, and how to recover via [`toUserFacingMessage`](../lib/user-facing-error.ts). |
+| 8 | **Intermittent connectivity resilience** | Client-side optimistic feedback, safe caching with TanStack Query, and graceful offline/loading states. |
+| 9 | **Respect attention & interruptions** | Non-intrusive popovers over screen-blocking modals where possible; preserve user input state. |
+| 10 | **Validate with interaction metrics** | Prevent rage taps and dead clicks via clear active states (`fx-press`), adequate spacing, and touch target minimums (≥44×44pt / 48dp). |
+
+### Mobile size optimization & viewport preservation
+
+- **Tablet & desktop preservation:** Tablet (`md`/`lg`) and desktop (`xl`) layouts remain intact. Responsive adaptations use Tailwind v4 `@container`, `@md:`, `clamp()`, and fluid grid `repeat(auto-fit, minmax(...))`.
+- **Touch target floor:** All interactive elements on mobile provide ≥44×44px hit targets (using `iconOnly` or `fx-hit-40`).
+- **Safe-area insets:** Handle edge-to-edge mobile displays using `safe-bottom`, `safe-top`, and `env(safe-area-inset-*)`.
+- **Responsive page headings:** Title scales smoothly (`text-2xl sm:text-3xl`) on narrow mobile screens to prevent squishing beside navigation and primary actions.
+- **Mobile card lists:** Data grids automatically render touch-friendly card lists on mobile viewports (`@md:hidden`) with full action visibility.
+
 ### DaisyUI role aliases (mapping only — we do not use daisyUI)
 
 This app uses custom tokens + [`components/ui`](components/ui/). When reading daisyUI-themed specs, map roles as follows:
@@ -506,6 +541,10 @@ Wizard steps: render the step hint under the progress bar. Review/summary steps 
 - [ ] Icon-only: `iconOnly` or `fx-hit-40` (≥44×44); swaps via `IconSwap`.
 - [ ] Explicit `transition-*` properties (never `transition: all`).
 - [ ] Mobile-first: hamburger popup nav, dashboard stack, primary CTA in PageHeading on all breakpoints.
+- [ ] Mobile inputs use appropriate `inputMode` (`decimal`, `numeric`, `email`) and keep font-size ≥16px to prevent iOS auto-zoom.
+- [ ] Mobile touch targets ≥44×44pt / 48dp (`fx-hit-40`) and touch manipulation enabled (no tap delay).
+- [ ] Safe-area insets respected on edge-to-edge mobile screens.
+- [ ] Tablet (`md`/`lg`) and desktop (`xl`) layouts preserved without regression.
 - [ ] Every action has a reaction: default/hover/focus/disabled; empty ≠ error; loading in the region that changes.
 - [ ] Feedback scale matches stakes (field / Alert / toast / Modal); error copy via `toUserFacingMessage`; success names the object.
 - [ ] Nested pages use location crumbs from the section origin; top-level sections have none.

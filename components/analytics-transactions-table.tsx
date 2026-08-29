@@ -402,18 +402,6 @@ export function AnalyticsTransactionsTable({
           {noteLabel !== "—" ? (
             <p className="mt-1 truncate text-base text-muted">{noteLabel}</p>
           ) : null}
-          {selectable ? (
-            <div className="mt-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setEditTransactionId(tx.id)}
-              >
-                Edit
-              </Button>
-            </div>
-          ) : null}
         </div>
       </div>
     );

@@ -3,7 +3,7 @@
 import { Card } from "@/components/ui/card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { useTheme } from "@/components/theme-provider";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor, formatCompactMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { colorByIndex } from "@/lib/theme-chart-palette";
 import { cn } from "@/lib/cn";
@@ -85,10 +85,13 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
       >
         <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Remaining balance</p>
-          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+          <p
+            title={formatMinor(loan.summary.remainingMinor, loan.currency)}
+            className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+          >
             <AnimatedNumber
               value={loan.summary.remainingMinor}
-              format={(n) => formatMinor(Math.round(n), loan.currency)}
+              format={(n) => formatCompactMinor(Math.round(n), loan.currency)}
               style={{ color: remainingColor }}
               animationKey={animationKey}
             />
@@ -102,10 +105,13 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
 
         <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Monthly payment</p>
-          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+          <p
+            title={formatMinor(loan.paymentMinor, loan.currency)}
+            className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+          >
             <AnimatedNumber
               value={loan.paymentMinor}
-              format={(n) => formatMinor(Math.round(n), loan.currency)}
+              format={(n) => formatCompactMinor(Math.round(n), loan.currency)}
               animationKey={animationKey}
             />
           </p>
@@ -116,10 +122,13 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
 
         <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Total paid</p>
-          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+          <p
+            title={formatMinor(loan.summary.totalPaidMinor, loan.currency)}
+            className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+          >
             <AnimatedNumber
               value={loan.summary.totalPaidMinor}
-              format={(n) => formatMinor(Math.round(n), loan.currency)}
+              format={(n) => formatCompactMinor(Math.round(n), loan.currency)}
               style={{ color: paidColor }}
               animationKey={animationKey}
             />

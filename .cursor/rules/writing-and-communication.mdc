@@ -1,0 +1,23 @@
+---
+description: Plain language, developer eye flow, and option explanations with examples
+alwaysApply: true
+---
+
+# Writing, Communication & Decision Rules
+
+## Plain and Simple Language
+- **Always use simple and plain words** across all comments, documentation, plans, logs, and chat/console interaction logs.
+- Keep sentences concise, direct, and free of unnecessary technical jargon or filler.
+
+## Developer Eye Flow & Scannability
+- Structure text to follow natural developer reading eye flow (scannable, top-to-bottom hierarchy).
+- Start bullet points with **bold keywords** or actions.
+- Keep paragraphs short (1–3 sentences) and use descriptive section headers.
+- Lead with key takeaways and actionable conclusions first.
+
+## Presenting Options
+Whenever presenting options or alternatives for a decision:
+- **Explanation**: Explain each option clearly in plain language.
+- **Concrete Examples**: Provide a concrete example (code snippet, config, command, or schema) for every option.
+- **Pros and Cons**: Clearly list trade-offs (pros and cons) for each option.
+- **Recommendation**: State the recommended option and explain why.

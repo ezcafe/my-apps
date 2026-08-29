@@ -30,23 +30,28 @@ function StaticChip({
       <button
         type="button"
         disabled
-        className={moneyQuickPickOtherChipCls(active)}
+        className={cn(
+          moneyQuickPickOtherChipCls(active),
+          "basis-full @md:basis-auto w-full @md:w-auto",
+        )}
       >
-        <span className="relative z-[1] inline-flex min-w-0 max-w-full items-center gap-1.5">
-          <span
-            aria-hidden
-            className="inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-muted-surface text-muted"
-          >
-            <svg viewBox="0 0 16 16" fill="none" className="size-3.5">
-              <path
-                d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
+        <span className="relative z-[1] inline-flex min-w-0 max-w-full flex-1 items-center justify-between gap-2">
+          <span className="inline-flex min-w-0 items-center gap-1.5 truncate">
+            <span
+              aria-hidden
+              className="inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-muted-surface text-muted"
+            >
+              <svg viewBox="0 0 16 16" fill="none" className="size-3.5">
+                <path
+                  d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <span className="min-w-0 truncate">{label}</span>
           </span>
-          <span className="min-w-0 truncate">{label}</span>
         </span>
       </button>
     );
@@ -76,7 +81,7 @@ export function MoneyLookupQuickPickSkeleton({
   withPct?: boolean;
 }) {
   return (
-    <fieldset className={cn("grid min-w-0 gap-1.5 text-sm", className)}>
+    <fieldset className={cn("@container grid min-w-0 gap-1.5 text-sm", className)}>
       <legend className="text-muted">
         {required ? (
           <>

@@ -40,6 +40,7 @@ export function MoneyUsageMultiQuickPick({
   value,
   onChange,
   otherLabel,
+  compact = false,
   emptyMessage = "No options yet.",
   className,
 }: {
@@ -50,6 +51,7 @@ export function MoneyUsageMultiQuickPick({
   value: string[];
   onChange: (next: string[]) => void;
   otherLabel: string;
+  compact?: boolean;
   emptyMessage?: string;
   className?: string;
 }) {
@@ -58,11 +60,13 @@ export function MoneyUsageMultiQuickPick({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const showOtherOnly = compact;
+
   const quickItems = useMemo(
-    () => topUsageItems(items, QUICK_PICK_N),
-    [items],
+    () => (showOtherOnly ? [] : topUsageItems(items, QUICK_PICK_N)),
+    [items, showOtherOnly],
   );
-  const showOther = items.length > QUICK_PICK_N;
+  const showOther = showOtherOnly || items.length > QUICK_PICK_N;
   const quickIds = useMemo(() => quickPickIds(quickItems), [quickItems]);
   const allPickerItems = pickerItemsProp ?? items;
   const selectedSet = useMemo(() => new Set(value), [value]);
@@ -114,7 +118,7 @@ export function MoneyUsageMultiQuickPick({
 
   if (items.length === 0) {
     return (
-      <fieldset className={cn("grid min-w-0 gap-1.5 text-sm", className)}>
+      <fieldset className={cn("@container grid min-w-0 gap-1.5 text-sm", className)}>
         <legend className="text-muted">{legend}</legend>
         <p className="rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm text-muted">
           {emptyMessage}
@@ -124,7 +128,7 @@ export function MoneyUsageMultiQuickPick({
   }
 
   return (
-    <fieldset className={cn("grid min-w-0 gap-1.5 text-sm", className)}>
+    <fieldset className={cn("@container grid min-w-0 gap-1.5 text-sm", className)}>
       <legend className="text-muted">{legend}</legend>
       <div
         role="group"
@@ -146,12 +150,21 @@ export function MoneyUsageMultiQuickPick({
           );
         })}
         {showOther ? (
-          <div ref={otherRef} className="relative inline-flex">
+          <div
+            ref={otherRef}
+            className={cn(
+              "relative inline-flex basis-full @md:basis-auto",
+              showOtherOnly ? "w-full" : "w-full @md:w-auto",
+            )}
+          >
             <button
               type="button"
               aria-pressed={otherActive}
               onClick={() => setPickerOpen((o) => !o)}
-              className={otherChipCls(otherActive)}
+              className={cn(
+                otherChipCls(otherActive),
+                showOtherOnly ? "w-full" : "w-full @md:w-auto",
+              )}
             >
               <MoneyUsageQuickPickOtherChipContent label={otherLabelText} />
             </button>

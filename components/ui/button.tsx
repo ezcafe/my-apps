@@ -39,7 +39,7 @@ const padIconOnly: Record<ButtonSize, string> = {
   // Icon-only buttons get equal padding and a hit-area floor of 44×44.
   sm: "p-2.5 fx-hit-40",
   md: "p-2.5 fx-hit-40",
-  lg: "p-3",
+  lg: "p-3 fx-hit-40",
 };
 
 const sizeText: Record<ButtonSize, string> = {

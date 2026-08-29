@@ -341,6 +341,7 @@ export function MoneySettingsRecurrenceSection() {
                       <Field label="Amount">
                         <Input
                           placeholder="Amount"
+                          inputMode="decimal"
                           value={editAmount}
                           onChange={(e) => setEditAmount(e.target.value)}
                         />

@@ -44,7 +44,7 @@ import {
 import { budgetRowsForChart } from "@/lib/analytics-budget-label";
 import type { AnalyticsChartDrilldownPayload } from "@/lib/analytics-build-query";
 import { analyticsFiltersEqual } from "@/lib/analytics-graphql-filters";
-import { formatMinor } from "@/lib/format-money";
+import { formatCompactMinor } from "@/lib/format-money";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_SET_ACTIVE_WORKSPACE_MUTATION } from "@/lib/money-gql-documents";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
@@ -403,7 +403,7 @@ function AnalyticsChartsView({
   const theme = useMemo(() => ({ resolved, style }), [resolved, style]);
 
   const formatChartValue = useCallback(
-    (minor: number) => formatMinor(minor, defaultCurrency),
+    (minor: number) => formatCompactMinor(minor, defaultCurrency),
     [defaultCurrency],
   );
 

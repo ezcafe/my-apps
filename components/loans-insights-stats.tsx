@@ -5,7 +5,7 @@ import { AnimatedNumber } from "@/components/ui/animated-number";
 import { AboutDisclosure } from "@/components/ui/about-disclosure";
 import { useTheme } from "@/components/theme-provider";
 import { chartExpenseColor } from "@/components/charts/chart-income-expense-colors";
-import { formatMinor } from "@/lib/format-money";
+import { formatMinor, formatCompactMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { cn } from "@/lib/cn";
 import type { LoansInsightsAtf } from "@/lib/loans-query-options";
@@ -67,10 +67,13 @@ export function LoansInsightsStats({
       >
         <Card className="px-4 py-4">
           <p className="text-sm font-medium text-muted">Remaining</p>
-          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+          <p
+            title={formatMinor(atf.summary.remainingMinor, currency)}
+            className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+          >
             <AnimatedNumber
               value={atf.summary.remainingMinor}
-              format={(n) => formatMinor(Math.round(n), currency)}
+              format={(n) => formatCompactMinor(Math.round(n), currency)}
               style={{ color: remainingColor }}
               animationKey={animationKey}
             />
@@ -90,10 +93,13 @@ export function LoansInsightsStats({
         ) : (
           <Card className="px-4 py-4">
             <p className="text-sm font-medium text-muted">Monthly obligation</p>
-            <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+            <p
+              title={formatMinor(atf.summary.monthlyObligationMinor, currency)}
+              className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+            >
               <AnimatedNumber
                 value={atf.summary.monthlyObligationMinor}
-                format={(n) => formatMinor(Math.round(n), currency)}
+                format={(n) => formatCompactMinor(Math.round(n), currency)}
                 style={{ color: remainingColor }}
                 animationKey={animationKey}
               />

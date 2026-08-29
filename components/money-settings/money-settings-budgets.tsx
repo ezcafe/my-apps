@@ -403,6 +403,7 @@ export function MoneySettingsBudgetsSection() {
           <Field label="Monthly limit">
             <Input
               placeholder="Monthly limit amount"
+              inputMode="decimal"
               value={budLimit}
               onChange={(e) => setBudLimit(e.target.value)}
             />
@@ -438,6 +439,7 @@ export function MoneySettingsBudgetsSection() {
                       <Field label="Monthly limit">
                         <Input
                           placeholder="Monthly limit amount"
+                          inputMode="decimal"
                           value={editLimit}
                           onChange={(e) => setEditLimit(e.target.value)}
                         />
