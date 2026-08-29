@@ -46,6 +46,7 @@ Hard rules:
 - **Globally provided** by `globals.css` (don't repeat per element): `tabular-nums` on body, `text-wrap: balance` on `h1-h3`, `text-wrap: pretty` on body copy, `outline` on `<img>`, `-webkit-font-smoothing: antialiased` on `<html>`.
 - Layout uses `repeat(auto-fit, minmax(...))` and container queries; no hardcoded breakpoints for content.
 - Charts read `colorByIndex(resolved, i, style)` from [`lib/theme-chart-palette.ts`](lib/theme-chart-palette.ts).
+- **Skeleton parity (mandatory)**: Whenever making any UI change (layout structure, filters, KPIs, charts, tables, cards, or forms), you MUST update the corresponding loading skeletons (`components/*skeleton*.tsx`, `app/**/loading.tsx`, Suspense fallbacks) in the same change so element order, layout grid, and radii mirror the live UI with zero CLS.
 - Verify in light and dark modes before merging.
 
 Polish principles applied automatically by tokens/primitives are documented in DESIGN_GUIDE → "Interface-polish principles" (concentric, optical, shadows-over-borders, interruptible, stagger, exits, icons, tabular, text-wrap, image outlines, scale on press, hit area, transition specificity, will-change). Read that table before adding any new interactive element.

@@ -1,0 +1,18 @@
+---
+description: Always update loading skeletons whenever modifying UI components or pages
+globs: app/**/*.{ts,tsx},components/**/*.{ts,tsx}
+alwaysApply: true
+---
+
+# UI Skeleton Parity
+
+Always keep loading skeletons and Suspense fallbacks in sync with UI changes to guarantee zero Cumulative Layout Shift (CLS).
+
+## Mandatory Rule
+
+Whenever you add, modify, reorder, or remove any UI component, page layout, filter toolbar, metric cards, chart container, table, or form control:
+
+- **Update skeletons immediately**: Update the matching skeleton component (`components/*skeleton*.tsx`, `app/**/loading.tsx`, or in-component fallback) in the same change.
+- **Match visual hierarchy**: Ensure the skeleton's element order, layout grid, container queries (`@container`, `@md:`), and spacing mirror the live UI exactly.
+- **Concentric radii & tokens**: Use `rounded-[var(--radius-md)]` for outer cards and surfaces, and `rounded-[var(--radius-sm)]` for nested chips, rows, and markers.
+- **Order parity**: Verify section order matches live rendering (e.g., period chip → filters → KPIs → content).
