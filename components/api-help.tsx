@@ -6,10 +6,10 @@ import {
   useMemo,
   useState,
   useSyncExternalStore,
-  type ReactNode,
 } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -24,13 +24,18 @@ import { SettingsSection } from "@/components/money-settings/money-settings-shar
 import { CoreShellPage } from "@/components/core-shell-page";
 import {
   API_HELP_BASE_URL_PLACEHOLDER,
+  apiHelpGraphqlMutationExamples,
+  apiHelpGraphqlQueryExamples,
+  apiHelpRestApiExamples,
   apiHelpSections,
+  apiHelpWorkflowGuides,
   buildGraphqlCurlExample,
   resolveApiHelpSampleBody,
   type ApiHelpCodeSample,
   type ApiHelpGraphqlQueryExample,
   type ApiHelpRestExample,
   type ApiHelpSection,
+  type ApiHelpWorkflowGuide,
 } from "@/lib/api-help-content";
 import { cn } from "@/lib/cn";
 
@@ -75,12 +80,14 @@ function HelpCodeBlock({
   return (
     <div className="mt-3">
       {sample.label ? (
-        <p className="mb-1.5 text-sm font-medium text-muted">{sample.label}</p>
+        <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted">
+          {sample.label}
+        </p>
       ) : null}
       <div className="relative">
         <pre
           className={cn(
-            "max-h-56 overflow-auto rounded-[var(--radius-md)] border border-border bg-muted-surface p-3 font-mono text-sm whitespace-pre-wrap break-all text-foreground",
+            "max-h-64 overflow-auto rounded-[var(--radius-sm)] border border-border bg-muted-surface p-3 font-mono text-xs leading-5 whitespace-pre-wrap break-all text-foreground select-all",
           )}
         >
           {resolved}
@@ -89,7 +96,7 @@ function HelpCodeBlock({
           type="button"
           variant="secondary"
           size="sm"
-          className="absolute top-2 right-2"
+          className="absolute top-2 right-2 text-xs"
           onClick={() => void copy()}
         >
           Copy
@@ -108,7 +115,7 @@ function HelpDetail({
 }) {
   return (
     <div className="rounded-[var(--radius-sm)] border border-border bg-background p-3">
-      <dt className="text-sm font-medium uppercase tracking-wide text-muted">
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted">
         {label}
       </dt>
       <dd className="mt-1 text-sm leading-6 text-foreground">{value}</dd>
@@ -124,56 +131,153 @@ function HelpQuickStartCard({
   baseUrl: string;
 }) {
   return (
-    <div className="min-w-0">
-      <h3 className="font-display text-base font-semibold text-foreground">
-        {section.title}
-      </h3>
-      <p className="mt-2 text-sm leading-6 text-muted">{section.description}</p>
+    <Card className="flex flex-col justify-between p-4.5">
+      <div>
+        <h3 className="font-display text-base font-semibold text-foreground">
+          {section.title}
+        </h3>
+        <p className="mt-1.5 text-sm leading-6 text-muted">{section.description}</p>
 
-      {section.bullets?.length ? (
-        <ul className="mt-4 list-disc space-y-1.5 pl-5 text-sm leading-6 text-muted">
-          {section.bullets.map((bullet) => (
-            <li key={bullet}>{bullet}</li>
-          ))}
-        </ul>
-      ) : null}
+        {section.bullets?.length ? (
+          <ul className="mt-3 list-disc space-y-1 pl-4 text-xs leading-5 text-muted">
+            {section.bullets.map((bullet) => (
+              <li key={bullet}>{bullet}</li>
+            ))}
+          </ul>
+        ) : null}
 
-      {section.scopeTable?.length ? (
-        <div className="mt-4">
-          <Table className="min-w-[18rem]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Scope</TableHead>
-                <TableHead>Allows</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {section.scopeTable.map((row) => (
-                <TableRow key={row.scope}>
-                  <TableCell className="font-mono text-sm text-foreground">
-                    {row.scope}
-                  </TableCell>
-                  <TableCell className="text-muted">{row.allows}</TableCell>
+        {section.scopeTable?.length ? (
+          <div className="mt-3 overflow-hidden rounded-[var(--radius-sm)] border border-border">
+            <Table className="min-w-full text-xs">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="py-1.5">Scope</TableHead>
+                  <TableHead className="py-1.5">Allows</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : null}
+              </TableHeader>
+              <TableBody>
+                {section.scopeTable.map((row) => (
+                  <TableRow key={row.scope}>
+                    <TableCell className="py-1.5 font-mono text-foreground">
+                      {row.scope}
+                    </TableCell>
+                    <TableCell className="py-1.5 text-muted">{row.allows}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : null}
 
-      {section.codeSamples?.map((sample) => (
-        <HelpCodeBlock key={sample.id} sample={sample} baseUrl={baseUrl} />
-      ))}
+        {section.codeSamples?.map((sample) => (
+          <HelpCodeBlock key={sample.id} sample={sample} baseUrl={baseUrl} />
+        ))}
+      </div>
 
       {section.id === "token" ? (
-        <p className="mt-4">
+        <div className="mt-4 pt-2 border-t border-border">
           <Link
             href="/settings#settings-api-tokens"
-            className="text-sm font-medium text-accent underline-offset-4 hover:underline"
+            className="text-xs font-semibold text-accent underline-offset-4 hover:underline"
           >
-            Create API token in Settings
+            Create API token in Settings &rarr;
           </Link>
-        </p>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
+function HelpWorkflowGuideView({
+  guide,
+  baseUrl,
+}: {
+  guide: ApiHelpWorkflowGuide;
+  baseUrl: string;
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Guide Header */}
+      <div className="rounded-[var(--radius-sm)] border border-border bg-muted-surface p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-base font-semibold text-foreground">
+            {guide.title}
+          </h3>
+          <Badge tone={guide.badgeTone ?? "accent"}>{guide.badge}</Badge>
+        </div>
+        <p className="mt-1.5 text-sm leading-6 text-muted">{guide.description}</p>
+
+        {guide.prerequisites.length > 0 ? (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted border-t border-border pt-2.5">
+            <span className="font-semibold text-foreground">Prerequisites:</span>
+            {guide.prerequisites.map((prereq, i) => (
+              <span key={i} className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                {prereq}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Steps List */}
+      <div className="space-y-6">
+        {guide.steps.map((step) => (
+          <Card key={step.stepNumber} className="relative p-4.5 pl-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground text-xs font-bold">
+                {step.stepNumber}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-semibold text-foreground">
+                  {step.title}
+                </h4>
+                <p className="mt-1 text-xs text-muted leading-relaxed">
+                  {step.explanation}
+                </p>
+
+                {step.keyNotes?.length ? (
+                  <ul className="mt-2.5 list-disc space-y-1 pl-4 text-xs text-muted">
+                    {step.keyNotes.map((note, idx) => (
+                      <li key={idx}>{note}</li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                {step.codeSamples.map((sample) => (
+                  <HelpCodeBlock key={sample.id} sample={sample} baseUrl={baseUrl} />
+                ))}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Rules & Gotchas Callout */}
+      {guide.rulesAndGotchas.length > 0 ? (
+        <div className="rounded-[var(--radius-sm)] border border-border bg-card p-4">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Developer Rules & Common Gotchas
+          </h4>
+          <div
+            className="mt-3 grid gap-3"
+            style={{
+              gridTemplateColumns: "repeat(auto-fit, minmax(14rem, 1fr))",
+            }}
+          >
+            {guide.rulesAndGotchas.map((rule, idx) => (
+              <div
+                key={idx}
+                className="rounded-[var(--radius-sm)] border border-border bg-background p-3"
+              >
+                <dt className="text-xs font-semibold text-foreground">{rule.term}</dt>
+                <dd className="mt-1 text-xs text-muted leading-relaxed">
+                  {rule.explanation}
+                </dd>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : null}
     </div>
   );
@@ -199,15 +303,15 @@ function HelpCatalogPanel({
   baseUrl: string;
 }) {
   return (
-    <div className="min-w-0">
+    <Card className="min-w-0 p-4.5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-mono text-sm font-semibold text-foreground">
             {title}
           </h3>
-          <p className="mt-1 text-sm leading-6 text-muted">{summary}</p>
+          <p className="mt-1 text-xs leading-5 text-muted">{summary}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {badges.map((badge) => (
             <Badge
               key={`${badge.tone ?? "default"}-${badge.label}`}
@@ -220,7 +324,7 @@ function HelpCatalogPanel({
       </div>
 
       <dl
-        className="mt-4 grid gap-3"
+        className="mt-3.5 grid gap-2.5"
         style={{
           gridTemplateColumns: "repeat(auto-fit, minmax(13rem, 1fr))",
         }}
@@ -231,9 +335,11 @@ function HelpCatalogPanel({
       </dl>
 
       {inputNotes?.length ? (
-        <div className="mt-4">
-          <h4 className="text-sm font-medium text-foreground">Inputs</h4>
-          <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6 text-muted">
+        <div className="mt-3.5">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Input parameters
+          </h4>
+          <ul className="mt-1.5 list-disc space-y-1 pl-4 text-xs leading-5 text-muted">
             {inputNotes.map((note) => (
               <li key={note}>{note}</li>
             ))}
@@ -242,9 +348,11 @@ function HelpCatalogPanel({
       ) : null}
 
       {usageNotes?.length ? (
-        <div className="mt-4">
-          <h4 className="text-sm font-medium text-foreground">Usage notes</h4>
-          <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6 text-muted">
+        <div className="mt-3.5">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Usage notes
+          </h4>
+          <ul className="mt-1.5 list-disc space-y-1 pl-4 text-xs leading-5 text-muted">
             {usageNotes.map((note) => (
               <li key={note}>{note}</li>
             ))}
@@ -253,7 +361,7 @@ function HelpCatalogPanel({
       ) : null}
 
       <HelpCodeBlock sample={sample} baseUrl={baseUrl} />
-    </div>
+    </Card>
   );
 }
 
@@ -267,7 +375,7 @@ function HelpGraphqlExample({
   const sample = useMemo(
     (): ApiHelpCodeSample => ({
       id: example.id,
-      label: "Example usage",
+      label: "cURL example",
       language: "bash",
       body: buildGraphqlCurlExample(example.query, example.variables),
     }),
@@ -281,14 +389,14 @@ function HelpGraphqlExample({
       badges={[
         { label: `GraphQL ${example.operationKind}`, tone: "accent" },
         {
-          label: example.variables ? "Has variables" : "No variables",
+          label: example.category ? example.category.toUpperCase() : "GENERAL",
           tone: "muted",
         },
         ...(example.badges ?? []),
       ]}
       details={[
         { label: "Purpose", value: example.purpose },
-        { label: "Use this when", value: example.whenToUse },
+        { label: "When to use", value: example.whenToUse },
         { label: "Returns", value: example.returns },
       ]}
       inputNotes={example.inputNotes}
@@ -317,7 +425,7 @@ function HelpRestApiExample({
       ]}
       details={[
         { label: "Purpose", value: example.purpose },
-        { label: "Use this when", value: example.whenToUse },
+        { label: "When to use", value: example.whenToUse },
         { label: "Returns", value: example.returns },
       ]}
       inputNotes={example.inputNotes}
@@ -328,137 +436,42 @@ function HelpRestApiExample({
   );
 }
 
-function HelpTabbedCatalog<T extends { id: string; tabLabel?: string }>({
-  name,
-  items,
-  getLabel,
-  renderPanel,
-}: {
-  name: string;
-  items: T[];
-  getLabel: (item: T) => string;
-  renderPanel: (item: T) => ReactNode;
-}) {
-  const [value, setValue] = useState(items[0]?.id ?? "");
-  const activeId = items.some((item) => item.id === value)
-    ? value
-    : (items[0]?.id ?? "");
-  const active = items.find((item) => item.id === activeId) ?? items[0];
-  if (!active) return null;
-
-  return (
-    <>
-      <Tabs
-        name={name}
-        items={items.map((item) => ({
-          id: item.id,
-          label: getLabel(item),
-        }))}
-        value={active.id}
-        onChange={setValue}
-      />
-      <div className="mt-4">{renderPanel(active)}</div>
-    </>
-  );
-}
-
-function HelpSectionBody({
-  section,
-  baseUrl,
-}: {
-  section: ApiHelpSection;
-  baseUrl: string;
-}) {
-  return (
-    <>
-      {section.bullets?.length ? (
-        <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-6 text-muted">
-          {section.bullets.map((b) => (
-            <li key={b}>{b}</li>
-          ))}
-        </ul>
-      ) : null}
-
-      {section.scopeTable?.length ? (
-        <div className="mt-4">
-          <Table className="min-w-[20rem]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Scope</TableHead>
-                <TableHead>Allows</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {section.scopeTable.map((row) => (
-                <TableRow key={row.scope}>
-                  <TableCell className="font-mono text-sm text-foreground">
-                    {row.scope}
-                  </TableCell>
-                  <TableCell className="text-muted">{row.allows}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : null}
-
-      {section.restTable?.length ? (
-        <div className="mt-4">
-          <Table className="min-w-[32rem]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Method</TableHead>
-                <TableHead>Path</TableHead>
-                <TableHead>Auth</TableHead>
-                <TableHead>Notes</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {section.restTable.map((row) => (
-                <TableRow key={`${row.method}-${row.path}`}>
-                  <TableCell className="font-mono text-sm text-foreground">
-                    {row.method}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-foreground">
-                    {row.path}
-                  </TableCell>
-                  <TableCell className="text-muted">{row.auth}</TableCell>
-                  <TableCell className="text-muted">{row.notes}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : null}
-
-      {section.graphqlQueries?.map((example) => (
-        <HelpGraphqlExample
-          key={example.id}
-          example={example}
-          baseUrl={baseUrl}
-        />
-      ))}
-
-      {section.codeSamples?.map((sample) => (
-        <HelpCodeBlock key={sample.id} sample={sample} baseUrl={baseUrl} />
-      ))}
-
-      {section.id === "token" ? (
-        <p className="mt-4">
-          <Link
-            href="/settings#settings-api-tokens"
-            className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-          >
-            Create API token in Settings
-          </Link>
-        </p>
-      ) : null}
-    </>
-  );
-}
-
 export function ApiHelp() {
   const resolvedBase = useDocumentOrigin();
+
+  // Workflow Guides state
+  const [selectedGuideId, setSelectedGuideId] = useState(
+    apiHelpWorkflowGuides[0]?.id ?? "guide-data-fetch",
+  );
+  const activeGuide =
+    apiHelpWorkflowGuides.find((g) => g.id === selectedGuideId) ??
+    apiHelpWorkflowGuides[0];
+
+  // API Catalog section filter
+  const [catalogCategory, setCatalogCategory] = useState<"queries" | "mutations" | "rest">("queries");
+
+  // Sub-tab selection within catalog categories
+  const [selectedQueryId, setSelectedQueryId] = useState(
+    apiHelpGraphqlQueryExamples[0]?.id ?? "",
+  );
+  const [selectedMutationId, setSelectedMutationId] = useState(
+    apiHelpGraphqlMutationExamples[0]?.id ?? "",
+  );
+  const [selectedRestId, setSelectedRestId] = useState(
+    apiHelpRestApiExamples[0]?.id ?? "",
+  );
+
+  const activeQuery =
+    apiHelpGraphqlQueryExamples.find((q) => q.id === selectedQueryId) ??
+    apiHelpGraphqlQueryExamples[0];
+
+  const activeMutation =
+    apiHelpGraphqlMutationExamples.find((m) => m.id === selectedMutationId) ??
+    apiHelpGraphqlMutationExamples[0];
+
+  const activeRest =
+    apiHelpRestApiExamples.find((r) => r.id === selectedRestId) ??
+    apiHelpRestApiExamples[0];
 
   const sectionById = useMemo(
     () => new Map(apiHelpSections.map((section) => [section.id, section])),
@@ -466,32 +479,62 @@ export function ApiHelp() {
   );
 
   const quickStartSections = [
+    sectionById.get("overview"),
     sectionById.get("token"),
     sectionById.get("auth"),
-    sectionById.get("graphql-schema"),
   ].filter((section): section is ApiHelpSection => Boolean(section));
 
-  const querySection = sectionById.get("graphql-query");
-  const mutationSection = sectionById.get("graphql-mutate");
-  const restSection = sectionById.get("rest-import");
-
-  const referenceSections = apiHelpSections.filter((section) =>
-    ["errors", "security"].includes(section.id),
-  );
+  const referenceSections = [
+    sectionById.get("graphql-schema"),
+    sectionById.get("errors"),
+    sectionById.get("security"),
+  ].filter((section): section is ApiHelpSection => Boolean(section));
 
   return (
     <CoreShellPage
-      description="API reference for personal Bearer tokens, GraphQL queries, and import workflows. Each tab explains the purpose of an endpoint, when to use it, what inputs it expects, and shows a copy-ready example."
+      description="Interactive developer guides and complete API reference for Money, Loans, and Investment workspaces. Authenticate with Bearer tokens or browser sessions."
     >
+      {/* Anchor Navigation Bar */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted mr-1">
+          Jump to:
+        </span>
+        <a
+          href="#help-quick-start"
+          className="rounded-[var(--radius-sm)] border border-border bg-muted-surface px-2.5 py-1 text-xs font-medium text-foreground hover:bg-card transition-colors"
+        >
+          Quick Start
+        </a>
+        <a
+          href="#help-workflow-guides"
+          className="rounded-[var(--radius-sm)] border border-border bg-muted-surface px-2.5 py-1 text-xs font-medium text-foreground hover:bg-card transition-colors"
+        >
+          Practical Guides
+        </a>
+        <a
+          href="#help-api-catalog"
+          className="rounded-[var(--radius-sm)] border border-border bg-muted-surface px-2.5 py-1 text-xs font-medium text-foreground hover:bg-card transition-colors"
+        >
+          API Catalog
+        </a>
+        <a
+          href="#help-reference"
+          className="rounded-[var(--radius-sm)] border border-border bg-muted-surface px-2.5 py-1 text-xs font-medium text-foreground hover:bg-card transition-colors"
+        >
+          Schema & Security
+        </a>
+      </div>
+
+      {/* 1. Quick Start Section */}
       <SettingsSection
         id="help-quick-start"
-        title="Quick start"
-        description="Create a token, send it on every request, then choose the query you need."
+        title="Quick Start"
+        description="Authenticate every request with a workspace Bearer token or browser session."
       >
         <div
           className="grid gap-4"
           style={{
-            gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(17rem, 1fr))",
           }}
         >
           {quickStartSections.map((section) => (
@@ -504,67 +547,141 @@ export function ApiHelp() {
         </div>
       </SettingsSection>
 
-      {querySection ? (
-        <SettingsSection
-          id={`help-${querySection.id}`}
-          title="Query reference"
-          description="Choose a query tab, review its purpose and inputs, then copy the example usage."
-        >
-          <HelpTabbedCatalog
-            name="help-queries"
-            items={querySection.graphqlQueries ?? []}
-            getLabel={(example) => example.tabLabel ?? example.field}
-            renderPanel={(example) => (
-              <HelpGraphqlExample example={example} baseUrl={resolvedBase} />
-            )}
-          />
-        </SettingsSection>
-      ) : null}
+      {/* 2. Step-by-Step Practical Guides */}
+      <SettingsSection
+        id="help-workflow-guides"
+        title="Practical Workflow Guides"
+        description="Follow step-by-step developer walkthroughs for querying reference data, adding transactions, managing loans, and recording investment activities."
+      >
+        <Tabs
+          name="workflow-guides-tabs"
+          items={apiHelpWorkflowGuides.map((guide) => ({
+            id: guide.id,
+            label: guide.shortTitle,
+          }))}
+          value={activeGuide?.id ?? ""}
+          onChange={setSelectedGuideId}
+        />
 
-      {mutationSection ? (
-        <SettingsSection
-          id={`help-${mutationSection.id}`}
-          title="Mutation reference"
-          description="Choose a mutation tab to see whether it works with API tokens or only browser sessions, then copy the example payload."
-        >
-          <HelpTabbedCatalog
-            name="help-mutations"
-            items={mutationSection.graphqlMutations ?? []}
-            getLabel={(example) => example.tabLabel ?? example.field}
-            renderPanel={(example) => (
-              <HelpGraphqlExample example={example} baseUrl={resolvedBase} />
-            )}
-          />
-        </SettingsSection>
-      ) : null}
+        <div className="mt-5">
+          {activeGuide ? (
+            <HelpWorkflowGuideView
+              guide={activeGuide}
+              baseUrl={resolvedBase}
+            />
+          ) : null}
+        </div>
+      </SettingsSection>
 
-      {restSection ? (
-        <SettingsSection
-          id={`help-${restSection.id}`}
-          title="REST API reference"
-          description="Choose a REST endpoint tab to see its auth model, request shape, and example usage."
-        >
-          <HelpTabbedCatalog
-            name="help-rest"
-            items={restSection.restApis ?? []}
-            getLabel={(example) => example.tabLabel}
-            renderPanel={(example) => (
-              <HelpRestApiExample example={example} baseUrl={resolvedBase} />
-            )}
+      {/* 3. Categorized Full API Catalog */}
+      <SettingsSection
+        id="help-api-catalog"
+        title="API Reference Catalog"
+        description="Searchable reference of all GraphQL queries, mutations, and REST endpoints across Money, Loans, and Investment domains."
+      >
+        <div className="space-y-4">
+          <Tabs
+            name="catalog-category-tabs"
+            items={[
+              { id: "queries", label: "GraphQL Queries" },
+              { id: "mutations", label: "GraphQL Mutations" },
+              { id: "rest", label: "REST Endpoints" },
+            ]}
+            value={catalogCategory}
+            onChange={(val) => setCatalogCategory(val as "queries" | "mutations" | "rest")}
           />
-        </SettingsSection>
-      ) : null}
 
-      {referenceSections.map((section) => (
-        <SettingsSection
-          key={section.id}
-          id={`help-${section.id}`}
-          title={section.title}
-          description={section.description}
+          {catalogCategory === "queries" ? (
+            <div className="space-y-4">
+              <Tabs
+                name="catalog-query-items"
+                items={apiHelpGraphqlQueryExamples.map((q) => ({
+                  id: q.id,
+                  label: q.tabLabel ?? q.field,
+                }))}
+                value={activeQuery?.id ?? ""}
+                onChange={setSelectedQueryId}
+              />
+              {activeQuery ? (
+                <HelpGraphqlExample example={activeQuery} baseUrl={resolvedBase} />
+              ) : null}
+            </div>
+          ) : null}
+
+          {catalogCategory === "mutations" ? (
+            <div className="space-y-4">
+              <Tabs
+                name="catalog-mutation-items"
+                items={apiHelpGraphqlMutationExamples.map((m) => ({
+                  id: m.id,
+                  label: m.tabLabel ?? m.field,
+                }))}
+                value={activeMutation?.id ?? ""}
+                onChange={setSelectedMutationId}
+              />
+              {activeMutation ? (
+                <HelpGraphqlExample example={activeMutation} baseUrl={resolvedBase} />
+              ) : null}
+            </div>
+          ) : null}
+
+          {catalogCategory === "rest" ? (
+            <div className="space-y-4">
+              <Tabs
+                name="catalog-rest-items"
+                items={apiHelpRestApiExamples.map((r) => ({
+                  id: r.id,
+                  label: r.tabLabel,
+                }))}
+                value={activeRest?.id ?? ""}
+                onChange={setSelectedRestId}
+              />
+              {activeRest ? (
+                <HelpRestApiExample example={activeRest} baseUrl={resolvedBase} />
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </SettingsSection>
+
+      {/* 4. Utilities, Errors & Security */}
+      <SettingsSection
+        id="help-reference"
+        title="Schema, Error Envelopes & Security"
+        description="Export tooling, HTTP error codes, and security requirements."
+      >
+        <div
+          className="grid gap-4"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(18rem, 1fr))",
+          }}
         >
-          <HelpSectionBody section={section} baseUrl={resolvedBase} />
-        </SettingsSection>
-      ))}
+          {referenceSections.map((section) => (
+            <Card key={section.id} className="p-4.5">
+              <h3 className="font-display text-sm font-semibold text-foreground">
+                {section.title}
+              </h3>
+              <p className="mt-1.5 text-xs leading-5 text-muted">{section.description}</p>
+
+              {section.bullets?.length ? (
+                <ul className="mt-3 list-disc space-y-1 pl-4 text-xs leading-5 text-muted">
+                  {section.bullets.map((bullet) => (
+                    <li key={bullet}>{bullet}</li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {section.codeSamples?.map((sample) => (
+                <HelpCodeBlock key={sample.id} sample={sample} baseUrl={baseUrlWithFallback(resolvedBase)} />
+              ))}
+            </Card>
+          ))}
+        </div>
+      </SettingsSection>
     </CoreShellPage>
   );
+}
+
+function baseUrlWithFallback(base: string) {
+  return base || API_HELP_BASE_URL_PLACEHOLDER;
 }

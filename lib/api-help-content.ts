@@ -2,6 +2,7 @@ export type ApiHelpSectionId =
   | "overview"
   | "token"
   | "auth"
+  | "guides"
   | "graphql-query"
   | "graphql-mutate"
   | "graphql-schema"
@@ -40,6 +41,7 @@ export type ApiHelpGraphqlQueryExample = {
   /** Root query field, e.g. moneyAccounts */
   field: string;
   tabLabel?: string;
+  category?: "money" | "loans" | "investments";
   operationKind: "query" | "mutation";
   summary: string;
   purpose: string;
@@ -55,6 +57,7 @@ export type ApiHelpGraphqlQueryExample = {
 export type ApiHelpRestExample = {
   id: string;
   tabLabel: string;
+  category?: "money" | "loans" | "investments" | "tokens" | "workspace";
   method: string;
   path: string;
   auth: string;
@@ -66,6 +69,27 @@ export type ApiHelpRestExample = {
   usageNotes?: string[];
   badges?: ApiHelpBadge[];
   codeSample: ApiHelpCodeSample;
+};
+
+export type ApiHelpWorkflowStep = {
+  stepNumber: number;
+  title: string;
+  summary: string;
+  explanation: string;
+  codeSamples: ApiHelpCodeSample[];
+  keyNotes?: string[];
+};
+
+export type ApiHelpWorkflowGuide = {
+  id: string;
+  title: string;
+  shortTitle: string;
+  badge: string;
+  badgeTone?: "default" | "accent" | "muted";
+  description: string;
+  prerequisites: string[];
+  steps: ApiHelpWorkflowStep[];
+  rulesAndGotchas: { term: string; explanation: string }[];
 };
 
 export type ApiHelpSection = {
@@ -125,10 +149,858 @@ export function buildSessionFetchExample(
   return lines.join("\n");
 }
 
+export function buildBearerFetchExample(
+  path: string,
+  opts?: { method?: string; body?: Record<string, unknown> },
+): string {
+  const method = opts?.method ?? "GET";
+  const lines = [
+    `const res = await fetch("${API_HELP_BASE_URL_PLACEHOLDER}${path}", {`,
+    `  method: "${method}",`,
+    `  headers: {`,
+    `    "Authorization": "Bearer mny_YOUR_TOKEN",`,
+    `    "Content-Type": "application/json",`,
+    `  },`,
+  ];
+  if (opts?.body) {
+    lines.push(`  body: JSON.stringify(${JSON.stringify(opts.body, null, 2)}),`);
+  }
+  lines.push("});");
+  lines.push("const json = await res.json();");
+  lines.push("console.log(json);");
+  return lines.join("\n");
+}
+
+/* -------------------------------------------------------------------------- */
+/* STEP-BY-STEP WORKFLOW GUIDES                                               */
+/* -------------------------------------------------------------------------- */
+
+export const apiHelpDataFetchGuide: ApiHelpWorkflowGuide = {
+  id: "guide-data-fetch",
+  title: "Querying Accounts, Categories, Merchants & Transactions",
+  shortTitle: "Query Data",
+  badge: "Read Reference",
+  badgeTone: "accent",
+  description:
+    "How to load reference data in a single request or inspect specific accounts, categories, merchants, and paginated transactions with date filters.",
+  prerequisites: [
+    "API Token with read scope (or write).",
+    "Endpoint: POST /api/graphql with Authorization: Bearer mny_YOUR_TOKEN.",
+  ],
+  steps: [
+    {
+      stepNumber: 1,
+      title: "Bootstrap Workspace Reference in One Request",
+      summary: "Fetch active workspace metadata, accounts, categories, merchants, and tags together.",
+      explanation:
+        "Instead of issuing multiple queries, call `moneyBootstrap` on startup. This returns everything needed to populate dropdowns, form pickers, and currency formatting rules.",
+      codeSamples: [
+        {
+          id: "fetch-step1-curl",
+          label: "cURL (One-shot bootstrap)",
+          language: "bash",
+          body: buildGraphqlCurlExample(`query {
+  moneyBootstrap {
+    workspaceId
+    defaultCurrency
+    needsCurrencySetup
+    workspaces { id name kind isDefault }
+    accounts
+    categories
+    tags
+  }
+}`),
+        },
+        {
+          id: "fetch-step1-js",
+          label: "JavaScript Fetch",
+          language: "javascript",
+          body: `const res = await fetch("${API_HELP_BASE_URL_PLACEHOLDER}/api/graphql", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer mny_YOUR_TOKEN",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    query: \`query {
+      moneyBootstrap {
+        workspaceId
+        defaultCurrency
+        accounts
+        categories
+        tags
+      }
+    }\`
+  }),
+});
+const { data } = await res.json();
+console.log("Accounts:", data.moneyBootstrap.accounts);`,
+        },
+      ],
+      keyNotes: [
+        "Returns accounts, categories, and tags as JSON arrays.",
+        "Response is cached on the server for 60 seconds unless invalidated by a mutation.",
+      ],
+    },
+    {
+      stepNumber: 2,
+      title: "Query Specific Lists (Accounts, Categories, Merchants)",
+      summary: "Fetch dedicated lists when you only need a specific domain model.",
+      explanation:
+        "When you only need a single slice of reference data (such as updating an account balance picker or checking merchant normalization), use individual root queries.",
+      codeSamples: [
+        {
+          id: "fetch-step2-accounts-curl",
+          label: "cURL (Accounts, Categories & Merchants)",
+          language: "bash",
+          body: buildGraphqlCurlExample(`query {
+  moneyAccounts
+  moneyCategories
+  moneyMerchants
+}`),
+        },
+        {
+          id: "fetch-step2-response",
+          label: "Sample JSON Response Shape",
+          language: "json",
+          body: `{
+  "data": {
+    "moneyAccounts": [
+      { "id": "acc_001", "name": "Checking Account", "type": "checking", "balanceMinor": 125000 }
+    ],
+    "moneyCategories": [
+      { "id": "cat_001", "name": "Food & Dining", "kind": "expense", "parentId": null }
+    ],
+    "moneyMerchants": [
+      { "id": "mer_001", "name": "Supermarket", "normalizedName": "supermarket" }
+    ]
+  }
+}`,
+        },
+      ],
+      keyNotes: [
+        "`moneyAccounts`: Includes `id`, `name`, `type`, `balanceMinor`, `institution`, and `archived`.",
+        "`moneyCategories`: Includes `id`, `name`, `kind` (`expense` or `income`), and `parentId` for subcategories.",
+      ],
+    },
+    {
+      stepNumber: 3,
+      title: "Query & Filter Paginated Transactions",
+      summary: "Query transactions with ISO datetime ranges, account/category filters, and pagination.",
+      explanation:
+        "Use `moneyTransactions(query: $query)` to retrieve rows with sorting and pagination. The `query.from` and `query.to` dates must be ISO-8601 strings with timezone offsets.",
+      codeSamples: [
+        {
+          id: "fetch-step3-tx-curl",
+          label: "cURL (Filtered Transaction Query)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `query($query: JSONObject!) {
+  moneyTransactions(query: $query) {
+    data
+    total
+    page
+    pageSize
+    nextCursor
+  }
+}`,
+            {
+              query: {
+                from: "2025-01-01T00:00:00.000Z",
+                to: "2025-01-31T23:59:59.999Z",
+                page: 1,
+                pageSize: 25,
+                sort: "occurredAt",
+                dir: "desc",
+                accountIds: ["00000000-0000-0000-0000-000000000101"],
+                kinds: ["expense", "income"],
+              },
+            },
+          ),
+        },
+        {
+          id: "fetch-step3-variables",
+          label: "GraphQL Variables Format",
+          language: "json",
+          body: `{
+  "query": {
+    "from": "2025-01-01T00:00:00.000Z",
+    "to": "2025-01-31T23:59:59.999Z",
+    "page": 1,
+    "pageSize": 50,
+    "sort": "occurredAt",
+    "dir": "desc",
+    "kinds": ["expense"]
+  }
+}`,
+        },
+      ],
+      keyNotes: [
+        "Filter keys available: `from`, `to`, `accountIds`, `categoryIds`, `merchantIds`, `tagIds`, `kinds`, `recurrence`.",
+        "Sort keys: `occurredAt`, `amountMinor`, `createdAt`. Direction is `asc` or `desc`.",
+      ],
+    },
+    {
+      stepNumber: 4,
+      title: "Fetch Single Transaction by ID",
+      summary: "Look up a transaction detail record by its UUID.",
+      explanation:
+        "Pass a transaction UUID to `moneyTransaction(id: $id)` to get complete details, including linked category, merchant, tags, and recurrence template links.",
+      codeSamples: [
+        {
+          id: "fetch-step4-single-curl",
+          label: "cURL (Single Transaction Lookup)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `query($id: ID!) {
+  moneyTransaction(id: $id)
+}`,
+            { id: "00000000-0000-0000-0000-000000000801" },
+          ),
+        },
+      ],
+      keyNotes: [
+        "Returns null if the transaction does not exist or belongs to another workspace.",
+      ],
+    },
+  ],
+  rulesAndGotchas: [
+    {
+      term: "ISO-8601 Timestamps",
+      explanation:
+        "Always pass full ISO timestamps with timezone offsets (e.g. `2025-01-15T12:00:00.000Z` or `+07:00`).",
+    },
+    {
+      term: "Minor Currency Units",
+      explanation:
+        "All monetary balances and transaction amounts (`balanceMinor`, `amountMinor`) are stored as integers representing the smallest currency unit ($10.50 = 1050).",
+    },
+  ],
+};
+
+export const apiHelpTransactionGuide: ApiHelpWorkflowGuide = {
+  id: "guide-add-transactions",
+  title: "Adding Transactions via API",
+  shortTitle: "Add Transactions",
+  badge: "GraphQL & REST",
+  badgeTone: "accent",
+  description:
+    "Complete developer walkthrough for recording expenses, income, inter-account transfers, recurring schedules, and direct JSON bulk imports.",
+  prerequisites: [
+    "API Token with write scope (`mny_...`).",
+    "Valid `accountId` (retrieved from `moneyAccounts` or `moneyBootstrap`).",
+    "Optional `categoryId` and `merchantId`.",
+  ],
+  steps: [
+    {
+      stepNumber: 1,
+      title: "Discover Target Account & Category IDs",
+      summary: "Run a quick query to obtain the UUIDs required for your mutation.",
+      explanation:
+        "Every transaction belongs to an account and optionally a category. Query `moneyAccounts` and `moneyCategories` to obtain valid IDs before creating transactions.",
+      codeSamples: [
+        {
+          id: "tx-step1-curl",
+          label: "cURL (Get IDs)",
+          language: "bash",
+          body: buildGraphqlCurlExample(`query {
+  moneyAccounts
+  moneyCategories
+}`),
+        },
+      ],
+      keyNotes: [
+        "Save the `id` from the account record you wish to debit or credit.",
+      ],
+    },
+    {
+      stepNumber: 2,
+      title: "Create Single Expense or Income Transaction",
+      summary: "Post a regular spending or income event with notes and tags.",
+      explanation:
+        "Use `moneyTransactionCreate`. Specify `accountId`, `amountMinor` (positive integer), `kind` (`expense` or `income`), `occurredAt`, and optional `categoryId`, `merchantId`, and `notes`.",
+      codeSamples: [
+        {
+          id: "tx-step2-expense-curl",
+          label: "cURL (Create Expense)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `mutation($input: MoneyTransactionCreateInput!) {
+  moneyTransactionCreate(input: $input)
+}`,
+            {
+              input: {
+                accountId: "00000000-0000-0000-0000-000000000101",
+                kind: "expense",
+                amountMinor: 2599,
+                occurredAt: "2025-01-15T14:30:00.000Z",
+                categoryId: "00000000-0000-0000-0000-000000000201",
+                notes: "Team lunch",
+                tagNames: ["Work", "Meals"],
+              },
+            },
+          ),
+        },
+        {
+          id: "tx-step2-income-curl",
+          label: "cURL (Create Income)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `mutation($input: MoneyTransactionCreateInput!) {
+  moneyTransactionCreate(input: $input)
+}`,
+            {
+              input: {
+                accountId: "00000000-0000-0000-0000-000000000101",
+                kind: "income",
+                amountMinor: 350000,
+                occurredAt: "2025-01-31T09:00:00.000Z",
+                notes: "Consulting paycheck",
+              },
+            },
+          ),
+        },
+      ],
+      keyNotes: [
+        "`amountMinor: 2599` represents $25.99 (or €25.99).",
+        "`tagNames`: Will automatically find or create matching workspace tags.",
+      ],
+    },
+    {
+      stepNumber: 3,
+      title: "Create Inter-Account Transfer (Paired Legs)",
+      summary: "Move money between two accounts in the same workspace.",
+      explanation:
+        "Set `kind: \"transfer\"`, specify the source `accountId` and destination `toAccountId`. The backend automatically creates paired out-leg and in-leg records.",
+      codeSamples: [
+        {
+          id: "tx-step3-transfer-curl",
+          label: "cURL (Account Transfer)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `mutation($input: MoneyTransactionCreateInput!) {
+  moneyTransactionCreate(input: $input)
+}`,
+            {
+              input: {
+                accountId: "00000000-0000-0000-0000-000000000101",
+                toAccountId: "00000000-0000-0000-0000-000000000102",
+                kind: "transfer",
+                amountMinor: 100000,
+                occurredAt: "2025-01-20T10:00:00.000Z",
+                notes: "Transfer checking to savings",
+              },
+            },
+          ),
+        },
+      ],
+      keyNotes: [
+        "`toAccountId` must be different from `accountId` and reside in the same workspace.",
+        "Categories and merchants are ignored on transfer transactions.",
+      ],
+    },
+    {
+      stepNumber: 4,
+      title: "Create Recurring Transaction (Post First + Schedule)",
+      summary: "Record the initial transaction and generate a recurring template for future cron runs.",
+      explanation:
+        "Include the `recurrence` object with `cadence` (`daily`, `weekly`, `biweekly`, `monthly`, `quarterly`, `yearly`). This posts the first transaction immediately and saves a schedule template.",
+      codeSamples: [
+        {
+          id: "tx-step4-recurring-curl",
+          label: "cURL (Recurring Transaction)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `mutation($input: MoneyTransactionCreateInput!) {
+  moneyTransactionCreate(input: $input)
+}`,
+            {
+              input: {
+                accountId: "00000000-0000-0000-0000-000000000101",
+                kind: "expense",
+                amountMinor: 120000,
+                occurredAt: "2025-02-01T00:00:00.000Z",
+                categoryId: "00000000-0000-0000-0000-000000000201",
+                notes: "Office rent",
+                recurrence: {
+                  cadence: "monthly",
+                  name: "Monthly Office Rent",
+                },
+              },
+            },
+          ),
+        },
+      ],
+      keyNotes: [
+        "If you only want to save a schedule template without creating a transaction today, use `moneyRecurrenceCreate` instead.",
+      ],
+    },
+    {
+      stepNumber: 5,
+      title: "Bulk Direct Import via REST Endpoint",
+      summary: "Import multiple validated transaction records directly via REST.",
+      explanation:
+        "For bulk scripts and data migrations, call `POST /api/money/import/transactions` with a JSON payload of rows. This bypasses the CSV preview step and writes records immediately.",
+      codeSamples: [
+        {
+          id: "tx-step5-rest-curl",
+          label: "cURL (REST Direct Bulk Import)",
+          language: "bash",
+          body: `curl -sS -X POST "${API_HELP_BASE_URL_PLACEHOLDER}/api/money/import/transactions" \\
+  -H "Authorization: Bearer mny_YOUR_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "rows": [
+      {
+        "accountId": "00000000-0000-0000-0000-000000000101",
+        "kind": "expense",
+        "amountMinor": 1550,
+        "occurredAt": "2025-01-10T12:00:00.000Z",
+        "notes": "Coffee & snacks"
+      },
+      {
+        "accountId": "00000000-0000-0000-0000-000000000101",
+        "kind": "expense",
+        "amountMinor": 4200,
+        "occurredAt": "2025-01-11T18:00:00.000Z",
+        "notes": "Books"
+      }
+    ]
+  }'`,
+        },
+      ],
+      keyNotes: [
+        "Returns `{ data: { created: 2 } }` upon success.",
+        "Requires Bearer token with write scope.",
+      ],
+    },
+  ],
+  rulesAndGotchas: [
+    {
+      term: "Minor Integer Units",
+      explanation:
+        "Amounts are integers in minor units (cents). Never send decimal floats like 25.99 in `amountMinor`.",
+    },
+    {
+      term: "Write Scope Enforcement",
+      explanation:
+        "All mutation and import endpoints require the `write` scope. Read-only tokens receive HTTP 403 Forbidden.",
+    },
+  ],
+};
+
+export const apiHelpLoanGuide: ApiHelpWorkflowGuide = {
+  id: "guide-loans",
+  title: "Adding & Managing Loans via API",
+  shortTitle: "Loans & Payments",
+  badge: "Loans GraphQL",
+  badgeTone: "accent",
+  description:
+    "How to create amortized loans, query repayment schedules and due installments, and record payments with linked Money expense transactions.",
+  prerequisites: [
+    "API Token with write scope (`mny_...`).",
+    "Loan parameters: Principal amount, annual interest rate in basis points (bps), and term months.",
+    "Optional `moneyAccountId` and `moneyCategoryId` for automatic expense logging.",
+  ],
+  steps: [
+    {
+      stepNumber: 1,
+      title: "Create a Loan with Auto-Generated Amortization",
+      summary: "Define principal, interest rate, term, and payment schedule.",
+      explanation:
+        "Call `loanCreate`. The backend calculates monthly principal/interest splits, balance curves, and generates the full amortization installment schedule.",
+      codeSamples: [
+        {
+          id: "loan-step1-create-curl",
+          label: "cURL (Create Loan)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `mutation($input: LoanCreateInput!) {
+  loanCreate(input: $input) {
+    id
+  }
+}`,
+            {
+              input: {
+                name: "Car Loan",
+                principalMinor: 2500000,
+                annualRateBps: 850,
+                termMonths: 36,
+                startDate: "2025-01-01",
+                dueDayOfMonth: 15,
+                moneyAccountId: "00000000-0000-0000-0000-000000000101",
+                moneyCategoryId: "00000000-0000-0000-0000-000000000201",
+              },
+            },
+          ),
+        },
+        {
+          id: "loan-step1-create-js",
+          label: "JavaScript Fetch",
+          language: "javascript",
+          body: `const res = await fetch("${API_HELP_BASE_URL_PLACEHOLDER}/api/graphql", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer mny_YOUR_TOKEN",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    query: \`mutation($input: LoanCreateInput!) {
+      loanCreate(input: $input) { id }
+    }\`,
+    variables: {
+      input: {
+        name: "Home Mortgage",
+        principalMinor: 35000000,
+        annualRateBps: 675,
+        termMonths: 240,
+        startDate: "2025-01-01",
+        dueDayOfMonth: 1,
+      }
+    }
+  }),
+});
+const { data } = await res.json();
+console.log("Created Loan ID:", data.loanCreate.id);`,
+        },
+      ],
+      keyNotes: [
+        "`annualRateBps`: Interest rate in basis points. 850 = 8.50%, 675 = 6.75%.",
+        "`principalMinor`: $25,000.00 is represented as `2500000`.",
+        "`autoMarkPastDuePaid`: Optional boolean to automatically mark historical installments as paid.",
+      ],
+    },
+    {
+      stepNumber: 2,
+      title: "Query Repayment Schedule & Due Installments",
+      summary: "Inspect amortization breakdown or retrieve upcoming due items across all loans.",
+      explanation:
+        "Call `loansDueInstallments` to find installments due soon, or `loan(id: $id)` to retrieve the complete breakdown of every scheduled payment (principal, interest, balance remaining).",
+      codeSamples: [
+        {
+          id: "loan-step2-due-curl",
+          label: "cURL (List Due Installments)",
+          language: "bash",
+          body: buildGraphqlCurlExample(`query {
+  loansDueInstallments {
+    scheduleInstallmentId
+    loanId
+    loanName
+    installmentNumber
+    dueDate
+    paymentMinor
+    currency
+    moneyAccountId
+    moneyCategoryId
+  }
+}`),
+        },
+        {
+          id: "loan-step2-detail-curl",
+          label: "cURL (Loan Detail & Full Schedule)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `query($id: ID!) {
+  loan(id: $id) {
+    id
+    name
+    status
+    principalMinor
+    remainingMinor
+    percentComplete
+    summary {
+      totalPaidMinor
+      remainingMinor
+      monthsAheadBehind
+    }
+    installments {
+      scheduleInstallmentId
+      installmentNumber
+      dueDate
+      paymentMinor
+      principalMinor
+      interestMinor
+      balanceAfterMinor
+      status
+    }
+  }
+}`,
+            { id: "00000000-0000-0000-0000-000000000701" },
+          ),
+        },
+      ],
+      keyNotes: [
+        "Each installment has a unique `scheduleInstallmentId` used for recording payments.",
+      ],
+    },
+    {
+      stepNumber: 3,
+      title: "Pay Installment & Create Linked Money Transaction",
+      summary: "Mark installment paid and record the expense in Money atomically.",
+      explanation:
+        "Use `loanInstallmentPayWithTransaction`. It marks the schedule installment paid, records `paidAt`, and inserts a corresponding expense transaction into your Money account in a single database transaction.",
+      codeSamples: [
+        {
+          id: "loan-step3-pay-curl",
+          label: "cURL (Pay with Money Transaction)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `mutation($input: LoanInstallmentPayWithTransactionInput!) {
+  loanInstallmentPayWithTransaction(input: $input) {
+    ok
+    moneyTransactionId
+  }
+}`,
+            {
+              input: {
+                scheduleInstallmentId: "00000000-0000-0000-0000-000000000750",
+                accountId: "00000000-0000-0000-0000-000000000101",
+                categoryId: "00000000-0000-0000-0000-000000000201",
+                notes: "Car loan payment #1",
+                occurredAt: "2025-01-15T09:00:00.000Z",
+              },
+            },
+          ),
+        },
+      ],
+      keyNotes: [
+        "Returns the created `moneyTransactionId` linking both modules.",
+        "If you already logged the payment manually and only want to update loan status, call `loanInstallmentMarkPaid` instead.",
+      ],
+    },
+    {
+      stepNumber: 4,
+      title: "Cancel or Complete a Loan",
+      summary: "Cancel an active loan when paid off or terminated early.",
+      explanation:
+        "Call `loanCancel(id: $id)` to mark a loan as cancelled, removing future reminders and recalculating insights totals.",
+      codeSamples: [
+        {
+          id: "loan-step4-cancel-curl",
+          label: "cURL (Cancel Loan)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `mutation($id: ID!) {
+  loanCancel(id: $id) {
+    ok
+  }
+}`,
+            { id: "00000000-0000-0000-0000-000000000701" },
+          ),
+        },
+      ],
+      keyNotes: [
+        "Cancelled loans remain in history for audit/insights but no longer show upcoming due notices.",
+      ],
+    },
+  ],
+  rulesAndGotchas: [
+    {
+      term: "Basis Points (`annualRateBps`)",
+      explanation:
+        "100 bps = 1.00%. For an 8.5% interest rate, pass `850`. For 12.25%, pass `1225`.",
+    },
+    {
+      term: "BigInt Precision",
+      explanation:
+        "Loan balances and installments use `BigInt` under PostgreSQL to prevent precision loss across multi-year amortization schedules.",
+    },
+  ],
+};
+
+export const apiHelpInvestmentGuide: ApiHelpWorkflowGuide = {
+  id: "guide-investments",
+  title: "Adding Investment Activities via API",
+  shortTitle: "Investment Activities",
+  badge: "GraphQL & REST",
+  badgeTone: "accent",
+  description:
+    "How to register instruments, record buy/sell/dividend/cash-move activities, close positions, and sync with cash accounts via GraphQL and REST.",
+  prerequisites: [
+    "API Token with write scope (`mny_...`).",
+    "Instrument ID (or create one using `investmentInstrumentCreate`).",
+    "Linked cash `moneyAccountId` for settled balances.",
+  ],
+  steps: [
+    {
+      stepNumber: 1,
+      title: "Create or Query Financial Instruments",
+      summary: "Register stock, crypto, forex, or commodity instruments.",
+      explanation:
+        "Activities require a parent instrument. Call `investmentInstrumentCreate` to register a symbol and link it to a Money cash account and categories.",
+      codeSamples: [
+        {
+          id: "invest-step1-create-curl",
+          label: "cURL (Create Instrument)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `mutation($input: InvestmentInstrumentCreateInput!) {
+  investmentInstrumentCreate(input: $input) {
+    id
+    symbol
+    name
+    kind
+    currency
+  }
+}`,
+            {
+              input: {
+                symbol: "AAPL",
+                name: "Apple Inc.",
+                kind: "stock",
+                currency: "USD",
+                yahooSymbol: "AAPL",
+                moneyAccountId: "00000000-0000-0000-0000-000000000101",
+                incomeCategoryId: "00000000-0000-0000-0000-000000000201",
+                expenseCategoryId: "00000000-0000-0000-0000-000000000202",
+              },
+            },
+          ),
+        },
+      ],
+      keyNotes: [
+        "`kind`: `stock`, `crypto`, `forex`, `commodity`, or `fund`.",
+        "`moneyAccountId`: Settlement account for buys/sells/dividends.",
+      ],
+    },
+    {
+      stepNumber: 2,
+      title: "Log Activity via GraphQL (`BUY`, `SELL`, `DIVIDEND`)",
+      summary: "Record trade executions or dividend cash inflows.",
+      explanation:
+        "Call `investmentActivityCreate`. Quantities are passed as strings to preserve full fractional precision without floating-point errors.",
+      codeSamples: [
+        {
+          id: "invest-step2-buy-curl",
+          label: "cURL (Log BUY Activity)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `mutation($input: InvestmentActivityCreateInput!) {
+  investmentActivityCreate(input: $input) {
+    id
+    type
+    quantity
+    unitPriceMinor
+    amountMinor
+    activityDate
+  }
+}`,
+            {
+              input: {
+                instrumentId: "00000000-0000-0000-0000-000000000601",
+                activityDate: "2025-01-15T15:00:00.000Z",
+                type: "BUY",
+                quantity: "10.5",
+                unitPriceMinor: 17500,
+                amountMinor: 183750,
+                notes: "Purchased 10.5 shares @ $175.00",
+                moneyAccountId: "00000000-0000-0000-0000-000000000101",
+              },
+            },
+          ),
+        },
+      ],
+      keyNotes: [
+        "`type`: `BUY`, `SELL`, `DIVIDEND`, `DEPOSIT`, `WITHDRAWAL`.",
+        "`quantity`: Pass as string (e.g. `'0.054321'` or `'10'`).",
+      ],
+    },
+    {
+      stepNumber: 3,
+      title: "Log Activity via REST Endpoint",
+      summary: "Submit trades programmatically from automated bots or webhooks.",
+      explanation:
+        "If your workflow is an automated trading bot or webhook, hit `POST /api/investment/activities` directly with a JSON payload.",
+      codeSamples: [
+        {
+          id: "invest-step3-rest-curl",
+          label: "cURL (REST Activity Endpoint)",
+          language: "bash",
+          body: `curl -sS -X POST "${API_HELP_BASE_URL_PLACEHOLDER}/api/investment/activities" \\
+  -H "Authorization: Bearer mny_YOUR_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "instrumentId": "00000000-0000-0000-0000-000000000601",
+    "activityDate": "2025-01-20T10:00:00.000Z",
+    "type": "BUY",
+    "quantity": "5",
+    "unitPriceMinor": 22000,
+    "amountMinor": 110000,
+    "notes": "Bot automated limit order"
+  }'`,
+        },
+      ],
+      keyNotes: [
+        "Endpoint supports `GET /api/investment/activities` (filter by `instrumentId`, `from`, `to`, `limit`, `cursor`).",
+      ],
+    },
+    {
+      stepNumber: 4,
+      title: "Close or Realize Positions",
+      summary: "Close open lots and record realized profit & loss (P&L).",
+      explanation:
+        "Call `investmentActivityClose` or `investmentActivityRealize` with the exit price, fees, and optional FX conversion rate to settle the trade.",
+      codeSamples: [
+        {
+          id: "invest-step4-close-curl",
+          label: "cURL (Close Position)",
+          language: "bash",
+          body: buildGraphqlCurlExample(
+            `mutation($input: InvestmentActivityCloseInput!) {
+  investmentActivityClose(input: $input) {
+    id
+    status
+    closePrice
+  }
+}`,
+            {
+              input: {
+                id: "00000000-0000-0000-0000-000000000650",
+                closePrice: "195.50",
+                feeMinor: 200,
+                activityDate: "2025-02-01T16:00:00.000Z",
+              },
+            },
+          ),
+        },
+      ],
+      keyNotes: [
+        "Updates portfolio performance metrics and unrealized/realized P&L cards automatically.",
+      ],
+    },
+  ],
+  rulesAndGotchas: [
+    {
+      term: "Fractional Precision (String Quantities)",
+      explanation:
+        "Always pass quantities as string formatted decimals (e.g. `\"1.2345\"`) to prevent floating point inaccuracies.",
+    },
+    {
+      term: "Currency & FX Rates",
+      explanation:
+        "When purchasing instruments in foreign currencies (e.g. USD asset in EUR workspace), provide `fxRate` during settlement.",
+    },
+  ],
+};
+
+export const apiHelpWorkflowGuides: ApiHelpWorkflowGuide[] = [
+  apiHelpDataFetchGuide,
+  apiHelpTransactionGuide,
+  apiHelpLoanGuide,
+  apiHelpInvestmentGuide,
+];
+
+/* -------------------------------------------------------------------------- */
+/* GRAPHQL QUERIES CATALOG                                                    */
+/* -------------------------------------------------------------------------- */
+
 export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
+  // Money Queries
   {
     id: "query-moneyBootstrap",
     field: "moneyBootstrap",
+    category: "money",
+    tabLabel: "moneyBootstrap",
     operationKind: "query",
     summary:
       "Workspace bootstrap: active workspace, currency setup, workspace list, and reference data (accounts, categories, merchants, tags).",
@@ -150,71 +1022,15 @@ export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
     workspaces { id name kind isDefault }
     accounts
     categories
-    merchants
     tags
   }
 }`,
   },
   {
-    id: "query-moneyAnalytics",
-    field: "moneyAnalytics",
-    operationKind: "query",
-    summary:
-      "Analytics payload for an ISO datetime range and optional filters (accounts, categories, merchants, tags, transaction kinds). Returns JSONObject.",
-    purpose:
-      "Fetch aggregated analytics data for charts, totals, category breakdowns, and trend views.",
-    whenToUse:
-      "Use this for dashboards and reporting screens where you care about summarized numbers, not individual transactions.",
-    returns:
-      "A JSON analytics payload used by the Money analytics UI.",
-    inputNotes: [
-      "filters.from and filters.to must be ISO datetimes with timezone offsets.",
-      "accountIds, categoryIds, merchantIds, tagIds, kinds, recurrence, and recurrenceSourceIds are optional filters.",
-    ],
-    usageNotes: [
-      "Start with only from/to, then add optional filters as needed.",
-    ],
-    query: `query($filters: AnalyticsFiltersInput!) {
-  moneyAnalytics(filters: $filters)
-}`,
-    variables: {
-      filters: {
-        from: "2025-01-01T00:00:00.000Z",
-        to: "2025-12-31T23:59:59.999Z",
-      },
-    },
-  },
-  {
-    id: "query-moneyBudgets",
-    field: "moneyBudgets",
-    operationKind: "query",
-    summary:
-      "Budget rows for a period. Set includeSpent to include spent amounts in the response.",
-    purpose:
-      "Read configured budgets, optionally enriched with spent totals for a reporting period.",
-    whenToUse:
-      "Use this when you want budget configuration alone or a budget-vs-spend view for a date range.",
-    returns:
-      "A list of budget rows; with includeSpent enabled, rows also include spent and progress fields.",
-    inputNotes: [
-      "includeSpent controls whether spent totals are calculated.",
-      "from and to should be ISO datetimes when you want a bounded spend range.",
-    ],
-    usageNotes: [
-      "If you only need budget definitions, set includeSpent to false and omit from/to.",
-    ],
-    query: `query($includeSpent: Boolean!, $from: String!, $to: String!) {
-  moneyBudgets(includeSpent: $includeSpent, from: $from, to: $to)
-}`,
-    variables: {
-      includeSpent: true,
-      from: "2025-01-01T00:00:00.000Z",
-      to: "2025-12-31T23:59:59.999Z",
-    },
-  },
-  {
     id: "query-moneyTransactions",
     field: "moneyTransactions",
+    category: "money",
+    tabLabel: "moneyTransactions",
     operationKind: "query",
     summary:
       "Paginated transaction list. Pass filters and paging in the query JSONObject; from/to must be ISO datetimes with timezone offsets.",
@@ -252,101 +1068,10 @@ export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
     },
   },
   {
-    id: "query-moneyAccounts",
-    field: "moneyAccounts",
-    operationKind: "query",
-    summary: "All accounts in the token workspace (JSONObject array).",
-    purpose:
-      "List every account in the current workspace.",
-    whenToUse:
-      "Use this to populate account pickers, reconcile imports, or inspect balances and account metadata.",
-    returns:
-      "A JSON array of account records for the active workspace.",
-    usageNotes: [
-      "Prefer this over moneyBootstrap if you only need accounts and want a smaller response.",
-    ],
-    query: `query {
-  moneyAccounts
-}`,
-  },
-  {
-    id: "query-moneyCategories",
-    field: "moneyCategories",
-    operationKind: "query",
-    summary: "Category tree for the workspace (JSONObject array).",
-    purpose:
-      "List all categories in the current workspace, including hierarchy metadata.",
-    whenToUse:
-      "Use this for category filters, transaction editors, or category-management tools.",
-    returns:
-      "A JSON array of category records for the active workspace.",
-    query: `query {
-  moneyCategories
-}`,
-  },
-  {
-    id: "query-moneyMerchants",
-    field: "moneyMerchants",
-    operationKind: "query",
-    summary: "Merchants list (JSONObject array).",
-    purpose:
-      "List merchants available in the current workspace.",
-    whenToUse:
-      "Use this for merchant filters, rule builders, import mapping, or transaction edit forms.",
-    returns:
-      "A JSON array of merchant records.",
-    query: `query {
-  moneyMerchants
-}`,
-  },
-  {
-    id: "query-moneyTags",
-    field: "moneyTags",
-    operationKind: "query",
-    summary: "Tags list (JSONObject array).",
-    purpose:
-      "List tags defined in the current workspace.",
-    whenToUse:
-      "Use this for tag filters, transaction tagging, and reporting by tag.",
-    returns:
-      "A JSON array of tag records.",
-    query: `query {
-  moneyTags
-}`,
-  },
-  {
-    id: "query-moneyRules",
-    field: "moneyRules",
-    operationKind: "query",
-    summary: "Categorization rules (JSONObject array).",
-    purpose:
-      "Read the workspace's rule set for automatic categorization and tagging.",
-    whenToUse:
-      "Use this when building rule management screens or debugging how imported transactions get categorized.",
-    returns:
-      "A JSON array of rule records.",
-    query: `query {
-  moneyRules
-}`,
-  },
-  {
-    id: "query-moneyRecurrenceTemplates",
-    field: "moneyRecurrenceTemplates",
-    operationKind: "query",
-    summary: "Recurring transaction templates (JSONObject array).",
-    purpose:
-      "List recurrence templates used to generate scheduled transactions.",
-    whenToUse:
-      "Use this for recurring-payment settings, reminders, or schedule review screens.",
-    returns:
-      "A JSON array of recurrence template records.",
-    query: `query {
-  moneyRecurrenceTemplates
-}`,
-  },
-  {
     id: "query-moneyTransaction",
     field: "moneyTransaction",
+    category: "money",
+    tabLabel: "moneyTransaction(id)",
     operationKind: "query",
     summary: "Single transaction by id (JSONObject or null).",
     purpose:
@@ -369,646 +1094,301 @@ export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
     },
   },
   {
-    id: "mutation-moneyParseCsv",
-    field: "moneyParseCsv",
-    operationKind: "mutation",
-    summary:
-      "Parse CSV text into headers and rows for import mapping (JSONObject). Requires write scope.",
+    id: "query-moneyAccounts",
+    field: "moneyAccounts",
+    category: "money",
+    tabLabel: "moneyAccounts",
+    operationKind: "query",
+    summary: "All accounts in the token workspace (JSONObject array).",
     purpose:
-      "Parse raw CSV text so you can inspect headers and rows before mapping or importing data.",
+      "List every account in the current workspace.",
     whenToUse:
-      "Use this in import tooling or when validating a CSV file before hitting the import endpoints.",
+      "Use this to populate account pickers, reconcile imports, or inspect balances and account metadata.",
     returns:
-      "A JSON object containing parsed headers, rows, and truncation metadata.",
-    inputNotes: [
-      "Pass the entire CSV document as a string.",
-    ],
+      "A JSON array of account records for the active workspace.",
     usageNotes: [
-      "This is useful for previewing CSV structure before using the REST import endpoints.",
-      "Requires workspace write scope (session or API token with write).",
+      "Prefer this over moneyBootstrap if you only need accounts and want a smaller response.",
     ],
-    query: `mutation($csv: String!) {
-  moneyParseCsv(csv: $csv)
+    query: `query {
+  moneyAccounts
+}`,
+  },
+  {
+    id: "query-moneyCategories",
+    field: "moneyCategories",
+    category: "money",
+    tabLabel: "moneyCategories",
+    operationKind: "query",
+    summary: "Category tree for the workspace (JSONObject array).",
+    purpose:
+      "List all categories in the current workspace, including hierarchy metadata.",
+    whenToUse:
+      "Use this for category filters, transaction editors, or category-management tools.",
+    returns:
+      "A JSON array of category records for the active workspace.",
+    query: `query {
+  moneyCategories
+}`,
+  },
+  {
+    id: "query-moneyMerchants",
+    field: "moneyMerchants",
+    category: "money",
+    tabLabel: "moneyMerchants",
+    operationKind: "query",
+    summary: "Merchants list (JSONObject array).",
+    purpose:
+      "List merchants available in the current workspace.",
+    whenToUse:
+      "Use this for merchant filters, rule builders, import mapping, or transaction edit forms.",
+    returns:
+      "A JSON array of merchant records.",
+    query: `query {
+  moneyMerchants
+}`,
+  },
+  {
+    id: "query-moneyTags",
+    field: "moneyTags",
+    category: "money",
+    tabLabel: "moneyTags",
+    operationKind: "query",
+    summary: "Tags list (JSONObject array).",
+    purpose:
+      "List tags defined in the current workspace.",
+    whenToUse:
+      "Use this for tag filters, transaction tagging, and reporting by tag.",
+    returns:
+      "A JSON array of tag records.",
+    query: `query {
+  moneyTags
+}`,
+  },
+  {
+    id: "query-moneyAnalytics",
+    field: "moneyAnalyticsSummary",
+    category: "money",
+    tabLabel: "moneyAnalyticsSummary",
+    operationKind: "query",
+    summary:
+      "Analytics summary payload for an ISO datetime range and optional filters.",
+    purpose:
+      "Fetch aggregated analytics totals, spend trends, and category distribution.",
+    whenToUse:
+      "Use this for dashboards and summary reporting.",
+    returns:
+      "A JSON analytics payload.",
+    query: `query($filters: AnalyticsFiltersInput!) {
+  moneyAnalyticsSummary(filters: $filters)
 }`,
     variables: {
-      csv: "name,type\nChecking,checking\nSavings,savings",
+      filters: {
+        from: "2025-01-01T00:00:00.000Z",
+        to: "2025-12-31T23:59:59.999Z",
+      },
+    },
+  },
+
+  // Loans Queries
+  {
+    id: "query-loansBootstrap",
+    field: "loansBootstrap",
+    category: "loans",
+    tabLabel: "loansBootstrap",
+    operationKind: "query",
+    summary: "Bootstrap Loans workspace, default currency, and overdue payment count.",
+    purpose: "Initialize loans dashboard and notification badges.",
+    whenToUse: "Call on app boot or before listing loans.",
+    returns: "LoansBootstrapPayload object.",
+    query: `query {
+  loansBootstrap {
+    workspaceId
+    defaultCurrency
+    dueCount
+    workspaces { id name isDefault }
+  }
+}`,
+  },
+  {
+    id: "query-loans",
+    field: "loans",
+    category: "loans",
+    tabLabel: "loans",
+    operationKind: "query",
+    summary: "List all active and completed loans in the current workspace.",
+    purpose: "Fetch loan summary rows with remaining balances, next due dates, and progress percentages.",
+    whenToUse: "Use for loan list pages, debt overview widgets, or audit exports.",
+    returns: "Array of LoanListItem objects.",
+    query: `query {
+  loans {
+    id
+    name
+    currency
+    principalMinor
+    annualRateBps
+    termMonths
+    status
+    percentComplete
+    remainingMinor
+    nextDueDate
+  }
+}`,
+  },
+  {
+    id: "query-loan",
+    field: "loan",
+    category: "loans",
+    tabLabel: "loan(id)",
+    operationKind: "query",
+    summary: "Detailed loan view with full amortization installment schedule and summary stats.",
+    purpose: "Retrieve complete breakdown of every scheduled payment, interest split, and payoff projection.",
+    whenToUse: "Use for loan detail screens, schedule verification, or payment tracking.",
+    returns: "LoanDetail object with installments and chart points.",
+    query: `query($id: ID!) {
+  loan(id: $id) {
+    id
+    name
+    status
+    principalMinor
+    remainingMinor
+    percentComplete
+    summary {
+      totalPaidMinor
+      remainingMinor
+      monthsAheadBehind
+      projectedPayoffDate
+    }
+    installments {
+      scheduleInstallmentId
+      installmentNumber
+      dueDate
+      paymentMinor
+      principalMinor
+      interestMinor
+      balanceAfterMinor
+      status
+      paidAt
+    }
+  }
+}`,
+    variables: {
+      id: "00000000-0000-0000-0000-000000000701",
+    },
+  },
+  {
+    id: "query-loansDueInstallments",
+    field: "loansDueInstallments",
+    category: "loans",
+    tabLabel: "loansDueInstallments",
+    operationKind: "query",
+    summary: "List all due and overdue loan installments across the workspace.",
+    purpose: "Provide actionable reminders for upcoming payments that require settlement.",
+    whenToUse: "Use for payment notification feeds, reminder banners, or automated billing queues.",
+    returns: "Array of LoanDueInstallment objects.",
+    query: `query {
+  loansDueInstallments {
+    scheduleInstallmentId
+    loanId
+    loanName
+    installmentNumber
+    dueDate
+    paymentMinor
+    currency
+    moneyAccountId
+    moneyCategoryId
+  }
+}`,
+  },
+
+  // Investments Queries
+  {
+    id: "query-investmentBootstrap",
+    field: "investmentBootstrap",
+    category: "investments",
+    tabLabel: "investmentBootstrap",
+    operationKind: "query",
+    summary: "Initialize investment workspace state and active instrument count.",
+    purpose: "Load workspace currency and instrument summary.",
+    whenToUse: "Use on investment app initialization.",
+    returns: "InvestmentBootstrapPayload.",
+    query: `query {
+  investmentBootstrap {
+    workspaceId
+    defaultCurrency
+    instrumentCount
+  }
+}`,
+  },
+  {
+    id: "query-investmentInstruments",
+    field: "investmentInstruments",
+    category: "investments",
+    tabLabel: "investmentInstruments",
+    operationKind: "query",
+    summary: "List registered financial instruments (stocks, crypto, commodities, forex).",
+    purpose: "Retrieve instrument symbols, linked cash accounts, and categories.",
+    whenToUse: "Use to populate instrument selectors or portfolio asset lists.",
+    returns: "Array of InvestmentInstrument objects.",
+    query: `query {
+  investmentInstruments {
+    id
+    symbol
+    name
+    kind
+    currency
+    yahooSymbol
+    moneyAccountId
+    archived
+  }
+}`,
+  },
+  {
+    id: "query-investmentActivities",
+    field: "investmentActivities",
+    category: "investments",
+    tabLabel: "investmentActivities",
+    operationKind: "query",
+    summary: "Query paginated investment activities with date and instrument filters.",
+    purpose: "Retrieve trading activity log, buy/sell executions, and dividend history.",
+    whenToUse: "Use for trade ledgers, activity histories, and performance audits.",
+    returns: "InvestmentActivitiesConnection object with items and nextCursor.",
+    query: `query($query: InvestmentActivitiesQueryInput) {
+  investmentActivities(query: $query) {
+    items {
+      id
+      instrumentSymbol
+      instrumentName
+      type
+      quantity
+      unitPriceMinor
+      amountMinor
+      activityDate
+      status
+    }
+    nextCursor
+  }
+}`,
+    variables: {
+      query: {
+        from: "2025-01-01",
+        to: "2025-12-31",
+        limit: 50,
+      },
     },
   },
 ];
 
+/* -------------------------------------------------------------------------- */
+/* GRAPHQL MUTATIONS CATALOG                                                  */
+/* -------------------------------------------------------------------------- */
+
 export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
-  {
-    id: "mutation-moneySetActiveWorkspace",
-    field: "moneySetActiveWorkspace",
-    tabLabel: "Set active workspace",
-    operationKind: "mutation",
-    summary: "Switch the active Money workspace for the current browser session.",
-    purpose:
-      "Update the active workspace selection and refresh the workspace cookie used by the web app.",
-    whenToUse:
-      "Use this when a signed-in user changes workspaces in the UI.",
-    returns: "Boolean true on success.",
-    inputNotes: [
-      "Requires a browser session. API tokens are blocked for this mutation.",
-      "workspaceId must be a workspace the current user can access.",
-    ],
-    usageNotes: [
-      "This is mainly for first-party UI flows, not automation scripts.",
-    ],
-    badges: [{ label: "Session only", tone: "muted" }],
-    query: `mutation($workspaceId: ID!) {
-  moneySetActiveWorkspace(workspaceId: $workspaceId, app: "money")
-}`,
-    variables: {
-      workspaceId: "00000000-0000-0000-0000-000000000010",
-    },
-  },
-  {
-    id: "mutation-moneyWorkspaceCurrency",
-    field: "moneyWorkspaceCurrency",
-    tabLabel: "Set workspace currency",
-    operationKind: "mutation",
-    summary: "Set the default currency for a workspace.",
-    purpose:
-      "Configure or update the workspace default currency used across Money views.",
-    whenToUse:
-      "Use this during workspace setup or when an admin changes the workspace currency.",
-    returns: "The patched workspaceId and defaultCurrency.",
-    inputNotes: [
-      "Requires write scope and access to the target workspace.",
-      "defaultCurrency should be an ISO currency code such as USD or EUR.",
-    ],
-    query: `mutation($workspaceId: ID!, $defaultCurrency: String!) {
-  moneyWorkspaceCurrency(
-    workspaceId: $workspaceId
-    defaultCurrency: $defaultCurrency
-  ) {
-    workspaceId
-    defaultCurrency
-  }
-}`,
-    variables: {
-      workspaceId: "00000000-0000-0000-0000-000000000010",
-      defaultCurrency: "USD",
-    },
-  },
-  {
-    id: "mutation-moneyWorkspaceClone",
-    field: "moneyWorkspaceClone",
-    tabLabel: "Clone workspace",
-    operationKind: "mutation",
-    summary: "Clone the current Money workspace into another workspace target.",
-    purpose:
-      "Copy the current workspace's Money data into a different target workspace.",
-    whenToUse:
-      "Use this for setup templates, staging copies, or safe experimentation in a separate workspace.",
-    returns: "{ ok: true } on success.",
-    inputNotes: [
-      "Requires a browser session and write scope.",
-      "The current workspace comes from auth context; targetWorkspaceId is the destination.",
-    ],
-    badges: [{ label: "Session only", tone: "muted" }],
-    query: `mutation($targetWorkspaceId: ID!) {
-  moneyWorkspaceClone(targetWorkspaceId: $targetWorkspaceId) {
-    ok
-  }
-}`,
-    variables: {
-      targetWorkspaceId: "00000000-0000-0000-0000-000000000011",
-    },
-  },
-  {
-    id: "mutation-moneyWorkspaceReset",
-    field: "moneyWorkspaceReset",
-    tabLabel: "Reset workspace",
-    operationKind: "mutation",
-    summary: "Delete or reset Money data for the current workspace.",
-    purpose:
-      "Clear the current workspace back to an empty Money state.",
-    whenToUse:
-      "Use this only for destructive maintenance, onboarding resets, or test workspaces.",
-    returns: "{ ok: true } on success.",
-    inputNotes: [
-      "Requires a browser session and write scope.",
-      "This is destructive for the current Money workspace.",
-    ],
-    usageNotes: [
-      "Avoid using this in automation unless you are intentionally wiping a workspace.",
-    ],
-    badges: [{ label: "Session only", tone: "destructive" }],
-    query: `mutation {
-  moneyWorkspaceReset {
-    ok
-  }
-}`,
-  },
-  {
-    id: "mutation-moneyAccountCreate",
-    field: "moneyAccountCreate",
-    tabLabel: "Account create",
-    operationKind: "mutation",
-    summary: "Create a new account in the active workspace.",
-    purpose:
-      "Add a trackable account such as checking, savings, credit, or cash.",
-    whenToUse:
-      "Use this before importing transactions or when onboarding a new financial account.",
-    returns: "The created account record as JSON.",
-    inputNotes: [
-      "name is required.",
-      "type can be checking, savings, cash, credit, loan, investment, or other.",
-    ],
-    query: `mutation($input: MoneyAccountCreateInput!) {
-  moneyAccountCreate(input: $input)
-}`,
-    variables: {
-      input: {
-        name: "Savings",
-        type: "savings",
-      },
-    },
-  },
-  {
-    id: "mutation-moneyAccountUpdate",
-    field: "moneyAccountUpdate",
-    tabLabel: "Account update",
-    operationKind: "mutation",
-    summary: "Update an existing account.",
-    purpose:
-      "Change account metadata such as name, type, balance, institution, or archive state.",
-    whenToUse:
-      "Use this after an account already exists and you need to edit its details.",
-    returns: "The updated account record as JSON.",
-    inputNotes: [
-      "id must be an existing account UUID in the current workspace.",
-    ],
-    query: `mutation($id: ID!, $input: MoneyAccountUpdateInput!) {
-  moneyAccountUpdate(id: $id, input: $input)
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000101",
-      input: {
-        institution: "Local Bank",
-      },
-    },
-  },
-  {
-    id: "mutation-moneyAccountArchive",
-    field: "moneyAccountArchive",
-    tabLabel: "Account archive",
-    operationKind: "mutation",
-    summary: "Archive an account so it no longer appears as active.",
-    purpose:
-      "Hide unused accounts without fully deleting related history.",
-    whenToUse:
-      "Use this for closed or deprecated accounts you want to keep for reporting.",
-    returns: "{ ok: true } when the archive succeeds.",
-    inputNotes: [
-      "id must be an existing account UUID in the current workspace.",
-    ],
-    query: `mutation($id: ID!) {
-  moneyAccountArchive(id: $id) {
-    ok
-  }
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000101",
-    },
-  },
-  {
-    id: "mutation-moneyCategoryCreate",
-    field: "moneyCategoryCreate",
-    tabLabel: "Category create",
-    operationKind: "mutation",
-    summary: "Create a category for income or expense classification.",
-    purpose:
-      "Add a category so transactions and rules can classify money movement.",
-    whenToUse:
-      "Use this during workspace setup or when adding a new spending or income bucket.",
-    returns: "The created category record as JSON.",
-    inputNotes: [
-      "name and kind are required.",
-      "kind must be expense or income.",
-    ],
-    query: `mutation($input: MoneyCategoryCreateInput!) {
-  moneyCategoryCreate(input: $input)
-}`,
-    variables: {
-      input: {
-        name: "Groceries",
-        kind: "expense",
-      },
-    },
-  },
-  {
-    id: "mutation-moneyCategoryUpdate",
-    field: "moneyCategoryUpdate",
-    tabLabel: "Category update",
-    operationKind: "mutation",
-    summary: "Update an existing category.",
-    purpose:
-      "Rename or reorganize a category after it has already been created.",
-    whenToUse:
-      "Use this when changing display names or moving categories within the tree.",
-    returns: "The updated category record as JSON.",
-    inputNotes: [
-      "id must be an existing category UUID in the current workspace.",
-    ],
-    query: `mutation($id: ID!, $input: MoneyCategoryUpdateInput!) {
-  moneyCategoryUpdate(id: $id, input: $input)
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000201",
-      input: {
-        name: "Dining out",
-      },
-    },
-  },
-  {
-    id: "mutation-moneyCategoryArchive",
-    field: "moneyCategoryArchive",
-    tabLabel: "Category archive",
-    operationKind: "mutation",
-    summary: "Archive a category while keeping old transaction history.",
-    purpose:
-      "Retire a category from future use without deleting historical references.",
-    whenToUse:
-      "Use this when a category is no longer active but you still want prior reports intact.",
-    returns: "{ ok: true } when the archive succeeds.",
-    query: `mutation($id: ID!) {
-  moneyCategoryArchive(id: $id) {
-    ok
-  }
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000201",
-    },
-  },
-  {
-    id: "mutation-moneyMerchantCreate",
-    field: "moneyMerchantCreate",
-    tabLabel: "Merchant create",
-    operationKind: "mutation",
-    summary: "Create a merchant entry.",
-    purpose:
-      "Add a merchant that transactions and rules can reference.",
-    whenToUse:
-      "Use this when normalizing imported merchant names or preparing rule inputs.",
-    returns: "The created merchant record as JSON.",
-    query: `mutation($input: MoneyMerchantCreateInput!) {
-  moneyMerchantCreate(input: $input)
-}`,
-    variables: {
-      input: {
-        name: "Whole Foods",
-      },
-    },
-  },
-  {
-    id: "mutation-moneyMerchantUpdate",
-    field: "moneyMerchantUpdate",
-    tabLabel: "Merchant update",
-    operationKind: "mutation",
-    summary: "Update a merchant entry.",
-    purpose:
-      "Rename or normalize an existing merchant.",
-    whenToUse:
-      "Use this when cleaning up import results or improving merchant matching.",
-    returns: "The updated merchant record as JSON.",
-    query: `mutation($id: ID!, $input: MoneyMerchantUpdateInput!) {
-  moneyMerchantUpdate(id: $id, input: $input)
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000301",
-      input: {
-        normalizedName: "whole foods",
-      },
-    },
-  },
-  {
-    id: "mutation-moneyMerchantDelete",
-    field: "moneyMerchantDelete",
-    tabLabel: "Merchant delete",
-    operationKind: "mutation",
-    summary: "Delete a merchant entry.",
-    purpose:
-      "Remove an unused merchant record from the workspace.",
-    whenToUse:
-      "Use this when a merchant was created by mistake and is safe to remove.",
-    returns: "{ ok: true } when deletion succeeds.",
-    query: `mutation($id: ID!) {
-  moneyMerchantDelete(id: $id) {
-    ok
-  }
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000301",
-    },
-  },
-  {
-    id: "mutation-moneyTagCreate",
-    field: "moneyTagCreate",
-    tabLabel: "Tag create",
-    operationKind: "mutation",
-    summary: "Create a tag for ad hoc labeling.",
-    purpose:
-      "Add a reusable tag for filtering, grouping, or rule actions.",
-    whenToUse:
-      "Use this when categories are not enough and you need an extra labeling dimension.",
-    returns: "The created tag record as JSON.",
-    query: `mutation($input: MoneyTagCreateInput!) {
-  moneyTagCreate(input: $input)
-}`,
-    variables: {
-      input: {
-        name: "Travel",
-        color: "#0d9488",
-      },
-    },
-  },
-  {
-    id: "mutation-moneyTagUpdate",
-    field: "moneyTagUpdate",
-    tabLabel: "Tag update",
-    operationKind: "mutation",
-    summary: "Update an existing tag.",
-    purpose:
-      "Rename or recolor a tag after it has been created.",
-    whenToUse:
-      "Use this when refining your tagging taxonomy.",
-    returns: "The updated tag record as JSON.",
-    query: `mutation($id: ID!, $input: MoneyTagUpdateInput!) {
-  moneyTagUpdate(id: $id, input: $input)
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000401",
-      input: {
-        color: "#40a02b",
-      },
-    },
-  },
-  {
-    id: "mutation-moneyTagDelete",
-    field: "moneyTagDelete",
-    tabLabel: "Tag delete",
-    operationKind: "mutation",
-    summary: "Delete an existing tag.",
-    purpose:
-      "Remove a tag that is no longer needed.",
-    whenToUse:
-      "Use this when cleaning up unused tags in a workspace.",
-    returns: "{ ok: true } when deletion succeeds.",
-    query: `mutation($id: ID!) {
-  moneyTagDelete(id: $id) {
-    ok
-  }
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000401",
-    },
-  },
-  {
-    id: "mutation-moneyBudgetCreate",
-    field: "moneyBudgetCreate",
-    tabLabel: "Budget create",
-    operationKind: "mutation",
-    summary: "Create a budget for a workspace, category, account, or tag.",
-    purpose:
-      "Set a spending limit so reporting can compare planned vs actual spend.",
-    whenToUse:
-      "Use this when configuring monthly budgets or scoped budget limits.",
-    returns: "The created budget record as JSON.",
-    inputNotes: [
-      "scopeType can be workspace, category, account, or tag.",
-      "limitAmountMinor uses minor currency units (for USD, 5000 means $50.00).",
-    ],
-    query: `mutation($input: MoneyBudgetCreateInput!) {
-  moneyBudgetCreate(input: $input)
-}`,
-    variables: {
-      input: {
-        scopeType: "workspace",
-        limitAmountMinor: 50000,
-      },
-    },
-  },
-  {
-    id: "mutation-moneyBudgetUpdate",
-    field: "moneyBudgetUpdate",
-    tabLabel: "Budget update",
-    operationKind: "mutation",
-    summary: "Update a budget limit or scope.",
-    purpose:
-      "Adjust a budget as spending plans change.",
-    whenToUse:
-      "Use this when revising a budget limit or target scope.",
-    returns: "The updated budget record as JSON.",
-    query: `mutation($id: ID!, $input: MoneyBudgetUpdateInput!) {
-  moneyBudgetUpdate(id: $id, input: $input)
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000501",
-      input: {
-        limitAmountMinor: 60000,
-      },
-    },
-  },
-  {
-    id: "mutation-moneyBudgetDelete",
-    field: "moneyBudgetDelete",
-    tabLabel: "Budget delete",
-    operationKind: "mutation",
-    summary: "Delete a budget entry.",
-    purpose:
-      "Remove a budget definition that is no longer needed.",
-    whenToUse:
-      "Use this when simplifying budgeting rules or removing obsolete limits.",
-    returns: "{ ok: true } when deletion succeeds.",
-    query: `mutation($id: ID!) {
-  moneyBudgetDelete(id: $id) {
-    ok
-  }
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000501",
-    },
-  },
-  {
-    id: "mutation-moneyRuleCreate",
-    field: "moneyRuleCreate",
-    tabLabel: "Rule create",
-    operationKind: "mutation",
-    summary: "Create an automation rule for categorization or tagging.",
-    purpose:
-      "Define automatic matching logic so imported or created transactions can be enriched consistently.",
-    whenToUse:
-      "Use this when you want merchants or accounts to auto-assign categories or tags.",
-    returns: "The created rule record as JSON.",
-    inputNotes: [
-      "match must include at least accountId or merchantId.",
-      "action can set a category and/or tag ids.",
-    ],
-    query: `mutation($input: MoneyRuleCreateInput!) {
-  moneyRuleCreate(input: $input)
-}`,
-    variables: {
-      input: {
-        name: "Groceries rule",
-        kind: "expense",
-        match: {
-          merchantId: "00000000-0000-0000-0000-000000000301",
-        },
-        action: {
-          setCategoryId: "00000000-0000-0000-0000-000000000201",
-        },
-      },
-    },
-  },
-  {
-    id: "mutation-moneyRuleUpdate",
-    field: "moneyRuleUpdate",
-    tabLabel: "Rule update",
-    operationKind: "mutation",
-    summary: "Update an existing automation rule.",
-    purpose:
-      "Refine a matching rule as your data or taxonomy evolves.",
-    whenToUse:
-      "Use this when rule priority, match criteria, or actions need to change.",
-    returns: "The updated rule record as JSON.",
-    query: `mutation($id: ID!, $input: MoneyRuleUpdateInput!) {
-  moneyRuleUpdate(id: $id, input: $input)
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000601",
-      input: {
-        active: false,
-      },
-    },
-  },
-  {
-    id: "mutation-moneyRuleDelete",
-    field: "moneyRuleDelete",
-    tabLabel: "Rule delete",
-    operationKind: "mutation",
-    summary: "Delete an automation rule.",
-    purpose:
-      "Remove a rule that is no longer valid or useful.",
-    whenToUse:
-      "Use this when cleaning up or replacing automatic matching behavior.",
-    returns: "{ ok: true } when deletion succeeds.",
-    query: `mutation($id: ID!) {
-  moneyRuleDelete(id: $id) {
-    ok
-  }
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000601",
-    },
-  },
-  {
-    id: "mutation-moneyRecurrenceCreate",
-    field: "moneyRecurrenceCreate",
-    tabLabel: "Recurrence template create",
-    operationKind: "mutation",
-    summary:
-      "Create a recurrence template only (no transaction is posted immediately).",
-    purpose:
-      "Define a scheduled template that future cron or moneyRecurrenceGenerate runs can materialize.",
-    whenToUse:
-      "Use this when you want a schedule without posting the first entry yet, or when importing templates in bulk.",
-    returns: "The created recurrence template as JSON.",
-    inputNotes: [
-      "nextRunAt must be an ISO datetime with timezone offset.",
-      "template.accountId, template.kind, and template.amountMinor are required.",
-      "cadence accepts daily, weekly, biweekly, monthly, quarterly, or yearly (every_5_minutes in development only).",
-      "template.categoryId, template.merchantId, template.notes, and template.tagIds are optional.",
-    ],
-    usageNotes: [
-      "To post the first transaction and create the schedule in one call, use moneyTransactionCreate with a recurrence object instead.",
-    ],
-    query: `mutation($input: MoneyRecurrenceCreateInput!) {
-  moneyRecurrenceCreate(input: $input)
-}`,
-    variables: {
-      input: {
-        name: "Monthly rent",
-        cadence: "monthly",
-        nextRunAt: "2025-03-01T00:00:00.000Z",
-        template: {
-          accountId: "00000000-0000-0000-0000-000000000101",
-          kind: "expense",
-          amountMinor: 120000,
-          categoryId: "00000000-0000-0000-0000-000000000201",
-          notes: "Apartment rent",
-        },
-      },
-    },
-  },
-  {
-    id: "mutation-moneyRecurrenceUpdate",
-    field: "moneyRecurrenceUpdate",
-    tabLabel: "Recurrence update",
-    operationKind: "mutation",
-    summary: "Update a recurring transaction template.",
-    purpose:
-      "Adjust cadence, next run date, or template details for an existing recurrence.",
-    whenToUse:
-      "Use this when a subscription amount changes or a schedule shifts.",
-    returns: "The updated recurrence template as JSON.",
-    query: `mutation($id: ID!, $input: MoneyRecurrenceUpdateInput!) {
-  moneyRecurrenceUpdate(id: $id, input: $input)
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000701",
-      input: {
-        active: false,
-      },
-    },
-  },
-  {
-    id: "mutation-moneyRecurrenceDelete",
-    field: "moneyRecurrenceDelete",
-    tabLabel: "Recurrence delete",
-    operationKind: "mutation",
-    summary: "Delete a recurrence template.",
-    purpose:
-      "Remove a recurring schedule that is no longer needed.",
-    whenToUse:
-      "Use this when a repeating payment has ended or a template was created in error.",
-    returns: "{ ok: true } when deletion succeeds.",
-    query: `mutation($id: ID!) {
-  moneyRecurrenceDelete(id: $id) {
-    ok
-  }
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000701",
-    },
-  },
-  {
-    id: "mutation-moneyRecurrenceGenerate",
-    field: "moneyRecurrenceGenerate",
-    tabLabel: "Recurrence generate",
-    operationKind: "mutation",
-    summary: "Generate the next occurrence from a recurrence template.",
-    purpose:
-      "Create a transaction immediately from a saved recurrence template.",
-    whenToUse:
-      "Use this in scheduler flows or manual catch-up workflows.",
-    returns: "The generated transaction and the nextRunAt timestamp.",
-    query: `mutation($id: ID!) {
-  moneyRecurrenceGenerate(id: $id) {
-    transaction
-    nextRunAt
-  }
-}`,
-    variables: {
-      id: "00000000-0000-0000-0000-000000000701",
-    },
-  },
+  // Money Mutations
   {
     id: "mutation-moneyTransactionCreate-expense",
     field: "moneyTransactionCreate",
-    tabLabel: "Transaction create (expense)",
+    category: "money",
+    tabLabel: "Transaction (expense)",
     operationKind: "mutation",
     summary: "Create an expense transaction in the active workspace.",
     purpose:
@@ -1031,14 +1411,15 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
         kind: "expense",
         amountMinor: 2599,
         occurredAt: "2025-01-15T12:00:00.000Z",
-        notes: "Coffee",
+        notes: "Coffee & breakfast",
       },
     },
   },
   {
     id: "mutation-moneyTransactionCreate-income",
     field: "moneyTransactionCreate",
-    tabLabel: "Transaction create (income)",
+    category: "money",
+    tabLabel: "Transaction (income)",
     operationKind: "mutation",
     summary: "Create an income transaction in the active workspace.",
     purpose:
@@ -1061,14 +1442,15 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
         kind: "income",
         amountMinor: 350000,
         occurredAt: "2025-01-31T09:00:00.000Z",
-        notes: "Paycheck",
+        notes: "Monthly Paycheck",
       },
     },
   },
   {
     id: "mutation-moneyTransactionCreate-transfer",
     field: "moneyTransactionCreate",
-    tabLabel: "Transaction create (transfer)",
+    category: "money",
+    tabLabel: "Transaction (transfer)",
     operationKind: "mutation",
     summary:
       "Move money between two accounts in the active workspace (paired out/in legs).",
@@ -1083,11 +1465,6 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
       "toAccountId must be a different account in the same workspace.",
       "Set kind to transfer.",
       "amountMinor is the amount moved (positive integer in minor units).",
-      "occurredAt should be an ISO datetime with timezone offset when provided.",
-      "Transfers do not use categoryId or merchantId; recurrence is not supported.",
-    ],
-    usageNotes: [
-      "Call moneyAccounts first to obtain valid accountId and toAccountId values.",
     ],
     query: `mutation($input: MoneyTransactionCreateInput!) {
   moneyTransactionCreate(input: $input)
@@ -1106,29 +1483,17 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
   {
     id: "mutation-moneyTransactionCreate-recurring",
     field: "moneyTransactionCreate",
-    tabLabel: "Transaction create (recurring)",
+    category: "money",
+    tabLabel: "Transaction (recurring)",
     operationKind: "mutation",
     summary:
       "Create a transaction and attach a recurrence schedule in one request.",
     purpose:
       "Post the first entry immediately and save a template for future scheduled runs.",
     whenToUse:
-      "Use this for rent, salary, subscriptions, or other repeating expenses and income — the same flow as Add recurring transaction in the web app.",
+      "Use this for rent, salary, subscriptions, or other repeating expenses and income.",
     returns:
-      "The created transaction as JSON, linked to a new recurrence template via recurrenceSourceId.",
-    inputNotes: [
-      "accountId and amountMinor are required.",
-      "recurrence.cadence is required when recurrence is set; use daily, monthly, or yearly (every_5_minutes in development only).",
-      "recurrence.name is optional; when omitted, notes or a default label is used.",
-      "occurredAt should be an ISO datetime with timezone offset; it becomes the first posted entry and the anchor for the next run.",
-      "categoryId, merchantId, tagIds, and tagNames are optional on the transaction.",
-      "Recurrence is not supported on transfers.",
-    ],
-    usageNotes: [
-      "Call moneyAccounts (and moneyCategories if needed) first to obtain valid ids.",
-      "Use moneyRecurrenceCreate instead when you only need a template without posting the first transaction.",
-      "Future entries are generated by the scheduled job (POST /api/cron/money-recurrence) or moneyRecurrenceGenerate.",
-    ],
+      "The created transaction as JSON, linked to a new recurrence template.",
     query: `mutation($input: MoneyTransactionCreateInput!) {
   moneyTransactionCreate(input: $input)
 }`,
@@ -1150,6 +1515,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
   {
     id: "mutation-moneyTransactionUpdate",
     field: "moneyTransactionUpdate",
+    category: "money",
     tabLabel: "Transaction update",
     operationKind: "mutation",
     summary: "Update an existing transaction.",
@@ -1171,6 +1537,7 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
   {
     id: "mutation-moneyTransactionDelete",
     field: "moneyTransactionDelete",
+    category: "money",
     tabLabel: "Transaction delete",
     operationKind: "mutation",
     summary: "Delete a transaction.",
@@ -1188,35 +1555,338 @@ export const apiHelpGraphqlMutationExamples: ApiHelpGraphqlQueryExample[] = [
       id: "00000000-0000-0000-0000-000000000801",
     },
   },
+  {
+    id: "mutation-moneyAccountCreate",
+    field: "moneyAccountCreate",
+    category: "money",
+    tabLabel: "Account create",
+    operationKind: "mutation",
+    summary: "Create a new account in the active workspace.",
+    purpose:
+      "Add a trackable account such as checking, savings, credit, or cash.",
+    whenToUse:
+      "Use this before importing transactions or when onboarding a new financial account.",
+    returns: "The created account record as JSON.",
+    query: `mutation($input: MoneyAccountCreateInput!) {
+  moneyAccountCreate(input: $input)
+}`,
+    variables: {
+      input: {
+        name: "Emergency Fund",
+        type: "savings",
+        balanceMinor: 500000,
+      },
+    },
+  },
+  {
+    id: "mutation-moneyCategoryCreate",
+    field: "moneyCategoryCreate",
+    category: "money",
+    tabLabel: "Category create",
+    operationKind: "mutation",
+    summary: "Create a category for income or expense classification.",
+    purpose:
+      "Add a category so transactions and rules can classify money movement.",
+    whenToUse:
+      "Use this during workspace setup or when adding a new spending or income bucket.",
+    returns: "The created category record as JSON.",
+    query: `mutation($input: MoneyCategoryCreateInput!) {
+  moneyCategoryCreate(input: $input)
+}`,
+    variables: {
+      input: {
+        name: "Groceries",
+        kind: "expense",
+      },
+    },
+  },
+
+  // Loans Mutations
+  {
+    id: "mutation-loanCreate",
+    field: "loanCreate",
+    category: "loans",
+    tabLabel: "loanCreate",
+    operationKind: "mutation",
+    summary: "Create an amortized loan and compute schedule installments.",
+    purpose: "Register a loan with principal, annualRateBps, termMonths, and payment due day.",
+    whenToUse: "Use when taking on a new mortgage, car loan, or personal loan.",
+    returns: "LoanCreateResult with created loan ID.",
+    query: `mutation($input: LoanCreateInput!) {
+  loanCreate(input: $input) {
+    id
+  }
+}`,
+    variables: {
+      input: {
+        name: "Auto Loan",
+        principalMinor: 2000000,
+        annualRateBps: 799,
+        termMonths: 48,
+        startDate: "2025-01-01",
+        dueDayOfMonth: 15,
+      },
+    },
+  },
+  {
+    id: "mutation-loanInstallmentPayWithTransaction",
+    field: "loanInstallmentPayWithTransaction",
+    category: "loans",
+    tabLabel: "loanInstallmentPayWithTransaction",
+    operationKind: "mutation",
+    summary: "Mark loan installment paid and record a Money expense transaction atomically.",
+    purpose: "Record loan repayment and debit account balance in one atomic database operation.",
+    whenToUse: "Use when paying loan installments from your cash or checking account.",
+    returns: "LoanPayWithTransactionResult with created moneyTransactionId.",
+    query: `mutation($input: LoanInstallmentPayWithTransactionInput!) {
+  loanInstallmentPayWithTransaction(input: $input) {
+    ok
+    moneyTransactionId
+  }
+}`,
+    variables: {
+      input: {
+        scheduleInstallmentId: "00000000-0000-0000-0000-000000000750",
+        accountId: "00000000-0000-0000-0000-000000000101",
+        notes: "Monthly auto payment",
+      },
+    },
+  },
+  {
+    id: "mutation-loanInstallmentMarkPaid",
+    field: "loanInstallmentMarkPaid",
+    category: "loans",
+    tabLabel: "loanInstallmentMarkPaid",
+    operationKind: "mutation",
+    summary: "Mark loan installment paid without creating a Money transaction.",
+    purpose: "Update repayment schedule status when payment was logged elsewhere or paid externally.",
+    whenToUse: "Use for historical catch-up or standalone loan tracking.",
+    returns: "LoansOk object.",
+    query: `mutation($input: LoanInstallmentMarkPaidInput!) {
+  loanInstallmentMarkPaid(input: $input) {
+    ok
+  }
+}`,
+    variables: {
+      input: {
+        scheduleInstallmentId: "00000000-0000-0000-0000-000000000750",
+      },
+    },
+  },
+  {
+    id: "mutation-loanCancel",
+    field: "loanCancel",
+    category: "loans",
+    tabLabel: "loanCancel",
+    operationKind: "mutation",
+    summary: "Cancel an active loan schedule.",
+    purpose: "Terminate loan reminders and early payoff calculations.",
+    whenToUse: "Use when refinancing, closing, or cancelling a loan.",
+    returns: "LoansOk object.",
+    query: `mutation($id: ID!) {
+  loanCancel(id: $id) {
+    ok
+  }
+}`,
+    variables: {
+      id: "00000000-0000-0000-0000-000000000701",
+    },
+  },
+
+  // Investment Mutations
+  {
+    id: "mutation-investmentInstrumentCreate",
+    field: "investmentInstrumentCreate",
+    category: "investments",
+    tabLabel: "instrumentCreate",
+    operationKind: "mutation",
+    summary: "Register a financial instrument (stock, crypto, commodity).",
+    purpose: "Setup target instrument ticker, currency, and settlement account.",
+    whenToUse: "Use before recording trades or importing brokerage activities.",
+    returns: "Created InvestmentInstrument object.",
+    query: `mutation($input: InvestmentInstrumentCreateInput!) {
+  investmentInstrumentCreate(input: $input) {
+    id
+    symbol
+    name
+    kind
+    currency
+  }
+}`,
+    variables: {
+      input: {
+        symbol: "MSFT",
+        name: "Microsoft Corp.",
+        kind: "stock",
+        currency: "USD",
+        moneyAccountId: "00000000-0000-0000-0000-000000000101",
+        incomeCategoryId: "00000000-0000-0000-0000-000000000201",
+        expenseCategoryId: "00000000-0000-0000-0000-000000000202",
+      },
+    },
+  },
+  {
+    id: "mutation-investmentActivityCreate",
+    field: "investmentActivityCreate",
+    category: "investments",
+    tabLabel: "activityCreate",
+    operationKind: "mutation",
+    summary: "Record trade execution (BUY, SELL, DIVIDEND, DEPOSIT).",
+    purpose: "Log buy/sell transactions and update portfolio holdings.",
+    whenToUse: "Use when executing trades or receiving dividend yields.",
+    returns: "InvestmentActivityRow object.",
+    query: `mutation($input: InvestmentActivityCreateInput!) {
+  investmentActivityCreate(input: $input) {
+    id
+    type
+    quantity
+    unitPriceMinor
+    amountMinor
+    activityDate
+  }
+}`,
+    variables: {
+      input: {
+        instrumentId: "00000000-0000-0000-0000-000000000601",
+        activityDate: "2025-01-20T14:30:00.000Z",
+        type: "BUY",
+        quantity: "25",
+        unitPriceMinor: 41500,
+        amountMinor: 1037500,
+        notes: "Long position entry",
+      },
+    },
+  },
+  {
+    id: "mutation-investmentActivityClose",
+    field: "investmentActivityClose",
+    category: "investments",
+    tabLabel: "activityClose",
+    operationKind: "mutation",
+    summary: "Close open trading activity and record final exit price and fee.",
+    purpose: "Realize gain/loss and update open lots count.",
+    whenToUse: "Use when taking profit or stopping out of an open trade.",
+    returns: "InvestmentActivityRow object.",
+    query: `mutation($input: InvestmentActivityCloseInput!) {
+  investmentActivityClose(input: $input) {
+    id
+    status
+    closePrice
+  }
+}`,
+    variables: {
+      input: {
+        id: "00000000-0000-0000-0000-000000000650",
+        closePrice: "430.00",
+        feeMinor: 150,
+      },
+    },
+  },
 ];
+
+/* -------------------------------------------------------------------------- */
+/* REST APIS CATALOG                                                          */
+/* -------------------------------------------------------------------------- */
 
 export const apiHelpRestApiExamples: ApiHelpRestExample[] = [
   {
-    id: "rest-workspace-list",
-    tabLabel: "Workspace list",
-    method: "GET",
-    path: "/api/workspace/list?app=money",
-    auth: "Session only",
-    summary: "List workspaces the signed-in user can access for the Money app.",
+    id: "rest-import-direct-transactions",
+    tabLabel: "Direct Transactions Import",
+    category: "money",
+    method: "POST",
+    path: "/api/money/import/transactions",
+    auth: "Bearer + write",
+    summary: "Create multiple transaction rows directly from a JSON payload.",
     purpose:
-      "Fetch available Money workspaces and identify the default one for the current user.",
+      "Direct bulk ingestion of validated transactions without CSV parsing or preview staging.",
     whenToUse:
-      "Use this in browser-based setup flows or workspace pickers that rely on the user's session.",
-    returns: "JSON data array of workspaces, with isDefault for the current app.",
+      "Use this for automation scripts, bank scraper integrations, or bulk migrations.",
+    returns: "JSON { data: { created: number } }",
     inputNotes: [
-      "This route currently requires a browser session.",
-      "Pass app=money in the query string.",
+      "Send { rows: Array<{ accountId, kind, amountMinor, occurredAt, notes, categoryId }> } in request body.",
     ],
     codeSample: {
-      id: "rest-workspace-list-sample",
-      label: "Browser session example",
-      language: "javascript",
-      body: buildSessionFetchExample("/api/workspace/list?app=money"),
+      id: "rest-import-direct-tx-sample",
+      label: "Direct transactions import cURL",
+      language: "bash",
+      body: `curl -sS -X POST "${API_HELP_BASE_URL_PLACEHOLDER}/api/money/import/transactions" \\
+  -H "Authorization: Bearer mny_YOUR_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "rows": [
+      {
+        "accountId": "00000000-0000-0000-0000-000000000101",
+        "kind": "expense",
+        "amountMinor": 2500,
+        "occurredAt": "2025-01-15T12:00:00.000Z",
+        "notes": "Office supplies"
+      }
+    ]
+  }'`,
+    },
+  },
+  {
+    id: "rest-investment-activities-post",
+    tabLabel: "Investment Activity (Create)",
+    category: "investments",
+    method: "POST",
+    path: "/api/investment/activities",
+    auth: "Bearer + write",
+    summary: "Create an investment activity record via REST.",
+    purpose:
+      "Submit trade orders, dividend receipts, or deposits from external automated bots or webhook scripts.",
+    whenToUse:
+      "Use when automating trade sync from external brokerages or algorithmic trading runners.",
+    returns: "JSON { data: InvestmentActivityRow }",
+    inputNotes: [
+      "Requires instrumentId, activityDate, type (BUY, SELL, etc.), and amountMinor or unitPriceMinor/quantity.",
+    ],
+    codeSample: {
+      id: "rest-invest-post-sample",
+      label: "Create activity cURL",
+      language: "bash",
+      body: `curl -sS -X POST "${API_HELP_BASE_URL_PLACEHOLDER}/api/investment/activities" \\
+  -H "Authorization: Bearer mny_YOUR_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "instrumentId": "00000000-0000-0000-0000-000000000601",
+    "activityDate": "2025-01-20T10:00:00.000Z",
+    "type": "BUY",
+    "quantity": "10",
+    "unitPriceMinor": 15000,
+    "amountMinor": 150000,
+    "notes": "Webhook trade execution"
+  }'`,
+    },
+  },
+  {
+    id: "rest-investment-activities-get",
+    tabLabel: "Investment Activities (List)",
+    category: "investments",
+    method: "GET",
+    path: "/api/investment/activities",
+    auth: "Bearer + read",
+    summary: "Query investment activities with query parameters.",
+    purpose:
+      "Retrieve a filtered list of trade activities via REST.",
+    whenToUse:
+      "Use for REST clients that need trade ledgers without sending GraphQL queries.",
+    returns: "JSON { data: { items: InvestmentActivityRow[], nextCursor?: string } }",
+    inputNotes: [
+      "Optional query params: instrumentId, kind, from, to, limit, cursor.",
+    ],
+    codeSample: {
+      id: "rest-invest-get-sample",
+      label: "List activities cURL",
+      language: "bash",
+      body: `curl -sS "${API_HELP_BASE_URL_PLACEHOLDER}/api/investment/activities?limit=20" \\
+  -H "Authorization: Bearer mny_YOUR_TOKEN"`,
     },
   },
   {
     id: "rest-import-preview",
-    tabLabel: "Import preview",
+    tabLabel: "CSV Import Preview",
+    category: "money",
     method: "POST",
     path: "/api/money/import/preview",
     auth: "Bearer + write",
@@ -1226,26 +1896,20 @@ export const apiHelpRestApiExamples: ApiHelpRestExample[] = [
     whenToUse:
       "Use this first in any CSV import workflow.",
     returns: "JSON preview payload with previewId, parsed rows, and validation feedback.",
-    inputNotes: [
-      "Request must be multipart/form-data.",
-      "Send type and file; columnMap is optional JSON.",
-    ],
-    usageNotes: [
-      "Use the returned previewId with commit or abandon.",
-    ],
     codeSample: {
       id: "rest-import-preview-sample",
       label: "Bearer token example",
       language: "bash",
       body: `curl -sS "${API_HELP_BASE_URL_PLACEHOLDER}/api/money/import/preview" \\
   -H "Authorization: Bearer mny_YOUR_TOKEN" \\
-  -F "type=accounts" \\
-  -F "file=@accounts.csv"`,
+  -F "type=transactions" \\
+  -F "file=@transactions.csv"`,
     },
   },
   {
     id: "rest-import-commit",
-    tabLabel: "Import commit",
+    tabLabel: "CSV Import Commit",
+    category: "money",
     method: "POST",
     path: "/api/money/import/commit",
     auth: "Bearer + write",
@@ -1254,11 +1918,7 @@ export const apiHelpRestApiExamples: ApiHelpRestExample[] = [
       "Persist imported data after preview validation is complete.",
     whenToUse:
       "Use this right after a successful preview when you are ready to create records.",
-    returns: "JSON { data: { imported } } with the number of imported rows.",
-    inputNotes: [
-      "Send either previewId or rows, not both.",
-      "type must match one of the supported import types.",
-    ],
+    returns: "JSON { data: { imported: number } }",
     codeSample: {
       id: "rest-import-commit-sample",
       label: "Commit by previewId",
@@ -1266,91 +1926,13 @@ export const apiHelpRestApiExamples: ApiHelpRestExample[] = [
       body: `curl -sS "${API_HELP_BASE_URL_PLACEHOLDER}/api/money/import/commit" \\
   -H "Authorization: Bearer mny_YOUR_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"type":"accounts","previewId":"00000000-0000-0000-0000-000000000901"}'`,
-    },
-  },
-  {
-    id: "rest-import-abandon",
-    tabLabel: "Import abandon",
-    method: "POST",
-    path: "/api/money/import/abandon",
-    auth: "Bearer + write",
-    summary: "Discard a stored import preview without committing it.",
-    purpose:
-      "Clean up preview state after a user cancels an import.",
-    whenToUse:
-      "Use this when a preview should be explicitly discarded.",
-    returns: "HTTP 204 with no response body.",
-    inputNotes: [
-      "Send previewId in JSON.",
-    ],
-    codeSample: {
-      id: "rest-import-abandon-sample",
-      label: "Discard preview",
-      language: "bash",
-      body: `curl -sS -X POST "${API_HELP_BASE_URL_PLACEHOLDER}/api/money/import/abandon" \\
-  -H "Authorization: Bearer mny_YOUR_TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{"previewId":"00000000-0000-0000-0000-000000000901"}'`,
-    },
-  },
-  {
-    id: "rest-import-direct",
-    tabLabel: "Direct import",
-    method: "POST",
-    path: "/api/money/import/{kind}",
-    auth: "Bearer + write",
-    summary: "Create records directly from a JSON rows array without using preview state.",
-    purpose:
-      "Import rows programmatically when you already have validated JSON data.",
-    whenToUse:
-      "Use this for automation or trusted pipelines that do not need the preview workflow.",
-    returns: "JSON { data: { created } } with the number of created records.",
-    inputNotes: [
-      "Replace {kind} with accounts, categories, budgets, transactions, rules, or recurrence.",
-      "Send { rows: unknown[] } in the request body.",
-    ],
-    codeSample: {
-      id: "rest-import-direct-sample",
-      label: "Direct accounts import",
-      language: "bash",
-      body: `curl -sS -X POST "${API_HELP_BASE_URL_PLACEHOLDER}/api/money/import/accounts" \\
-  -H "Authorization: Bearer mny_YOUR_TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{"rows":[{"name":"Checking","type":"checking"}]}'`,
-    },
-  },
-  {
-    id: "rest-import-direct-recurrence",
-    tabLabel: "Direct recurrence import",
-    method: "POST",
-    path: "/api/money/import/recurrence",
-    auth: "Bearer + write",
-    summary:
-      "Create recurrence templates from a JSON rows array (template-only; no first transaction is posted).",
-    purpose:
-      "Bulk-import recurring schedules when you already have validated JSON data.",
-    whenToUse:
-      "Use this for migrations or automation that need many templates without the preview workflow.",
-    returns: "JSON { data: { created } } with the number of created templates.",
-    inputNotes: [
-      "Each row needs name, cadence, nextRunAt, and template fields (accountId, kind, amountMinor).",
-      "Same shape as moneyRecurrenceCreate input; see the Recurrence template create mutation tab for field details.",
-      "To post the first transaction and schedule together, use the Transaction create (recurring) GraphQL mutation instead.",
-    ],
-    codeSample: {
-      id: "rest-import-direct-recurrence-sample",
-      label: "Direct recurrence import",
-      language: "bash",
-      body: `curl -sS -X POST "${API_HELP_BASE_URL_PLACEHOLDER}/api/money/import/recurrence" \\
-  -H "Authorization: Bearer mny_YOUR_TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{"rows":[{"name":"Monthly rent","cadence":"monthly","nextRunAt":"2025-03-01T00:00:00.000Z","template":{"accountId":"00000000-0000-0000-0000-000000000101","kind":"expense","amountMinor":120000,"notes":"Apartment rent"}}]}'`,
+  -d '{"type":"transactions","previewId":"00000000-0000-0000-0000-000000000901"}'`,
     },
   },
   {
     id: "rest-tokens-list",
-    tabLabel: "Tokens list",
+    tabLabel: "API Tokens (List)",
+    category: "tokens",
     method: "GET",
     path: "/api/tokens",
     auth: "Session only",
@@ -1360,9 +1942,6 @@ export const apiHelpRestApiExamples: ApiHelpRestExample[] = [
     whenToUse:
       "Use this in account settings or internal admin views tied to the user's browser session.",
     returns: "JSON { data: ApiTokenListItem[] }.",
-    inputNotes: [
-      "Requires a browser session; Bearer auth is not accepted.",
-    ],
     codeSample: {
       id: "rest-tokens-list-sample",
       label: "Browser session example",
@@ -1372,7 +1951,8 @@ export const apiHelpRestApiExamples: ApiHelpRestExample[] = [
   },
   {
     id: "rest-tokens-create",
-    tabLabel: "Tokens create",
+    tabLabel: "API Tokens (Create)",
+    category: "tokens",
     method: "POST",
     path: "/api/tokens",
     auth: "Session only",
@@ -1382,13 +1962,6 @@ export const apiHelpRestApiExamples: ApiHelpRestExample[] = [
     whenToUse:
       "Use this when preparing automation, scripts, or Postman collections.",
     returns: "JSON with the one-time token secret and token metadata.",
-    inputNotes: [
-      "name and workspaceId are required.",
-      "scopes must include read; expiresAt is optional ISO datetime.",
-    ],
-    usageNotes: [
-      "Store the returned token securely. You cannot read the secret again later.",
-    ],
     codeSample: {
       id: "rest-tokens-create-sample",
       label: "Browser session example",
@@ -1396,55 +1969,30 @@ export const apiHelpRestApiExamples: ApiHelpRestExample[] = [
       body: buildSessionFetchExample("/api/tokens", {
         method: "POST",
         body: {
-          name: "nightly backup",
+          name: "Automation runner",
           workspaceId: "00000000-0000-0000-0000-000000000010",
           scopes: ["read", "write"],
         },
       }),
     },
   },
-  {
-    id: "rest-tokens-revoke",
-    tabLabel: "Tokens revoke",
-    method: "DELETE",
-    path: "/api/tokens/{id}",
-    auth: "Session only",
-    summary: "Revoke an API token so it can no longer be used.",
-    purpose:
-      "Immediately disable a token that is expired, compromised, or no longer needed.",
-    whenToUse:
-      "Use this when rotating credentials or responding to a suspected leak.",
-    returns: "HTTP 204 with no response body.",
-    inputNotes: [
-      "Replace {id} with the token row id, not the secret string.",
-    ],
-    codeSample: {
-      id: "rest-tokens-revoke-sample",
-      label: "Browser session example",
-      language: "javascript",
-      body: `const tokenId = "00000000-0000-0000-0000-000000000902";
-const res = await fetch(
-  "${API_HELP_BASE_URL_PLACEHOLDER}/api/tokens/" + tokenId,
-  {
-    method: "DELETE",
-    credentials: "include",
-  },
-);
-console.log(res.status);`,
-    },
-  },
 ];
+
+/* -------------------------------------------------------------------------- */
+/* SECTIONS DEFINITIONS                                                       */
+/* -------------------------------------------------------------------------- */
 
 export const apiHelpSteps: ApiHelpStep[] = [
   { step: 1, label: "Overview", sectionId: "overview" },
   { step: 2, label: "Create an API token", sectionId: "token" },
   { step: 3, label: "Authenticate requests", sectionId: "auth" },
-  { step: 4, label: "GraphQL queries", sectionId: "graphql-query" },
-  { step: 5, label: "GraphQL mutations", sectionId: "graphql-mutate" },
-  { step: 6, label: "GraphQL schema & Postman", sectionId: "graphql-schema" },
-  { step: 7, label: "REST import", sectionId: "rest-import" },
-  { step: 8, label: "Errors", sectionId: "errors" },
-  { step: 9, label: "Security", sectionId: "security" },
+  { step: 4, label: "Practical guides", sectionId: "guides" },
+  { step: 5, label: "GraphQL queries", sectionId: "graphql-query" },
+  { step: 6, label: "GraphQL mutations", sectionId: "graphql-mutate" },
+  { step: 7, label: "GraphQL schema & Postman", sectionId: "graphql-schema" },
+  { step: 8, label: "REST APIs", sectionId: "rest-import" },
+  { step: 9, label: "Errors", sectionId: "errors" },
+  { step: 10, label: "Security", sectionId: "security" },
 ];
 
 export const apiHelpSections: ApiHelpSection[] = [
@@ -1452,73 +2000,50 @@ export const apiHelpSections: ApiHelpSection[] = [
     id: "overview",
     title: "Overview",
     description:
-      "The app exposes GraphQL as the primary API for Money data, plus REST endpoints for CSV import and token management. The web UI uses session cookies; scripts and Postman use personal Bearer tokens.",
+      "The app exposes GraphQL as the primary unified API across Money, Loans, and Investments, accompanied by REST endpoints for direct ingestion and token management. Browser users authenticate via session cookies; scripts and automation tools use personal Bearer tokens.",
     bullets: [
-      "GraphQL endpoint: POST /api/graphql (GET supported for GraphQL Yoga)",
-      "REST: CSV import preview/commit and direct row import",
-      "Base URL: your app origin (e.g. http://localhost:3000 in development)",
+      "Unified GraphQL endpoint: POST /api/graphql (POST & GET supported via GraphQL Yoga)",
+      "REST Endpoints: Direct bulk JSON imports (/api/money/import/{kind}) and investment activity stream (/api/investment/activities)",
+      "Base URL: your app origin (e.g. http://localhost:3000 in local development)",
     ],
   },
   {
     id: "token",
-    title: "Create an API token",
+    title: "1. Create an API Token",
     description:
-      "Sign in to the app, then create a token bound to one Money workspace. Copy the secret once — it starts with mny_. Token routes (/api/tokens) require a browser session; you cannot create or revoke tokens with Bearer auth.",
+      "Sign in to the web app, then generate a token bound to your target workspace. Copy the secret immediately upon creation — it begins with mny_ and is shown only once.",
     bullets: [
-      "Open Settings → API tokens and choose a workspace",
-      "Enable write scope if you need mutations or CSV import",
-      "Revoke compromised tokens immediately in Settings",
+      "Go to Settings → API tokens and select your workspace",
+      "Enable write scope if you need to create transactions, loans, or investments",
+      "Token routes (/api/tokens) require a browser session; tokens cannot create other tokens",
     ],
   },
   {
     id: "auth",
-    title: "Authenticate requests",
+    title: "2. Authenticate Requests",
     description:
-      "Send your token on every GraphQL and REST request. Each token is tied to a single workspace at creation — you do not need the ctx_workspace_money cookie when using Bearer auth.",
+      "Pass your Bearer token in the standard HTTP Authorization header on every GraphQL and REST request. Because each token is bound to a workspace upon creation, no extra workspace cookie is required.",
     codeSamples: [
       {
         id: "auth-header",
-        label: "Authorization header",
+        label: "HTTP Authorization Header",
         language: "http",
         body: "Authorization: Bearer mny_YOUR_TOKEN",
       },
     ],
     scopeTable: [
-      { scope: "read", allows: "GraphQL queries, read-only REST" },
+      { scope: "read", allows: "GraphQL queries, read-only REST endpoints" },
       {
         scope: "write",
-        allows: "GraphQL mutations, CSV import REST (403 without write)",
+        allows: "GraphQL mutations, transaction/loan creation, CSV and direct REST imports",
       },
     ],
   },
   {
-    id: "graphql-query",
-    title: "GraphQL queries",
-    description:
-      "Browse query tabs, read what each one is for, then copy the example usage.",
-    graphqlQueries: apiHelpGraphqlQueryExamples,
-    bullets: [
-      "Export the full schema: npm run api:export-schema → docs/money.graphql",
-      "JSONObject fields return opaque JSON blobs; shape matches the web app payloads",
-    ],
-  },
-  {
-    id: "graphql-mutate",
-    title: "GraphQL mutations",
-    description:
-      "Browse mutation tabs to see which mutations work with API tokens, which are session-only, and what example payload each one expects.",
-    graphqlMutations: apiHelpGraphqlMutationExamples,
-    bullets: [
-      "Recurring transactions: use Transaction create (recurring) to post the first entry and schedule future runs; use Recurrence template create for template-only imports",
-      "Some workspace-admin mutations (clone, reset) require a browser session only — API tokens are blocked",
-      "All mutations require write scope; tokens without write receive 403",
-    ],
-  },
-  {
     id: "graphql-schema",
-    title: "GraphQL schema & Postman",
+    title: "GraphQL Schema & Postman",
     description:
-      "Export the schema from your clone of the repo, then import it into Postman or another GraphQL client.",
+      "Export the complete GraphQL schema directly from the repository root, then import it into Postman, Insomnia, or your favorite GraphQL IDE.",
     codeSamples: [
       {
         id: "export-schema",
@@ -1528,46 +2053,51 @@ export const apiHelpSections: ApiHelpSection[] = [
       },
     ],
     bullets: [
-      "Postman: New → GraphQL, import docs/money.graphql, set Authorization → Bearer Token",
-      "OpenAPI for REST import routes: docs/openapi.yaml (Import → OpenAPI in Postman)",
-    ],
-  },
-  {
-    id: "rest-import",
-    title: "REST APIs",
-    description:
-      "Use the REST API tabs for session-only account endpoints and Bearer-auth import workflows.",
-    restApis: apiHelpRestApiExamples,
-    bullets: [
-      "Import kinds: accounts, categories, merchants, tags, budgets, transactions, rules, recurrence",
+      "Postman: Click Import → Select docs/money.graphql, then set Authorization → Bearer Token",
+      "OpenAPI spec for REST import endpoints: docs/openapi.yaml",
     ],
   },
   {
     id: "errors",
-    title: "Errors",
-    description: "REST and GraphQL use different error shapes. Check the code or extensions.code field for programmatic handling.",
+    title: "Error Handling & Status Codes",
+    description:
+      "REST routes return standardized JSON error envelopes. GraphQL responses return errors in the standard errors array with machine-readable extensions.code strings.",
     codeSamples: [
       {
         id: "rest-error",
         label: "REST error envelope",
         language: "json",
-        body: '{ "error": "Human message", "code": "unauthorized" }',
+        body: '{ "error": "Human readable message", "code": "unauthorized" }',
+      },
+      {
+        id: "gql-error",
+        label: "GraphQL error envelope",
+        language: "json",
+        body: `{
+  "errors": [
+    {
+      "message": "Token lacks write scope",
+      "extensions": { "code": "FORBIDDEN" }
+    }
+  ]
+}`,
       },
     ],
     bullets: [
-      "REST codes: unauthorized, forbidden, bad_request, not_found, db_unavailable",
-      "GraphQL: errors[].message with extensions.code (e.g. UNAUTHORIZED, FORBIDDEN)",
+      "HTTP Statuses: 401 (Unauthorized token), 403 (Missing scope/workspace access), 400 (Validation failed), 404 (Not found), 503 (Database unreachable)",
+      "Extensions codes: UNAUTHORIZED, FORBIDDEN, BAD_REQUEST, NOT_FOUND, DB_UNAVAILABLE",
     ],
   },
   {
     id: "security",
-    title: "Security",
-    description: "Treat API tokens like passwords. Never commit them or embed them in client-side code.",
+    title: "Security Best Practices",
+    description:
+      "Treat API tokens with the same sensitivity as passwords. Never commit secrets to version control or hardcode them in public repositories.",
     bullets: [
-      "Use HTTPS in production",
-      "Revoke compromised tokens in Settings immediately",
-      "Prefer read-only tokens when automation only exports data",
-      "Create tokens under Settings; manage usage from this tutorial",
+      "Always use HTTPS in production environments",
+      "Use read-only tokens for reporting and export scripts whenever possible",
+      "Revoke compromised tokens immediately in Settings → API tokens",
+      "Set optional token expiration dates for automated CI or short-lived jobs",
     ],
   },
 ];
