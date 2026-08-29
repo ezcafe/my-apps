@@ -2,25 +2,16 @@ import { Suspense, type ReactNode } from "react";
 import { LoanRouteChrome } from "@/components/loan-route-layout";
 import { LoansSectionShell } from "@/components/loans-section-shell";
 import { MoneyHydratedWorkspace } from "@/components/money-route-layout";
-import { MoneyListSkeleton } from "@/components/money-feedback";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { LoansOverviewPageSkeleton } from "@/components/loans-page-skeleton";
 import { auth } from "@/auth";
 import { getQueryClient } from "@/lib/get-query-client";
 import { prefetchLoansLayout } from "@/lib/money-ssr-prefetch";
 import { dehydrateMoneyLayoutState } from "@/lib/money-ssr-seed";
 
-function LoansLayoutFallback() {
-  return (
-    <div className={`${MONEY_FULL_SPAN} space-y-4`}>
-      <MoneyListSkeleton variant="loansTable" />
-    </div>
-  );
-}
-
 export default function LoansLayout({ children }: { children: ReactNode }) {
   return (
     <LoanRouteChrome>
-      <Suspense fallback={<LoansLayoutFallback />}>
+      <Suspense fallback={<LoansOverviewPageSkeleton />}>
         <LoansBootstrapBoundary>{children}</LoansBootstrapBoundary>
       </Suspense>
     </LoanRouteChrome>

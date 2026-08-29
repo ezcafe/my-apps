@@ -42,6 +42,18 @@ const padIconOnly: Record<ButtonSize, string> = {
   lg: "p-3 fx-hit-40",
 };
 
+const padResponsiveLeadingIcon: Record<ButtonSize, string> = {
+  sm: "p-2.5 fx-hit-40 sm:pl-3 sm:pr-4 sm:py-2",
+  md: "p-2.5 fx-hit-40 sm:pl-5 sm:pr-6 sm:py-3",
+  lg: "p-3 fx-hit-40 sm:pl-5 sm:pr-6 sm:py-3.5",
+};
+
+const padResponsiveLabelOnly: Record<ButtonSize, string> = {
+  sm: "p-2.5 fx-hit-40 sm:px-4 sm:py-2",
+  md: "p-2.5 fx-hit-40 sm:px-6 sm:py-3",
+  lg: "p-3 fx-hit-40 sm:px-6 sm:py-3.5",
+};
+
 const sizeText: Record<ButtonSize, string> = {
   sm: "gap-2 text-sm",
   md: "gap-2 text-base",
@@ -59,6 +71,8 @@ type ClassNameOptions = {
   hasLeading?: boolean;
   hasTrailing?: boolean;
   iconOnly?: boolean;
+  /** Pure icon-only on mobile (<sm), showing icon + label on sm+. */
+  responsiveIconOnly?: boolean;
 };
 
 function paddingFor({
@@ -66,8 +80,17 @@ function paddingFor({
   hasLeading,
   hasTrailing,
   iconOnly,
+  responsiveIconOnly,
 }: Required<Pick<ClassNameOptions, "size">> &
-  Pick<ClassNameOptions, "hasLeading" | "hasTrailing" | "iconOnly">): string {
+  Pick<
+    ClassNameOptions,
+    "hasLeading" | "hasTrailing" | "iconOnly" | "responsiveIconOnly"
+  >): string {
+  if (responsiveIconOnly) {
+    return hasLeading
+      ? padResponsiveLeadingIcon[size]
+      : padResponsiveLabelOnly[size];
+  }
   if (iconOnly) return padIconOnly[size];
   if (hasLeading && !hasTrailing) return padLeadingIcon[size];
   if (hasTrailing && !hasLeading) return padTrailingIcon[size];
@@ -82,12 +105,19 @@ export function buttonClassName({
   hasLeading,
   hasTrailing,
   iconOnly,
+  responsiveIconOnly,
 }: ClassNameOptions = {}): string {
   return cn(
     base,
     variants[variant],
     sizeText[size],
-    paddingFor({ size, hasLeading, hasTrailing, iconOnly }),
+    paddingFor({
+      size,
+      hasLeading,
+      hasTrailing,
+      iconOnly,
+      responsiveIconOnly,
+    }),
     className,
   );
 }
@@ -99,6 +129,8 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   trailing?: ReactNode;
   /** Pure-icon button: enables 44×44 hit area + symmetric padding. */
   iconOnly?: boolean;
+  /** Pure icon-only on mobile (<sm), showing icon + label on sm+. */
+  responsiveIconOnly?: boolean;
 };
 
 export function Button({
@@ -107,11 +139,16 @@ export function Button({
   leading,
   trailing,
   iconOnly,
+  responsiveIconOnly,
   className,
   children,
   ...props
 }: ButtonProps) {
-  const isIconOnly = iconOnly || (!children && (leading != null || trailing != null));
+  const isIconOnly =
+    iconOnly ||
+    (!responsiveIconOnly &&
+      !children &&
+      (leading != null || trailing != null));
   return (
     <button
       type="button"
@@ -122,13 +159,18 @@ export function Button({
         hasLeading: leading != null,
         hasTrailing: trailing != null,
         iconOnly: isIconOnly,
+        responsiveIconOnly,
       })}
       {...props}
     >
       {leading ? (
         <span className="inline-flex shrink-0">{leading}</span>
       ) : null}
-      {children}
+      {responsiveIconOnly && children ? (
+        <span className="hidden sm:inline">{children}</span>
+      ) : (
+        children
+      )}
       {trailing ? (
         <span className="inline-flex shrink-0">{trailing}</span>
       ) : null}

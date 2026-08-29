@@ -351,8 +351,8 @@ export function MoneyTransactionsPage({
         )}
       >
         <AnalyticsPeriodChipSkeleton />
-        {showStats ? <AnalyticsStatsSkeleton showPeriodLine={false} /> : null}
         <MoneyAnalyticsFiltersBarSkeleton />
+        {showStats ? <AnalyticsStatsSkeleton showPeriodLine={false} /> : null}
         <MoneyAnalyticsTransactionsTableSkeleton selectable />
       </div>
     );
@@ -370,20 +370,6 @@ export function MoneyTransactionsPage({
         toDate={applied.toDate}
         dirty={dirty}
       />
-
-      {showStats && lookupsReady && activeWorkspaceId ? (
-        <section aria-label="Summary metrics">
-          <MoneyLedgerSummaryStats
-            filterQuery={filterQuery}
-            workspaceId={activeWorkspaceId}
-            currency={defaultCurrency}
-            enabled={!isFilterPending}
-            cardOrder={statCardOrder}
-          />
-        </section>
-      ) : showStats ? (
-        <AnalyticsStatsSkeleton />
-      ) : null}
 
       <AnalyticsFiltersBar
         viewFilter={viewFilter}
@@ -433,6 +419,20 @@ export function MoneyTransactionsPage({
             </>
           }
         />
+      ) : null}
+
+      {showStats && lookupsReady && activeWorkspaceId ? (
+        <section aria-label="Summary metrics">
+          <MoneyLedgerSummaryStats
+            filterQuery={filterQuery}
+            workspaceId={activeWorkspaceId}
+            currency={defaultCurrency}
+            enabled={!isFilterPending}
+            cardOrder={statCardOrder}
+          />
+        </section>
+      ) : showStats ? (
+        <AnalyticsStatsSkeleton showPeriodLine={false} />
       ) : null}
 
       {!isSection && preset?.chart && lookupsReady && activeWorkspaceId ? (

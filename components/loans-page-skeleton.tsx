@@ -18,14 +18,6 @@ export function LoansOverviewPageSkeleton() {
     >
       <AnalyticsStatsSkeleton showPeriodLine={false} />
       <StatusStripSkeleton />
-      <div className="flex flex-wrap gap-2" aria-hidden>
-        {Array.from({ length: 5 }, (_, i) => (
-          <Skeleton
-            key={`loan-filter-${i}`}
-            className="h-9 w-16 rounded-[var(--radius-sm)]"
-          />
-        ))}
-      </div>
       <MoneyListSkeleton variant="loansTable" />
     </div>
   );

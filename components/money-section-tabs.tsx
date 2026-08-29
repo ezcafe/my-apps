@@ -19,10 +19,8 @@ import {
 import { resolveMoneyAppHeader } from "@/lib/money-app-header";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import {
-  APP_NAV_GROUP_LABELS,
   APP_SECTION_NAV,
   APP_SECTION_ORDER,
-  appSectionItemsByGroup,
   resolveAppSectionFromPath,
   visibleAppSectionItems,
   isAppSectionNavItemActive,
@@ -337,9 +335,6 @@ const menuItemClassName = (active: boolean) =>
       : "text-muted hover:bg-muted-surface hover:text-foreground",
   );
 
-const menuGroupLabelClassName =
-  "px-3 pb-0.5 pt-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-muted first:pt-0";
-
 /** Shell/core items (Help, Settings) — not duplicated in product nav. */
 const moneyMenuShellItems: ShellNavItem[] = shellNavItems.filter(
   (item) => item.kind === "core",
@@ -357,10 +352,6 @@ function MenuSectionLabel({ children }: { children: ReactNode }) {
       {children}
     </p>
   );
-}
-
-function MenuGroupLabel({ children }: { children: ReactNode }) {
-  return <p className={menuGroupLabelClassName}>{children}</p>;
 }
 
 function MoneyAppMenuNavLink({
@@ -393,45 +384,6 @@ function MoneyAppMenuNavLink({
   );
 }
 
-function AppSwitcher({
-  currentApp,
-  onNavigate,
-}: {
-  currentApp: AppSectionKey | null;
-  onNavigate: () => void;
-}) {
-  return (
-    <div role="group" aria-label="Switch app">
-      <MenuSectionLabel>Apps</MenuSectionLabel>
-      <div className="flex flex-wrap gap-1 px-1.5">
-        {APP_SECTION_ORDER.map((appKey) => {
-          const config = APP_SECTION_NAV[appKey];
-          const active = currentApp === appKey;
-          const Icon = moneySectionTabIcons[appSwitcherIcon[appKey]];
-
-          return (
-            <Link
-              key={appKey}
-              href={config.homeHref}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                active
-                  ? "bg-muted-surface text-foreground"
-                  : "text-muted hover:bg-muted-surface hover:text-foreground",
-              )}
-            >
-              <Icon className="size-4 shrink-0" />
-              {config.label}
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function AppSectionNavPanel({
   appKey,
   isTabVisible,
@@ -445,25 +397,19 @@ function AppSectionNavPanel({
 }) {
   const config = APP_SECTION_NAV[appKey];
   const items = visibleAppSectionItems(appKey, isTabVisible);
-  const groups = appSectionItemsByGroup(items);
 
   return (
     <nav className="flex flex-col" aria-label={`${config.label} sections`}>
       {showAppHeading ? <MenuSectionLabel>{config.label}</MenuSectionLabel> : null}
-      {groups.map(({ group, items: groupItems }) => (
-        <div key={group} className="flex flex-col">
-          <MenuGroupLabel>{APP_NAV_GROUP_LABELS[group]}</MenuGroupLabel>
-          {groupItems.map(({ href, label, icon, exact }) => (
-            <MoneyAppMenuNavLink
-              key={href}
-              href={href}
-              label={label}
-              icon={icon}
-              exact={exact}
-              onNavigate={onNavigate}
-            />
-          ))}
-        </div>
+      {items.map(({ href, label, icon, exact }) => (
+        <MoneyAppMenuNavLink
+          key={href}
+          href={href}
+          label={label}
+          icon={icon}
+          exact={exact}
+          onNavigate={onNavigate}
+        />
       ))}
     </nav>
   );
@@ -480,8 +426,8 @@ function OtherAppsJumpLinks({
   if (others.length === 0) return null;
 
   return (
-    <nav className="flex flex-col" aria-label="Other apps">
-      <MenuSectionLabel>Other apps</MenuSectionLabel>
+    <nav className="flex flex-col" aria-label="Switch app">
+      <MenuSectionLabel>Switch app</MenuSectionLabel>
       {others.map((appKey) => {
         const config = APP_SECTION_NAV[appKey];
         const Icon = moneySectionTabIcons[appSwitcherIcon[appKey]];
@@ -527,21 +473,31 @@ function MenuFooterLink({
 }
 
 function MoneyMenuAuth({ onNavigate }: { onNavigate: () => void }) {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
 
   if (status === "authenticated") {
     return (
-      <button
-        type="button"
-        className={cn(menuItemClassName(false), "w-full text-left")}
-        onClick={() => {
-          onNavigate();
-          signOut({ redirectTo: "/login" });
-        }}
-      >
-        <IconSignOut className="size-5 shrink-0" />
-        Sign out
-      </button>
+      <div className="flex flex-col">
+        {session?.user?.email ? (
+          <p
+            className="truncate px-3 py-1 text-xs text-muted"
+            title={session.user.email}
+          >
+            {session.user.email}
+          </p>
+        ) : null}
+        <button
+          type="button"
+          className={cn(menuItemClassName(false), "w-full text-left")}
+          onClick={() => {
+            onNavigate();
+            signOut({ redirectTo: "/login" });
+          }}
+        >
+          <IconSignOut className="size-5 shrink-0" />
+          Sign out
+        </button>
+      </div>
     );
   }
 
@@ -615,14 +571,6 @@ export function MoneyAppMenu() {
             />
           </>
         ) : null}
-
-        <AppSwitcher currentApp={currentApp} onNavigate={close} />
-
-        <div
-          role="separator"
-          aria-hidden
-          className="my-1.5 border-t border-border"
-        />
 
         {currentApp != null ? (
           <>
@@ -706,12 +654,17 @@ export function MoneySectionTabs() {
         cta ? (
           <Link
             href={cta.href}
+            aria-label={cta.label}
+            title={cta.label}
             className={buttonClassName({
               variant: "primary",
+              responsiveIconOnly: true,
+              hasLeading: true,
               className: "shrink-0",
             })}
           >
-            {cta.label}
+            <IconNew className="size-5 shrink-0" />
+            <span className="hidden sm:inline">{cta.label}</span>
           </Link>
         ) : null
       }

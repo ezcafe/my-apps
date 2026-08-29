@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ReactNode, SVGProps } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MoneyAppMenu } from "@/components/money-section-tabs";
@@ -10,6 +10,19 @@ import { PageHeading } from "@/components/page-heading";
 import { buttonClassName } from "@/components/ui/button";
 import { resolveInvestmentAppHeader } from "@/lib/investment-app-header";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+
+function IconPlus(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M12 5v14M5 12h14"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 function InvestmentSectionHeading() {
   const pathname = usePathname();
@@ -34,31 +47,21 @@ function InvestmentSectionHeading() {
       meta={meta}
       breadcrumbs={breadcrumbs}
       actions={
-        resolved.instrumentsHref || cta ? (
-          <>
-            {resolved.instrumentsHref ? (
-              <Link
-                href={resolved.instrumentsHref}
-                className={buttonClassName({
-                  variant: "ghost",
-                  className: "shrink-0",
-                })}
-              >
-                Instruments
-              </Link>
-            ) : null}
-            {cta ? (
-              <Link
-                href={cta.href}
-                className={buttonClassName({
-                  variant: "primary",
-                  className: "shrink-0",
-                })}
-              >
-                {cta.label}
-              </Link>
-            ) : null}
-          </>
+        cta ? (
+          <Link
+            href={cta.href}
+            aria-label={cta.label}
+            title={cta.label}
+            className={buttonClassName({
+              variant: "primary",
+              responsiveIconOnly: true,
+              hasLeading: true,
+              className: "shrink-0",
+            })}
+          >
+            <IconPlus className="size-5 shrink-0" />
+            <span className="hidden sm:inline">{cta.label}</span>
+          </Link>
         ) : null
       }
     />

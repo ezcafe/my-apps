@@ -1,6 +1,7 @@
 "use client";
 
 import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
@@ -94,12 +95,12 @@ export function MoneySettingsCategoriesSection() {
         description="Create and organize expense and income categories. Subcategories are grouped under their parent."
       >
         <p className="mb-4 text-sm text-muted">
-          <a
+          <Link
             href="/money/import/categories"
             className="font-medium text-accent underline-offset-2 hover:underline"
           >
             Import from CSV
-          </a>
+          </Link>
         </p>
         <Tabs
           name="money-settings-category-kind"

@@ -210,14 +210,16 @@ function ShellMobileMenu() {
       open={open}
       onOpenChange={setOpen}
       trigger={<IconMenu className="size-5" />}
-      className="pointer-events-auto min-w-[min(100vw-2rem,22rem)] p-4"
+      triggerClassName="fx-hit-40 size-10 shrink-0 p-0"
+      className="pointer-events-auto min-w-[min(100vw-2rem,20rem)] p-1.5"
     >
-      <div className="pointer-events-auto flex flex-col gap-4">
-        <nav className="flex flex-col gap-1" aria-label="Primary">
+      <div className="pointer-events-auto flex flex-col">
+        <nav className="flex flex-col" aria-label="Primary">
           {shellNavItems.map((item) => (
             <NavLinkMenu key={item.id} item={item} onNavigate={close} />
           ))}
         </nav>
+        <div role="separator" aria-hidden className="my-1.5 border-t border-border" />
         <ShellPopoverAuth onNavigate={close} />
       </div>
     </Popover>
@@ -228,23 +230,26 @@ function ShellPopoverAuth({ onNavigate }: { onNavigate?: () => void }) {
   const { data: session, status } = useSession();
   if (status === "authenticated") {
     return (
-      <div className="flex flex-col gap-2 border-t border-border pt-3">
+      <div className="flex flex-col">
         {session?.user?.email ? (
-          <p className="truncate text-sm text-muted">{session.user.email}</p>
+          <p
+            className="truncate px-3 py-1 text-xs text-muted"
+            title={session.user.email}
+          >
+            {session.user.email}
+          </p>
         ) : null}
-        <Button
+        <button
           type="button"
-          variant="secondary"
-          size="sm"
-          className="w-full justify-center"
-          leading={<IconSignOut className="size-4" />}
+          className="flex min-h-10 w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2.5 text-left text-sm font-medium text-muted transition-colors duration-200 hover:bg-muted-surface hover:text-foreground focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           onClick={() => {
             onNavigate?.();
             signOut({ redirectTo: "/login" });
           }}
         >
+          <IconSignOut className="size-5 shrink-0" />
           Sign out
-        </Button>
+        </button>
       </div>
     );
   }
@@ -252,11 +257,9 @@ function ShellPopoverAuth({ onNavigate }: { onNavigate?: () => void }) {
     <Link
       href="/login"
       onClick={onNavigate}
-      className={cn(
-        "inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-accent px-3 py-2 text-sm font-medium text-accent-foreground shadow-[var(--shadow-sm)] transition-[opacity,transform] duration-200 hover:opacity-95 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background fx-press",
-      )}
+      className="flex min-h-10 w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2.5 text-sm font-medium text-muted transition-colors duration-200 hover:bg-muted-surface hover:text-foreground focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <IconSignIn className="size-4" />
+      <IconSignIn className="size-5 shrink-0" />
       Sign in
     </Link>
   );
@@ -310,10 +313,10 @@ function NavLinkMenu({
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "flex min-h-10 w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2.5 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
-          ? "fx-vt-shell-nav-active bg-muted-surface text-foreground ring-1 ring-border"
-          : "text-muted hover:bg-[color-mix(in_oklab,var(--foreground)_8%,transparent)] hover:text-foreground",
+          ? "bg-muted-surface text-foreground"
+          : "text-muted hover:bg-muted-surface hover:text-foreground",
       )}
     >
       <Icon className="size-5 shrink-0" />

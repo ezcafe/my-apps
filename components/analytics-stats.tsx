@@ -25,9 +25,9 @@ type ColumnRow = { month: string; expenseMinor: number; incomeMinor: number };
 export type AnalyticsStatCardId = "income" | "expense" | "net" | "savings";
 
 const DEFAULT_CARD_ORDER: AnalyticsStatCardId[] = [
-  "income",
   "expense",
   "net",
+  "income",
   "savings",
 ];
 

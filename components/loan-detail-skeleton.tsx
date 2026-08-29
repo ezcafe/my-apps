@@ -69,8 +69,8 @@ function LoanDetailChartSkeleton() {
       <Skeleton className="mb-2 h-6 w-40 rounded-[var(--radius-sm)]" />
       <Skeleton className="mb-2 h-4 w-64 max-w-full rounded-[var(--radius-sm)]" />
       <div className={LEGEND_GRID_COMPACT_SKELETON}>
-        <Skeleton className="h-full min-h-0 w-full rounded-[var(--radius-sm)]" />
-        <Skeleton className="h-12 w-full rounded-[var(--radius-sm)] md:h-full md:min-h-0" />
+        <Skeleton className="order-2 h-12 w-full rounded-[var(--radius-sm)] md:order-1 md:h-full md:min-h-0" />
+        <Skeleton className="order-1 h-full min-h-0 w-full rounded-[var(--radius-sm)] md:order-2" />
       </div>
     </Card>
   );

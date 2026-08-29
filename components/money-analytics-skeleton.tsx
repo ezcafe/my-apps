@@ -61,7 +61,7 @@ export function MoneyAnalyticsFiltersBarSkeleton({
   return (
     <section className="@container" aria-hidden>
       <div className="flex justify-end @md:hidden">
-        <Skeleton className="h-12 w-20 shrink-0 rounded-[var(--radius-md)]" />
+        <Skeleton className="h-12 w-28 shrink-0 rounded-[var(--radius-md)]" />
       </div>
 
       <MoneyFilterToolbar className="mt-3 hidden @md:flex">
@@ -138,10 +138,15 @@ function AnalyticsChartCardSkeleton({
         className={cn("mb-2 h-4 rounded-[var(--radius-sm)]", descriptionWidthClass)}
       />
       <div className={showLegend ? LEGEND_GRID_SKELETON : "min-h-0 flex-1"}>
-        <Skeleton className="h-full min-h-0 w-full rounded-[var(--radius-sm)]" />
         {showLegend ? (
-          <Skeleton className="h-12 w-full rounded-[var(--radius-sm)] md:h-full md:min-h-0" />
+          <Skeleton className="order-2 h-12 w-full rounded-[var(--radius-sm)] md:order-1 md:h-full md:min-h-0" />
         ) : null}
+        <Skeleton
+          className={cn(
+            "h-full min-h-0 w-full rounded-[var(--radius-sm)]",
+            showLegend && "order-1 md:order-2",
+          )}
+        />
       </div>
     </Card>
   );
@@ -356,10 +361,10 @@ export function MoneyAnalyticsPageSkeleton() {
       aria-label="Loading analytics page"
     >
       <AnalyticsPeriodChipSkeleton />
+      <MoneyAnalyticsFiltersBarSkeleton />
       <section aria-label="Summary metrics">
         <AnalyticsStatsSkeleton showPeriodLine={false} />
       </section>
-      <MoneyAnalyticsFiltersBarSkeleton />
       <section aria-label="Insights dashboard" className={ANALYTICS_GRID_CLASS}>
         <AnalyticsCollapsedGridContent />
       </section>
@@ -378,12 +383,12 @@ export function FeatureInsightsPageSkeleton() {
       aria-label="Loading insights"
     >
       <AnalyticsPeriodChipSkeleton />
-      <section aria-label="Summary metrics">
-        <AnalyticsStatsSkeleton showPeriodLine={false} />
-      </section>
       <MoneyAnalyticsFiltersBarSkeleton
         triggerCount={FEATURE_INSIGHTS_FILTER_TRIGGER_COUNT}
       />
+      <section aria-label="Summary metrics">
+        <AnalyticsStatsSkeleton showPeriodLine={false} />
+      </section>
       <MoneyAnalyticsChartsSkeleton />
     </div>
   );
@@ -406,8 +411,8 @@ export function MoneyLedgerPageSkeleton({
       aria-label="Loading ledger page"
     >
       <AnalyticsPeriodChipSkeleton />
-      {showSummaryStats ? <AnalyticsStatsSkeleton showPeriodLine={false} /> : null}
       <MoneyAnalyticsFiltersBarSkeleton />
+      {showSummaryStats ? <AnalyticsStatsSkeleton showPeriodLine={false} /> : null}
       {showChart ? (
         <AnalyticsChartCardSkeleton
           className="w-full"

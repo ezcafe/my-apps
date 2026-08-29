@@ -67,6 +67,12 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function daysUntilDue(dueDate: string, today: string): number {
+  const due = new Date(`${dueDate}T12:00:00`);
+  const cur = new Date(`${today}T12:00:00`);
+  return Math.round((due.getTime() - cur.getTime()) / (24 * 60 * 60 * 1000));
+}
+
 const LOAN_DETAIL_META =
   "Track payoff, record payments, and review your schedule.";
 
@@ -199,9 +205,68 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
     );
   }
 
+  const today = todayIso();
   const nextPending = loan.installments.find((i) => i.status === "pending");
-  const nextOverdue =
-    nextPending != null && nextPending.dueDate < todayIso();
+  const dueDays = nextPending ? daysUntilDue(nextPending.dueDate, today) : null;
+  const nextOverdue = dueDays != null && dueDays < 0;
+  const nextDueSoon = dueDays != null && dueDays >= 0 && dueDays <= 7;
+  const isUrgentPayment = nextOverdue || nextDueSoon;
+
+  const paymentCard = nextPending ? (
+    <Card
+      className={cn(
+        "col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12",
+        nextOverdue && "border-[var(--alert-warning-border)]",
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-medium">
+            {nextOverdue
+              ? "Overdue payment"
+              : nextDueSoon
+                ? "Payment due soon"
+                : "Next payment"}
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Installment #{nextPending.installmentNumber} · due{" "}
+            {formatDate(nextPending.dueDate, { omitYearIfCurrent: true })}
+          </p>
+        </div>
+        <p className="font-display text-2xl font-semibold tabular-nums">
+          {formatMinor(nextPending.paymentMinor, loan.currency)}
+        </p>
+      </div>
+      {nextOverdue ? (
+        <Alert
+          variant="warning"
+          title="This installment is past due"
+          description="Record the payment to keep your schedule on track."
+          className="mt-4"
+        />
+      ) : null}
+      <div className="mt-4">
+        <LoanPayActions
+          scheduleInstallmentId={nextPending.scheduleInstallmentId}
+          loanName={loan.name}
+          installmentNumber={nextPending.installmentNumber}
+          paymentMinor={nextPending.paymentMinor}
+          currency={loan.currency}
+          moneyAccountId={loan.moneyAccountId}
+          moneyCategoryId={loan.moneyCategoryId}
+        />
+      </div>
+    </Card>
+  ) : loan.status === "paid_off" ? (
+    <Card className="col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12">
+      <h2 className="font-display text-lg font-medium text-accent">
+        Loan paid off
+      </h2>
+      <p className="mt-1 text-sm text-muted">
+        All installments are complete. No further payments are due.
+      </p>
+    </Card>
+  ) : null;
 
   return (
     <>
@@ -213,59 +278,9 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
       />
 
       <div className={LOAN_DETAIL_GRID_CLASS}>
+        {isUrgentPayment ? paymentCard : null}
         <LoanDetailStats loan={loan} />
-
-        {nextPending ? (
-          <Card
-            className={cn(
-              "col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12",
-              nextOverdue && "border-[var(--alert-warning-border)]",
-            )}
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="font-display text-lg font-medium">
-                  {nextOverdue ? "Overdue payment" : "Next payment"}
-                </h2>
-                <p className="mt-1 text-sm text-muted">
-                  Installment #{nextPending.installmentNumber} · due{" "}
-                  {formatDate(nextPending.dueDate, { omitYearIfCurrent: true })}
-                </p>
-              </div>
-              <p className="font-display text-2xl font-semibold tabular-nums">
-                {formatMinor(nextPending.paymentMinor, loan.currency)}
-              </p>
-            </div>
-            {nextOverdue ? (
-              <Alert
-                variant="warning"
-                title="This installment is past due"
-                description="Record the payment to keep your schedule on track."
-                className="mt-4"
-              />
-            ) : null}
-            <div className="mt-4">
-              <LoanPayActions
-                scheduleInstallmentId={nextPending.scheduleInstallmentId}
-                loanName={loan.name}
-                installmentNumber={nextPending.installmentNumber}
-                paymentMinor={nextPending.paymentMinor}
-                currency={loan.currency}
-                moneyAccountId={loan.moneyAccountId}
-                moneyCategoryId={loan.moneyCategoryId}
-              />
-            </div>
-          </Card>
-        ) : loan.status === "paid_off" ? (
-          <Card className="col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12">
-            <h2 className="font-display text-lg font-medium text-accent">
-              Loan paid off
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              All installments are complete. No further payments are due.
-            </p>
-          </Card>
-        ) : null}
+        {!isUrgentPayment ? paymentCard : null}
 
         <LoanPayoffProgressCard loan={loan} />
 

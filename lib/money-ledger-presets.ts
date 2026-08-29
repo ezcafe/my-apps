@@ -248,7 +248,10 @@ export function moneyLedgerStatCardOrder(
   preset: MoneyLedgerPreset | undefined,
 ): readonly AnalyticsStatCardId[] {
   if (!preset) {
-    return ["income", "expense", "net", "savings"];
+    return ["expense", "net", "income", "savings"];
+  }
+  if (preset.title === "Spending") {
+    return ["expense", "net", "income", "savings"];
   }
   if (preset.title === "Bills") {
     return ["expense", "income", "net", "savings"];
@@ -259,7 +262,7 @@ export function moneyLedgerStatCardOrder(
   if (preset.title === "Investments") {
     return ["net", "income", "expense", "savings"];
   }
-  return ["income", "expense", "net", "savings"];
+  return ["expense", "net", "income", "savings"];
 }
 
 export function parseMoneyLedgerScopeId(

@@ -110,20 +110,6 @@ export function LoansInsightsDashboard() {
         dirty={dirty}
       />
 
-      {atfQuery.isLoading && !atf ? (
-        <AnalyticsStatsSkeleton showPeriodLine={false} />
-      ) : null}
-      {atf && !empty ? (
-        <section aria-label="Summary metrics">
-          <LoansInsightsStats
-            atf={atf}
-            currency={currency}
-            showPeriodCaption={false}
-            variant="page"
-          />
-        </section>
-      ) : null}
-
       <InsightsDateRangeFiltersBar
         value={{ fromDate: draft.from, toDate: draft.to }}
         onChange={(next) => setDraft({ from: next.fromDate, to: next.toDate })}
@@ -139,6 +125,20 @@ export function LoansInsightsDashboard() {
           error={atfQuery.error}
           onRetry={() => void atfQuery.refetch()}
         />
+      ) : null}
+
+      {atfQuery.isLoading && !atf ? (
+        <AnalyticsStatsSkeleton showPeriodLine={false} />
+      ) : null}
+      {atf && !empty ? (
+        <section aria-label="Summary metrics">
+          <LoansInsightsStats
+            atf={atf}
+            currency={currency}
+            showPeriodCaption={false}
+            variant="page"
+          />
+        </section>
       ) : null}
 
       {atfQuery.isLoading && !atf ? <MoneyAnalyticsChartsSkeleton /> : null}

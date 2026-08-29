@@ -33,7 +33,7 @@ If a need is not covered here, propose an extension to this doc + a primitive �
 | App shell | Top-right hamburger ([`app-shell.tsx`](../components/app-shell.tsx)) | Shell routes from [`registry.ts`](../lib/features/registry.ts) + sign in/out |
 | Money / Investments / Loans / Help / Settings | Left hamburger ([`MoneyAppMenu`](../components/money-section-tabs.tsx)) | Context-first app nav from [`app-section-nav.ts`](../lib/app-section-nav.ts) + labeled workspace links |
 
-Desktop (`lg+`): shell uses a fixed icon rail on routes that are not Money, Investments, Loans, Help, or App Settings. Those apps hide the rail and use the in-page nested hamburger. Every shell page uses [`PageHeading`](../components/page-heading.tsx) (Tailwind Plus [page headings](https://tailwindcss.com/plus/ui-blocks/application-ui/headings/page-headings)): **With actions** on top-level routes, **With actions and breadcrumbs** when nested. Primary CTA is a **text-only** button in the heading at all breakpoints (no sticky bottom Add bar).
+Desktop (`lg+`): shell uses a fixed icon rail on routes that are not Money, Investments, Loans, Help, or App Settings. Those apps hide the rail and use the in-page nested hamburger. Every shell page uses [`PageHeading`](../components/page-heading.tsx) (Tailwind Plus [page headings](https://tailwindcss.com/plus/ui-blocks/application-ui/headings/page-headings)): **With actions** on top-level routes, **With actions and breadcrumbs** when nested. Primary CTA is a responsive button in the heading at all breakpoints (icon-only on mobile, icon + text on `sm+`; no sticky bottom Add bar).
 
 #### Navigation assessment (long nav)
 
@@ -42,8 +42,8 @@ This app is **long navigation** ([Pencil & Paper Navigation Assessment Framework
 | Concept | Practice in this app |
 |---------|----------------------|
 | **Navigation budget** | Every page hop costs reorientation. Prefer fewer, clearer destinations; do not add a nav item for a one-off action — use heading CTAs, drawers, or inline expansion instead. |
-| **Context-first menu** | [`MoneyAppMenu`](../components/money-section-tabs.tsx) detects the active app from the pathname and shows **that app’s full grouped nav first**. Other apps appear as compact jump links to their home route — not a second copy of all their pages. On Help / Settings (no active app), all apps render with group labels. |
-| **Task groups** | Within an app, items are grouped by job — **Review** (Insights), **Capture** (Add / Record / Create), **Browse** (ledgers, lists, instruments), **Configure** (settings, import). Source of truth: [`APP_SECTION_NAV`](../lib/app-section-nav.ts). |
+| **Context-first menu** | [`MoneyAppMenu`](../components/money-section-tabs.tsx) detects the active app from the pathname and shows **that app’s nav items first**. Other apps appear as compact jump links to their home route — not a second copy of all their pages. |
+| **Clean hierarchy** | Items are ordered by job (Review → Capture → Browse → Configure) without noisy intermediate subtitle headers. Source of truth: [`APP_SECTION_NAV`](../lib/app-section-nav.ts). |
 | **Item order** | Insights → primary capture action → main browse surface → optional ledgers → configure. Match page titles (“Spending”, “Loans”, “Investments”) — not generic “Overview”. |
 | **Low-value cuts** | Optional Money ledgers (Bills, Savings, Import) stay **off by default** ([`money-section-tab-visibility.ts`](../lib/money-section-tab-visibility.ts)); enable in Money settings. Do not add nav rent for empty shells or single-action pages. |
 | **Labeled essentials** | Workspace footer links (API help, Settings, Sign in/out) use **icon + text** rows — never icon-only in the menu panel. Hamburger trigger stays icon-only (`fx-hit-40`). |
@@ -55,7 +55,7 @@ When evaluating a new destination, ask: (1) which app and task group does it bel
 ### Page headings & breadcrumbs
 
 - Structure follows Tailwind Plus application-ui blocks; retokenize onto clean-minimal + [`components/ui/*`](../components/ui/) (`Button` / `buttonClassName`, [`Breadcrumb`](../components/ui/breadcrumb.tsx) from [Simple with chevrons](https://tailwindcss.com/plus/ui-blocks/application-ui/navigation/breadcrumbs)).
-- Hamburger = icon-only (`fx-hit-40`); primary page actions = **text labels only** (e.g. “Create loan”, “Add transaction”).
+- Hamburger = icon-only (`fx-hit-40`); primary page actions = responsive (icon-only `fx-hit-40` on mobile, icon + text on `sm+`, e.g. “Create loan”, “Add transaction”).
 - Path defaults: [`resolveMoneyAppHeader`](../lib/money-app-header.ts); dynamic pages override via [`useSetAppHeader`](../components/app-header-override.tsx).
 
 Crumbs follow [Pencil & Paper breadcrumb UX](https://www.pencilandpaper.io/articles/breadcrumbs-ux), constrained to **location-based** hierarchy for a mobile-first busy parent. They preserve *where this page sits*, not the click path (browser Back is the path).
@@ -370,7 +370,7 @@ withViewTransition(() => setTheme("dark"));
 
 - Source of truth: product apps in [`lib/app-section-nav.ts`](../lib/app-section-nav.ts); shell features in [`lib/features/registry.ts`](../lib/features/registry.ts).
 - **Mobile-first:** hamburger → [`Popover`](../components/ui/popover.tsx) popup menu. App menu: `aria-label="Open {App} menu"`; shell menu: `"Open navigation menu"`.
-- **Context-first app menu:** app switcher → grouped current-app links → other-app jump links → labeled workspace footer (Help, Settings, auth).
+- **Context-first app menu:** page actions (if any) → current-app navigation links → switch to other apps → labeled workspace footer (Help, Settings, auth).
 - **Desktop (`lg+`):** icon rail in [`app-shell.tsx`](../components/app-shell.tsx) when not on Money/Help/Settings; otherwise in-page [`PageHeading`](../components/page-heading.tsx) with section-aware text CTA.
 - Active item: `fx-vt-shell-nav-active` (rail) or `bg-muted-surface` (menu row).
 - Route changes: `<main key={pathname}>` + `fx-fade-in`.
@@ -526,7 +526,7 @@ Plain language, short helpers, and typography — not color alone — carry scan
 
 Wizard steps: render the step hint under the progress bar. Review/summary steps lead with scannable numbers, then detail, then errors.
 
-**Loading / skeleton parity:** Route `loading.tsx`, Suspense fallbacks, and in-component loading branches must mirror the shipped page stack (period chip → KPIs → status strip → filters → content). Reuse `AnalyticsPeriodChipSkeleton`, `AnalyticsStatsSkeleton`, and shared page skeletons from [`money-analytics-skeleton.tsx`](../components/money-analytics-skeleton.tsx). Verify on slow network in light and dark — chip/KPI positions should not jump when content loads.
+**Loading / skeleton parity:** Route `loading.tsx`, Suspense fallbacks, and in-component loading branches must mirror the shipped page stack (period chip → filters → KPIs → status strip → content). Reuse `AnalyticsPeriodChipSkeleton`, `AnalyticsStatsSkeleton`, and shared page skeletons from [`money-analytics-skeleton.tsx`](../components/money-analytics-skeleton.tsx). Verify on slow network in light and dark — chip/KPI positions should not jump when content loads.
 
 ## Quick checklist for any UI change
 
@@ -549,6 +549,6 @@ Wizard steps: render the step hint under the progress bar. Review/summary steps 
 - [ ] Feedback scale matches stakes (field / Alert / toast / Modal); error copy via `toUserFacingMessage`; success names the object.
 - [ ] Nested pages use location crumbs from the section origin; top-level sections have none.
 - [ ] Dashboards: metrics → optional chart → table; no extra viz “because we have the data.”
-- [ ] Skeleton/loading order matches live page stack (chip → KPIs → filters → content).
+- [ ] Skeleton/loading order matches live page stack (chip → filters → KPIs → content).
 - [ ] Verified light and dark via `/settings`.
 - [ ] `npm run lint` and `npm run build` pass.

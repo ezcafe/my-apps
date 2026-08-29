@@ -6,8 +6,6 @@ export type InvestmentAppHeaderResolved = {
   breadcrumbs: BreadcrumbItem[];
   cta: { href: string; label: string } | null;
   meta?: string;
-  /** Secondary “Instruments” link from the Investments list. */
-  instrumentsHref?: string;
 };
 
 const RECORD_CTA = MONEY_LEDGER_INVESTMENT.emptyState.primaryAction ?? {
@@ -85,7 +83,6 @@ export function resolveInvestmentAppHeader(
     title: "Investments",
     breadcrumbs: [],
     cta: RECORD_CTA,
-    instrumentsHref: "/investments/instruments",
     meta: MONEY_LEDGER_INVESTMENT.description,
   };
 }

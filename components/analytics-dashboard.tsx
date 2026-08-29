@@ -878,19 +878,6 @@ export function AnalyticsDashboard({
         dirty={dirty}
       />
 
-      {atfSummary ? (
-        <section aria-label="Summary metrics">
-          <AnalyticsStats
-            stats={atfSummary.stats}
-            range={atfSummary.range}
-            currency={defaultCurrency}
-            showPeriodCaption={false}
-          />
-        </section>
-      ) : activeWorkspaceId && !workspaceSyncPending ? (
-        <AnalyticsStatsSkeleton showPeriodLine={false} />
-      ) : null}
-
       <AnalyticsFiltersBar
         viewFilter={{
           menuLabel: "Ledger",
@@ -924,6 +911,19 @@ export function AnalyticsDashboard({
           title="Couldn’t load analytics"
           description={loadError}
         />
+      ) : null}
+
+      {atfSummary ? (
+        <section aria-label="Summary metrics">
+          <AnalyticsStats
+            stats={atfSummary.stats}
+            range={atfSummary.range}
+            currency={defaultCurrency}
+            showPeriodCaption={false}
+          />
+        </section>
+      ) : activeWorkspaceId && !workspaceSyncPending ? (
+        <AnalyticsStatsSkeleton showPeriodLine={false} />
       ) : null}
 
       {activeWorkspaceId && !workspaceSyncPending ? (

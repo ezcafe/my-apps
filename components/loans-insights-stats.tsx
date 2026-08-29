@@ -110,7 +110,7 @@ export function LoansInsightsStats({
           <p className="flex items-center gap-1 text-sm font-medium text-muted">
             Weighted APR
             <AboutDisclosure compact label="About weighted APR">
-              Remaining-balance-weighted average of each active loan's APR.
+              Remaining-balance-weighted average of each active loan&apos;s APR.
             </AboutDisclosure>
           </p>
           <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">

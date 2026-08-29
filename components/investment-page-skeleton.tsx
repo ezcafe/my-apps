@@ -50,8 +50,8 @@ export function MoneyInvestmentsPageSkeleton() {
       <AnalyticsStatsSkeleton showPeriodLine={false} />
       <InvestmentPortfolioSnapshotSkeleton />
       <AnalyticsPeriodChipSkeleton />
-      <AnalyticsStatsSkeleton showPeriodLine={false} />
       <MoneyAnalyticsFiltersBarSkeleton />
+      <AnalyticsStatsSkeleton showPeriodLine={false} />
       <MoneyAnalyticsTransactionsTableSkeleton selectable />
     </div>
   );

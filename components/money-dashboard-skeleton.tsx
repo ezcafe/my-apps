@@ -14,6 +14,7 @@ import {
   moneyQuickPickGroupCls,
   moneyQuickPickOtherChipCls,
 } from "@/lib/money-quick-pick-chip-cls";
+import { MoneyUsageQuickPickOtherChipContent } from "@/components/money-usage-quick-pick";
 
 function StaticChip({
   label,
@@ -35,24 +36,7 @@ function StaticChip({
           "basis-full @md:basis-auto w-full @md:w-auto",
         )}
       >
-        <span className="relative z-[1] inline-flex min-w-0 max-w-full flex-1 items-center justify-between gap-2">
-          <span className="inline-flex min-w-0 items-center gap-1.5 truncate">
-            <span
-              aria-hidden
-              className="inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-muted-surface text-muted"
-            >
-              <svg viewBox="0 0 16 16" fill="none" className="size-3.5">
-                <path
-                  d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </span>
-            <span className="min-w-0 truncate">{label}</span>
-          </span>
-        </span>
+        <MoneyUsageQuickPickOtherChipContent label={label} />
       </button>
     );
   }

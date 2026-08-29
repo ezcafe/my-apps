@@ -122,20 +122,6 @@ export function InvestmentInsightsDashboard() {
         dirty={dirty}
       />
 
-      {atfQuery.isLoading && !atf ? (
-        <AnalyticsStatsSkeleton showPeriodLine={false} />
-      ) : null}
-      {atf && !empty ? (
-        <section aria-label="Summary metrics">
-          <InvestmentInsightsStats
-            atf={atf}
-            currency={defaultCurrency}
-            showPeriodCaption={false}
-            variant="page"
-          />
-        </section>
-      ) : null}
-
       <InsightsDateRangeFiltersBar
         value={{ fromDate: draft.from, toDate: draft.to }}
         onChange={(next) => setDraft({ from: next.fromDate, to: next.toDate })}
@@ -151,6 +137,20 @@ export function InvestmentInsightsDashboard() {
           error={atfQuery.error}
           onRetry={() => void atfQuery.refetch()}
         />
+      ) : null}
+
+      {atfQuery.isLoading && !atf ? (
+        <AnalyticsStatsSkeleton showPeriodLine={false} />
+      ) : null}
+      {atf && !empty ? (
+        <section aria-label="Summary metrics">
+          <InvestmentInsightsStats
+            atf={atf}
+            currency={defaultCurrency}
+            showPeriodCaption={false}
+            variant="page"
+          />
+        </section>
       ) : null}
 
       {atfQuery.isLoading && !atf ? <MoneyAnalyticsChartsSkeleton /> : null}
