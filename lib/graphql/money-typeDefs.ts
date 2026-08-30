@@ -30,6 +30,7 @@ export const moneyTypeDefs = /* GraphQL */ `
   type MoneyBootstrapPayload {
     workspaceId: ID!
     defaultCurrency: String
+    tzName: String
     needsCurrencySetup: Boolean!
     defaultWorkspaceId: ID
     workspaces: [MoneyBootstrapWorkspace!]!
@@ -41,6 +42,7 @@ export const moneyTypeDefs = /* GraphQL */ `
   type MoneyWorkspaceStatePayload {
     workspaceId: ID!
     defaultCurrency: String
+    tzName: String
     needsCurrencySetup: Boolean!
     defaultWorkspaceId: ID
     workspaces: [MoneyBootstrapWorkspace!]!

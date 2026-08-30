@@ -16,6 +16,7 @@ const USAGE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 export type MoneyWorkspaceCoreData = {
   workspaceId: string;
   defaultCurrency: string | null;
+  tzName?: string | null;
   needsCurrencySetup: boolean;
   workspaces: BootstrapWorkspaceRow[];
   /** User’s saved default workspace for this app (may differ from active cookie). */

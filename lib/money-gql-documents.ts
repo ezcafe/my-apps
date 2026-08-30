@@ -5,6 +5,7 @@ export const MONEY_BOOTSTRAP_QUERY = /* GraphQL */ `
     moneyBootstrap {
       workspaceId
       defaultCurrency
+      tzName
       needsCurrencySetup
       defaultWorkspaceId
       workspaces {
@@ -28,6 +29,7 @@ export const MONEY_WORKSPACE_STATE_QUERY = /* GraphQL */ `
     moneyWorkspaceState {
       workspaceId
       defaultCurrency
+      tzName
       needsCurrencySetup
       defaultWorkspaceId
       workspaces {
@@ -64,6 +66,13 @@ export const MONEY_ANALYTICS_CHART_LOOKUPS_QUERY = /* GraphQL */ `
 export const MONEY_ANALYTICS_MERCHANT_LOOKUPS_QUERY = /* GraphQL */ `
   query MoneyAnalyticsMerchantLookups {
     moneyMerchants
+  }
+`;
+
+export const MONEY_ANALYTICS_ADVANCED_LOOKUPS_QUERY = /* GraphQL */ `
+  query MoneyAnalyticsAdvancedLookups {
+    moneyMerchants
+    moneyRecurrenceTemplates
   }
 `;
 

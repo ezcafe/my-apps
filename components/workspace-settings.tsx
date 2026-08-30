@@ -37,22 +37,6 @@ async function fetchWorkspaceList(app: WorkspaceAppKey): Promise<WorkspaceRow[]>
   return body?.data ?? [];
 }
 
-async function fetchDefaultWorkspaceId(
-  app: WorkspaceAppKey,
-): Promise<string | null> {
-  const res = await fetch(`/api/workspace/default?app=${app}`, {
-    credentials: "include",
-  });
-  const body = (await res.json().catch(() => null)) as {
-    data?: { defaultWorkspaceId: string | null };
-    error?: string;
-  } | null;
-  if (!res.ok) {
-    throw new Error(body?.error ?? res.statusText ?? "Request failed");
-  }
-  return body?.data?.defaultWorkspaceId ?? null;
-}
-
 function DefaultWorkspaceForm({
   app,
   appLabel,
@@ -274,11 +258,9 @@ export function WorkspaceSettings({
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
   const refreshWorkspaceContext = useCallback(async () => {
-    const [workspaces, moneyDefaultId] = await Promise.all([
-      fetchWorkspaceList("money"),
-      fetchDefaultWorkspaceId("money"),
-    ]);
+    const workspaces = await fetchWorkspaceList("money");
     setWorkspaceList(workspaces);
+    const moneyDefaultId = workspaces.find((w) => w.isDefault)?.id;
     const fallback = workspaces[0]?.id ?? "";
     setMoneyDefaultPick(moneyDefaultId ?? fallback);
     setLoadErr(null);

@@ -187,8 +187,8 @@ export function loansDueQueryOptions() {
 export function loansInsightsAtfQueryOptions(from: string, to: string) {
   return queryOptions({
     queryKey: loansKeys.insightsAtf(from, to),
-    staleTime: 0,
-    refetchOnMount: "always" as const,
+    staleTime: 45_000,
+    placeholderData: (previousData) => previousData,
     queryFn: async () => {
       const data = await loansGraphQLRequest<{
         loansInsightsAtf: {
@@ -234,7 +234,8 @@ export function loansInsightsAtfQueryOptions(from: string, to: string) {
 export function loansInsightsMoreQueryOptions(from: string, to: string) {
   return queryOptions({
     queryKey: loansKeys.insightsMore(from, to),
-    staleTime: 0,
+    staleTime: 30_000,
+    placeholderData: (previousData) => previousData,
     queryFn: async () => {
       const data = await loansGraphQLRequest<{
         loansInsightsMore: {

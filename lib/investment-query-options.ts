@@ -224,8 +224,8 @@ export function investmentOpenActivitiesQueryOptions(instrumentId?: string) {
 export function investmentPortfolioSeriesQueryOptions(from: string, to: string) {
   return queryOptions({
     queryKey: investmentKeys.portfolioSeries(from, to),
-    staleTime: 0,
-    refetchOnMount: "always" as const,
+    staleTime: 45_000,
+    placeholderData: (previousData) => previousData,
     queryFn: async () => {
       const data = await investmentGraphQLRequest<{
         investmentPortfolioValueSeries: Array<
@@ -261,8 +261,8 @@ export function investmentFxRateQueryOptions(from: string, to: string) {
 export function investmentHoldingsQueryOptions() {
   return queryOptions({
     queryKey: investmentKeys.holdings(),
-    staleTime: 0,
-    refetchOnMount: "always" as const,
+    staleTime: 30_000,
+    placeholderData: (previousData) => previousData,
     queryFn: async () => {
       const data = await investmentGraphQLRequest<{
         investmentHoldingsSnapshot: Array<
@@ -297,8 +297,8 @@ export function investmentTopQuantitiesQueryOptions() {
 export function investmentInsightsAtfQueryOptions(from: string, to: string) {
   return queryOptions({
     queryKey: investmentKeys.insightsAtf(from, to),
-    staleTime: 0,
-    refetchOnMount: "always" as const,
+    staleTime: 45_000,
+    placeholderData: (previousData) => previousData,
     queryFn: async () => {
       const data = await investmentGraphQLRequest<{
         investmentInsightsAtf: {
@@ -343,7 +343,8 @@ export function investmentInsightsAtfQueryOptions(from: string, to: string) {
 export function investmentInsightsMoreQueryOptions(from: string, to: string) {
   return queryOptions({
     queryKey: investmentKeys.insightsMore(from, to),
-    staleTime: 0,
+    staleTime: 30_000,
+    placeholderData: (previousData) => previousData,
     queryFn: async () => {
       const data = await investmentGraphQLRequest<{
         investmentInsightsMore: {

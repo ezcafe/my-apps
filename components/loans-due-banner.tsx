@@ -10,11 +10,11 @@ import { loansDueQueryOptions } from "@/lib/loans-query-options";
 import { useLoansWorkspace } from "@/components/loans-workspace-provider";
 
 export function LoansDueBanner() {
-  const { workspaceReady } = useLoansWorkspace();
+  const { workspaceReady, dueCount } = useLoansWorkspace();
   const { formatDate } = useFormatDate();
   const dueQuery = useQuery({
     ...loansDueQueryOptions(),
-    enabled: workspaceReady,
+    enabled: workspaceReady && dueCount > 0,
   });
 
   if (!dueQuery.data?.length) return null;

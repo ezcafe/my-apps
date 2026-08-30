@@ -85,7 +85,13 @@ function MoneyWorkspaceAuthenticated({ children }: { children: React.ReactNode }
     if (!boot?.workspaceId) return;
     const tzName = browserTimezoneName();
     if (!tzName) return;
-    if (readCachedSyncedTimezone(boot.workspaceId) === tzName) return;
+    if (
+      boot.tzName === tzName ||
+      readCachedSyncedTimezone(boot.workspaceId) === tzName
+    ) {
+      writeCachedSyncedTimezone(boot.workspaceId, tzName);
+      return;
+    }
 
     let cancelled = false;
     const run = () => {

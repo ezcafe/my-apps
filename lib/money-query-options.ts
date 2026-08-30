@@ -11,6 +11,7 @@ import {
   MONEY_ANALYTICS_INSIGHTS_QUERY,
   MONEY_ANALYTICS_LEADERS_QUERY,
   MONEY_ANALYTICS_MERCHANT_LOOKUPS_QUERY,
+  MONEY_ANALYTICS_ADVANCED_LOOKUPS_QUERY,
   MONEY_ANALYTICS_DASHBOARD_QUERY,
   MONEY_ANALYTICS_OVERVIEW_QUERY,
   MONEY_ANALYTICS_SUMMARY_QUERY,
@@ -72,6 +73,10 @@ export type MoneyAnalyticsMerchantLookups = {
   moneyMerchants: MoneyMerchantLookup[];
 };
 export type MoneyAnalyticsRecurrenceLookups = {
+  moneyRecurrenceTemplates: MoneyRecurrenceLookup[];
+};
+export type MoneyAnalyticsAdvancedLookups = {
+  moneyMerchants: MoneyMerchantLookup[];
   moneyRecurrenceTemplates: MoneyRecurrenceLookup[];
 };
 
@@ -269,6 +274,18 @@ export function moneyAnalyticsRecurrenceLookupsQueryOptions(workspaceKey: string
     queryFn: async () => {
       return await moneyGraphQLRequest<MoneyAnalyticsRecurrenceLookups>(
         MONEY_LIST_RECURRENCE_QUERY,
+      );
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function moneyAnalyticsAdvancedLookupsQueryOptions(workspaceKey: string) {
+  return queryOptions({
+    queryKey: ["money", "analyticsAdvancedLookups", workspaceKey] as const,
+    queryFn: async () => {
+      return await moneyGraphQLRequest<MoneyAnalyticsAdvancedLookups>(
+        MONEY_ANALYTICS_ADVANCED_LOOKUPS_QUERY,
       );
     },
     staleTime: 5 * 60_000,

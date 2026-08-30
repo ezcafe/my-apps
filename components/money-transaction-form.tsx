@@ -67,9 +67,9 @@ import {
 } from "@/lib/money-category-ui";
 import {
   invalidateMoneyWorkspaceQueries,
+  moneyBootstrapQueryOptions,
   moneyFormBudgetStatusQueryOptions,
   moneyFormLookupsQueryOptions,
-  moneyWorkspaceStateQueryOptions,
   refetchMoneyFormBudgetStatus,
   type MoneyAccountLookup,
   type MoneyCategoryLookup,
@@ -277,7 +277,7 @@ export function MoneyTransactionForm({
   } = useWorkspaceCurrency();
   const canRunMoneyQueries = status === "authenticated";
   const workspaceStateQuery = useQuery({
-    ...moneyWorkspaceStateQueryOptions(),
+    ...moneyBootstrapQueryOptions(),
     enabled: canRunMoneyQueries,
   });
   const formLookupsQuery = useQuery({

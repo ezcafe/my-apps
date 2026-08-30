@@ -52,13 +52,12 @@ import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import { IncomeVsExpenseCard } from "@/components/analytics-chart-cards/income-vs-expense-card";
 import { SpendByCategoryCard } from "@/components/analytics-chart-cards/spend-by-category-card";
 import {
+  moneyAnalyticsAdvancedLookupsQueryOptions,
   moneyAnalyticsAtfQueryOptions,
   moneyAnalyticsBudgetsQueryOptions,
   moneyAnalyticsChartLookupsQueryOptions,
   moneyAnalyticsInsightsQueryOptions,
   moneyAnalyticsLeadersQueryOptions,
-  moneyAnalyticsMerchantLookupsQueryOptions,
-  moneyAnalyticsRecurrenceLookupsQueryOptions,
   moneyAnalyticsSankeyQueryOptions,
   moneyBootstrapQueryOptions,
   type MoneyAccountLookup,
@@ -655,17 +654,8 @@ export function AnalyticsDashboard({
       !workspaceSyncPending &&
       Boolean(activeWorkspaceId),
   });
-  const merchantLookupsQuery = useQuery({
-    ...moneyAnalyticsMerchantLookupsQueryOptions(activeWorkspaceId),
-    enabled:
-      canRunMoneyQueries &&
-      workspaceReady &&
-      !workspaceSyncPending &&
-      Boolean(activeWorkspaceId) &&
-      needAdvancedLookups,
-  });
-  const recurrenceLookupsQuery = useQuery({
-    ...moneyAnalyticsRecurrenceLookupsQueryOptions(activeWorkspaceId),
+  const advancedLookupsQuery = useQuery({
+    ...moneyAnalyticsAdvancedLookupsQueryOptions(activeWorkspaceId),
     enabled:
       canRunMoneyQueries &&
       workspaceReady &&
@@ -699,15 +689,15 @@ export function AnalyticsDashboard({
     () =>
       (workspaceSyncPending
         ? []
-        : (merchantLookupsQuery.data?.moneyMerchants ?? [])) as AnalyticsLookupMerchant[],
-    [workspaceSyncPending, merchantLookupsQuery.data?.moneyMerchants],
+        : (advancedLookupsQuery.data?.moneyMerchants ?? [])) as AnalyticsLookupMerchant[],
+    [workspaceSyncPending, advancedLookupsQuery.data?.moneyMerchants],
   );
   const recurrenceTemplates = useMemo(
     () =>
       (workspaceSyncPending
         ? []
-        : (recurrenceLookupsQuery.data?.moneyRecurrenceTemplates ?? [])) as AnalyticsLookupRecurrence[],
-    [workspaceSyncPending, recurrenceLookupsQuery.data?.moneyRecurrenceTemplates],
+        : (advancedLookupsQuery.data?.moneyRecurrenceTemplates ?? [])) as AnalyticsLookupRecurrence[],
+    [workspaceSyncPending, advancedLookupsQuery.data?.moneyRecurrenceTemplates],
   );
   const lookupsReady = !workspaceSyncPending && chartLookupsQuery.isSuccess;
 

@@ -43,9 +43,8 @@ import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_SET_ACTIVE_WORKSPACE_MUTATION } from "@/lib/money-gql-documents";
 import type { MoneyCategoryRow } from "@/lib/money-category-ui";
 import {
+  moneyAnalyticsAdvancedLookupsQueryOptions,
   moneyAnalyticsChartLookupsQueryOptions,
-  moneyAnalyticsMerchantLookupsQueryOptions,
-  moneyAnalyticsRecurrenceLookupsQueryOptions,
   moneyBootstrapQueryOptions,
   type MoneyAccountLookup,
 } from "@/lib/money-query-options";
@@ -176,17 +175,8 @@ export function MoneyTransactionsPage({
       !workspaceSyncPending &&
       Boolean(activeWorkspaceId),
   });
-  const merchantLookupsQuery = useQuery({
-    ...moneyAnalyticsMerchantLookupsQueryOptions(activeWorkspaceId),
-    enabled:
-      canRunMoneyQueries &&
-      workspaceReady &&
-      !workspaceSyncPending &&
-      Boolean(activeWorkspaceId) &&
-      advancedFilterLookups,
-  });
-  const recurrenceLookupsQuery = useQuery({
-    ...moneyAnalyticsRecurrenceLookupsQueryOptions(activeWorkspaceId),
+  const advancedLookupsQuery = useQuery({
+    ...moneyAnalyticsAdvancedLookupsQueryOptions(activeWorkspaceId),
     enabled:
       canRunMoneyQueries &&
       workspaceReady &&
@@ -220,15 +210,15 @@ export function MoneyTransactionsPage({
     () =>
       (workspaceSyncPending
         ? []
-        : (merchantLookupsQuery.data?.moneyMerchants ?? [])) as AnalyticsLookupMerchant[],
-    [workspaceSyncPending, merchantLookupsQuery.data?.moneyMerchants],
+        : (advancedLookupsQuery.data?.moneyMerchants ?? [])) as AnalyticsLookupMerchant[],
+    [workspaceSyncPending, advancedLookupsQuery.data?.moneyMerchants],
   );
   const recurrenceTemplates = useMemo(
     () =>
       (workspaceSyncPending
         ? []
-        : (recurrenceLookupsQuery.data?.moneyRecurrenceTemplates ?? [])) as AnalyticsLookupRecurrence[],
-    [workspaceSyncPending, recurrenceLookupsQuery.data?.moneyRecurrenceTemplates],
+        : (advancedLookupsQuery.data?.moneyRecurrenceTemplates ?? [])) as AnalyticsLookupRecurrence[],
+    [workspaceSyncPending, advancedLookupsQuery.data?.moneyRecurrenceTemplates],
   );
   const lookupsReady = !workspaceSyncPending && chartLookupsQuery.isSuccess;
 

@@ -31,7 +31,10 @@ export async function fetchMoneyWorkspaceStatePayload(
 
   const [ws, wsPack] = await Promise.all([
     db
-      .select({ defaultCurrency: workspace.defaultCurrency })
+      .select({
+        defaultCurrency: workspace.defaultCurrency,
+        tzName: workspace.tzName,
+      })
       .from(workspace)
       .where(eq(workspace.id, workspaceId))
       .limit(1),
@@ -39,10 +42,12 @@ export async function fetchMoneyWorkspaceStatePayload(
   ]);
 
   const defaultCurrency = ws[0]?.defaultCurrency ?? null;
+  const tzName = ws[0]?.tzName ?? "UTC";
 
   return {
     workspaceId,
     defaultCurrency,
+    tzName,
     needsCurrencySetup: !defaultCurrency,
     workspaces: wsPack.workspaces,
     defaultWorkspaceId: wsPack.defaultWorkspaceId,
