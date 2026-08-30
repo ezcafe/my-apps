@@ -526,7 +526,7 @@ Plain language, short helpers, and typography — not color alone — carry scan
 
 Wizard steps: render the step hint under the progress bar. Review/summary steps lead with scannable numbers, then detail, then errors.
 
-**Loading / skeleton parity:** Route `loading.tsx`, Suspense fallbacks, and in-component loading branches must mirror the shipped page stack (period chip → filters → KPIs → status strip → content). Reuse `AnalyticsPeriodChipSkeleton`, `AnalyticsStatsSkeleton`, and shared page skeletons from [`money-analytics-skeleton.tsx`](../components/money-analytics-skeleton.tsx). Verify on slow network in light and dark — chip/KPI positions should not jump when content loads.
+**Loading / skeleton parity:** Route `loading.tsx`, Suspense fallbacks, and in-component loading branches must mirror the shipped page stack (filters → period chip / active filters → KPIs → status strip → content). Reuse `AnalyticsPeriodChipSkeleton`, `AnalyticsStatsSkeleton`, and shared page skeletons from [`money-analytics-skeleton.tsx`](../components/money-analytics-skeleton.tsx). Verify on slow network in light and dark — chip/KPI positions should not jump when content loads.
 
 ## Quick checklist for any UI change
 

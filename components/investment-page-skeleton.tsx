@@ -49,8 +49,8 @@ export function MoneyInvestmentsPageSkeleton() {
     >
       <AnalyticsStatsSkeleton showPeriodLine={false} />
       <InvestmentPortfolioSnapshotSkeleton />
-      <AnalyticsPeriodChipSkeleton />
       <MoneyAnalyticsFiltersBarSkeleton />
+      <AnalyticsPeriodChipSkeleton />
       <AnalyticsStatsSkeleton showPeriodLine={false} />
       <MoneyAnalyticsTransactionsTableSkeleton selectable />
     </div>

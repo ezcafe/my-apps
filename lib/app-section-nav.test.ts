@@ -33,6 +33,21 @@ describe("visibleAppSectionItems", () => {
       ],
     );
   });
+
+  it("lists all default investment menu items including import", () => {
+    const items = visibleAppSectionItems("investments", (key) => key == null);
+    assert.deepEqual(
+      items.map((item) => item.label),
+      [
+        "Investments",
+        "Insights",
+        "Record activity",
+        "Instruments",
+        "Import",
+        "Settings",
+      ],
+    );
+  });
 });
 
 describe("appSectionItemsByGroup", () => {

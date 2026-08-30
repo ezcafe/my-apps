@@ -3,15 +3,18 @@
 import { useFormatDate } from "@/lib/format-date";
 import { cn } from "@/lib/cn";
 
-/** Read-only active range label for ledger and insights dashboards. */
+/** Read-only active range label and active filter values for ledger and insights dashboards. */
 export function AnalyticsPeriodChip({
   fromDate,
   toDate,
+  activeFilters,
   dirty = false,
   className,
 }: {
   fromDate: string;
   toDate: string;
+  /** Active filter summary labels (e.g. `["Spending", "Groceries"]`). */
+  activeFilters?: readonly string[];
   /** Draft filters differ from applied — prompt Apply. */
   dirty?: boolean;
   className?: string;
@@ -28,6 +31,17 @@ export function AnalyticsPeriodChip({
     >
       Showing{" "}
       <span className="font-medium text-foreground tabular-nums">{period}</span>
+      {activeFilters && activeFilters.length > 0 ? (
+        <>
+          {activeFilters.map((filter, index) => (
+            <span key={`${filter}-${index}`}>
+              {" "}
+              ·{" "}
+              <span className="font-medium text-foreground">{filter}</span>
+            </span>
+          ))}
+        </>
+      ) : null}
       {dirty ? (
         <>
           {" "}

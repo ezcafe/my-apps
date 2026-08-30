@@ -27,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { AnalyticsStats } from "@/components/analytics-stats";
 import { AnalyticsPeriodChip } from "@/components/analytics-period-chip";
+import { resolveActiveFilterLabels } from "@/lib/money-active-filter-summary";
 import { useSetAppHeader } from "@/components/app-header-override";
 import { useTheme } from "@/components/theme-provider";
 import { Alert } from "@/components/ui/alert";
@@ -726,6 +727,30 @@ export function AnalyticsDashboard({
     [applied, ledgerScope, categories],
   );
 
+  const activeFilters = useMemo(
+    () =>
+      resolveActiveFilterLabels(applied, {
+        accounts,
+        categories,
+        merchants,
+        tags,
+        recurrenceTemplates,
+        viewScopeLabel:
+          ledgerScope !== "all"
+            ? MONEY_LEDGER_SCOPES.find((s) => s.id === ledgerScope)?.label
+            : undefined,
+      }),
+    [
+      applied,
+      accounts,
+      categories,
+      merchants,
+      tags,
+      recurrenceTemplates,
+      ledgerScope,
+    ],
+  );
+
   const autoSyncedWorkspaceRef = useRef<string | null>(null);
   const seededFiltersKeyRef = useRef<string | null>(null);
 
@@ -872,12 +897,6 @@ export function AnalyticsDashboard({
 
   return (
     <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
-      <AnalyticsPeriodChip
-        fromDate={applied.fromDate}
-        toDate={applied.toDate}
-        dirty={dirty}
-      />
-
       <AnalyticsFiltersBar
         viewFilter={{
           menuLabel: "Ledger",
@@ -903,6 +922,13 @@ export function AnalyticsDashboard({
         switchingWorkspace={workspaceSyncPending}
         userSub={userSub}
         onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
+      />
+
+      <AnalyticsPeriodChip
+        fromDate={applied.fromDate}
+        toDate={applied.toDate}
+        activeFilters={activeFilters}
+        dirty={dirty}
       />
 
       {loadError ? (

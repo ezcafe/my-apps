@@ -923,10 +923,11 @@ export function AnalyticsFiltersBar({
       className={cn("@container fx-fade-in")}
       aria-label="Analytics filters"
     >
-      <div className="flex justify-end @md:hidden">
+      <div className="w-full @md:hidden">
         <Button
           type="button"
           variant="secondary"
+          className="w-full justify-between"
           onClick={() => setMobileFiltersOpen(true)}
           trailing={
             dirty || secondaryActive || datesActive ? (
@@ -1251,10 +1252,11 @@ export function InsightsDateRangeFiltersBar({
 
   return (
     <section className={cn("@container fx-fade-in")} aria-label="Insights filters">
-      <div className="flex justify-end @md:hidden">
+      <div className="w-full @md:hidden">
         <Button
           type="button"
           variant="secondary"
+          className="w-full justify-between"
           onClick={() => setMobileFiltersOpen(true)}
           trailing={
             dirty || dateActive ? (
@@ -1262,7 +1264,7 @@ export function InsightsDateRangeFiltersBar({
             ) : null
           }
         >
-          Filter
+          Filter · {dateLabel}
           {dirty ? (
             <span className="sr-only">Unapplied filter changes</span>
           ) : null}

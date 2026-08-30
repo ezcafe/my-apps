@@ -104,18 +104,18 @@ export function LoansInsightsDashboard() {
 
   return (
     <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
-      <AnalyticsPeriodChip
-        fromDate={applied.from}
-        toDate={applied.to}
-        dirty={dirty}
-      />
-
       <InsightsDateRangeFiltersBar
         value={{ fromDate: draft.from, toDate: draft.to }}
         onChange={(next) => setDraft({ from: next.fromDate, to: next.toDate })}
         onApply={handleApply}
         onReset={handleReset}
         applying={isFilterPending}
+        dirty={dirty}
+      />
+
+      <AnalyticsPeriodChip
+        fromDate={applied.from}
+        toDate={applied.to}
         dirty={dirty}
       />
 

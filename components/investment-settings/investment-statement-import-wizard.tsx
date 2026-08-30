@@ -5,9 +5,10 @@ import { useId, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   Table,
@@ -17,14 +18,38 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/format-money";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { moneyQuickPickChipCls, moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
+import { MoneyStatusEmphasis, MoneyStatusStrip } from "@/lib/money-status-strip";
 import type { StatementPlatform } from "@/lib/investment-statement-parsers";
 import type { StatementImportPreviewResponse } from "@/lib/investment-services/import-statement";
 import { invalidateInvestmentWorkspaceQueries } from "@/lib/investment-query-options";
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 
 type WizardStep = "platform" | "upload" | "preview" | "success";
+
+const STEP_ORDER: WizardStep[] = ["platform", "upload", "preview", "success"];
+
+const STEP_META: Record<WizardStep, { title: string; hint: string }> = {
+  platform: {
+    title: "Platform",
+    hint: "Choose your trading platform or leave on Auto-detect.",
+  },
+  upload: {
+    title: "Upload",
+    hint: "Upload your statement file (.html, .htm, or .csv).",
+  },
+  preview: {
+    title: "Preview & Map",
+    hint: "Review detected trades, positions, cash moves, and target account.",
+  },
+  success: {
+    title: "Done",
+    hint: "Statement activities recorded to your investment journal.",
+  },
+};
 
 const PLATFORMS: Array<{
   id: StatementPlatform | "auto";
@@ -51,6 +76,85 @@ const PLATFORMS: Array<{
     description: "Binance Spot trade history, Futures trades, and transaction records.",
   },
 ];
+
+function ImportTypeChevron() {
+  return (
+    <svg
+      className="size-5 flex-none text-muted"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function ImportProgress({
+  current,
+  onStepClick,
+}: {
+  current: WizardStep;
+  onStepClick: (s: WizardStep) => void;
+}) {
+  const currentIdx = STEP_ORDER.indexOf(current);
+  const progressPct = ((currentIdx + 1) / STEP_ORDER.length) * 100;
+
+  return (
+    <nav aria-label="Import steps" className="space-y-3">
+      <div className="flex items-center justify-between text-sm text-muted">
+        <span>
+          Step {currentIdx + 1} of {STEP_ORDER.length}
+        </span>
+        <span className="font-medium text-foreground">
+          {STEP_META[current].title}
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-border">
+        <div
+          className="h-full rounded-full bg-accent transition-[width] duration-300"
+          style={{ width: `${progressPct}%` }}
+        />
+      </div>
+      <p className="text-sm text-muted">{STEP_META[current].hint}</p>
+      <div
+        role="radiogroup"
+        aria-label="Import steps"
+        className={moneyQuickPickGroupCls}
+      >
+        {STEP_ORDER.map((id, i) => {
+          const done = i < currentIdx;
+          const active = id === current;
+          const future = i > currentIdx;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              aria-current={active ? "step" : undefined}
+              disabled={future}
+              onClick={() => {
+                if (!future && i !== currentIdx) onStepClick(id);
+              }}
+              className={cn(
+                moneyQuickPickChipCls(active),
+                "disabled:cursor-not-allowed disabled:opacity-45",
+                done && !active ? "text-foreground" : null,
+              )}
+            >
+              {STEP_META[id].title}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
 
 export function InvestmentStatementImportWizard() {
   const notify = useNotify();
@@ -179,163 +283,110 @@ export function InvestmentStatementImportWizard() {
     }
   };
 
+  const resetImport = () => {
+    setStep("platform");
+    setSelectedPlatform("auto");
+    setFileContent("");
+    setFileName("");
+    setPreviewData(null);
+    setImportResult(null);
+    setError(null);
+  };
+
+  const goToStep = (s: WizardStep) => {
+    const cur = STEP_ORDER.indexOf(step);
+    const tgt = STEP_ORDER.indexOf(s);
+    if (tgt >= cur) return;
+    setStep(s);
+    if (s === "platform" || s === "upload") {
+      setPreviewData(null);
+    }
+  };
+
+  const selectedPlatformObj = PLATFORMS.find((p) => p.id === selectedPlatform);
+
   return (
-    <div className={MONEY_FULL_SPAN}>
-      {/* Progress Steps */}
-      <div className="mb-6 flex items-center justify-between border-b border-border pb-4 text-xs font-medium">
-        <div className="flex items-center gap-2">
-          <span
-            className={`flex size-6 items-center justify-center rounded-full text-xs font-semibold ${
-              step === "platform"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            1
-          </span>
-          <span className={step === "platform" ? "text-foreground font-semibold" : "text-muted"}>
-            Platform
-          </span>
-        </div>
-        <div className="h-px flex-1 bg-border mx-3" />
-        <div className="flex items-center gap-2">
-          <span
-            className={`flex size-6 items-center justify-center rounded-full text-xs font-semibold ${
-              step === "upload"
-                ? "bg-primary text-primary-foreground"
-                : step === "preview" || step === "success"
-                ? "bg-muted text-foreground"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            2
-          </span>
-          <span className={step === "upload" ? "text-foreground font-semibold" : "text-muted"}>
-            Upload
-          </span>
-        </div>
-        <div className="h-px flex-1 bg-border mx-3" />
-        <div className="flex items-center gap-2">
-          <span
-            className={`flex size-6 items-center justify-center rounded-full text-xs font-semibold ${
-              step === "preview"
-                ? "bg-primary text-primary-foreground"
-                : step === "success"
-                ? "bg-muted text-foreground"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            3
-          </span>
-          <span className={step === "preview" ? "text-foreground font-semibold" : "text-muted"}>
-            Preview & Map
-          </span>
-        </div>
-        <div className="h-px flex-1 bg-border mx-3" />
-        <div className="flex items-center gap-2">
-          <span
-            className={`flex size-6 items-center justify-center rounded-full text-xs font-semibold ${
-              step === "success"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            4
-          </span>
-          <span className={step === "success" ? "text-foreground font-semibold" : "text-muted"}>
-            Done
-          </span>
-        </div>
-      </div>
+    <div className={cn(MONEY_FULL_SPAN, "min-w-0")}>
+      <ImportProgress current={step} onStepClick={goToStep} />
 
       {error ? (
-        <Alert variant="error" title="Import notice" description={error} className="mb-6" />
+        <Alert variant="error" title="Import notice" description={error} className="mt-6" />
       ) : null}
 
       {/* STEP 1: PLATFORM SELECTION */}
-      {step === "platform" && (
-        <div className="rounded-[var(--radius-md)] border border-border bg-background p-6">
-          <h2 className="text-base font-semibold text-foreground">Select statement platform</h2>
-          <p className="mt-1 text-xs text-muted">
+      {step === "platform" ? (
+        <div className="mt-8">
+          <h3 className="text-sm font-medium text-foreground">Select statement platform</h3>
+          <p className="mt-1 text-sm text-muted">
             Choose your trading platform or leave on Auto-detect to inspect the file headers.
           </p>
-
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {PLATFORMS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setSelectedPlatform(p.id)}
-                className={`flex flex-col items-start rounded-[var(--radius-sm)] border p-4 text-left transition-colors fx-press ${
-                  selectedPlatform === p.id
-                    ? "border-primary bg-primary/5 ring-1 ring-primary"
-                    : "border-border hover:bg-muted-surface"
-                }`}
-              >
-                <div className="flex w-full items-center justify-between">
-                  <span className="text-sm font-semibold text-foreground">{p.name}</span>
-                  <span className="rounded-[var(--radius-sm)] bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    {p.badge}
-                  </span>
-                </div>
-                <p className="mt-1.5 text-xs text-muted">{p.description}</p>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <Button variant="primary" onClick={() => setStep("upload")}>
-              Continue to Upload →
-            </Button>
-          </div>
+          <ul
+            role="list"
+            className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-px overflow-hidden rounded-[var(--radius-md)] bg-border shadow-[var(--shadow-sm)]"
+            aria-label="Statement platforms"
+          >
+            {PLATFORMS.map((p) => {
+              const isSelected = selectedPlatform === p.id;
+              return (
+                <li key={p.id} className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPlatform(p.id);
+                      setStep("upload");
+                    }}
+                    className={cn(
+                      "relative flex w-full flex-col items-start gap-1 bg-surface px-4 py-5 text-left transition-colors duration-200 hover:bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground",
+                      isSelected && "ring-1 ring-inset ring-accent",
+                    )}
+                  >
+                    <div className="flex w-full items-center justify-between gap-2">
+                      <span className="min-w-0 text-sm font-semibold text-foreground">
+                        {p.name}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded-[var(--radius-sm)] bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {p.badge}
+                        </span>
+                        <ImportTypeChevron />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted line-clamp-2">{p.description}</p>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
-      )}
+      ) : null}
 
       {/* STEP 2: UPLOAD FILE */}
-      {step === "upload" && (
-        <div className="rounded-[var(--radius-md)] border border-border bg-background p-6 space-y-6">
+      {step === "upload" ? (
+        <div className="mt-8 space-y-6">
           <div>
-            <h2 className="text-base font-semibold text-foreground">Upload statement file</h2>
-            <p className="mt-1 text-xs text-muted">
-              Upload your .html, .htm, or .csv export from your broker or exchange.
+            <h3 className="text-sm font-medium text-foreground">Upload statement file</h3>
+            <p className="mt-1 text-sm text-muted">
+              Platform: <span className="font-medium text-foreground">{selectedPlatformObj?.name ?? "Auto-detect"}</span>. File must be .html, .htm, .csv, or text export.
             </p>
           </div>
 
-          <div className="rounded-[var(--radius-md)] border-2 border-dashed border-border bg-muted/10 p-8 text-center">
-            <input
+          <Field label="Statement file">
+            <Input
               id={fileInputId}
               type="file"
               accept=".html,.htm,.csv,.txt"
+              className="cursor-pointer file:mr-3 file:cursor-pointer"
+              disabled={loading}
               onChange={(e) => void handleFileChange(e.target.files)}
-              className="hidden"
             />
-            <label
-              htmlFor={fileInputId}
-              className="flex cursor-pointer flex-col items-center justify-center gap-2"
-            >
-              <svg
-                className="size-10 text-muted"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.5"
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
-              <span className="text-sm font-medium text-foreground">
-                {fileName ? `Selected: ${fileName}` : "Click to select statement file or drag here"}
-              </span>
-              <span className="text-xs text-muted">
-                Supports cTrader HTML, MetaTrader HTML/CSV, and Binance CSV (max 15MB)
-              </span>
-            </label>
-          </div>
+          </Field>
 
-          {/* Or Paste Raw Text */}
+          {fileName ? (
+            <p className="text-sm text-muted">
+              Selected: <span className="font-mono text-foreground">{fileName}</span>
+            </p>
+          ) : null}
+
           <Field label="Or paste statement contents (optional)">
             <textarea
               rows={4}
@@ -350,33 +401,42 @@ export function InvestmentStatementImportWizard() {
           </Field>
 
           <div className="flex items-center justify-between pt-2">
-            <Button variant="secondary" onClick={() => setStep("platform")}>
-              ← Back
+            <Button type="button" variant="ghost" onClick={() => setStep("platform")}>
+              Back
             </Button>
             <Button
+              type="button"
               variant="primary"
               disabled={!fileContent.trim() || loading}
               onClick={() => void handlePreview()}
             >
-              {loading ? "Parsing statement…" : "Preview Statement →"}
+              {loading ? "Parsing statement…" : "Preview Statement"}
             </Button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* STEP 3: PREVIEW & MAP */}
-      {step === "preview" && previewData && (
-        <div className="space-y-6">
-          {/* Metadata Card */}
+      {step === "preview" && previewData ? (
+        <div className="mt-8 space-y-8">
+          <MoneyStatusStrip>
+            <MoneyStatusEmphasis>{previewData.parseResult.closedTrades.length}</MoneyStatusEmphasis> closed trades ·{" "}
+            <MoneyStatusEmphasis>{previewData.parseResult.openPositions.length}</MoneyStatusEmphasis> open positions ·{" "}
+            <MoneyStatusEmphasis>{previewData.parseResult.cashMoves.length}</MoneyStatusEmphasis> cash moves ·{" "}
+            <MoneyStatusEmphasis>{previewData.symbolsSummary.length}</MoneyStatusEmphasis> instruments ·{" "}
+            <span className="font-medium text-foreground">{previewData.parseResult.detectedFormatName}</span>
+          </MoneyStatusStrip>
+
+          {/* Account Target and Options Card */}
           <div className="rounded-[var(--radius-md)] border border-border bg-background p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <span className="rounded-[var(--radius-sm)] bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
                   {previewData.parseResult.detectedFormatName}
                 </span>
-                <h2 className="mt-2 text-lg font-semibold text-foreground">
-                  Statement Preview: {previewData.parseResult.account.accountNumber ? `Account #${previewData.parseResult.account.accountNumber}` : "Portfolio Import"}
-                </h2>
+                <h3 className="mt-2 text-base font-semibold text-foreground">
+                  Statement: {previewData.parseResult.account.accountNumber ? `Account #${previewData.parseResult.account.accountNumber}` : "Portfolio Import"}
+                </h3>
                 <p className="text-xs text-muted">
                   {previewData.parseResult.account.brokerOrPlatform} · {previewData.parseResult.summary.currency}
                   {previewData.parseResult.account.periodStart ? ` · ${previewData.parseResult.account.periodStart} to ${previewData.parseResult.account.periodEnd ?? ""}` : ""}
@@ -455,50 +515,42 @@ export function InvestmentStatementImportWizard() {
             </div>
           </div>
 
-          {/* Tabs for preview details */}
-          <div className="rounded-[var(--radius-md)] border border-border bg-background p-6">
-            <div className="flex items-center gap-2 border-b border-border pb-3">
+          {/* Subtabs for preview details */}
+          <div className="space-y-4">
+            <div role="tablist" aria-label="Statement preview sections" className={moneyQuickPickGroupCls}>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === "trades"}
                 onClick={() => setActiveTab("trades")}
-                className={`rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  activeTab === "trades"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted hover:bg-muted/40 hover:text-foreground"
-                }`}
+                className={moneyQuickPickChipCls(activeTab === "trades")}
               >
                 Closed Trades ({previewData.parseResult.closedTrades.length})
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === "positions"}
                 onClick={() => setActiveTab("positions")}
-                className={`rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  activeTab === "positions"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted hover:bg-muted/40 hover:text-foreground"
-                }`}
+                className={moneyQuickPickChipCls(activeTab === "positions")}
               >
                 Open Positions ({previewData.parseResult.openPositions.length})
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === "cash"}
                 onClick={() => setActiveTab("cash")}
-                className={`rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  activeTab === "cash"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted hover:bg-muted/40 hover:text-foreground"
-                }`}
+                className={moneyQuickPickChipCls(activeTab === "cash")}
               >
                 Cash Moves ({previewData.parseResult.cashMoves.length})
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === "symbols"}
                 onClick={() => setActiveTab("symbols")}
-                className={`rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  activeTab === "symbols"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted hover:bg-muted/40 hover:text-foreground"
-                }`}
+                className={moneyQuickPickChipCls(activeTab === "symbols")}
               >
                 Instruments ({previewData.symbolsSummary.length})
               </button>
@@ -506,7 +558,7 @@ export function InvestmentStatementImportWizard() {
 
             {/* Closed Trades Table */}
             {activeTab === "trades" && (
-              <div className="mt-4 max-h-96 overflow-auto">
+              <div className="max-h-96 overflow-auto rounded-[var(--radius-md)] border border-border bg-background">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -536,7 +588,7 @@ export function InvestmentStatementImportWizard() {
                             <TableCell className="font-mono text-xs">
                               {trade.externalId}
                               {isDup ? (
-                                <span className="ml-1.5 rounded-sm bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-600 dark:text-amber-400">
+                                <span className="ml-1.5 rounded-[var(--radius-sm)] bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-600 dark:text-amber-400">
                                   Duplicate
                                 </span>
                               ) : null}
@@ -588,7 +640,7 @@ export function InvestmentStatementImportWizard() {
 
             {/* Open Positions Table */}
             {activeTab === "positions" && (
-              <div className="mt-4 max-h-96 overflow-auto">
+              <div className="max-h-96 overflow-auto rounded-[var(--radius-md)] border border-border bg-background">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -598,15 +650,15 @@ export function InvestmentStatementImportWizard() {
                       <TableHead>Open Date</TableHead>
                       <TableHead className="text-right">Quantity</TableHead>
                       <TableHead className="text-right">Entry Price</TableHead>
-                      <TableHead className="text-right">S/L</TableHead>
-                      <TableHead className="text-right">T/P</TableHead>
+                      <TableHead className="text-right">SL</TableHead>
+                      <TableHead className="text-right">TP</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {previewData.parseResult.openPositions.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center text-xs text-muted">
-                          No open positions in statement.
+                          No open positions found in statement.
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -617,7 +669,7 @@ export function InvestmentStatementImportWizard() {
                             <TableCell className="font-mono text-xs">
                               {pos.externalId}
                               {isDup ? (
-                                <span className="ml-1.5 rounded-sm bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-600 dark:text-amber-400">
+                                <span className="ml-1.5 rounded-[var(--radius-sm)] bg-amber-500/10 px-1 py-0.5 text-[10px] text-amber-600 dark:text-amber-400">
                                   Duplicate
                                 </span>
                               ) : null}
@@ -626,27 +678,27 @@ export function InvestmentStatementImportWizard() {
                             <TableCell>
                               <span
                                 className={`rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                                  pos.side === "buy"
+                                  pos.direction === "buy"
                                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                                     : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
                                 }`}
                               >
-                                {pos.side}
+                                {pos.direction}
                               </span>
                             </TableCell>
                             <TableCell className="text-xs text-muted tabular-nums">
-                              {pos.activityDate}
+                              {pos.openDate}
                             </TableCell>
                             <TableCell className="text-right font-mono tabular-nums">
                               {pos.quantity}
                             </TableCell>
                             <TableCell className="text-right font-mono tabular-nums">
-                              {pos.openPrice}
+                              {pos.entryPrice}
                             </TableCell>
-                            <TableCell className="text-right text-xs tabular-nums text-muted">
+                            <TableCell className="text-right font-mono text-xs tabular-nums text-muted">
                               {pos.stopLoss || "—"}
                             </TableCell>
-                            <TableCell className="text-right text-xs tabular-nums text-muted">
+                            <TableCell className="text-right font-mono text-xs tabular-nums text-muted">
                               {pos.takeProfit || "—"}
                             </TableCell>
                           </TableRow>
@@ -660,7 +712,7 @@ export function InvestmentStatementImportWizard() {
 
             {/* Cash Moves Table */}
             {activeTab === "cash" && (
-              <div className="mt-4 max-h-96 overflow-auto">
+              <div className="max-h-96 overflow-auto rounded-[var(--radius-md)] border border-border bg-background">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -700,7 +752,7 @@ export function InvestmentStatementImportWizard() {
 
             {/* Symbols Table */}
             {activeTab === "symbols" && (
-              <div className="mt-4 max-h-96 overflow-auto">
+              <div className="max-h-96 overflow-auto rounded-[var(--radius-md)] border border-border bg-background">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -745,24 +797,25 @@ export function InvestmentStatementImportWizard() {
             )}
           </div>
 
-          <div className="flex items-center justify-between">
-            <Button variant="secondary" onClick={() => setStep("upload")}>
-              ← Back
+          <div className="flex items-center justify-between pt-2">
+            <Button type="button" variant="ghost" onClick={() => setStep("upload")}>
+              Back
             </Button>
             <Button
+              type="button"
               variant="primary"
               disabled={loading}
               onClick={() => void handleCommit()}
             >
-              {loading ? "Importing activities…" : "Confirm & Import Activities →"}
+              {loading ? "Importing activities…" : "Confirm & Import Activities"}
             </Button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* STEP 4: SUCCESS */}
-      {step === "success" && importResult && (
-        <div className="rounded-[var(--radius-md)] border border-border bg-background p-8 text-center space-y-6">
+      {step === "success" && importResult ? (
+        <div className="mt-8 rounded-[var(--radius-md)] border border-border bg-background p-8 text-center space-y-6">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
@@ -770,8 +823,8 @@ export function InvestmentStatementImportWizard() {
           </div>
 
           <div>
-            <h2 className="text-xl font-bold text-foreground">Statement imported successfully</h2>
-            <p className="mt-1 text-xs text-muted">
+            <h3 className="text-lg font-bold text-foreground">Statement imported successfully</h3>
+            <p className="mt-1 text-sm text-muted">
               Activities have been recorded to your Investment journal and Money ledger.
             </p>
           </div>
@@ -797,37 +850,19 @@ export function InvestmentStatementImportWizard() {
             </div>
           </div>
 
-          <div className="flex justify-center gap-3 pt-4">
-            {previewData?.parseResult.account.periodStart && previewData?.parseResult.account.periodEnd ? (
-              <Link
-                href={`/investments?from=${previewData.parseResult.account.periodStart.slice(0, 10)}&to=${previewData.parseResult.account.periodEnd.slice(0, 10)}`}
-                className="inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 fx-press"
-              >
-                View Statement Period Activities →
-              </Link>
-            ) : (
-              <Link
-                href="/investments"
-                className="inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 fx-press"
-              >
-                View Investment Activities →
-              </Link>
-            )}
+          <div className="flex items-center justify-center gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={resetImport}>
+              Import another file
+            </Button>
             <Link
               href="/investments"
-              className="inline-flex items-center justify-center rounded-[var(--radius-sm)] border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted-surface fx-press"
+              className={buttonClassName({ variant: "primary" })}
             >
-              Overview (Current Month)
-            </Link>
-            <Link
-              href="/investments/insights"
-              className="inline-flex items-center justify-center rounded-[var(--radius-sm)] border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted-surface fx-press"
-            >
-              View Insights
+              View Investments
             </Link>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

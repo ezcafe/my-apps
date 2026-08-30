@@ -23,6 +23,7 @@ import {
 } from "@/components/analytics-filters";
 import { MoneyAnalyticsFiltersBarSkeleton, AnalyticsStatsSkeleton, MoneyAnalyticsTransactionsTableSkeleton, AnalyticsPeriodChipSkeleton } from "@/components/money-analytics-skeleton";
 import { AnalyticsPeriodChip } from "@/components/analytics-period-chip";
+import { resolveActiveFilterLabels } from "@/lib/money-active-filter-summary";
 import { useSetAppHeader } from "@/components/app-header-override";
 import { MoneyLedgerSummaryStats } from "@/components/money-ledger-summary-stats";
 import { MoneyLedgerTrendCard } from "@/components/money-ledger-trend-card";
@@ -236,6 +237,30 @@ export function MoneyTransactionsPage({
     [preset, categories],
   );
 
+  const activeFilters = useMemo(
+    () =>
+      resolveActiveFilterLabels(applied, {
+        accounts,
+        categories,
+        merchants,
+        tags,
+        recurrenceTemplates,
+        viewScopeLabel:
+          viewNav && viewNav.value !== (viewNav.defaultValue ?? viewNav.options[0]?.id)
+            ? viewNav.options.find((o) => o.id === viewNav.value)?.label
+            : undefined,
+      }),
+    [
+      applied,
+      accounts,
+      categories,
+      merchants,
+      tags,
+      recurrenceTemplates,
+      viewNav,
+    ],
+  );
+
   const pageDefaultFilters = useCallback(() => {
     const base = defaultFiltersForLedgerPreset(preset, accounts, categories);
     const paramFrom = searchParams.get("from");
@@ -359,8 +384,8 @@ export function MoneyTransactionsPage({
           MONEY_DASHBOARD_STACK,
         )}
       >
-        <AnalyticsPeriodChipSkeleton />
         <MoneyAnalyticsFiltersBarSkeleton />
+        <AnalyticsPeriodChipSkeleton />
         {showStats ? <AnalyticsStatsSkeleton showPeriodLine={false} /> : null}
         <MoneyAnalyticsTransactionsTableSkeleton selectable />
       </div>
@@ -374,12 +399,6 @@ export function MoneyTransactionsPage({
         MONEY_DASHBOARD_STACK,
       )}
     >
-      <AnalyticsPeriodChip
-        fromDate={applied.fromDate}
-        toDate={applied.toDate}
-        dirty={dirty}
-      />
-
       <AnalyticsFiltersBar
         viewFilter={viewFilter}
         value={draft}
@@ -399,6 +418,13 @@ export function MoneyTransactionsPage({
         switchingWorkspace={workspaceSyncPending}
         userSub={userSub}
         onAdvancedFiltersNeeded={() => setAdvancedFilterLookups(true)}
+      />
+
+      <AnalyticsPeriodChip
+        fromDate={applied.fromDate}
+        toDate={applied.toDate}
+        activeFilters={activeFilters}
+        dirty={dirty}
       />
 
       {loadError ? (

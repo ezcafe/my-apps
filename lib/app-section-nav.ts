@@ -149,6 +149,13 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
         group: "browse",
       },
       {
+        href: "/investments/import",
+        label: "Import",
+        icon: "import",
+        exact: false,
+        group: "configure",
+      },
+      {
         href: "/investments/settings",
         label: "Settings",
         icon: "settings",

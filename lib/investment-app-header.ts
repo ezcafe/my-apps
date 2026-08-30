@@ -47,6 +47,21 @@ export function resolveInvestmentAppHeader(
   }
 
   if (
+    pathname === "/investments/import" ||
+    pathname.startsWith("/investments/import/")
+  ) {
+    return {
+      title: "Import statement",
+      breadcrumbs: [
+        { label: "Investments", href: "/investments" },
+        { label: "Import statement" },
+      ],
+      cta: null,
+      meta: "Import broker and exchange statements into Investment activities.",
+    };
+  }
+
+  if (
     pathname === "/investments/settings/import" ||
     pathname.startsWith("/investments/settings/import/")
   ) {

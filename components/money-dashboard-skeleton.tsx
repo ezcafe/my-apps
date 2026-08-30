@@ -271,6 +271,15 @@ export function MoneyDashboardSkeleton() {
               "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))",
           }}
         >
+          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
+            <legend className="text-muted">Type</legend>
+            <div className={moneyQuickPickGroupCls}>
+              <StaticChip label="Expense" active />
+              <StaticChip label="Income" />
+              <StaticChip label="Transfer" />
+            </div>
+          </fieldset>
+
           <Field label="Amount" required>
             <InputGroup>
               <InputGroupAddon side="leading" aria-hidden>
@@ -288,15 +297,6 @@ export function MoneyDashboardSkeleton() {
               </InputGroupAddon>
             </InputGroup>
           </Field>
-
-          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
-            <legend className="text-muted">Type</legend>
-            <div className={moneyQuickPickGroupCls}>
-              <StaticChip label="Expense" active />
-              <StaticChip label="Income" />
-              <StaticChip label="Transfer" />
-            </div>
-          </fieldset>
 
           <MoneyLookupQuickPickSkeleton
             legend="Account"

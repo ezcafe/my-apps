@@ -1101,6 +1101,56 @@ export function MoneyTransactionForm({
             </Field>
           ) : null}
 
+          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
+            <legend className="text-muted">Type</legend>
+            <div
+              role="radiogroup"
+              aria-label="Transaction type"
+              className={moneyQuickPickGroupCls}
+            >
+              {KIND_OPTIONS.map(({ value, label }) => {
+                const active = kind === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => {
+                      setKind(value);
+                      if (value !== "transfer") {
+                        setToAccountId("");
+                      } else if (!isRecurrenceMode) {
+                        setRecurrenceEnabled(false);
+                      }
+                      if (value === "investment" || value === "loan") {
+                        setRecurrenceEnabled(false);
+                        const acc = preferredAccountIdForFormKind(
+                          value,
+                          loadedAccounts,
+                        );
+                        setSelectedAccountId(acc ?? "");
+                        if (value === "loan") {
+                          const cat = preferredCategoryIdForFormKind(
+                            value,
+                            loadedCategories,
+                          );
+                          setSelectedCategoryId(cat ?? "");
+                        } else {
+                          setSelectedCategoryId("");
+                        }
+                        setCategoryEmptyOnOther(false);
+                      }
+                    }}
+                    className={moneyQuickPickChipCls(active)}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
           {kind !== "investment" ? (
           <Field label="Amount" required>
             <InputGroup>
@@ -1352,56 +1402,6 @@ export function MoneyTransactionForm({
               setOccurredAt(joinDateTimeLocal(date, time));
             }}
           />
-
-          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
-            <legend className="text-muted">Type</legend>
-            <div
-              role="radiogroup"
-              aria-label="Transaction type"
-              className={moneyQuickPickGroupCls}
-            >
-              {KIND_OPTIONS.map(({ value, label }) => {
-                const active = kind === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => {
-                      setKind(value);
-                      if (value !== "transfer") {
-                        setToAccountId("");
-                      } else if (!isRecurrenceMode) {
-                        setRecurrenceEnabled(false);
-                      }
-                      if (value === "investment" || value === "loan") {
-                        setRecurrenceEnabled(false);
-                        const acc = preferredAccountIdForFormKind(
-                          value,
-                          loadedAccounts,
-                        );
-                        setSelectedAccountId(acc ?? "");
-                        if (value === "loan") {
-                          const cat = preferredCategoryIdForFormKind(
-                            value,
-                            loadedCategories,
-                          );
-                          setSelectedCategoryId(cat ?? "");
-                        } else {
-                          setSelectedCategoryId("");
-                        }
-                        setCategoryEmptyOnOther(false);
-                      }
-                    }}
-                    className={moneyQuickPickChipCls(active)}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
 
           {isSpecialKind ? (
             <Field label="Notes" className="[grid-column:1/-1]">

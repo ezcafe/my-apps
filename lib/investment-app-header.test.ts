@@ -47,5 +47,20 @@ describe("resolveInvestmentAppHeader", () => {
         { label: "Create instrument" },
       ],
     );
+    assert.deepEqual(
+      resolveInvestmentAppHeader("/investments/import").breadcrumbs,
+      [
+        { label: "Investments", href: "/investments" },
+        { label: "Import statement" },
+      ],
+    );
+    assert.equal(
+      resolveInvestmentAppHeader("/investments/import").title,
+      "Import statement",
+    );
+    assert.equal(
+      resolveInvestmentAppHeader("/investments/import").cta,
+      null,
+    );
   });
 });
