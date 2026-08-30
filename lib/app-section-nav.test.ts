@@ -26,21 +26,21 @@ describe("visibleAppSectionItems", () => {
     assert.deepEqual(
       items.map((item) => item.label),
       [
+        "Spending",
         "Insights",
         "Add transaction",
-        "Spending",
-        "Money settings",
+        "Settings",
       ],
     );
   });
 });
 
 describe("appSectionItemsByGroup", () => {
-  it("preserves review before capture", () => {
+  it("preserves browse before review", () => {
     const groups = appSectionItemsByGroup(APP_SECTION_NAV.loans.items);
     assert.deepEqual(
       groups.map(({ group }) => group),
-      ["review", "capture", "browse", "configure"],
+      ["browse", "review", "capture", "configure"],
     );
   });
 });

@@ -13,7 +13,7 @@
     "analyze": "ANALYZE=true next build",
     "start": "next start",
     "lint": "NODE_OPTIONS='--require ./scripts/resolve-typescript6.cjs' eslint",
-    "test": "tsx --import ./scripts/test-env.mjs --test \"lib/**/*.test.ts\" \"components/ui/**/*.test.ts\"",
+    "test": "tsx --import ./scripts/test-env.mjs --test \"lib/**/*.test.ts\" \"components/**/*.test.ts\"",
     "typecheck": "node ./node_modules/typescript/lib/tsc.js --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:reset": "node scripts/reset-local-db-schema.mjs",

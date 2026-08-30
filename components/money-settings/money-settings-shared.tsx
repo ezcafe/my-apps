@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
 import { AboutDisclosure } from "@/components/ui/about-disclosure";
 
 /**
@@ -19,8 +20,8 @@ export function SettingsSubsectionHeading({
   description: string;
 }) {
   return (
-    <div className="border-b border-border pb-5">
-      <div className="flex min-w-0 items-center gap-1.5">
+    <div className="border-b border-border/80 pb-3">
+      <div className="flex min-w-0 items-center justify-between gap-2">
         <h3 className="font-display text-base font-semibold leading-6 text-foreground">
           {title}
         </h3>
@@ -38,29 +39,34 @@ export function SettingsSection({
   title,
   description,
   children,
+  size = "lg",
 }: {
   id: string;
   title: string;
   description?: ReactNode;
   children: ReactNode;
+  size?: "md" | "lg" | "xl";
 }) {
   return (
-    <section id={id} className="scroll-mt-24 fx-fade-in">
-      <div className="flex min-w-0 items-center gap-1.5">
-        <h2 className="font-display text-base font-semibold leading-6 text-foreground">
+    <section id={id} className="scroll-mt-20 fx-fade-in space-y-4">
+      <div className="border-b border-border/70 pb-3">
+        <h2
+          className={cn(
+            "font-display font-semibold tracking-tight text-foreground",
+            size === "xl" && "text-2xl sm:text-3xl leading-8",
+            size === "lg" && "text-xl sm:text-2xl leading-7",
+            size === "md" && "text-lg sm:text-xl leading-6",
+          )}
+        >
           {title}
         </h2>
         {description != null && description !== "" ? (
-          <AboutDisclosure label={`About ${title}`}>
-            {typeof description === "string" ? (
-              <p>{description}</p>
-            ) : (
-              description
-            )}
-          </AboutDisclosure>
+          <div className="mt-1 text-sm text-muted leading-relaxed">
+            {typeof description === "string" ? <p>{description}</p> : description}
+          </div>
         ) : null}
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="pt-1">{children}</div>
     </section>
   );
 }

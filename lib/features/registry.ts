@@ -75,7 +75,7 @@ const shellNavItemsSource: ShellNavItem[] = [
   {
     kind: "core",
     id: "help",
-    label: "API help",
+    label: "Help",
     href: "/help",
     order: 15,
     icon: "help",

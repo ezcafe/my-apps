@@ -50,7 +50,7 @@ async function getYahooFinance(): Promise<YahooFinanceClient> {
     yahooFinancePromise = import("yahoo-finance2").then(
       ({ default: YahooFinance }) =>
         new YahooFinance({
-          suppressNotices: ["yahooSurvey"],
+          suppressNotices: ["ripHistorical", "yahooSurvey"],
         }),
     );
   }
@@ -98,7 +98,7 @@ export async function fetchYahooQuotes(
   return out;
 }
 
-/** Daily closes via yahoo-finance2 `historical` (available since v3+). */
+/** Daily closes via yahoo-finance2 `chart` API. */
 export async function fetchYahooHistoricalCloses(
   symbol: string,
   from: string,
@@ -106,11 +106,23 @@ export async function fetchYahooHistoricalCloses(
 ): Promise<{ date: string; closeMajor: number }[]> {
   const yf = await getYahooFinance();
   try {
-    const rows = await yf.historical(symbol, {
+    const result = await yf.chart(symbol, {
       period1: from,
       period2: to,
       interval: "1d",
     });
+    const rows = (
+      Array.isArray(result)
+        ? result
+        : Array.isArray(result?.quotes)
+          ? result.quotes
+          : []
+    ) as Array<{
+      date: unknown;
+      close?: number | null;
+      adjclose?: number | null;
+      adjClose?: number | null;
+    }>;
     return rows
       .filter(
         (row): row is typeof row & { date: Date; close: number } =>
@@ -119,7 +131,11 @@ export async function fetchYahooHistoricalCloses(
       .map((row) => ({
         date: isoDateUtc(row.date),
         closeMajor:
-          typeof row.adjClose === "number" ? row.adjClose : row.close,
+          typeof row.adjclose === "number"
+            ? row.adjclose
+            : typeof row.adjClose === "number"
+              ? row.adjClose
+              : row.close,
       }));
   } catch {
     return [];

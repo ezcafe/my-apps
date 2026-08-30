@@ -426,8 +426,7 @@ function OtherAppsJumpLinks({
   if (others.length === 0) return null;
 
   return (
-    <nav className="flex flex-col" aria-label="Switch app">
-      <MenuSectionLabel>Switch app</MenuSectionLabel>
+    <nav className="flex flex-col" aria-label="Other apps">
       {others.map((appKey) => {
         const config = APP_SECTION_NAV[appKey];
         const Icon = moneySectionTabIcons[appSwitcherIcon[appKey]];
@@ -473,31 +472,21 @@ function MenuFooterLink({
 }
 
 function MoneyMenuAuth({ onNavigate }: { onNavigate: () => void }) {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
 
   if (status === "authenticated") {
     return (
-      <div className="flex flex-col">
-        {session?.user?.email ? (
-          <p
-            className="truncate px-3 py-1 text-xs text-muted"
-            title={session.user.email}
-          >
-            {session.user.email}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          className={cn(menuItemClassName(false), "w-full text-left")}
-          onClick={() => {
-            onNavigate();
-            signOut({ redirectTo: "/login" });
-          }}
-        >
-          <IconSignOut className="size-5 shrink-0" />
-          Sign out
-        </button>
-      </div>
+      <button
+        type="button"
+        className={cn(menuItemClassName(false), "w-full text-left")}
+        onClick={() => {
+          onNavigate();
+          signOut({ redirectTo: "/login" });
+        }}
+      >
+        <IconSignOut className="size-5 shrink-0" />
+        Sign out
+      </button>
     );
   }
 
@@ -588,22 +577,23 @@ export function MoneyAppMenu() {
             <OtherAppsJumpLinks currentApp={currentApp} onNavigate={close} />
           </>
         ) : (
-          APP_SECTION_ORDER.map((appKey, index) => (
-            <div key={appKey}>
-              {index > 0 ? (
-                <div
-                  role="separator"
-                  aria-hidden
-                  className="my-1.5 border-t border-border"
-                />
-              ) : null}
-              <AppSectionNavPanel
-                appKey={appKey}
-                isTabVisible={isTabVisible}
-                onNavigate={close}
-              />
-            </div>
-          ))
+          <nav className="flex flex-col" aria-label="Apps">
+            {APP_SECTION_ORDER.map((appKey) => {
+              const config = APP_SECTION_NAV[appKey];
+              const Icon = moneySectionTabIcons[appSwitcherIcon[appKey]];
+              return (
+                <Link
+                  key={appKey}
+                  href={config.homeHref}
+                  onClick={close}
+                  className={menuItemClassName(false)}
+                >
+                  <Icon className="size-5 shrink-0" />
+                  {config.label}
+                </Link>
+              );
+            })}
+          </nav>
         )}
       </div>
 

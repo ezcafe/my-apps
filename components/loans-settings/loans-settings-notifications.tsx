@@ -4,13 +4,17 @@ import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useEffect, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
 import { Button } from "@/components/ui/button";
 import {
   registerLoansServiceWorker,
   subscribeLoansPush,
   unsubscribeLoansPush,
 } from "@/lib/loans-push-client";
+import { SettingsPageLayout } from "@/components/settings/settings-page-layout";
+import {
+  LOANS_SETTINGS_CATEGORIES,
+  type LoansSettingsCategoryId,
+} from "@/components/settings/settings-types";
 
 function readNotificationPermission(): NotificationPermission | "unsupported" {
   if (typeof window === "undefined" || !("Notification" in window)) {
@@ -86,32 +90,41 @@ export function LoansSettingsNotifications() {
   }
 
   return (
-    <div className={`${MONEY_FULL_SPAN} min-w-0 max-w-4xl space-y-4`}>
-      <SettingsSection
-        id="loans-settings-notifications"
-        title="Payment reminders"
-        description="In-app banners and toasts appear on the Loans overview when an installment is due. Enable browser notifications to get alerts when the app is in the background."
-      >
-        <p className="text-sm text-muted">
-          Status:{" "}
-          <span className="font-medium text-foreground">
-            {notificationPermissionLabel(permission)}
-          </span>
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button type="button" variant="primary" onClick={enablePush} disabled={busy}>
-            Enable browser notifications
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={disablePush}
-            disabled={busy}
+    <SettingsPageLayout<LoansSettingsCategoryId>
+      categories={LOANS_SETTINGS_CATEGORIES}
+      idPrefix="loans-settings"
+      searchPlaceholder="Search Loans settings (e.g. notifications, reminders, push)…"
+      sections={{
+        notifications: (
+          <SettingsSection
+            id="loans-settings-notifications"
+            title="Payment reminders"
+            description="In-app banners and toasts appear on the Loans overview when an installment is due. Enable browser notifications to get alerts when the app is in the background."
           >
-            Remove subscription
-          </Button>
-        </div>
-      </SettingsSection>
-    </div>
+            <div className="rounded-[var(--radius-md)] border border-border bg-background p-5 space-y-4">
+              <p className="text-sm text-muted">
+                Status:{" "}
+                <span className="font-medium text-foreground">
+                  {notificationPermissionLabel(permission)}
+                </span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="primary" onClick={enablePush} disabled={busy}>
+                  Enable browser notifications
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={disablePush}
+                  disabled={busy}
+                >
+                  Remove subscription
+                </Button>
+              </div>
+            </div>
+          </SettingsSection>
+        ),
+      }}
+    />
   );
 }

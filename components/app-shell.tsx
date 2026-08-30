@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, type ReactNode, type SVGProps } from "react";
+import type { ReactNode, SVGProps } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Popover } from "@/components/ui/popover";
+import { MoneyAppMenu } from "@/components/money-section-tabs";
 import {
   isShellNavActive,
   type ShellNavIconId,
@@ -166,19 +166,6 @@ function IconSignOut(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function IconMenu(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
-      <path
-        d="M4 7h16M4 12h16M4 17h16"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 const shellNavIcons: Record<
   ShellNavIconId,
   (props: SVGProps<SVGSVGElement>) => ReactNode
@@ -191,79 +178,6 @@ const shellNavIcons: Record<
   help: IconHelp,
   settings: IconSettings,
 };
-
-function ShellMobileMenu() {
-  const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const [menuPath, setMenuPath] = useState(pathname);
-  if (pathname !== menuPath) {
-    setMenuPath(pathname);
-    if (open) setOpen(false);
-  }
-
-  const close = () => setOpen(false);
-
-  return (
-    <Popover
-      align="end"
-      aria-label="Open navigation menu"
-      open={open}
-      onOpenChange={setOpen}
-      trigger={<IconMenu className="size-5" />}
-      triggerClassName="fx-hit-40 size-10 shrink-0 p-0"
-      className="pointer-events-auto min-w-[min(100vw-2rem,20rem)] p-1.5"
-    >
-      <div className="pointer-events-auto flex flex-col">
-        <nav className="flex flex-col" aria-label="Primary">
-          {shellNavItems.map((item) => (
-            <NavLinkMenu key={item.id} item={item} onNavigate={close} />
-          ))}
-        </nav>
-        <div role="separator" aria-hidden className="my-1.5 border-t border-border" />
-        <ShellPopoverAuth onNavigate={close} />
-      </div>
-    </Popover>
-  );
-}
-
-function ShellPopoverAuth({ onNavigate }: { onNavigate?: () => void }) {
-  const { data: session, status } = useSession();
-  if (status === "authenticated") {
-    return (
-      <div className="flex flex-col">
-        {session?.user?.email ? (
-          <p
-            className="truncate px-3 py-1 text-xs text-muted"
-            title={session.user.email}
-          >
-            {session.user.email}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          className="flex min-h-10 w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2.5 text-left text-sm font-medium text-muted transition-colors duration-200 hover:bg-muted-surface hover:text-foreground focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          onClick={() => {
-            onNavigate?.();
-            signOut({ redirectTo: "/login" });
-          }}
-        >
-          <IconSignOut className="size-5 shrink-0" />
-          Sign out
-        </button>
-      </div>
-    );
-  }
-  return (
-    <Link
-      href="/login"
-      onClick={onNavigate}
-      className="flex min-h-10 w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2.5 text-sm font-medium text-muted transition-colors duration-200 hover:bg-muted-surface hover:text-foreground focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-    >
-      <IconSignIn className="size-5 shrink-0" />
-      Sign in
-    </Link>
-  );
-}
 
 function NavLinkRail({
   item,
@@ -290,37 +204,6 @@ function NavLinkRail({
       )}
     >
       <Icon className="size-5" />
-    </Link>
-  );
-}
-
-function NavLinkMenu({
-  item,
-  onNavigate,
-}: {
-  item: ShellNavItem;
-  onNavigate?: () => void;
-}) {
-  const pathname = usePathname();
-  const active = isShellNavActive(item, pathname);
-  const Icon = shellNavIcons[item.icon];
-  const href = item.href;
-  const label = item.label;
-
-  return (
-    <Link
-      href={href}
-      onClick={onNavigate}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "flex min-h-10 w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2.5 text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        active
-          ? "bg-muted-surface text-foreground"
-          : "text-muted hover:bg-muted-surface hover:text-foreground",
-      )}
-    >
-      <Icon className="size-5 shrink-0" />
-      {label}
     </Link>
   );
 }
@@ -376,7 +259,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        "grid min-h-dvh grid-cols-1 grid-rows-1 bg-background text-foreground lg:h-dvh lg:max-h-dvh lg:overflow-hidden lg:grid-rows-1",
+        "grid min-h-dvh grid-cols-1 bg-background text-foreground",
         showShellAside
           ? "lg:grid-cols-[4.5rem_minmax(0,1fr)]"
           : "lg:grid-cols-1",
@@ -387,17 +270,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="pointer-events-none fixed z-30 lg:hidden"
           style={{
             top: "max(0.75rem, env(safe-area-inset-top))",
-            right: "max(0.75rem, env(safe-area-inset-right))",
+            left: "max(0.75rem, env(safe-area-inset-left))",
           }}
         >
           <div className="pointer-events-auto">
-            <ShellMobileMenu />
+            <MoneyAppMenu />
           </div>
         </div>
       ) : null}
 
       {showShellAside ? (
-        <aside className="hidden border-border bg-surface/80 backdrop-blur-sm lg:flex lg:h-full lg:min-h-0 lg:w-full lg:max-w-full lg:flex-col lg:items-center lg:border-e lg:px-0 lg:py-4">
+        <aside className="hidden border-border bg-surface/80 backdrop-blur-sm lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-full lg:max-w-full lg:flex-col lg:items-center lg:border-e lg:px-0 lg:py-4">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] font-display text-sm font-semibold tracking-tight text-foreground ring-1 ring-border">
             W
           </span>
@@ -415,7 +298,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
       ) : null}
 
-      <main className="min-h-0 min-w-0 lg:h-full lg:overflow-y-auto">
+      <main className="min-h-0 min-w-0">
         {children}
       </main>
     </div>

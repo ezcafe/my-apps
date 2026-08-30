@@ -43,9 +43,9 @@ export const APP_NAV_GROUP_LABELS: Record<AppNavGroup, string> = {
 };
 
 export const APP_NAV_GROUP_ORDER: AppNavGroup[] = [
+  "browse",
   "review",
   "capture",
-  "browse",
   "configure",
 ];
 
@@ -62,6 +62,13 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
     matchPrefix: "/money",
     items: [
       {
+        href: "/money",
+        label: "Spending",
+        icon: "spending",
+        exact: true,
+        group: "browse",
+      },
+      {
         href: "/money/insights",
         label: "Insights",
         icon: "analytics",
@@ -74,13 +81,6 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
         icon: "new",
         exact: true,
         group: "capture",
-      },
-      {
-        href: "/money",
-        label: "Spending",
-        icon: "spending",
-        exact: true,
-        group: "browse",
       },
       {
         href: "/money/bills",
@@ -100,7 +100,7 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
       },
       {
         href: "/money/import",
-        label: "Import data",
+        label: "Import",
         icon: "import",
         exact: false,
         group: "configure",
@@ -108,7 +108,7 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
       },
       {
         href: "/money/settings",
-        label: "Money settings",
+        label: "Settings",
         icon: "settings",
         exact: false,
         group: "configure",
@@ -120,6 +120,13 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
     homeHref: "/investments",
     matchPrefix: "/investments",
     items: [
+      {
+        href: "/investments",
+        label: "Investments",
+        icon: "investments",
+        exact: true,
+        group: "browse",
+      },
       {
         href: "/investments/insights",
         label: "Insights",
@@ -135,13 +142,6 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
         group: "capture",
       },
       {
-        href: "/investments",
-        label: "Investments",
-        icon: "investments",
-        exact: true,
-        group: "browse",
-      },
-      {
         href: "/investments/instruments",
         label: "Instruments",
         icon: "instruments",
@@ -150,7 +150,7 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
       },
       {
         href: "/investments/settings",
-        label: "Investments settings",
+        label: "Settings",
         icon: "settings",
         exact: false,
         group: "configure",
@@ -162,6 +162,13 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
     homeHref: "/loans",
     matchPrefix: "/loans",
     items: [
+      {
+        href: "/loans",
+        label: "Loans",
+        icon: "loans",
+        exact: true,
+        group: "browse",
+      },
       {
         href: "/loans/insights",
         label: "Insights",
@@ -177,15 +184,8 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
         group: "capture",
       },
       {
-        href: "/loans",
-        label: "Loans",
-        icon: "loans",
-        exact: true,
-        group: "browse",
-      },
-      {
         href: "/loans/settings",
-        label: "Loans settings",
+        label: "Settings",
         icon: "settings",
         exact: false,
         group: "configure",

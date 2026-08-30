@@ -2,7 +2,7 @@
 
 import { presentClientError, toUserFacingMessage } from "@/lib/user-facing-error";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,11 @@ import {
 } from "@/lib/money-section-tab-visibility";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SettingsPageLayout } from "@/components/settings/settings-page-layout";
+import {
+  MONEY_SETTINGS_CATEGORIES,
+  type MoneySettingsCategoryId,
+} from "@/components/settings/settings-types";
 
 type WorkspaceRow = {
   id: string;
@@ -99,92 +103,108 @@ export function MoneyWorkspaceSettings() {
   }, [refreshMoneyWorkspaceContext]);
 
   const activeWorkspace = workspaceList.find((w) => w.id === moneyWorkspaceId);
+  const canClone =
+    workspaceList.length > 1 &&
+    workspaceList.find((w) => w.id === moneyWorkspaceId)?.role === "owner";
+
+  const categories = useMemo(() => {
+    if (!canClone) {
+      return MONEY_SETTINGS_CATEGORIES.filter((c) => c.id !== "clone");
+    }
+    return MONEY_SETTINGS_CATEGORIES;
+  }, [canClone]);
 
   return (
-    <div className={MONEY_FULL_SPAN}>
-      {bootstrapErr ? (
-        <Alert
-          variant="error"
-          title="Unable to load"
-          description={bootstrapErr}
-          className="mb-8"
-        />
-      ) : null}
-
-      {activeWorkspace ? (
-        <p className="mb-6 text-sm text-muted">
-          Workspace{" "}
-          <span className="font-medium text-foreground">{activeWorkspace.name}</span>
-          {defaultCurrency ? (
-            <>
-              {" "}
-              ·{" "}
-              <span className="font-medium text-foreground tabular-nums">
-                {defaultCurrency}
-              </span>
-            </>
-          ) : null}
-        </p>
-      ) : null}
-
-      <div className="space-y-6">
-        <SettingsSection
-          id="money-settings-ledger"
-          title="Accounts & categories"
-          description="Editors for accounts, categories, merchants, tags, budgets, rules, and recurrence."
-        >
-          <ul
-            role="list"
-            className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-px overflow-hidden rounded-[var(--radius-sm)] bg-border"
-            aria-label="Ledger and automation"
+    <SettingsPageLayout<MoneySettingsCategoryId>
+      categories={categories}
+      idPrefix="money-settings"
+      searchPlaceholder="Search Money settings (e.g. accounts, categories, rules, budgets)…"
+      topAlert={
+        bootstrapErr ? (
+          <Alert
+            variant="error"
+            title="Unable to load"
+            description={bootstrapErr}
+          />
+        ) : null
+      }
+      headerExtra={
+        activeWorkspace ? (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+            <span>Workspace:</span>
+            <span className="rounded-[var(--radius-sm)] border border-border bg-surface px-2 py-0.5 font-medium text-foreground">
+              {activeWorkspace.name}
+            </span>
+            {defaultCurrency ? (
+              <>
+                <span>·</span>
+                <span className="rounded-[var(--radius-sm)] border border-border bg-surface px-2 py-0.5 font-mono text-foreground">
+                  {defaultCurrency}
+                </span>
+              </>
+            ) : null}
+          </div>
+        ) : null
+      }
+      sections={{
+        ledger: (
+          <SettingsSection
+            id="money-settings-ledger"
+            title="Accounts & categories"
+            description="Editors for accounts, categories, merchants, tags, budgets, rules, and recurrence."
           >
-            {LEDGER_MANAGEMENT_LINKS.map(({ href, label }) => (
-              <li key={href} className="min-w-0">
-                <Link
-                  href={href}
-                  className="relative flex items-center gap-x-3 bg-background px-4 py-4 text-sm font-semibold text-foreground transition-colors duration-200 hover:bg-muted-surface focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground fx-press"
-                >
-                  <span className="min-w-0 flex-1">{label}</span>
-                  <LedgerLinkChevron />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </SettingsSection>
-
-        <SettingsSection
-          id="money-settings-section-tabs"
-          title="Show in menu"
-          description="Choose which Money tabs appear in the navigation menu. Insights, Add transaction, Spending, and Money settings always stay visible."
-        >
-          <ul
-            role="list"
-            className="divide-y divide-border rounded-[var(--radius-sm)] bg-background"
-            aria-label="Optional Money menu sections"
-          >
-            {MONEY_OPTIONAL_SECTION_TAB_KEYS.map((key) => {
-              const label = MONEY_OPTIONAL_SECTION_TAB_LABELS[key];
-              const checked = visibility[key];
-              return (
-                <li key={key} className="min-w-0">
-                  <div className="flex items-center gap-3 px-3 py-2.5">
-                    <Checkbox
-                      checked={checked}
-                      onChange={() => setVisible(key, !checked)}
-                      ariaLabel={`Show ${label} in Money menu`}
-                    />
-                    <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
-                      {label}
-                    </span>
-                  </div>
+            <ul
+              role="list"
+              className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-px overflow-hidden rounded-[var(--radius-sm)] bg-border"
+              aria-label="Ledger and automation"
+            >
+              {LEDGER_MANAGEMENT_LINKS.map(({ href, label }) => (
+                <li key={href} className="min-w-0">
+                  <Link
+                    href={href}
+                    className="relative flex items-center gap-x-3 bg-background px-4 py-4 text-sm font-semibold text-foreground transition-colors duration-200 hover:bg-muted-surface focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground fx-press"
+                  >
+                    <span className="min-w-0 flex-1">{label}</span>
+                    <LedgerLinkChevron />
+                  </Link>
                 </li>
-              );
-            })}
-          </ul>
-        </SettingsSection>
-
-        {workspaceList.length > 1 &&
-        workspaceList.find((w) => w.id === moneyWorkspaceId)?.role === "owner" ? (
+              ))}
+            </ul>
+          </SettingsSection>
+        ),
+        menu: (
+          <SettingsSection
+            id="money-settings-menu"
+            title="Show in menu"
+            description="Choose which Money tabs appear in the navigation menu. Insights, Add transaction, Spending, and Money settings always stay visible."
+          >
+            <ul
+              role="list"
+              className="divide-y divide-border rounded-[var(--radius-sm)] bg-background"
+              aria-label="Optional Money menu sections"
+            >
+              {MONEY_OPTIONAL_SECTION_TAB_KEYS.map((key) => {
+                const label = MONEY_OPTIONAL_SECTION_TAB_LABELS[key];
+                const checked = visibility[key];
+                return (
+                  <li key={key} className="min-w-0">
+                    <div className="flex items-center gap-3 px-3 py-2.5">
+                      <Checkbox
+                        checked={checked}
+                        onChange={() => setVisible(key, !checked)}
+                        ariaLabel={`Show ${label} in Money menu`}
+                      />
+                      <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
+                        {label}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </SettingsSection>
+        ),
+        clone: canClone ? (
           <SettingsSection
             id="money-settings-clone"
             title="Clone Money structure"
@@ -244,8 +264,8 @@ export function MoneyWorkspaceSettings() {
               </Button>
             </form>
           </SettingsSection>
-        ) : null}
-      </div>
-    </div>
+        ) : null,
+      }}
+    />
   );
 }
