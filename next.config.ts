@@ -67,7 +67,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/money/investments/settings",
-        destination: "/investments/instruments",
+        destination: "/investments/settings",
         permanent: true,
       },
       {

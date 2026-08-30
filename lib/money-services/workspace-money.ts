@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { workspace, workspaceMember } from "@/db/schema/workspace";
 import { isDbUnreachable } from "@/lib/db-errors";
 import { cloneMoneyWorkspaceStructure } from "@/lib/money-clone-workspace";
-import { resetMoneyWorkspaceData } from "@/lib/money-reset-workspace";
+import { resetWorkspaceData } from "@/lib/workspace-reset";
 import { writeAuditEvent } from "@/lib/audit-log";
 import {
   assertWorkspaceMember,
@@ -140,7 +140,7 @@ export async function resetMoneyWorkspaceApi(
   if (!ownerOk) throw new Error("FORBIDDEN");
 
   try {
-    await resetMoneyWorkspaceData(workspaceId);
+    await resetWorkspaceData(workspaceId);
   } catch (e) {
     if (isDbUnreachable(e)) throw new Error("DB_UNAVAILABLE");
     throw e;

@@ -20,7 +20,6 @@ import {
   MONEY_OPTIONAL_SECTION_TAB_LABELS,
   useMoneySectionTabVisibility,
 } from "@/lib/money-section-tab-visibility";
-import { MoneySettingsResetSection } from "@/components/money-settings/money-settings-reset";
 import { SettingsSection } from "@/components/money-settings/money-settings-shared";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
@@ -245,10 +244,6 @@ export function MoneyWorkspaceSettings() {
               </Button>
             </form>
           </SettingsSection>
-        ) : null}
-
-        {workspaceList.find((w) => w.id === moneyWorkspaceId)?.role === "owner" ? (
-          <MoneySettingsResetSection onResetComplete={refreshMoneyWorkspaceContext} />
         ) : null}
       </div>
     </div>

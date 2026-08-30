@@ -47,6 +47,37 @@ export function resolveInvestmentAppHeader(
   }
 
   if (
+    pathname === "/investments/settings/import" ||
+    pathname.startsWith("/investments/settings/import/")
+  ) {
+    return {
+      title: "Import statement",
+      breadcrumbs: [
+        { label: "Investments", href: "/investments" },
+        { label: "Settings", href: "/investments/settings" },
+        { label: "Import statement" },
+      ],
+      cta: null,
+      meta: "Import broker and exchange statements into Investment activities.",
+    };
+  }
+
+  if (
+    pathname === "/investments/settings" ||
+    pathname.startsWith("/investments/settings/")
+  ) {
+    return {
+      title: "Investments settings",
+      breadcrumbs: [
+        { label: "Investments", href: "/investments" },
+        { label: "Settings" },
+      ],
+      cta: null,
+      meta: "Manage statement import, instruments, and ledger defaults.",
+    };
+  }
+
+  if (
     pathname === "/investments/instruments/new" ||
     pathname.startsWith("/investments/instruments/new/")
   ) {

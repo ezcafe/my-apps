@@ -7,7 +7,7 @@ export default function SettingsLoading() {
   return (
     <div className={`${MONEY_FULL_SPAN} space-y-6`} aria-busy aria-label="Loading settings">
       <StatusStripSkeleton />
-      {Array.from({ length: 4 }, (_, i) => (
+      {Array.from({ length: 6 }, (_, i) => (
         <Card key={`settings-section-${i}`} className="p-4">
           <Skeleton className="h-6 w-32 rounded-[var(--radius-sm)]" />
           <Skeleton className="mt-2 h-4 w-64 max-w-full rounded-[var(--radius-sm)]" />

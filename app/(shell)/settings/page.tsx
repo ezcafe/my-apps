@@ -8,6 +8,7 @@ import { CoreShellPage } from "@/components/core-shell-page";
 import { DateFormatSettings } from "@/components/date-format-settings";
 import { ThemeSettings } from "@/components/theme-settings";
 import { WorkspaceSettings } from "@/components/workspace-settings";
+import { WorkspaceResetSettings } from "@/components/workspace-reset-settings";
 import { Alert } from "@/components/ui/alert";
 import { isDbUnreachable } from "@/lib/db-errors";
 
@@ -90,6 +91,8 @@ export default async function SettingsPage() {
         initialWorkspaces={workspaces}
         initialDefaultWorkspaceId={defaultWorkspaceId}
       />
+
+      <WorkspaceResetSettings workspaces={workspaces} />
 
       <SettingsSection
         id="settings-account"

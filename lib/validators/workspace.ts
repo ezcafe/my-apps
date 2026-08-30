@@ -25,6 +25,11 @@ export const workspaceCurrencyPatchSchema = z.object({
   defaultCurrency: z.string().length(3),
 });
 
+export const workspaceResetSchema = z.object({
+  workspaceId: z.string().uuid(),
+});
+
+
 /** IANA timezone name for analytics date bucketing (e.g. Asia/Ho_Chi_Minh). */
 export const workspaceTimezonePatchSchema = z.object({
   workspaceId: z.string().uuid(),

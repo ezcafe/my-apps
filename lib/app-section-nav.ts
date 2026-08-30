@@ -148,6 +148,13 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
         exact: false,
         group: "browse",
       },
+      {
+        href: "/investments/settings",
+        label: "Investments settings",
+        icon: "settings",
+        exact: false,
+        group: "configure",
+      },
     ],
   },
   loans: {

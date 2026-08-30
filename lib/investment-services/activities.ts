@@ -263,7 +263,8 @@ export async function listOpenInvestmentActivities(
       eq(investmentInstrument.id, investmentTradeJournal.instrumentId),
     )
     .where(and(...conditions))
-    .orderBy(desc(investmentTradeJournal.activityDate), desc(investmentTradeJournal.id));
+    .orderBy(desc(investmentTradeJournal.activityDate), desc(investmentTradeJournal.activityDate));
+
   return rows.map(mapJournalRow);
 }
 

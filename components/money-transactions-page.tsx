@@ -11,7 +11,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   defaultAnalyticsFilters,
   type AnalyticsFiltersValue,
@@ -92,6 +92,7 @@ export function MoneyTransactionsPage({
   showSummaryStats?: boolean;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isSection = variant === "section";
   const showStats = !isSection && showSummaryStats;
   const statCardOrder = useMemo(
@@ -235,10 +236,18 @@ export function MoneyTransactionsPage({
     [preset, categories],
   );
 
-  const pageDefaultFilters = useCallback(
-    () => defaultFiltersForLedgerPreset(preset, accounts, categories),
-    [preset, accounts, categories],
-  );
+  const pageDefaultFilters = useCallback(() => {
+    const base = defaultFiltersForLedgerPreset(preset, accounts, categories);
+    const paramFrom = searchParams.get("from");
+    const paramTo = searchParams.get("to");
+    if (paramFrom && /^\d{4}-\d{2}-\d{2}$/.test(paramFrom)) {
+      base.fromDate = paramFrom;
+    }
+    if (paramTo && /^\d{4}-\d{2}-\d{2}$/.test(paramTo)) {
+      base.toDate = paramTo;
+    }
+    return base;
+  }, [preset, accounts, categories, searchParams]);
 
   const dirty = !analyticsFiltersEqual(draft, applied);
   const filterQuery = useMemo(
