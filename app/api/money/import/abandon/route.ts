@@ -3,11 +3,23 @@ import { badRequest, requireMoneyContext, withMoneyWorkspaceRls } from "@/lib/ap
 import { deleteImportPreview } from "@/lib/money-import-preview-store";
 import { importAbandonBodySchema } from "@/lib/money-import-types";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { assertSameOrigin, readJsonBounded } from "@/lib/request-guards";
+import { assertSameOriginStrict, readJsonBounded } from "@/lib/request-guards";
 
 export const dynamic = "force-dynamic";
 
+async function requireSameOrigin(req: Request): Promise<NextResponse | null> {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.toLowerCase().startsWith("bearer ")) return null;
+  if (!assertSameOriginStrict(req)) {
+    return badRequest("Cross-origin request blocked");
+  }
+  return null;
+}
+
 export async function POST(req: Request) {
+  const csrf = await requireSameOrigin(req);
+  if (csrf) return csrf;
+
   const ctx = await requireMoneyContext(req, { requireWrite: true });
   if ("error" in ctx) return ctx.error;
   const allowed = await enforceRateLimit({
@@ -18,7 +30,6 @@ export async function POST(req: Request) {
     durationSeconds: 60,
   });
   if (!allowed) return new Response("Too many requests", { status: 429 });
-  if (!assertSameOrigin(req)) return badRequest("Cross-origin request blocked");
 
   let body: unknown;
   try {

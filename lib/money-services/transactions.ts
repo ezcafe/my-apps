@@ -403,25 +403,37 @@ export async function createMoneyTransaction(
   try {
     const created = await db.transaction(async (tx) => {
       const fromNames: string[] = [];
-      for (const name of normalizedTagNames) {
-        const [existing] = await tx
-          .select({ id: moneyTag.id })
+      if (normalizedTagNames.length > 0) {
+        const existingTags = await tx
+          .select({ id: moneyTag.id, name: moneyTag.name })
           .from(moneyTag)
           .where(
             and(
               eq(moneyTag.workspaceId, ctx.workspaceId),
-              eq(moneyTag.name, name),
+              inArray(moneyTag.name, normalizedTagNames),
             ),
-          )
-          .limit(1);
-        if (existing) {
-          fromNames.push(existing.id);
-        } else {
-          const [inserted] = await tx
+          );
+        const tagIdByName = new Map(existingTags.map((t) => [t.name, t.id]));
+        const missingNames = normalizedTagNames.filter(
+          (name) => !tagIdByName.has(name),
+        );
+        if (missingNames.length > 0) {
+          const insertedTags = await tx
             .insert(moneyTag)
-            .values({ workspaceId: ctx.workspaceId, name })
-            .returning({ id: moneyTag.id });
-          fromNames.push(inserted.id);
+            .values(
+              missingNames.map((name) => ({
+                workspaceId: ctx.workspaceId,
+                name,
+              })),
+            )
+            .returning({ id: moneyTag.id, name: moneyTag.name });
+          for (const t of insertedTags) {
+            tagIdByName.set(t.name, t.id);
+          }
+        }
+        for (const name of normalizedTagNames) {
+          const id = tagIdByName.get(name);
+          if (id) fromNames.push(id);
         }
       }
 

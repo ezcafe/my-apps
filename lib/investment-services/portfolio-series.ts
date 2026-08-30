@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { workspace } from "@/db/schema/workspace";
 import {
@@ -30,7 +30,7 @@ import { occurredAtToActivityDate } from "@/lib/money-investment-activity";
 import { dateRangeParams } from "@/lib/analytics-build-query";
 import { computeMoneyAnalyticsSummary } from "@/lib/money-services/analytics";
 import {
-  ensureDailyQuotesForRange,
+  ensureDailyQuotesForInstruments,
   fetchInvestmentFxRate,
   getLatestQuotesForInstruments,
 } from "@/lib/investment-services/quotes";
@@ -80,19 +80,7 @@ export async function investmentPortfolioValueSeries(
 
   const lots = await loadLots(workspaceId);
 
-  await Promise.all(
-    instruments
-      .filter((inst) => inst.yahooSymbol)
-      .map((inst) =>
-        ensureDailyQuotesForRange(
-          inst.id,
-          inst.yahooSymbol!,
-          inst.currency,
-          from,
-          to,
-        ),
-      ),
-  );
+  await ensureDailyQuotesForInstruments(instruments, from, to);
 
   const instrumentIds = instruments.map((i) => i.id);
   const latestQuotes = await getLatestQuotesForInstruments(instrumentIds);
@@ -105,15 +93,31 @@ export async function investmentPortfolioValueSeries(
     { date: string; closePriceMinor: number }[]
   >();
   for (const inst of instruments) {
-    const rows = await db
+    dailyByInst.set(inst.id, []);
+  }
+  if (instrumentIds.length > 0) {
+    const dailyRows = await db
       .select({
+        instrumentId: investmentQuoteDaily.instrumentId,
         date: investmentQuoteDaily.date,
         closePriceMinor: investmentQuoteDaily.closePriceMinor,
       })
       .from(investmentQuoteDaily)
-      .where(eq(investmentQuoteDaily.instrumentId, inst.id))
+      .where(
+        and(
+          inArray(investmentQuoteDaily.instrumentId, instrumentIds),
+          gte(investmentQuoteDaily.date, from),
+          lte(investmentQuoteDaily.date, to),
+        ),
+      )
       .orderBy(investmentQuoteDaily.date);
-    dailyByInst.set(inst.id, rows);
+
+    for (const row of dailyRows) {
+      dailyByInst.get(row.instrumentId)?.push({
+        date: row.date,
+        closePriceMinor: row.closePriceMinor,
+      });
+    }
   }
 
   const currencies = [

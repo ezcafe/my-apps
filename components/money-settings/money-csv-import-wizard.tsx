@@ -114,10 +114,14 @@ const STEP_META: Record<
 };
 
 function toCsvCell(value: string): string {
-  if (/[",\n\r]/.test(value)) {
-    return `"${value.replaceAll('"', '""')}"`;
+  let v = value;
+  if (/^[=+\-@\t\r]/.test(v)) {
+    v = `'${v}`;
   }
-  return value;
+  if (/[",\n\r]/.test(v)) {
+    return `"${v.replaceAll('"', '""')}"`;
+  }
+  return v;
 }
 
 function toCsvErrorSummary(rawMessage: string): string {
@@ -701,59 +705,27 @@ export function MoneyCsvImportWizard({
     [categories],
   );
 
-  const valuesSatisfied = useMemo(() => {
-    if (!kind) return false;
+  const distinctByFieldKey = useMemo(() => {
+    if (!kind) return new Map<string, string[]>();
+    const map = new Map<string, string[]>();
     for (const f of valueFields) {
       const col = columnByField[f.key] ?? "";
       if (!includeMoneyImportValueMappingColumn(kind, f, col)) continue;
-      if (kind === "categories" && f.key === "parentId") {
-        const nameCol = columnByField.name ?? "";
-        for (let i = 0; i < parsedRows.length; i++) {
-          const row = parsedRows[i]!;
-          const catName = nameCol ? String(row[nameCol] ?? "").trim() : "";
-          if (!catName) continue;
-          const key = categoryImportParentPickKey(i);
-          const pick = valuePicksByField.parentId?.[key];
-          if (!categoryImportParentPickSatisfies(pick)) return false;
-        }
-        continue;
-      }
-      const distinct = listDistinctForMoneyImportField(
-        kind,
-        f,
-        parsedRows,
-        columnByField,
-        headers,
-        5000,
+      if (kind === "categories" && f.key === "parentId") continue;
+      map.set(
+        f.key,
+        listDistinctForMoneyImportField(
+          kind,
+          f,
+          parsedRows,
+          columnByField,
+          headers,
+          5000,
+        ),
       );
-      const keys = mergeMatchValueRowKeys(distinct, valuePicksByField[f.key]);
-      const entities = f.fk
-        ? kind === "transactions" && f.key === "categoryId" && f.fk === "category_leaf"
-          ? txAllCategoryEntities
-          : fkAllRowsForField(f.fk, accounts, merchants, categories)
-        : [];
-      for (const k of keys) {
-        const pick = valuePicksByField[f.key]?.[k];
-        if (f.valueKind === "enum" || f.valueKind === "bool") {
-          if (!enumBoolPickSatisfiesImport(f, k, pick)) return false;
-        } else if (f.fk) {
-          if (!fkPickSatisfiesImport(f, k, pick, entities)) return false;
-        }
-      }
     }
-    return true;
-  }, [
-    valueFields,
-    columnByField,
-    parsedRows,
-    headers,
-    kind,
-    valuePicksByField,
-    accounts,
-    merchants,
-    categories,
-    txAllCategoryEntities,
-  ]);
+    return map;
+  }, [kind, valueFields, columnByField, parsedRows, headers]);
 
   const unresolvedValueCount = useMemo(() => {
     if (!kind) return 0;
@@ -773,14 +745,7 @@ export function MoneyCsvImportWizard({
         }
         continue;
       }
-      const distinct = listDistinctForMoneyImportField(
-        kind,
-        f,
-        parsedRows,
-        columnByField,
-        headers,
-        5000,
-      );
+      const distinct = distinctByFieldKey.get(f.key) ?? [];
       const keys = mergeMatchValueRowKeys(distinct, valuePicksByField[f.key]);
       const entities = f.fk
         ? kind === "transactions" && f.key === "categoryId" && f.fk === "category_leaf"
@@ -800,8 +765,8 @@ export function MoneyCsvImportWizard({
   }, [
     valueFields,
     columnByField,
+    distinctByFieldKey,
     parsedRows,
-    headers,
     kind,
     valuePicksByField,
     accounts,
@@ -809,6 +774,11 @@ export function MoneyCsvImportWizard({
     categories,
     txAllCategoryEntities,
   ]);
+
+  const valuesSatisfied = useMemo(
+    () => (kind ? unresolvedValueCount === 0 : false),
+    [kind, unresolvedValueCount],
+  );
 
   const mapRequiredProgress = useMemo(
     () => (kind ? requiredColumnsProgress(kind, columnByField) : { mapped: 0, total: 0 }),

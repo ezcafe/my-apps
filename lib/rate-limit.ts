@@ -39,6 +39,15 @@ export function rateLimitPrincipal(
   return "anon";
 }
 
+function pruneExpiredMemoryBuckets(now: number) {
+  for (const [k, bucket] of memoryBuckets) {
+    // Buckets older than 5 minutes are expired regardless of duration
+    if (now - bucket.bucketStartMs > 300_000) {
+      memoryBuckets.delete(k);
+    }
+  }
+}
+
 function enforceMemoryRateLimit(
   key: string,
   points: number,
@@ -47,10 +56,14 @@ function enforceMemoryRateLimit(
   const now = Date.now();
   const bucketMs = durationSeconds * 1000;
   const bucketStartMs = Math.floor(now / bucketMs) * bucketMs;
+
   const existing = memoryBuckets.get(key);
   if (!existing || existing.bucketStartMs !== bucketStartMs) {
     if (memoryBuckets.size >= MEMORY_BUCKET_MAX_KEYS) {
-      // Fail closed under memory pressure rather than allow unlimited traffic.
+      pruneExpiredMemoryBuckets(now);
+    }
+    if (memoryBuckets.size >= MEMORY_BUCKET_MAX_KEYS) {
+      // Fail closed under sustained memory pressure rather than allow unlimited traffic.
       return false;
     }
     memoryBuckets.set(key, { count: 1, bucketStartMs });

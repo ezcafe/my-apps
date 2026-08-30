@@ -6,7 +6,7 @@ import {
 import { revokeApiTokenForUser } from "@/lib/api-token-service";
 import { resolveSessionUserSub } from "@/lib/api-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { assertSameOrigin } from "@/lib/request-guards";
+import { assertSameOriginStrict } from "@/lib/request-guards";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,7 @@ export async function DELETE(req: Request, ctx: RouteCtx) {
     durationSeconds: 60,
   });
   if (!allowed) return new Response("Too many requests", { status: 429 });
-  if (!assertSameOrigin(req)) return new Response("Cross-origin request blocked", { status: 400 });
+  if (!assertSameOriginStrict(req)) return new Response("Cross-origin request blocked", { status: 400 });
 
   const { id } = await ctx.params;
   const ok = await revokeApiTokenForUser(userSub, id);

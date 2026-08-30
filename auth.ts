@@ -47,7 +47,10 @@ export const authConfig = {
       if (
         path.startsWith("/settings") ||
         path.startsWith("/analytics") ||
-        path.startsWith("/money")
+        path.startsWith("/money") ||
+        path.startsWith("/investments") ||
+        path.startsWith("/loans") ||
+        path.startsWith("/help")
       ) {
         return !!auth;
       }

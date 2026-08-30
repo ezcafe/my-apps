@@ -15,7 +15,9 @@ import {
   moneyTransactionTag,
 } from "@/db/schema/money";
 import {
-  applyTransactionBalanceEffect,
+  applyBalanceDeltas,
+  effectOnAccount,
+  sortTransferPairRows,
   type TxRowForBalance,
 } from "@/lib/money-account-balance";
 import type {
@@ -182,19 +184,24 @@ async function assertTagsInWorkspaceTx(
 }
 
 async function importAccounts(tx: MoneyTx, ctx: MoneyCtx, rows: AccountRow[]) {
+  if (rows.length === 0) return;
   const workspaceCurrency =
     (await getWorkspaceDefaultCurrency(ctx.workspaceId)) ?? "USD";
-  for (const r of rows) {
-    await tx.insert(moneyAccount).values({
-      workspaceId: ctx.workspaceId,
-      name: r.name,
-      type: r.type ?? "checking",
-      currency: workspaceCurrency,
-      institution: r.institution ?? null,
-      balanceMinor: r.balanceMinor ?? 0,
-      sortOrder: r.sortOrder ?? 0,
-      archived: r.archived ?? false,
-    });
+  const chunkSize = 200;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    await tx.insert(moneyAccount).values(
+      chunk.map((r) => ({
+        workspaceId: ctx.workspaceId,
+        name: r.name,
+        type: r.type ?? "checking",
+        currency: workspaceCurrency,
+        institution: r.institution ?? null,
+        balanceMinor: r.balanceMinor ?? 0,
+        sortOrder: r.sortOrder ?? 0,
+        archived: r.archived ?? false,
+      })),
+    );
   }
 }
 
@@ -278,60 +285,107 @@ async function importCategories(
 }
 
 async function importBudgets(tx: MoneyTx, ctx: MoneyCtx, rows: BudgetRow[]) {
+  if (rows.length === 0) return;
   const workspaceCurrency =
     (await getWorkspaceDefaultCurrency(ctx.workspaceId)) ?? "USD";
-  for (const r of rows) {
-    const scopeId = r.scopeType === "workspace" ? null : (r.scopeId ?? null);
-    if (r.scopeType === "category" && scopeId) {
-      await assertCategoriesInWorkspaceTx(tx, ctx.workspaceId, [scopeId]);
-    }
-    if (r.scopeType === "account" && scopeId) {
-      await assertAccountsInWorkspaceTx(tx, ctx.workspaceId, [scopeId]);
-    }
-    if (r.scopeType === "tag" && scopeId) {
-      await assertTagsInWorkspaceTx(tx, ctx.workspaceId, [scopeId]);
-    }
-    await tx.insert(moneyBudget).values({
-      workspaceId: ctx.workspaceId,
-      scopeType: r.scopeType,
-      scopeId,
-      limitAmountMinor: r.limitAmountMinor,
-      currency: workspaceCurrency,
-    });
+
+  const categoryIds = [
+    ...new Set(
+      rows
+        .filter((r) => r.scopeType === "category" && r.scopeId)
+        .map((r) => r.scopeId!),
+    ),
+  ];
+  if (categoryIds.length) {
+    await assertCategoriesInWorkspaceTx(tx, ctx.workspaceId, categoryIds);
+  }
+
+  const accountIds = [
+    ...new Set(
+      rows
+        .filter((r) => r.scopeType === "account" && r.scopeId)
+        .map((r) => r.scopeId!),
+    ),
+  ];
+  if (accountIds.length) {
+    await assertAccountsInWorkspaceTx(tx, ctx.workspaceId, accountIds);
+  }
+
+  const tagIds = [
+    ...new Set(
+      rows
+        .filter((r) => r.scopeType === "tag" && r.scopeId)
+        .map((r) => r.scopeId!),
+    ),
+  ];
+  if (tagIds.length) {
+    await assertTagsInWorkspaceTx(tx, ctx.workspaceId, tagIds);
+  }
+
+  const chunkSize = 200;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    await tx.insert(moneyBudget).values(
+      chunk.map((r) => ({
+        workspaceId: ctx.workspaceId,
+        scopeType: r.scopeType,
+        scopeId: r.scopeType === "workspace" ? null : (r.scopeId ?? null),
+        limitAmountMinor: r.limitAmountMinor,
+        currency: workspaceCurrency,
+      })),
+    );
   }
 }
 
 async function importRules(tx: MoneyTx, ctx: MoneyCtx, rows: RuleRow[]) {
+  if (rows.length === 0) return;
+
+  const accountIds = [
+    ...new Set(rows.map((r) => r.match.accountId).filter((id): id is string => Boolean(id))),
+  ];
+  if (accountIds.length) {
+    await assertAccountsInWorkspaceTx(tx, ctx.workspaceId, accountIds);
+  }
+
+  const merchantIds = [
+    ...new Set(rows.map((r) => r.match.merchantId).filter((id): id is string => Boolean(id))),
+  ];
+  if (merchantIds.length) {
+    await assertMerchantsInWorkspaceTx(tx, ctx.workspaceId, merchantIds);
+  }
+
   for (const r of rows) {
-    const match = r.match;
-    if (match.accountId) {
-      await assertAccountsInWorkspaceTx(tx, ctx.workspaceId, [match.accountId]);
-    }
-    if (match.merchantId) {
-      await assertMerchantsInWorkspaceTx(tx, ctx.workspaceId, [match.merchantId]);
-    }
-    const action = r.action;
-    if (action.setCategoryId) {
+    if (r.action.setCategoryId) {
       await assertCategoriesKindMatchTx(
         tx,
         ctx.workspaceId,
-        [action.setCategoryId],
+        [r.action.setCategoryId],
         r.kind,
       );
     }
-    if (action.tagIds?.length) {
-      await assertTagsInWorkspaceTx(tx, ctx.workspaceId, action.tagIds);
-    }
+  }
 
-    await tx.insert(moneyRule).values({
-      workspaceId: ctx.workspaceId,
-      name: r.name,
-      kind: r.kind,
-      priority: r.priority ?? 0,
-      match: r.match,
-      action: r.action,
-      active: r.active ?? true,
-    });
+  const tagIds = [
+    ...new Set(rows.flatMap((r) => r.action.tagIds ?? []).filter(Boolean)),
+  ];
+  if (tagIds.length) {
+    await assertTagsInWorkspaceTx(tx, ctx.workspaceId, tagIds);
+  }
+
+  const chunkSize = 200;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    await tx.insert(moneyRule).values(
+      chunk.map((r) => ({
+        workspaceId: ctx.workspaceId,
+        name: r.name,
+        kind: r.kind,
+        priority: r.priority ?? 0,
+        match: r.match,
+        action: r.action,
+        active: r.active ?? true,
+      })),
+    );
   }
 }
 
@@ -340,9 +394,17 @@ async function importRecurrence(
   ctx: MoneyCtx,
   rows: RecurrenceRow[],
 ) {
+  if (rows.length === 0) return;
+
+  const accountIds = [
+    ...new Set(rows.map((r) => r.template.accountId).filter(Boolean)),
+  ];
+  if (accountIds.length) {
+    await assertAccountsInWorkspaceTx(tx, ctx.workspaceId, accountIds);
+  }
+
   for (const r of rows) {
     const t = r.template;
-    await assertAccountsInWorkspaceTx(tx, ctx.workspaceId, [t.accountId]);
     if (t.categoryId) {
       if (t.kind === "transfer") {
         throw new Error("Transfer templates cannot reference a category");
@@ -357,21 +419,35 @@ async function importRecurrence(
         );
       }
     }
-    if (t.merchantId) {
-      await assertMerchantsInWorkspaceTx(tx, ctx.workspaceId, [t.merchantId]);
-    }
-    if (t.tagIds?.length) {
-      await assertTagsInWorkspaceTx(tx, ctx.workspaceId, t.tagIds);
-    }
+  }
 
-    await tx.insert(moneyRecurrentTemplate).values({
-      workspaceId: ctx.workspaceId,
-      name: r.name,
-      cadence: r.cadence,
-      nextRunAt: new Date(r.nextRunAt),
-      template: r.template,
-      active: r.active ?? true,
-    });
+  const merchantIds = [
+    ...new Set(rows.map((r) => r.template.merchantId).filter((id): id is string => Boolean(id))),
+  ];
+  if (merchantIds.length) {
+    await assertMerchantsInWorkspaceTx(tx, ctx.workspaceId, merchantIds);
+  }
+
+  const tagIds = [
+    ...new Set(rows.flatMap((r) => r.template.tagIds ?? []).filter(Boolean)),
+  ];
+  if (tagIds.length) {
+    await assertTagsInWorkspaceTx(tx, ctx.workspaceId, tagIds);
+  }
+
+  const chunkSize = 200;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    await tx.insert(moneyRecurrentTemplate).values(
+      chunk.map((r) => ({
+        workspaceId: ctx.workspaceId,
+        name: r.name,
+        cadence: r.cadence,
+        nextRunAt: new Date(r.nextRunAt),
+        template: r.template,
+        active: r.active ?? true,
+      })),
+    );
   }
 }
 
@@ -389,50 +465,111 @@ async function importTransactions(
     }
   }
 
-  for (const r of rows) {
-    await assertAccountsInWorkspaceTx(tx, ctx.workspaceId, [r.accountId]);
+  const allAccountIds = [
+    ...new Set(rows.map((r) => r.accountId).filter(Boolean)),
+  ];
+  if (allAccountIds.length) {
+    await assertAccountsInWorkspaceTx(tx, ctx.workspaceId, allAccountIds);
+  }
+
+  const allMerchantIds = [
+    ...new Set(
+      rows.map((r) => r.merchantId).filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (allMerchantIds.length) {
+    await assertMerchantsInWorkspaceTx(tx, ctx.workspaceId, allMerchantIds);
+  }
+
+  const allBaseTagIds = [
+    ...new Set(rows.flatMap((r) => r.tagIds ?? []).filter(Boolean)),
+  ];
+  if (allBaseTagIds.length) {
+    await assertTagsInWorkspaceTx(tx, ctx.workspaceId, allBaseTagIds);
+  }
+
+  const allCategoryIds = [
+    ...new Set(
+      rows.map((r) => r.categoryId).filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  let catMap = new Map<string, { id: string; kind: "expense" | "income" }>();
+  if (allCategoryIds.length) {
+    const catRows = await tx
+      .select({ id: moneyCategory.id, kind: moneyCategory.kind })
+      .from(moneyCategory)
+      .where(
+        and(
+          eq(moneyCategory.workspaceId, ctx.workspaceId),
+          inArray(moneyCategory.id, allCategoryIds),
+        ),
+      );
+    if (catRows.length !== allCategoryIds.length) {
+      throw new Error("One or more categories are missing in this workspace");
+    }
+    catMap = new Map(catRows.map((c) => [c.id, c]));
+  }
+
+  const allRawTagNames = [
+    ...new Set(
+      rows
+        .flatMap((r) => r.tagNames ?? [])
+        .map((n) => n.trim())
+        .filter((n) => n.length > 0),
+    ),
+  ];
+  const tagIdByName = new Map<string, string>();
+  if (allRawTagNames.length > 0) {
+    const existingTags = await tx
+      .select({ id: moneyTag.id, name: moneyTag.name })
+      .from(moneyTag)
+      .where(
+        and(
+          eq(moneyTag.workspaceId, ctx.workspaceId),
+          inArray(moneyTag.name, allRawTagNames),
+        ),
+      );
+    for (const t of existingTags) {
+      tagIdByName.set(t.name, t.id);
+    }
+    const toCreate = allRawTagNames.filter((name) => !tagIdByName.has(name));
+    if (toCreate.length > 0) {
+      const insertedTags = await tx
+        .insert(moneyTag)
+        .values(
+          toCreate.map((name) => ({ workspaceId: ctx.workspaceId, name })),
+        )
+        .returning({ id: moneyTag.id, name: moneyTag.name });
+      for (const t of insertedTags) {
+        tagIdByName.set(t.name, t.id);
+      }
+    }
+  }
+
+  const txValues: Array<typeof moneyTransaction.$inferInsert> = [];
+  const tagMapping: Array<{ txIndex: number; tagIds: string[] }> = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i]!;
     let txKind = r.kind ?? "expense";
     if (r.categoryId) {
       if (txKind === "transfer") {
         throw new Error("Transfer transactions cannot reference a category");
       }
-      const [catRow] = await tx
-        .select({ kind: moneyCategory.kind })
-        .from(moneyCategory)
-        .where(
-          and(
-            eq(moneyCategory.workspaceId, ctx.workspaceId),
-            eq(moneyCategory.id, r.categoryId),
-          ),
-        )
-        .limit(1);
+      const catRow = catMap.get(r.categoryId);
       if (!catRow) {
         throw new Error("One or more categories are missing in this workspace");
       }
       txKind = catRow.kind;
-    }
-    if (r.categoryId) {
-      if (txKind === "transfer") {
-        throw new Error("Transfer transactions cannot reference a category");
-      }
       const expected = categoryKindForTransactionKind(txKind);
-      if (expected) {
-        await assertCategoriesKindMatchTx(
-          tx,
-          ctx.workspaceId,
-          [r.categoryId],
-          expected,
+      if (expected && catRow.kind !== expected) {
+        throw new Error(
+          `Category kind '${catRow.kind}' does not match expected '${expected}'`,
         );
       }
     }
-    if (r.merchantId) {
-      await assertMerchantsInWorkspaceTx(tx, ctx.workspaceId, [r.merchantId]);
-    }
-    const baseTagIds = [...new Set(r.tagIds ?? [])];
-    if (baseTagIds.length) {
-      await assertTagsInWorkspaceTx(tx, ctx.workspaceId, baseTagIds);
-    }
 
+    const baseTagIds = [...new Set(r.tagIds ?? [])];
     const normalizedTagNames = [
       ...new Set(
         (r.tagNames ?? [])
@@ -450,67 +587,98 @@ async function importTransactions(
         ? (pairByGroup.get(r.transferGroupId) ?? null)
         : null;
 
-    const fromNames: string[] = [];
-    for (const name of normalizedTagNames) {
-      const [existing] = await tx
-        .select({ id: moneyTag.id })
-        .from(moneyTag)
-        .where(
-          and(
-            eq(moneyTag.workspaceId, ctx.workspaceId),
-            eq(moneyTag.name, name),
-          ),
-        )
-        .limit(1);
-      if (existing) {
-        fromNames.push(existing.id);
-      } else {
-        const [inserted] = await tx
-          .insert(moneyTag)
-          .values({ workspaceId: ctx.workspaceId, name })
-          .returning({ id: moneyTag.id });
-        fromNames.push(inserted.id);
-      }
-    }
+    const fromNames = normalizedTagNames
+      .map((name) => tagIdByName.get(name))
+      .filter((id): id is string => Boolean(id));
 
     const uniqueTags = [...new Set([...baseTagIds, ...fromNames])];
 
-    const [row] = await tx
-      .insert(moneyTransaction)
-      .values({
-        workspaceId: ctx.workspaceId,
-        accountId: r.accountId,
-        kind: txKind,
-        amountMinor: r.amountMinor,
-        occurredAt,
-        categoryId: r.categoryId ?? null,
-        merchantId: r.merchantId ?? null,
-        notes: r.notes ?? null,
-        createdBySub: ctx.userSub,
-        transferPairId,
-      })
-      .returning();
-
-    const balanceRow: TxRowForBalance = {
-      id: row.id,
-      accountId: row.accountId,
-      kind: row.kind,
-      amountMinor: row.amountMinor,
-      occurredAt: row.occurredAt,
-      createdAt: row.createdAt,
-      transferPairId: row.transferPairId,
-    };
-    await applyTransactionBalanceEffect(tx, ctx.workspaceId, balanceRow, 1);
-
+    txValues.push({
+      workspaceId: ctx.workspaceId,
+      accountId: r.accountId,
+      kind: txKind,
+      amountMinor: r.amountMinor,
+      occurredAt,
+      categoryId: r.categoryId ?? null,
+      merchantId: r.merchantId ?? null,
+      notes: r.notes ?? null,
+      createdBySub: ctx.userSub,
+      transferPairId,
+    });
     if (uniqueTags.length) {
-      await tx.insert(moneyTransactionTag).values(
-        uniqueTags.map((tagId) => ({
-          transactionId: row.id,
-          tagId,
-        })),
-      );
+      tagMapping.push({ txIndex: i, tagIds: uniqueTags });
     }
   }
+
+  if (txValues.length === 0) return;
+
+  const insertedRows: Array<typeof moneyTransaction.$inferSelect> = [];
+  const chunkSize = 200;
+  for (let i = 0; i < txValues.length; i += chunkSize) {
+    const chunk = txValues.slice(i, i + chunkSize);
+    const chunkInserted = await tx
+      .insert(moneyTransaction)
+      .values(chunk)
+      .returning();
+    insertedRows.push(...chunkInserted);
+  }
+
+  const tagLinksToInsert: Array<{ transactionId: string; tagId: string }> = [];
+  for (const item of tagMapping) {
+    const insertedTx = insertedRows[item.txIndex];
+    if (insertedTx) {
+      for (const tagId of item.tagIds) {
+        tagLinksToInsert.push({ transactionId: insertedTx.id, tagId });
+      }
+    }
+  }
+  if (tagLinksToInsert.length > 0) {
+    for (let i = 0; i < tagLinksToInsert.length; i += chunkSize) {
+      const chunk = tagLinksToInsert.slice(i, i + chunkSize);
+      await tx.insert(moneyTransactionTag).values(chunk);
+    }
+  }
+
+  const transferPairs = new Map<string, TxRowForBalance[]>();
+  const balanceRows: TxRowForBalance[] = insertedRows.map((r) => ({
+    id: r.id,
+    accountId: r.accountId,
+    kind: r.kind,
+    amountMinor: r.amountMinor,
+    occurredAt: r.occurredAt,
+    createdAt: r.createdAt,
+    transferPairId: r.transferPairId,
+  }));
+
+  for (const br of balanceRows) {
+    if (br.kind === "transfer" && br.transferPairId) {
+      const list = transferPairs.get(br.transferPairId) ?? [];
+      list.push(br);
+      transferPairs.set(br.transferPairId, list);
+    }
+  }
+
+  const deltasByAccount = new Map<string, number>();
+  for (const br of balanceRows) {
+    let delta = 0;
+    if (br.kind === "expense") {
+      delta = -br.amountMinor;
+    } else if (br.kind === "income") {
+      delta = br.amountMinor;
+    } else if (br.kind === "transfer") {
+      if (br.transferPairId) {
+        const pair = transferPairs.get(br.transferPairId);
+        const sorted = pair ? sortTransferPairRows(pair) : null;
+        delta = effectOnAccount(br, sorted);
+      } else {
+        delta = -br.amountMinor;
+      }
+    }
+    const cur = deltasByAccount.get(br.accountId) ?? 0;
+    deltasByAccount.set(br.accountId, cur + delta);
+  }
+
+  await applyBalanceDeltas(tx, ctx.workspaceId, deltasByAccount);
 }
 
 export async function commitMoneyImport(

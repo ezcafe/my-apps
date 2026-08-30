@@ -101,6 +101,10 @@ export const loanScheduleInstallment = pgTable(
       t.loanId,
       t.installmentNumber,
     ),
+    index("loan_schedule_installment_loan_number_idx").on(
+      t.loanId,
+      t.installmentNumber,
+    ),
     index("loan_schedule_installment_due_idx").on(t.dueDate),
   ],
 );

@@ -5,11 +5,23 @@ import { MAX_IMPORT_BYTES, parseMoneyImportCsv } from "@/lib/money-import-csv";
 import { stashImportPreview } from "@/lib/money-import-preview-store";
 import { moneyImportTypeSchema } from "@/lib/money-import-types";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { assertSameOrigin } from "@/lib/request-guards";
+import { assertSameOriginStrict } from "@/lib/request-guards";
 
 export const dynamic = "force-dynamic";
 
+async function requireSameOrigin(req: Request): Promise<NextResponse | null> {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.toLowerCase().startsWith("bearer ")) return null;
+  if (!assertSameOriginStrict(req)) {
+    return badRequest("Cross-origin request blocked");
+  }
+  return null;
+}
+
 export async function POST(req: Request) {
+  const csrf = await requireSameOrigin(req);
+  if (csrf) return csrf;
+
   const ctx = await requireMoneyContext(req, { requireWrite: true });
   if ("error" in ctx) return ctx.error;
   const allowed = await enforceRateLimit({
@@ -20,7 +32,6 @@ export async function POST(req: Request) {
     durationSeconds: 60,
   });
   if (!allowed) return new Response("Too many requests", { status: 429 });
-  if (!assertSameOrigin(req)) return badRequest("Cross-origin request blocked");
 
   const contentType = req.headers.get("content-type") ?? "";
   if (!contentType.includes("multipart/form-data")) {

@@ -292,21 +292,47 @@ export async function createLoan(
   return { id: loanId };
 }
 
-async function loadLoanSchedule(loanId: string): Promise<AmortizationScheduleRow[]> {
+async function loadInstallmentStatesForLoans(loanIds: string[]) {
+  if (loanIds.length === 0) return new Map<string, Array<Awaited<ReturnType<typeof loadInstallmentStates>>[number]>>();
   const rows = await db
     .select({
+      loanId: loanScheduleInstallment.loanId,
+      scheduleInstallmentId: loanScheduleInstallment.id,
       installmentNumber: loanScheduleInstallment.installmentNumber,
       dueDate: loanScheduleInstallment.dueDate,
       paymentMinor: loanScheduleInstallment.paymentMinor,
       principalMinor: loanScheduleInstallment.principalMinor,
       interestMinor: loanScheduleInstallment.interestMinor,
       balanceAfterMinor: loanScheduleInstallment.balanceAfterMinor,
+      status: loanInstallmentStatus.status,
+      paidAt: loanInstallmentStatus.paidAt,
+      moneyTransactionId: loanInstallmentStatus.moneyTransactionId,
+      paidWithoutTransaction: loanInstallmentStatus.paidWithoutTransaction,
     })
     .from(loanScheduleInstallment)
-    .where(eq(loanScheduleInstallment.loanId, loanId))
-    .orderBy(asc(loanScheduleInstallment.installmentNumber));
+    .innerJoin(
+      loanInstallmentStatus,
+      eq(
+        loanInstallmentStatus.scheduleInstallmentId,
+        loanScheduleInstallment.id,
+      ),
+    )
+    .where(inArray(loanScheduleInstallment.loanId, loanIds))
+    .orderBy(
+      asc(loanScheduleInstallment.loanId),
+      asc(loanScheduleInstallment.installmentNumber),
+    );
 
-  return rows;
+  const byLoan = new Map<
+    string,
+    Array<Omit<(typeof rows)[number], "loanId">>
+  >();
+  for (const { loanId, ...rest } of rows) {
+    const list = byLoan.get(loanId) ?? [];
+    list.push(rest);
+    byLoan.set(loanId, list);
+  }
+  return byLoan;
 }
 
 async function loadInstallmentStates(loanId: string) {
@@ -379,10 +405,22 @@ export async function listLoans(
     )
     .orderBy(asc(loan.name));
 
+  if (rows.length === 0) return [];
+
+  const loanIds = rows.map((r) => r.id);
+  const installmentsByLoan = await loadInstallmentStatesForLoans(loanIds);
+
   const out: SerializedLoanListItem[] = [];
   for (const row of rows) {
-    const schedule = await loadLoanSchedule(row.id);
-    const installments = await loadInstallmentStates(row.id);
+    const installments = installmentsByLoan.get(row.id) ?? [];
+    const schedule: AmortizationScheduleRow[] = installments.map((i) => ({
+      installmentNumber: i.installmentNumber,
+      dueDate: i.dueDate,
+      paymentMinor: i.paymentMinor,
+      principalMinor: i.principalMinor,
+      interestMinor: i.interestMinor,
+      balanceAfterMinor: i.balanceAfterMinor,
+    }));
     const paymentStates = installments.map((i) => ({
       installmentNumber: i.installmentNumber,
       principalMinor: i.principalMinor,
@@ -424,8 +462,15 @@ export async function getLoanDetail(
   const row = rows[0];
   if (!row) throw new Error("NOT_FOUND");
 
-  const schedule = await loadLoanSchedule(loanId);
   const installments = await loadInstallmentStates(loanId);
+  const schedule: AmortizationScheduleRow[] = installments.map((i) => ({
+    installmentNumber: i.installmentNumber,
+    dueDate: i.dueDate,
+    paymentMinor: i.paymentMinor,
+    principalMinor: i.principalMinor,
+    interestMinor: i.interestMinor,
+    balanceAfterMinor: i.balanceAfterMinor,
+  }));
   const paymentStates = installments.map((i) => ({
     installmentNumber: i.installmentNumber,
     principalMinor: i.principalMinor,

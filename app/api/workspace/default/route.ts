@@ -13,7 +13,7 @@ import {
   setActiveWorkspaceCookie,
 } from "@/lib/workspace-context";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { assertSameOrigin, readJsonBounded } from "@/lib/request-guards";
+import { assertSameOriginStrict, readJsonBounded } from "@/lib/request-guards";
 import { workspaceAppKeySchema, workspaceDefaultPatchSchema } from "@/lib/validators/workspace";
 
 export async function GET(req: Request) {
@@ -58,7 +58,7 @@ export async function PATCH(req: Request) {
     durationSeconds: 60,
   });
   if (!allowed) return new Response("Too many requests", { status: 429 });
-  if (!assertSameOrigin(req)) return badRequest("Cross-origin request blocked");
+  if (!assertSameOriginStrict(req)) return badRequest("Cross-origin request blocked");
 
   let body: unknown;
   try {

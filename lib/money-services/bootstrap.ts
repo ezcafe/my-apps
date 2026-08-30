@@ -6,6 +6,8 @@ import { isDbUnreachable } from "@/lib/db-errors";
 import {
   ensureDefaultSystemAccountsForWorkspace,
   ensureNecessitiesSeedCategoriesForWorkspace,
+  needsDefaultSystemAccounts,
+  needsNecessitiesSeedCategories,
 } from "@/lib/money-seed-defaults";
 import {
   fetchMoneyLookups,
@@ -51,18 +53,35 @@ export async function fetchMoneyBootstrapFromWorkspaceState(
   workspaceState: MoneyWorkspaceCoreData,
 ): Promise<MoneyWorkspaceBootstrapData> {
   const workspaceCurrency = workspaceState.defaultCurrency ?? "USD";
-  await Promise.all([
-    ensureNecessitiesSeedCategoriesForWorkspace(db, workspaceState.workspaceId),
-    ensureDefaultSystemAccountsForWorkspace(
-      db,
-      workspaceState.workspaceId,
-      workspaceCurrency,
-    ),
-  ]);
-  const lookups = await fetchMoneyLookups(
+  let lookups = await fetchMoneyLookups(
     workspaceState.workspaceId,
     workspaceCurrency,
   );
+
+  const missingCategories = needsNecessitiesSeedCategories(lookups.categories);
+  const missingAccounts = needsDefaultSystemAccounts(lookups.accounts);
+
+  if (missingCategories || missingAccounts) {
+    await Promise.all([
+      missingCategories
+        ? ensureNecessitiesSeedCategoriesForWorkspace(
+            db,
+            workspaceState.workspaceId,
+          )
+        : Promise.resolve(),
+      missingAccounts
+        ? ensureDefaultSystemAccountsForWorkspace(
+            db,
+            workspaceState.workspaceId,
+            workspaceCurrency,
+          )
+        : Promise.resolve(),
+    ]);
+    lookups = await fetchMoneyLookups(
+      workspaceState.workspaceId,
+      workspaceCurrency,
+    );
+  }
 
   return {
     ...workspaceState,

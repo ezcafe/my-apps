@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/db";
 import { moneyAccount, moneyTransaction } from "@/db/schema/money";
 
@@ -89,35 +89,29 @@ export async function effectOnAccountForRow(
   return effectOnAccount(row, pair);
 }
 
-async function assertAccountInWorkspace(
-  tx: MoneyTx,
-  workspaceId: string,
-  accountId: string,
-): Promise<void> {
-  const [r] = await tx
-    .select({ id: moneyAccount.id })
-    .from(moneyAccount)
-    .where(
-      and(
-        eq(moneyAccount.id, accountId),
-        eq(moneyAccount.workspaceId, workspaceId),
-      ),
-    )
-    .for("update")
-    .limit(1);
-  if (!r) {
-    throw new Error(`Account not found for balance update: ${accountId}`);
-  }
-}
-
 export async function lockAccountsSorted(
   tx: MoneyTx,
   workspaceId: string,
   accountIds: string[],
 ): Promise<void> {
   const unique = [...new Set(accountIds)].sort();
-  for (const id of unique) {
-    await assertAccountInWorkspace(tx, workspaceId, id);
+  if (unique.length === 0) return;
+  const rows = await tx
+    .select({ id: moneyAccount.id })
+    .from(moneyAccount)
+    .where(
+      and(
+        eq(moneyAccount.workspaceId, workspaceId),
+        inArray(moneyAccount.id, unique),
+      ),
+    )
+    .orderBy(asc(moneyAccount.id))
+    .for("update");
+
+  if (rows.length !== unique.length) {
+    const found = new Set(rows.map((r) => r.id));
+    const missing = unique.find((id) => !found.has(id));
+    throw new Error(`Account not found for balance update: ${missing}`);
   }
 }
 

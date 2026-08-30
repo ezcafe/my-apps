@@ -91,6 +91,26 @@ export function findSeedFinancialFreedomCategoryId(
   )?.id;
 }
 
+/** Check if Bills or Loans under Necessities are missing. */
+export function needsNecessitiesSeedCategories(
+  categories: ReadonlyArray<SeedCategoryRef>,
+): boolean {
+  return (
+    findSeedBillsCategoryId(categories) === undefined ||
+    findSeedLoansCategoryId(categories) === undefined
+  );
+}
+
+/** Check if any required system account seeds are missing. */
+export function needsDefaultSystemAccounts(
+  accounts: ReadonlyArray<{ systemKey: string | null }>,
+): boolean {
+  const existingKeys = new Set(
+    accounts.map((a) => a.systemKey).filter((k): k is string => k != null),
+  );
+  return systemAccountSeedsToCreate(existingKeys).length > 0;
+}
+
 /**
  * Preferred expense category when the user has not picked one yet:
  * Investments/Savings → Financial Freedom; Loans → Loans (under Necessities).

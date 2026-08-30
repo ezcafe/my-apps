@@ -1,9 +1,11 @@
+import { sql } from "drizzle-orm";
 import {
   index,
   jsonb,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { workspace } from "@/db/schema/workspace";
@@ -39,5 +41,8 @@ export const apiToken = pgTable(
     index("api_token_user_idx").on(t.userSub),
     index("api_token_prefix_idx").on(t.keyPrefix),
     index("api_token_workspace_idx").on(t.workspaceId),
+    uniqueIndex("api_token_key_lookup_uq")
+      .on(t.keyLookup)
+      .where(sql`${t.keyLookup} IS NOT NULL`),
   ],
 );

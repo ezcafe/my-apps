@@ -11,7 +11,7 @@ import {
 } from "@/lib/api-token-service";
 import { resolveSessionUserSub } from "@/lib/api-auth";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { assertSameOrigin, readJsonBounded } from "@/lib/request-guards";
+import { assertSameOriginStrict, readJsonBounded } from "@/lib/request-guards";
 import { apiTokenCreateSchema } from "@/lib/validators/api-token";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     durationSeconds: 60,
   });
   if (!allowed) return new Response("Too many requests", { status: 429 });
-  if (!assertSameOrigin(req)) return badRequest("Cross-origin request blocked");
+  if (!assertSameOriginStrict(req)) return badRequest("Cross-origin request blocked");
 
   let body: unknown;
   try {

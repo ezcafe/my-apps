@@ -3,13 +3,25 @@ import { badRequest, requireMoneyContext, withMoneyWorkspaceRls } from "@/lib/ap
 import { executeMoneyCsvImport } from "@/lib/execute-money-csv-import";
 import { isMoneyImportKind } from "@/lib/money-import-kinds";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { assertSameOrigin, readJsonBounded } from "@/lib/request-guards";
+import { assertSameOriginStrict, readJsonBounded } from "@/lib/request-guards";
 
 export const dynamic = "force-dynamic";
 
 type RouteCtx = { params: Promise<{ kind: string }> };
 
+async function requireSameOrigin(req: Request): Promise<NextResponse | null> {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.toLowerCase().startsWith("bearer ")) return null;
+  if (!assertSameOriginStrict(req)) {
+    return badRequest("Cross-origin request blocked");
+  }
+  return null;
+}
+
 export async function POST(req: Request, ctx: RouteCtx) {
+  const csrf = await requireSameOrigin(req);
+  if (csrf) return csrf;
+
   const money = await requireMoneyContext(req, { requireWrite: true });
   if ("error" in money) return money.error;
   const allowed = await enforceRateLimit({
@@ -20,7 +32,6 @@ export async function POST(req: Request, ctx: RouteCtx) {
     durationSeconds: 60,
   });
   if (!allowed) return new Response("Too many requests", { status: 429 });
-  if (!assertSameOrigin(req)) return badRequest("Cross-origin request blocked");
 
   const { kind: kindParam } = await ctx.params;
   if (!isMoneyImportKind(kindParam)) {

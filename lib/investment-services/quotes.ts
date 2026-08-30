@@ -15,6 +15,9 @@ import { listActiveMarketInstruments } from "@/lib/investment-services/instrumen
 
 const QUOTE_REFRESH_COOLDOWN_MS = 60_000;
 const FX_CACHE_TTL_MS = 5 * 60_000;
+const MAX_WORKSPACE_REFRESH_CACHE = 1_000;
+const MAX_FX_CACHE = 500;
+
 const workspaceRefreshAt = new Map<string, number>();
 const fxCache = new Map<
   string,
@@ -29,12 +32,49 @@ const fxCache = new Map<
   }
 >();
 
+function setWorkspaceRefresh(workspaceId: string, timestamp: number) {
+  if (workspaceRefreshAt.size >= MAX_WORKSPACE_REFRESH_CACHE) {
+    const cutoff = Date.now() - QUOTE_REFRESH_COOLDOWN_MS * 5;
+    for (const [k, v] of workspaceRefreshAt) {
+      if (v < cutoff) workspaceRefreshAt.delete(k);
+    }
+    if (workspaceRefreshAt.size >= MAX_WORKSPACE_REFRESH_CACHE) {
+      workspaceRefreshAt.clear();
+    }
+  }
+  workspaceRefreshAt.set(workspaceId, timestamp);
+}
+
+function setFxCache(
+  cacheKey: string,
+  entry: {
+    expiresAt: number;
+    value: {
+      rate: number;
+      sourceSymbol: string;
+      inverted: boolean;
+      asOf: string;
+    } | null;
+  },
+) {
+  if (fxCache.size >= MAX_FX_CACHE) {
+    const now = Date.now();
+    for (const [k, v] of fxCache) {
+      if (v.expiresAt <= now) fxCache.delete(k);
+    }
+    if (fxCache.size >= MAX_FX_CACHE) {
+      fxCache.clear();
+    }
+  }
+  fxCache.set(cacheKey, entry);
+}
+
 export async function refreshQuotesForWorkspace(workspaceId: string) {
   const last = workspaceRefreshAt.get(workspaceId) ?? 0;
   if (Date.now() - last < QUOTE_REFRESH_COOLDOWN_MS) {
     return { updated: 0, skipped: true as const };
   }
-  workspaceRefreshAt.set(workspaceId, Date.now());
+  setWorkspaceRefresh(workspaceId, Date.now());
 
   const instruments = await db
     .select()
@@ -151,6 +191,52 @@ export async function backfillDailyQuotes(
   }
 }
 
+/** Fetch Yahoo history for instruments in range that have fewer than 3 stored daily closes. */
+export async function ensureDailyQuotesForInstruments(
+  instruments: Array<{ id: string; yahooSymbol?: string | null; currency: string }>,
+  from: string,
+  to: string,
+) {
+  const active = instruments.filter(
+    (inst): inst is typeof inst & { yahooSymbol: string } =>
+      Boolean(inst.yahooSymbol),
+  );
+  if (active.length === 0) return;
+
+  const instrumentIds = active.map((i) => i.id);
+  const counts = await db
+    .select({
+      instrumentId: investmentQuoteDaily.instrumentId,
+      cnt: sql<number>`count(*)::int`,
+    })
+    .from(investmentQuoteDaily)
+    .where(
+      and(
+        inArray(investmentQuoteDaily.instrumentId, instrumentIds),
+        gte(investmentQuoteDaily.date, from),
+        lte(investmentQuoteDaily.date, to),
+      ),
+    )
+    .groupBy(investmentQuoteDaily.instrumentId);
+
+  const countByInst = new Map(counts.map((c) => [c.instrumentId, c.cnt]));
+  const missing = active.filter((inst) => (countByInst.get(inst.id) ?? 0) < 3);
+
+  if (missing.length === 0) return;
+
+  await Promise.all(
+    missing.map((inst) =>
+      backfillDailyQuotes(
+        inst.id,
+        inst.yahooSymbol,
+        inst.currency,
+        from,
+        to,
+      ),
+    ),
+  );
+}
+
 /** Fetch Yahoo history when this range has almost no stored daily closes. */
 export async function ensureDailyQuotesForRange(
   instrumentId: string,
@@ -186,12 +272,17 @@ export async function getDailyQuotesForRange(
   from: string,
   to: string,
 ) {
-  void from;
-  void to;
   return db
     .select()
     .from(investmentQuoteDaily)
-    .where(eq(investmentQuoteDaily.instrumentId, instrumentId));
+    .where(
+      and(
+        eq(investmentQuoteDaily.instrumentId, instrumentId),
+        gte(investmentQuoteDaily.date, from),
+        lte(investmentQuoteDaily.date, to),
+      ),
+    )
+    .orderBy(investmentQuoteDaily.date);
 }
 
 export async function fetchInvestmentFxRate(
@@ -218,7 +309,7 @@ export async function fetchInvestmentFxRate(
       inverted: false,
       asOf: new Date().toISOString(),
     };
-    fxCache.set(cacheKey, { expiresAt: Date.now() + FX_CACHE_TTL_MS, value });
+    setFxCache(cacheKey, { expiresAt: Date.now() + FX_CACHE_TTL_MS, value });
     return value;
   }
   const direct = yahooFxSymbol(from, to);
@@ -249,6 +340,6 @@ export async function fetchInvestmentFxRate(
       };
     }
   }
-  fxCache.set(cacheKey, { expiresAt: Date.now() + FX_CACHE_TTL_MS, value });
+  setFxCache(cacheKey, { expiresAt: Date.now() + FX_CACHE_TTL_MS, value });
   return value;
 }

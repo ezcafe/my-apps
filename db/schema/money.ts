@@ -244,6 +244,14 @@ export const moneyTransaction = pgTable(
       t.recurrenceSourceId,
       t.occurredAt,
     ),
+    index("money_tx_workspace_transfer_pair_idx")
+      .on(t.workspaceId, t.transferPairId)
+      .where(sql`${t.transferPairId} IS NOT NULL`),
+    index("money_transaction_workspace_occurred_id_idx").on(
+      t.workspaceId,
+      t.occurredAt.desc(),
+      t.id.desc(),
+    ),
     index("money_tx_account_idx").on(t.accountId),
   ],
 );
