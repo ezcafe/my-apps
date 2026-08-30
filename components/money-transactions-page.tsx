@@ -363,8 +363,7 @@ export function MoneyTransactionsPage({
     error ??
     (queryErrorMessage(bootstrapQuery.error)) ??
     (queryErrorMessage(chartLookupsQuery.error)) ??
-    (queryErrorMessage(merchantLookupsQuery.error)) ??
-    (queryErrorMessage(recurrenceLookupsQuery.error));
+    (queryErrorMessage(advancedLookupsQuery.error));
 
   if (!workspaceReady && !bootstrapQuery.data && !bootstrapQuery.error) {
     return (

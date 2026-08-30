@@ -678,22 +678,22 @@ export function InvestmentStatementImportWizard() {
                             <TableCell>
                               <span
                                 className={`rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                                  pos.direction === "buy"
+                                  pos.side === "buy"
                                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                                     : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
                                 }`}
                               >
-                                {pos.direction}
+                                {pos.side}
                               </span>
                             </TableCell>
                             <TableCell className="text-xs text-muted tabular-nums">
-                              {pos.openDate}
+                              {pos.activityDate}
                             </TableCell>
                             <TableCell className="text-right font-mono tabular-nums">
                               {pos.quantity}
                             </TableCell>
                             <TableCell className="text-right font-mono tabular-nums">
-                              {pos.entryPrice}
+                              {pos.openPrice}
                             </TableCell>
                             <TableCell className="text-right font-mono text-xs tabular-nums text-muted">
                               {pos.stopLoss || "—"}

@@ -862,8 +862,7 @@ export function AnalyticsDashboard({
     error ??
     (queryErrorMessage(bootstrapQuery.error)) ??
     (queryErrorMessage(chartLookupsQuery.error)) ??
-    (queryErrorMessage(merchantLookupsQuery.error)) ??
-    (queryErrorMessage(recurrenceLookupsQuery.error));
+    (queryErrorMessage(advancedLookupsQuery.error));
 
   useSetAppHeader({
     meta: "Income, spending, and category trends for the selected range.",
