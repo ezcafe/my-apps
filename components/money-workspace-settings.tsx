@@ -72,14 +72,13 @@ export function MoneyWorkspaceSettings() {
   const [bootstrapErr, setBootstrapErr] = useState<string | null>(null);
 
   const refreshMoneyWorkspaceContext = useCallback(async () => {
-    await refreshWorkspaceCurrency();
     const res = await moneyGraphQLRequest<{ moneyBootstrap: MoneyWorkspaceBootstrapData }>(
       MONEY_BOOTSTRAP_QUERY,
     );
     const boot = res.moneyBootstrap;
     setMoneyWorkspaceId(boot.workspaceId);
     setWorkspaceList(boot.workspaces);
-  }, [refreshWorkspaceCurrency]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -201,6 +200,7 @@ export function MoneyWorkspaceSettings() {
                     targetWorkspaceId: cloneTargetId,
                   });
                   setCloneTargetId("");
+                  await refreshWorkspaceCurrency();
                   await refreshMoneyWorkspaceContext();
                   notify.success(
                     "Settings updated",
