@@ -12,7 +12,6 @@ node_modules
 .vscode
 coverage
 npm-debug.log*
-pnpm-lock.yaml
 *.log
 README.md
 AGENTS.md

@@ -6,7 +6,7 @@ This README is the runbook: **local development** and **production on a server**
 
 ## Requirements
 
-- **Local app:** Node.js `^22.22.2 || ^24.15.0 || >=26` and **npm 12+** (Node 25 is not supported by npm 12)
+- **Local app:** Node.js `^22.22.2 || ^24.15.0 || >=26` and **pnpm 10+** (Corepack or `npm install -g pnpm@10.5.2`)
 - **Database / production stack:** Docker Engine with the Compose plugin
 - A [Pocket ID](https://pocket-id.org/docs/guides/oidc-client-authentication) OIDC client (needed to sign in)
 
@@ -41,42 +41,42 @@ In Pocket ID, add redirect URI `http://localhost:3000/api/auth/callback/pocket-i
 ### 2. Database
 
 ```bash
-npm run docker:db
+pnpm run docker:db
 # same as: docker compose -f docker-compose-db.yml up -d
 ```
 
 This starts Postgres on `localhost:5432` (user/password/database `money`) and keeps data in the `money_pg_data` volume.
 
-Stop it with `npm run docker:db:down`. Add `-v` to the Compose `down` command if you also want to wipe the volume.
+Stop it with `pnpm run docker:db:down`. Add `-v` to the Compose `down` command if you also want to wipe the volume.
 
 Do not run this file and the production Compose file at the same time — both bind port `5432` and share the same volume name.
 
 ### 3. Install, schema, dev server
 
 ```bash
-npm install
-npm run db:push
-npm run dev
-# or: npm run dev:turbo
+pnpm install
+pnpm run db:push
+pnpm run dev
+# or: pnpm run dev:turbo
 ```
 
-npm 12 blocks dependency install scripts by default; this repo commits an `allowScripts` allowlist in `package.json`.
+pnpm only allows native build scripts for packages listed in `pnpm.onlyBuiltDependencies` in `package.json`.
 
 Open [http://localhost:3000](http://localhost:3000). Sign in at `/login`.
 
 Useful while developing:
 
 ```bash
-npm run db:studio          # browse the local DB
-npm run db:migrate         # apply checked-in migrations instead of db:push
-npm run db:reset           # wipe local schema (destructive)
+pnpm run db:studio          # browse the local DB
+pnpm run db:migrate         # apply checked-in migrations instead of db:push
+pnpm run db:reset           # wipe local schema (destructive)
 ```
 
 If `db:migrate` fails because the schema already exists (typical after `db:push`) but `drizzle.__drizzle_migrations` is empty:
 
 ```bash
-ALLOW_BASELINE_DRIZZLE=1 npm run db:baseline -- --through 0023_money_tx_exclude_from_reports
-npm run db:migrate
+ALLOW_BASELINE_DRIZZLE=1 pnpm run db:baseline -- --through 0023_money_tx_exclude_from_reports
+pnpm run db:migrate
 ```
 
 ### Recurrence (optional)
@@ -131,7 +131,7 @@ In Pocket ID, add redirect URI `https://your-app.example/api/auth/callback/pocke
 
 ```bash
 docker compose --env-file .env up --build -d
-# foreground equivalent: npm run docker:up
+# foreground equivalent: pnpm run docker:up
 ```
 
 What starts:
@@ -153,7 +153,7 @@ Host tools can use `localhost:5432` (Postgres) or `localhost:6432` (PgBouncer). 
 Stop:
 
 ```bash
-npm run docker:down
+pnpm run docker:down
 # or: docker compose --env-file .env down
 ```
 
@@ -203,16 +203,16 @@ If the hostname is only reachable on the server itself, use `http://127.0.0.1:30
 
 | Command | When |
 |---------|------|
-| `npm run docker:db` / `docker:db:down` | Local Postgres only |
-| `npm run docker:up` / `docker:down` | Full production-style stack |
-| `npm run dev` / `dev:turbo` | Local Next.js (webpack / Turbopack) |
-| `npm run build` / `npm start` | Production Node on the host (you still need Postgres) |
-| `npm run lint` / `typecheck` / `test` | Checks |
-| `npm run db:generate` | Create a Drizzle migration |
-| `npm run db:push` | Push schema in **dev** (no migration file) |
-| `npm run db:migrate` | Apply migrations |
+| `pnpm run docker:db` / `docker:db:down` | Local Postgres only |
+| `pnpm run docker:up` / `docker:down` | Full production-style stack |
+| `pnpm run dev` / `dev:turbo` | Local Next.js (webpack / Turbopack) |
+| `pnpm run build` / `pnpm start` | Production Node on the host (you still need Postgres) |
+| `pnpm run lint` / `typecheck` / `test` | Checks |
+| `pnpm run db:generate` | Create a Drizzle migration |
+| `pnpm run db:push` | Push schema in **dev** (no migration file) |
+| `pnpm run db:migrate` | Apply migrations |
 
-Prefer Compose on a server. `npm run build && npm start` is only useful if you already run PostgreSQL yourself.
+Prefer Compose on a server. `pnpm run build && pnpm start` is only useful if you already run PostgreSQL yourself.
 
 ---
 

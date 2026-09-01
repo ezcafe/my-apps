@@ -81,7 +81,7 @@ try {
     VALUES (${hash}, ${createdAt})
   `;
 
-  console.log(`Baselined through ${through} (created_at=${createdAt}). Run: npm run db:migrate`);
+  console.log(`Baselined through ${through} (created_at=${createdAt}). Run: pnpm run db:migrate`);
 } finally {
   await sql.end({ timeout: 10 });
 }

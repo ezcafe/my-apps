@@ -2,9 +2,10 @@
   "name": "my-apps",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.5.2",
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
-    "npm": ">=12"
+    "pnpm": ">=10"
   },
   "scripts": {
     "dev": "node scripts/stop-prior-next-dev.mjs && next dev --webpack",
@@ -30,6 +31,7 @@
     "docker:db:down": "docker compose -f docker-compose-db.yml down"
   },
   "dependencies": {
+    "@auth/core": "^0.41.3",
     "@escape.tech/graphql-armor-max-aliases": "^2.6.2",
     "@escape.tech/graphql-armor-max-depth": "^2.4.2",
     "@escape.tech/graphql-armor-max-tokens": "^2.5.1",
@@ -78,15 +80,15 @@
     "tsx": "^4.23.12",
     "typescript": "^7.0.2"
   },
-  "overrides": {
-    "esbuild": "0.28.1"
-  },
-  "allowScripts": {
-    "esbuild@0.18.20": true,
-    "esbuild@0.25.12": true,
-    "esbuild@0.28.1": true,
-    "fsevents@2.3.3": true,
-    "sharp@0.34.5": true,
-    "unrs-resolver@1.12.2": true
+  "pnpm": {
+    "overrides": {
+      "esbuild": "0.28.1"
+    },
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "fsevents",
+      "sharp",
+      "unrs-resolver"
+    ]
   }
 }

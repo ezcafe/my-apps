@@ -35,7 +35,7 @@ if (result.status !== 0) {
     "If the schema was created with db:push, baseline first, e.g.:",
   );
   console.error(
-    "  ALLOW_BASELINE_DRIZZLE=1 npm run db:baseline -- --through 0026_drop_legacy_finance_tables",
+    "  ALLOW_BASELINE_DRIZZLE=1 pnpm run db:baseline -- --through 0026_drop_legacy_finance_tables",
   );
   process.exit(result.status ?? 1);
 }

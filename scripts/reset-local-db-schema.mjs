@@ -29,7 +29,7 @@ try {
   await sql.unsafe(`GRANT ALL ON SCHEMA public TO public`);
   await sql.unsafe(`GRANT ALL ON SCHEMA public TO CURRENT_USER`);
 
-  console.log("Reset complete. Run: npm run db:migrate");
+  console.log("Reset complete. Run: pnpm run db:migrate");
 } finally {
   await sql.end({ timeout: 10 });
 }

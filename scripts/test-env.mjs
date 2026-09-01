@@ -1,5 +1,5 @@
 /**
- * Preload for `npm test`: money GraphQL modules import auth at load time.
+ * Preload for `pnpm test`: money GraphQL modules import auth at load time.
  * Unit tests do not exercise real OIDC; provide a non-production secret when unset.
  */
 if (!process.env.AUTH_SECRET) {
