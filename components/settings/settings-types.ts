@@ -136,30 +136,10 @@ export const MONEY_SETTINGS_CATEGORIES: SettingsCategoryMeta<MoneySettingsCatego
 // ---------------------------------------------------------------------------
 
 export type InvestmentSettingsCategoryId =
-  | "import"
   | "instruments"
   | "ledger";
 
 export const INVESTMENT_SETTINGS_CATEGORIES: SettingsCategoryMeta<InvestmentSettingsCategoryId>[] = [
-  {
-    id: "import",
-    label: "Statement import",
-    description: "Import statement files directly into Investment activities and link realized P&L to your ledger.",
-    keywords: [
-      "import",
-      "statement",
-      "statements",
-      "ctrader",
-      "binance",
-      "html",
-      "csv",
-      "broker",
-      "upload",
-      "multi-platform",
-      "spot",
-      "futures",
-    ],
-  },
   {
     id: "instruments",
     label: "Instruments & symbols",

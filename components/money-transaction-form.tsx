@@ -1206,6 +1206,34 @@ export function MoneyTransactionForm({
           </Field>
           ) : null}
 
+          {kind !== "transfer" && !isInvestmentKind ? (
+            lookupSkeletonVisible ? (
+              <MoneyLookupQuickPickSkeleton
+                legend="Category"
+                withPct
+                className="[grid-column:1/-1]"
+              />
+            ) : (
+              <MoneyUsageQuickPick
+                legend="Category"
+                ariaLabel="Category"
+                className="[grid-column:1/-1]"
+                items={categoryQuickItems}
+                pickerItems={categoryPickerItems}
+                selectedId={categoryId}
+                onSelect={(id) => {
+                  setSelectedCategoryId(id);
+                  setCategoryEmptyOnOther(id === "");
+                }}
+                otherLabel="Select other category"
+                emptyCountsAsOther
+                emptySelectedOnOther={categoryOtherSelected}
+                emptyMessage={categoryEmptyMessage}
+                chipBudgetProgressPct={categoryChipBudgetProgressPct}
+              />
+            )
+          ) : null}
+
           {lookupSkeletonVisible ? (
             <MoneyLookupQuickPickSkeleton
               legend="Account"
@@ -1276,34 +1304,6 @@ export function MoneyTransactionForm({
                     defaultCurrency,
                   )
                 }
-              />
-            )
-          ) : null}
-
-          {kind !== "transfer" && !isInvestmentKind ? (
-            lookupSkeletonVisible ? (
-              <MoneyLookupQuickPickSkeleton
-                legend="Category"
-                withPct
-                className="[grid-column:1/-1]"
-              />
-            ) : (
-              <MoneyUsageQuickPick
-                legend="Category"
-                ariaLabel="Category"
-                className="[grid-column:1/-1]"
-                items={categoryQuickItems}
-                pickerItems={categoryPickerItems}
-                selectedId={categoryId}
-                onSelect={(id) => {
-                  setSelectedCategoryId(id);
-                  setCategoryEmptyOnOther(id === "");
-                }}
-                otherLabel="Select other category"
-                emptyCountsAsOther
-                emptySelectedOnOther={categoryOtherSelected}
-                emptyMessage={categoryEmptyMessage}
-                chipBudgetProgressPct={categoryChipBudgetProgressPct}
               />
             )
           ) : null}

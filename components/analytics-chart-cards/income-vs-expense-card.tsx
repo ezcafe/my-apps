@@ -17,6 +17,7 @@ import {
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import { cn } from "@/lib/cn";
 
 const DivergingBarChart = dynamic(
   () =>
@@ -33,6 +34,7 @@ export const IncomeVsExpenseCard = memo(function IncomeVsExpenseCard({
   formatChartValue,
   baseFilterQuery,
   onDrilldown,
+  className,
 }: {
   overviewReady: boolean;
   summaryStats: MoneyAnalyticsSummaryPayload["stats"];
@@ -40,6 +42,7 @@ export const IncomeVsExpenseCard = memo(function IncomeVsExpenseCard({
   formatChartValue: (minor: number) => string;
   baseFilterQuery?: string;
   onDrilldown?: ChartDrilldownHandler;
+  className?: string;
 }) {
   const handleDivergingClick = useMemo(() => {
     if (!baseFilterQuery || !onDrilldown) return undefined;
@@ -55,7 +58,12 @@ export const IncomeVsExpenseCard = memo(function IncomeVsExpenseCard({
 
   return (
     <Card
-      className={`w-full min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
+      className={cn(
+        "w-full min-w-0 p-4",
+        CHART_CARD_LAYOUT,
+        CHART_CARD_HEIGHT_HALF,
+        className,
+      )}
     >
       <h2 className="mb-2 font-display text-lg font-medium">Income vs expenses</h2>
       <p className="mb-2 text-xs text-muted">Totals for the selected filter range.</p>

@@ -13,7 +13,7 @@ export default function InvestmentSettingsLoading() {
         <aside className="w-full md:w-52 lg:w-56 shrink-0 md:sticky md:top-6 md:self-start">
           {/* Mobile horizontal category chips skeleton (< md) */}
           <div className="flex md:hidden w-full overflow-x-auto pb-1 gap-1.5">
-            {Array.from({ length: 3 }, (_, i) => (
+            {Array.from({ length: 2 }, (_, i) => (
               <Skeleton
                 key={`cat-pill-${i}`}
                 className="h-7 w-28 shrink-0 rounded-[var(--radius-sm)]"
@@ -23,7 +23,7 @@ export default function InvestmentSettingsLoading() {
 
           {/* Desktop vertical sidebar skeleton (md+) */}
           <div className="hidden md:flex flex-col gap-1 w-full">
-            {Array.from({ length: 3 }, (_, i) => (
+            {Array.from({ length: 2 }, (_, i) => (
               <Skeleton
                 key={`cat-item-${i}`}
                 className="h-9 w-full rounded-[var(--radius-sm)]"
@@ -38,27 +38,6 @@ export default function InvestmentSettingsLoading() {
           <div className="w-full max-w-2xl">
             <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
           </div>
-
-          {/* Statement Import Section */}
-          <section className="space-y-4">
-            <div className="border-b border-border/70 pb-3 space-y-1.5">
-              <Skeleton className="h-7 w-44 rounded-[var(--radius-sm)]" />
-              <Skeleton className="h-4 w-80 max-w-full rounded-[var(--radius-sm)]" />
-            </div>
-            <div className="rounded-[var(--radius-md)] border border-border bg-background p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-1.5">
-                  <Skeleton className="h-5 w-56 rounded-[var(--radius-sm)]" />
-                  <Skeleton className="h-4 w-72 max-w-full rounded-[var(--radius-sm)]" />
-                </div>
-                <Skeleton className="h-9 w-36 rounded-[var(--radius-sm)]" />
-              </div>
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Skeleton className="h-20 rounded-[var(--radius-sm)]" />
-                <Skeleton className="h-20 rounded-[var(--radius-sm)]" />
-              </div>
-            </div>
-          </section>
 
           {/* Instruments Section */}
           <section className="space-y-4">

@@ -27,10 +27,12 @@ import {
   mergeDrilldownQuery,
 } from "@/lib/analytics-build-query";
 import {
+  CHART_CARD_HEIGHT_HALF,
   CHART_CARD_HEIGHT_TALL,
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import { cn } from "@/lib/cn";
 
 const LineChart = dynamic(
   () =>
@@ -56,6 +58,8 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
   emptyState,
   baseFilterQuery,
   onDrilldown,
+  className,
+  compact = false,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
@@ -77,6 +81,8 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
   };
   baseFilterQuery?: string;
   onDrilldown?: ChartDrilldownHandler;
+  className?: string;
+  compact?: boolean;
 }) {
   const { resolved, style } = theme;
   const overviewLine = useMemo(() => overview?.line ?? [], [overview?.line]);
@@ -145,7 +151,13 @@ export const NetCumulativeFlowCard = memo(function NetCumulativeFlowCard({
 
   return (
     <Card
-      className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
+      className={cn(
+        "min-w-0 p-4",
+        CHART_CARD_LAYOUT,
+        compact ? CHART_CARD_HEIGHT_HALF : CHART_CARD_HEIGHT_TALL,
+        !compact && "col-span-2 w-full md:col-span-6 lg:col-span-12",
+        className,
+      )}
       ref={cardRef}
     >
       <h2 className="mb-2 flex flex-wrap items-center gap-x-2 font-display text-lg font-medium">

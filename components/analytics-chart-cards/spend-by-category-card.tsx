@@ -23,10 +23,11 @@ import {
   seriesCategoryKeyForDrilldown,
 } from "@/lib/analytics-build-query";
 import {
-  CHART_CARD_HEIGHT_HALF,
+  CHART_CARD_HEIGHT_TALL,
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import { cn } from "@/lib/cn";
 
 const PieByCategoryChart = dynamic(
   () =>
@@ -47,6 +48,8 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
   defaultCurrency,
   baseFilterQuery,
   onDrilldown,
+  className,
+  heightClass,
 }: {
   cardRef?: Ref<HTMLDivElement | null>;
   inView: boolean;
@@ -58,6 +61,8 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
   defaultCurrency: string;
   baseFilterQuery?: string;
   onDrilldown?: ChartDrilldownHandler;
+  className?: string;
+  heightClass?: string;
 }) {
   const { resolved, style } = theme;
   const [hiddenCategories, setHiddenCategories] = useState(() => new Set<string>());
@@ -91,7 +96,12 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
 
   return (
     <Card
-      className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
+      className={cn(
+        "min-w-0 p-4",
+        CHART_CARD_LAYOUT,
+        heightClass ?? CHART_CARD_HEIGHT_TALL,
+        className,
+      )}
       ref={cardRef}
     >
       <h2 className="mb-2 font-display text-lg font-medium">Spend by category</h2>

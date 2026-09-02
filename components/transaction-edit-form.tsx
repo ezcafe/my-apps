@@ -404,13 +404,13 @@ export function TransactionEditForm({
               <Skeleton className="h-12 w-full rounded-[var(--radius-md)]" />
             </div>
             <MoneyLookupQuickPickSkeleton
-              legend="Account"
-              required
+              legend="Category"
               withPct
               className="[grid-column:1/-1]"
             />
             <MoneyLookupQuickPickSkeleton
-              legend="Category"
+              legend="Account"
+              required
               withPct
               className="[grid-column:1/-1]"
             />
@@ -466,6 +466,32 @@ export function TransactionEditForm({
           }}
           onSubmit={onSubmit}
         >
+          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
+            <legend className="text-muted">Type</legend>
+            <div
+              role="radiogroup"
+              aria-label="Transaction type"
+              className={moneyQuickPickGroupCls}
+            >
+              {KIND_OPTIONS.map(({ value, label, description }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={kind === value}
+                  title={description}
+                  onClick={() => {
+                    setKind(value);
+                    if (value !== "transfer") setToAccountId("");
+                  }}
+                  className={moneyQuickPickChipCls(kind === value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
           <Field label="Amount" required>
             <InputGroup>
               <InputGroupAddon side="leading" aria-hidden>
@@ -484,6 +510,25 @@ export function TransactionEditForm({
               </InputGroupAddon>
             </InputGroup>
           </Field>
+
+          {kind !== "transfer" ? (
+            <MoneyUsageQuickPick
+              legend="Category"
+              ariaLabel="Category"
+              className="[grid-column:1/-1]"
+              items={categoryQuickItems}
+              pickerItems={categoryPickerItems}
+              selectedId={categoryId}
+              onSelect={(id) => {
+                setCategoryId(id);
+                setCategoryEmptyOnOther(id === "");
+              }}
+              otherLabel="Select other category"
+              emptyCountsAsOther
+              emptySelectedOnOther={categoryEmptyOnOther}
+              emptyMessage="No categories yet. Add one in Settings."
+            />
+          ) : null}
 
           <MoneyUsageQuickPick
             legend="Account"
@@ -533,24 +578,7 @@ export function TransactionEditForm({
                 emptyMessage="Add another account to create transfers."
               />
             )
-          ) : (
-            <MoneyUsageQuickPick
-              legend="Category"
-              ariaLabel="Category"
-              className="[grid-column:1/-1]"
-              items={categoryQuickItems}
-              pickerItems={categoryPickerItems}
-              selectedId={categoryId}
-              onSelect={(id) => {
-                setCategoryId(id);
-                setCategoryEmptyOnOther(id === "");
-              }}
-              otherLabel="Select other category"
-              emptyCountsAsOther
-              emptySelectedOnOther={categoryEmptyOnOther}
-              emptyMessage="No categories yet. Add one in Settings."
-            />
-          )}
+          ) : null}
 
           <MoneyDateQuickPick
             legend="Date"
@@ -562,32 +590,6 @@ export function TransactionEditForm({
               setOccurredAt(joinDateTimeLocal(date, time));
             }}
           />
-
-          <fieldset className="grid min-w-0 gap-1.5 text-sm [grid-column:1/-1]">
-            <legend className="text-muted">Type</legend>
-            <div
-              role="radiogroup"
-              aria-label="Transaction type"
-              className={moneyQuickPickGroupCls}
-            >
-              {KIND_OPTIONS.map(({ value, label, description }) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={kind === value}
-                  title={description}
-                  onClick={() => {
-                    setKind(value);
-                    if (value !== "transfer") setToAccountId("");
-                  }}
-                  className={moneyQuickPickChipCls(kind === value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
 
           <MoneyUsageQuickPick
             legend="Merchant"

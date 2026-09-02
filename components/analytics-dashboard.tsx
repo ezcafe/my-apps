@@ -13,7 +13,12 @@ import {
 } from "react";
 import {
   CHART_CARD_HEIGHT_FULL,
+  CHART_CARD_HEIGHT_TALL,
+  CHART_CARD_HEIGHT_FILL,
   CHART_CARD_LAYOUT,
+  ANALYTICS_HERO_ROW_GRID,
+  ANALYTICS_HERO_SPEND_CLASS,
+  ANALYTICS_HERO_SIDE_CLASS,
 } from "@/components/analytics-chart-layout";
 import {
   AnalyticsStatsSkeleton,
@@ -58,6 +63,7 @@ import {
   moneyAnalyticsChartLookupsQueryOptions,
   moneyAnalyticsInsightsQueryOptions,
   moneyAnalyticsLeadersQueryOptions,
+  moneyAnalyticsOverviewQueryOptions,
   moneyAnalyticsSankeyQueryOptions,
   moneyBootstrapQueryOptions,
   type MoneyAccountLookup,
@@ -263,6 +269,7 @@ function AnalyticsChartsView({
   tags,
   onChartDrilldown,
 }: AnalyticsChartsViewProps) {
+  const { formatMonthYear } = useFormatDate();
   const {
     ref: budgetRef,
     isInView: budgetInView,
@@ -273,6 +280,27 @@ function AnalyticsChartsView({
     isInView: monthlyColumnsInView,
   } = useInViewOnce();
   const { ref: netFlowRef, isInView: netFlowInView } = useInViewOnce();
+
+  const { data: overviewResponse } = useQuery({
+    ...moneyAnalyticsOverviewQueryOptions(workspaceKey, filterQuery),
+    enabled: Boolean(workspaceKey),
+  });
+  const atfOverview =
+    (overviewResponse?.moneyAnalyticsOverview as
+      | MoneyAnalyticsOverviewPayload
+      | undefined) ?? null;
+  const atfOverviewReady = atfOverview != null;
+  const atfOverviewLineCompare = atfOverview?.lineCompare;
+  const atfLineHasData = useMemo(
+    () =>
+      (atfOverview?.line.some((p) => p.netMinor !== 0) ?? false) ||
+      (atfOverviewLineCompare?.points.some((p) => p.netMinor !== 0) ?? false),
+    [atfOverview?.line, atfOverviewLineCompare?.points],
+  );
+  const atfLineCompareLabel = atfOverviewLineCompare
+    ? formatMonthYear(atfOverviewLineCompare.fromDate)
+    : null;
+
   const {
     ref: merchantsRef,
     isInView: merchantsInView,
@@ -317,7 +345,6 @@ function AnalyticsChartsView({
 
   const summaryStats = summary.stats;
   const overviewColumn = useMemo(() => overview?.column ?? [], [overview?.column]);
-  const overviewLineCompare = overview?.lineCompare;
 
   const pieSpendHasData = useMemo(
     () => spendDistribution?.pieSpend.some((p) => p.valueMinor > 0) ?? false,
@@ -352,12 +379,6 @@ function AnalyticsChartsView({
   const sankeyHasData = useMemo(
     () => (sankeyPayload?.sankey.links.length ?? 0) > 0,
     [sankeyPayload?.sankey.links.length],
-  );
-  const lineHasData = useMemo(
-    () =>
-      (overview?.line.some((p) => p.netMinor !== 0) ?? false) ||
-      (overviewLineCompare?.points.some((p) => p.netMinor !== 0) ?? false),
-    [overview?.line, overviewLineCompare?.points],
   );
   const merchantsHasData = useMemo(
     () => leaders?.merchantsSpend.some((m) => m.valueMinor > 0) ?? false,
@@ -394,12 +415,6 @@ function AnalyticsChartsView({
     [budgetChartRows],
   );
 
-  const { formatMonthYear } = useFormatDate();
-  const lineCompareLabel = overviewLineCompare
-    ? formatMonthYear(overviewLineCompare.fromDate)
-    : null;
-
-  const isCurrentMonthCompare = Boolean(overviewLineCompare);
   const theme = useMemo(() => ({ resolved, style }), [resolved, style]);
 
   const formatChartValue = useCallback(
@@ -411,15 +426,7 @@ function AnalyticsChartsView({
 
   return (
     <>
-      <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:grid-cols-2 md:gap-3 lg:col-span-12">
-        <IncomeVsExpenseCard
-          overviewReady
-          summaryStats={summaryStats}
-          divergingHasData={divergingHasData}
-          formatChartValue={formatChartValue}
-          baseFilterQuery={filterQuery}
-          onDrilldown={onChartDrilldown}
-        />
+      <div className={ANALYTICS_HERO_ROW_GRID}>
         <SpendByCategoryCard
           cardRef={undefined}
           inView={spendReady}
@@ -431,6 +438,32 @@ function AnalyticsChartsView({
           defaultCurrency={defaultCurrency}
           baseFilterQuery={filterQuery}
           onDrilldown={onChartDrilldown}
+          className={ANALYTICS_HERO_SPEND_CLASS}
+          heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
+        />
+        <IncomeVsExpenseCard
+          overviewReady
+          summaryStats={summaryStats}
+          divergingHasData={divergingHasData}
+          formatChartValue={formatChartValue}
+          baseFilterQuery={filterQuery}
+          onDrilldown={onChartDrilldown}
+          className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-1")}
+        />
+        <NetCumulativeFlowCard
+          cardRef={netFlowRef}
+          inView={netFlowInView}
+          overviewReady={atfOverviewReady}
+          overview={atfOverview}
+          lineHasData={atfLineHasData}
+          lineCompareLabel={atfLineCompareLabel}
+          isCurrentMonthCompare={Boolean(atfOverviewLineCompare)}
+          defaultCurrency={defaultCurrency}
+          theme={theme}
+          baseFilterQuery={filterQuery}
+          onDrilldown={onChartDrilldown}
+          compact
+          className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-2")}
         />
       </div>
 
@@ -458,20 +491,6 @@ function AnalyticsChartsView({
 
       {moreInsights ? (
         <>
-          <NetCumulativeFlowCard
-            cardRef={netFlowRef}
-            inView={netFlowInView}
-            overviewReady={overviewReady}
-            overview={overview}
-            lineHasData={lineHasData}
-            lineCompareLabel={lineCompareLabel}
-            isCurrentMonthCompare={isCurrentMonthCompare}
-            defaultCurrency={defaultCurrency}
-            theme={theme}
-            baseFilterQuery={filterQuery}
-            onDrilldown={onChartDrilldown}
-          />
-
           <MoneyFlowSankeyCard
             cardRef={sankeyRef}
             inView={sankeyInView}

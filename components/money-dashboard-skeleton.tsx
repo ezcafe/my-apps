@@ -299,14 +299,14 @@ export function MoneyDashboardSkeleton() {
           </Field>
 
           <MoneyLookupQuickPickSkeleton
-            legend="Account"
-            required
+            legend="Category"
             withPct
             className="[grid-column:1/-1]"
           />
 
           <MoneyLookupQuickPickSkeleton
-            legend="Category"
+            legend="Account"
+            required
             withPct
             className="[grid-column:1/-1]"
           />

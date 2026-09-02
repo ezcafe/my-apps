@@ -44,19 +44,6 @@ const INSTRUMENT_MANAGEMENT_LINKS = [
   },
 ] as const;
 
-const SUPPORTED_PLATFORMS = [
-  {
-    name: "cTrader",
-    formats: "cTrader HTML statements (IC Markets, Pepperstone, etc.)",
-    badge: "cTrader HTML",
-  },
-  {
-    name: "Binance",
-    formats: "Spot Trade History, Futures & Transactions CSV",
-    badge: "Spot & Futures CSV",
-  },
-] as const;
-
 export function InvestmentWorkspaceSettings() {
   const { defaultCurrency } = useWorkspaceCurrency();
 
@@ -101,7 +88,7 @@ export function InvestmentWorkspaceSettings() {
     <SettingsPageLayout<InvestmentSettingsCategoryId>
       categories={INVESTMENT_SETTINGS_CATEGORIES}
       idPrefix="investment-settings"
-      searchPlaceholder="Search Investment settings (e.g. import, instruments, symbols, accounts)…"
+      searchPlaceholder="Search Investment settings (e.g. instruments, symbols, accounts)…"
       topAlert={
         error ? (
           <Alert
@@ -112,53 +99,6 @@ export function InvestmentWorkspaceSettings() {
         ) : null
       }
       sections={{
-        import: (
-          <SettingsSection
-            id="investment-settings-import"
-            title="Statement import"
-            description="Import statement files directly into Investment activities and link realized P&L to your ledger."
-          >
-            <div className="rounded-[var(--radius-md)] border border-border bg-background p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Multi-platform statement import
-                  </h3>
-                  <p className="mt-1 text-xs text-muted">
-                    Upload HTML or CSV statements from cTrader or Binance.
-                  </p>
-                </div>
-                <Link
-                  href="/investments/import"
-                  className="inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 fx-press"
-                >
-                  Import statement →
-                </Link>
-              </div>
-
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {SUPPORTED_PLATFORMS.map((platform) => (
-                  <div
-                    key={platform.name}
-                    className="rounded-[var(--radius-sm)] border border-border/80 bg-muted/20 p-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-foreground">
-                        {platform.name}
-                      </span>
-                      <span className="rounded-[var(--radius-sm)] bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                        {platform.badge}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 text-[11px] text-muted leading-tight">
-                      {platform.formats}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </SettingsSection>
-        ),
         instruments: (
           <SettingsSection
             id="investment-settings-instruments"

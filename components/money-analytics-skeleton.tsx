@@ -2,7 +2,11 @@ import {
   CHART_CARD_HEIGHT_FULL,
   CHART_CARD_HEIGHT_HALF,
   CHART_CARD_HEIGHT_TALL,
+  CHART_CARD_HEIGHT_FILL,
   CHART_CARD_LAYOUT,
+  ANALYTICS_HERO_ROW_GRID,
+  ANALYTICS_HERO_SPEND_CLASS,
+  ANALYTICS_HERO_SIDE_CLASS,
 } from "@/components/analytics-chart-layout";
 import { MoneyFilterToolbar } from "@/components/money-page-header";
 import { MONEY_DASHBOARD_STACK, MONEY_FULL_SPAN } from "@/lib/money-layout";
@@ -170,20 +174,29 @@ function AnalyticsMoreInsightsTeasersSkeleton() {
   );
 }
 
-/** Default Insights body: primary chart pair + teaser cards. */
+/** Default Insights body: primary chart row + teaser cards. */
 function AnalyticsCollapsedGridContent() {
   return (
     <>
-      <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:grid-cols-2 md:gap-3 lg:col-span-12">
+      <div className={ANALYTICS_HERO_ROW_GRID}>
         <AnalyticsChartCardSkeleton
+          className={ANALYTICS_HERO_SPEND_CLASS}
+          heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
+          titleWidthClass="w-40"
+          descriptionWidthClass="w-56 max-w-full"
+          showLegend
+        />
+        <AnalyticsChartCardSkeleton
+          className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-1")}
           heightClass={CHART_CARD_HEIGHT_HALF}
           titleWidthClass="w-40"
           descriptionWidthClass="w-44"
         />
         <AnalyticsChartCardSkeleton
+          className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-2")}
           heightClass={CHART_CARD_HEIGHT_HALF}
-          titleWidthClass="w-40"
-          descriptionWidthClass="w-56 max-w-full"
+          titleWidthClass="w-48"
+          descriptionWidthClass="w-72 max-w-full"
           showLegend
         />
       </div>
@@ -197,14 +210,6 @@ function AnalyticsCollapsedGridContent() {
 function AnalyticsExpandedGridContent() {
   return (
     <>
-      <AnalyticsChartCardSkeleton
-        className="col-span-2 w-full md:col-span-6 lg:col-span-12"
-        heightClass={CHART_CARD_HEIGHT_TALL}
-        titleWidthClass="w-48"
-        descriptionWidthClass="w-72 max-w-full"
-        showLegend
-      />
-
       <AnalyticsChartCardSkeleton
         className="col-span-2 w-full md:col-span-6 lg:col-span-12"
         heightClass={CHART_CARD_HEIGHT_TALL}

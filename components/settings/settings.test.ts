@@ -60,10 +60,10 @@ describe("Settings search and category filtering", () => {
     assert.equal(resBills.matchingCategories[0].id, "menu");
   });
 
-  it("filters Investment settings categories by keywords (e.g. ctrader, binance, quotes, currency)", () => {
-    const resCtrader = filterSettingsCategories("ctrader", INVESTMENT_SETTINGS_CATEGORIES);
-    assert.equal(resCtrader.matchingCategories.length, 1);
-    assert.equal(resCtrader.matchingCategories[0].id, "import");
+  it("filters Investment settings categories by keywords (e.g. forex, quotes, currency)", () => {
+    const resForex = filterSettingsCategories("forex", INVESTMENT_SETTINGS_CATEGORIES);
+    assert.equal(resForex.matchingCategories.length, 1);
+    assert.equal(resForex.matchingCategories[0].id, "instruments");
 
     const resYahoo = filterSettingsCategories("yahoo", INVESTMENT_SETTINGS_CATEGORIES);
     assert.equal(resYahoo.matchingCategories.length, 1);

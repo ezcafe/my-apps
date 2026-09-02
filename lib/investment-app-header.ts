@@ -88,7 +88,7 @@ export function resolveInvestmentAppHeader(
         { label: "Settings" },
       ],
       cta: null,
-      meta: "Manage statement import, instruments, and ledger defaults.",
+      meta: "Manage instruments and ledger defaults.",
     };
   }
 
