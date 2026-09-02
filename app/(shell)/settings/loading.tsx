@@ -13,7 +13,7 @@ export default function SettingsLoading() {
         <aside className="w-full md:w-52 lg:w-56 shrink-0 md:sticky md:top-6 md:self-start">
           {/* Mobile horizontal category chips skeleton (< md) */}
           <div className="flex md:hidden w-full overflow-x-auto pb-1 gap-1.5">
-            {Array.from({ length: 6 }, (_, i) => (
+            {Array.from({ length: 7 }, (_, i) => (
               <Skeleton
                 key={`cat-pill-${i}`}
                 className="h-7 w-24 shrink-0 rounded-[var(--radius-sm)]"
@@ -23,7 +23,7 @@ export default function SettingsLoading() {
 
           {/* Desktop vertical sidebar skeleton (md+) */}
           <div className="hidden md:flex flex-col gap-1 w-full">
-            {Array.from({ length: 6 }, (_, i) => (
+            {Array.from({ length: 7 }, (_, i) => (
               <Skeleton
                 key={`cat-item-${i}`}
                 className="h-9 w-full rounded-[var(--radius-sm)]"
@@ -64,6 +64,15 @@ export default function SettingsLoading() {
               <Skeleton className="h-9 w-16 rounded-[var(--radius-sm)]" />
               <Skeleton className="h-9 w-16 rounded-[var(--radius-sm)]" />
             </div>
+          </section>
+
+          {/* Home */}
+          <section className="space-y-4">
+            <div className="border-b border-border/70 pb-3 space-y-1.5">
+              <Skeleton className="h-7 w-24 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-4 w-64 max-w-full rounded-[var(--radius-sm)]" />
+            </div>
+            <Skeleton className="h-10 w-full max-w-md rounded-[var(--radius-sm)]" />
           </section>
 
           {/* Account */}

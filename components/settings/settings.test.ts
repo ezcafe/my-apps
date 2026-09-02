@@ -39,6 +39,12 @@ describe("Settings search and category filtering", () => {
     assert.equal(matchingCategories[0].id, "danger-zone");
   });
 
+  it("filters by category keywords (e.g. weather -> home)", () => {
+    const { matchingCategories } = filterSettingsCategories("weather", SETTINGS_CATEGORIES);
+    assert.equal(matchingCategories.length, 1);
+    assert.equal(matchingCategories[0].id, "home");
+  });
+
   it("returns empty matches when query matches nothing", () => {
     const { matchingCategories, matchCounts } = filterSettingsCategories(
       "nonexistent_random_term_xyz",

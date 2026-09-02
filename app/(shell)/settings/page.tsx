@@ -6,23 +6,28 @@ import { SettingsSection } from "@/components/money-settings/money-settings-shar
 import { ApiTokenSettings } from "@/components/api-token-settings";
 import { CoreShellPage } from "@/components/core-shell-page";
 import { DateFormatSettings } from "@/components/date-format-settings";
+import { WeatherCitySettings } from "@/components/home/weather-city-settings";
 import { ThemeSettings } from "@/components/theme-settings";
 import { WorkspaceSettings } from "@/components/workspace-settings";
 import { WorkspaceResetSettings } from "@/components/workspace-reset-settings";
 import { Alert } from "@/components/ui/alert";
 import { isDbUnreachable } from "@/lib/db-errors";
+import { getUserPreferences } from "@/lib/user-preferences-service";
 import { SettingsClientLayout } from "@/components/settings/settings-client-layout";
 
 async function loadSettingsDbData(userSub: string) {
   try {
-    const [{ workspaces, defaultWorkspaceId }, apiTokens] = await Promise.all([
+    const [{ workspaces, defaultWorkspaceId }, apiTokens, preferences] =
+      await Promise.all([
       fetchWorkspacesForUser(userSub, "money"),
       listApiTokensForUser(userSub),
+      getUserPreferences(userSub),
     ]);
     return {
       workspaces,
       defaultWorkspaceId,
       apiTokens,
+      weatherCity: preferences.weatherCity,
       dbUnavailable: false as const,
     };
   } catch (e) {
@@ -31,6 +36,7 @@ async function loadSettingsDbData(userSub: string) {
         workspaces: [],
         defaultWorkspaceId: null,
         apiTokens: [],
+        weatherCity: null,
         dbUnavailable: true as const,
       };
     }
@@ -41,12 +47,13 @@ async function loadSettingsDbData(userSub: string) {
 export default async function SettingsPage() {
   const session = await auth();
   const userSub = session?.user?.id;
-  const { workspaces, defaultWorkspaceId, apiTokens, dbUnavailable } = userSub
+  const { workspaces, defaultWorkspaceId, apiTokens, weatherCity, dbUnavailable } = userSub
     ? await loadSettingsDbData(userSub)
     : {
         workspaces: [],
         defaultWorkspaceId: null,
         apiTokens: [],
+        weatherCity: null,
         dbUnavailable: false as const,
       };
 
@@ -78,6 +85,15 @@ export default async function SettingsPage() {
             description="How dates appear across the app."
           >
             <DateFormatSettings embedded />
+          </SettingsSection>
+        }
+        homeContent={
+          <SettingsSection
+            id="settings-home"
+            title="Home"
+            description="Weather city for your home dashboard."
+          >
+            <WeatherCitySettings embedded initialCity={weatherCity} />
           </SettingsSection>
         }
         accountContent={

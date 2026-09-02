@@ -18,6 +18,7 @@ export function isLoansChromePath(pathname: string): boolean {
  * in-page button menu (Money, Investments, Loans, Help, Settings).
  */
 export function hidesShellRailChrome(pathname: string): boolean {
+  if (pathname === "/") return true;
   if (isMoneyTabsChromePath(pathname)) return true;
   if (isInvestmentsChromePath(pathname)) return true;
   if (isLoansChromePath(pathname)) return true;
