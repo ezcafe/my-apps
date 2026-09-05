@@ -195,7 +195,11 @@ export function TransactionEditForm({
     setExcludeFromAnalyticsAndBudget(loaded.excludeFromAnalyticsAndBudget);
     setSelectedTagIds([...loaded.tagIds]);
     setToAccountId("");
-  } else if (transactionId !== hydratedId && !loaded) {
+  } else if (
+    hydratedId !== null &&
+    transactionId !== hydratedId &&
+    !loaded
+  ) {
     setHydratedId(null);
   }
 

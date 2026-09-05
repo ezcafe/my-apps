@@ -160,7 +160,9 @@ export function AnalyticsTransactionsTable({
     return Math.max(1, Math.ceil(payload.total / payload.pageSize));
   }, [payload]);
 
-  const effectivePage = Math.min(Math.max(page, 1), totalPages);
+  const effectivePage = Number.isFinite(page)
+    ? Math.min(Math.max(page, 1), totalPages)
+    : 1;
   if (effectivePage !== page) {
     setPage(effectivePage);
   }

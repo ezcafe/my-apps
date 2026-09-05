@@ -13,6 +13,27 @@ export type ActiveFilterLookups = {
   viewScopeLabel?: string;
 };
 
+const KIND_LABEL: Record<string, string> = {
+  expense: "Spending",
+  income: "Income",
+  transfer: "Transfers",
+};
+
+function countOrSingleLabel(
+  ids: readonly string[],
+  singularFallback: string,
+  pluralNoun: string,
+  resolveOne: (id: string) => string | undefined,
+): string | null {
+  if (ids.length === 1) {
+    return resolveOne(ids[0]!) ?? singularFallback;
+  }
+  if (ids.length > 1) {
+    return `${ids.length} ${pluralNoun}`;
+  }
+  return null;
+}
+
 /**
  * Extracts human-readable labels for active/applied filters to display
  * alongside the period range (e.g. `Showing 1 Aug – 31 Aug · Spending · Groceries`).
@@ -27,54 +48,55 @@ export function resolveActiveFilterLabels(
     labels.push(lookups.viewScopeLabel);
   }
 
-  // 1. Direction (kinds)
   if (filters.kinds.length === 1) {
-    const k = filters.kinds[0];
-    if (k === "expense") labels.push("Spending");
-    else if (k === "income") labels.push("Income");
-    else if (k === "transfer") labels.push("Transfers");
+    const label = KIND_LABEL[filters.kinds[0]!];
+    if (label) labels.push(label);
   } else if (filters.kinds.length === 2) {
-    const kindNames = filters.kinds.map((k) =>
-      k === "expense" ? "Spending" : k === "income" ? "Income" : "Transfers",
+    labels.push(
+      filters.kinds.map((k) => KIND_LABEL[k] ?? k).join(" & "),
     );
-    labels.push(kindNames.join(" & "));
   }
 
-  // 2. Accounts
-  if (filters.accountIds.length === 1) {
-    const acc = lookups.accounts?.find((a) => a.id === filters.accountIds[0]);
-    labels.push(acc ? acc.name : "1 account");
-  } else if (filters.accountIds.length > 1) {
-    labels.push(`${filters.accountIds.length} accounts`);
-  }
+  const accountLabel = countOrSingleLabel(
+    filters.accountIds,
+    "1 account",
+    "accounts",
+    (id) => lookups.accounts?.find((a) => a.id === id)?.name,
+  );
+  if (accountLabel) labels.push(accountLabel);
 
-  // 3. Categories
-  if (filters.categoryIds.length === 1) {
-    const cats = (lookups.categories ?? []) as MoneyCategoryRow[];
-    const byId = moneyCategoryById(cats);
-    const cat = byId.get(filters.categoryIds[0]);
-    labels.push(cat ? moneyCategoryLabel(cat, byId) : "1 category");
-  } else if (filters.categoryIds.length > 1) {
-    labels.push(`${filters.categoryIds.length} categories`);
-  }
+  const categoryLabel = countOrSingleLabel(
+    filters.categoryIds,
+    "1 category",
+    "categories",
+    (id) => {
+      const cats = (lookups.categories ?? []) as MoneyCategoryRow[];
+      const byId = moneyCategoryById(cats);
+      const cat = byId.get(id);
+      return cat ? moneyCategoryLabel(cat, byId) : undefined;
+    },
+  );
+  if (categoryLabel) labels.push(categoryLabel);
 
-  // 4. Merchants
-  if (filters.merchantIds.length === 1) {
-    const m = lookups.merchants?.find((item) => item.id === filters.merchantIds[0]);
-    labels.push(m ? m.name : "1 merchant");
-  } else if (filters.merchantIds.length > 1) {
-    labels.push(`${filters.merchantIds.length} merchants`);
-  }
+  const merchantLabel = countOrSingleLabel(
+    filters.merchantIds,
+    "1 merchant",
+    "merchants",
+    (id) => lookups.merchants?.find((item) => item.id === id)?.name,
+  );
+  if (merchantLabel) labels.push(merchantLabel);
 
-  // 5. Tags
-  if (filters.tagIds.length === 1) {
-    const t = lookups.tags?.find((item) => item.id === filters.tagIds[0]);
-    labels.push(t ? `#${t.name}` : "1 tag");
-  } else if (filters.tagIds.length > 1) {
-    labels.push(`${filters.tagIds.length} tags`);
-  }
+  const tagLabel = countOrSingleLabel(
+    filters.tagIds,
+    "1 tag",
+    "tags",
+    (id) => {
+      const name = lookups.tags?.find((item) => item.id === id)?.name;
+      return name ? `#${name}` : undefined;
+    },
+  );
+  if (tagLabel) labels.push(tagLabel);
 
-  // 6. Recurrence
   if (filters.recurrence === "recurring") {
     if (filters.recurrenceSourceIds.length === 1) {
       const r = lookups.recurrenceTemplates?.find(

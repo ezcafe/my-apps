@@ -65,6 +65,44 @@ const MODE_HINTS: Record<FormMode, string> = {
 
 type FormMode = (typeof FORM_MODES)[number]["value"];
 
+function resolvePriceCurrency(input: {
+  mode: FormMode;
+  openInstrumentCurrency?: string | null;
+  createNewInstrument: boolean;
+  newCurrency: string;
+  selectedInstrumentCurrency?: string | null;
+}): string | null {
+  if (input.mode === "close") {
+    return input.openInstrumentCurrency?.trim().toUpperCase() || null;
+  }
+  if (input.createNewInstrument) return input.newCurrency;
+  return input.selectedInstrumentCurrency?.trim().toUpperCase() || null;
+}
+
+function resolveFxRateInput(input: {
+  needsFx: boolean;
+  rateTouched: boolean;
+  rateDraft: string;
+  queriedRate?: number | null;
+}): string {
+  if (!input.needsFx) return "1";
+  if (input.rateTouched) return input.rateDraft;
+  if (input.queriedRate != null) return String(input.queriedRate);
+  return input.rateDraft;
+}
+
+function resolveContractSizeForPreview(input: {
+  mode: FormMode;
+  closeContractSize?: string | null;
+  createNewInstrument: boolean;
+  newContractSize: string;
+  selectedContractSize?: string | null;
+}): string {
+  if (input.mode === "close") return input.closeContractSize ?? "1";
+  if (input.createNewInstrument) return input.newContractSize.trim() || "1";
+  return input.selectedContractSize ?? "1";
+}
+
 export function InvestmentOpenCloseForm({
   initialInstrumentId,
   initialMode,
@@ -149,12 +187,13 @@ export function InvestmentOpenCloseForm({
   const closeInstrument = instrumentsQuery.data?.find(
     (i) => i.id === selectedOpen?.instrumentId,
   );
-  const priceCurrency =
-    mode === "close"
-      ? selectedOpen?.instrumentCurrency?.trim().toUpperCase() || null
-      : createNewInstrument
-        ? newCurrency
-        : selectedInstrument?.currency?.trim().toUpperCase() || null;
+  const priceCurrency = resolvePriceCurrency({
+    mode,
+    openInstrumentCurrency: selectedOpen?.instrumentCurrency,
+    createNewInstrument,
+    newCurrency,
+    selectedInstrumentCurrency: selectedInstrument?.currency,
+  });
   const workspaceCurrency = defaultCurrency.trim().toUpperCase();
   const needsFx =
     (mode === "close" || mode === "trade") &&
@@ -167,25 +206,25 @@ export function InvestmentOpenCloseForm({
     ),
     enabled: workspaceReady && needsFx && priceCurrency != null,
   });
-  const rateInput = !needsFx
-    ? "1"
-    : rateTouched
-      ? rateDraft
-      : fxQuery.data?.rate != null
-        ? String(fxQuery.data.rate)
-        : rateDraft;
+  const rateInput = resolveFxRateInput({
+    needsFx,
+    rateTouched,
+    rateDraft,
+    queriedRate: fxQuery.data?.rate,
+  });
   const effectiveRate = useMemo(() => {
     if (!needsFx) return 1;
     const n = Number(rateInput.replace(/,/g, ""));
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [needsFx, rateInput]);
 
-  const contractSizeForPreview =
-    mode === "close"
-      ? closeInstrument?.contractSize ?? "1"
-      : createNewInstrument
-        ? newContractSize.trim() || "1"
-        : selectedInstrument?.contractSize ?? "1";
+  const contractSizeForPreview = resolveContractSizeForPreview({
+    mode,
+    closeContractSize: closeInstrument?.contractSize,
+    createNewInstrument,
+    newContractSize,
+    selectedContractSize: selectedInstrument?.contractSize,
+  });
 
   const closePnlSign = useMemo(() => {
     if (mode !== "close" && mode !== "trade") return null;
@@ -328,109 +367,117 @@ export function InvestmentOpenCloseForm({
     return feeMinor;
   }
 
+  async function submitClose() {
+    if (!openActivityId) throw new Error("Pick an open activity.");
+    const close = Number(closePrice);
+    if (!Number.isFinite(close) || close <= 0) {
+      throw new Error("Close price must be positive.");
+    }
+    const feeCurrency = priceCurrency ?? defaultCurrency;
+    const feeMinor = parseFeeMinor(feeCurrency);
+    if (effectiveRate == null) {
+      throw new Error("Enter a positive FX rate to the workspace currency.");
+    }
+    await investmentGraphQLRequest(INVESTMENT_ACTIVITY_CLOSE_MUTATION, {
+      input: {
+        id: openActivityId,
+        closePrice: closePrice.trim(),
+        feeMinor,
+        activityDate,
+        notes: notes.trim() || null,
+        categoryId: effectiveCloseCategoryId || null,
+        fxRate: effectiveRate,
+      },
+    });
+    notify.success("Activity closed", "P&L was posted to Money.");
+    setOpenActivityId("");
+    setClosePrice("");
+    setCloseFee("");
+  }
+
+  async function submitTrade() {
+    const resolvedInstrumentId = await ensureInstrumentId();
+    if (!priceCurrency) {
+      throw new Error("Select a symbol so its currency can be used.");
+    }
+    const vol = Number(quantity);
+    const open = Number(openPrice);
+    const close = Number(closePrice);
+    if (!Number.isFinite(vol) || vol <= 0) {
+      throw new Error("Quantity must be positive.");
+    }
+    if (!Number.isFinite(open) || open <= 0) {
+      throw new Error("Open price must be positive.");
+    }
+    if (!Number.isFinite(close) || close <= 0) {
+      throw new Error("Close price must be positive.");
+    }
+    if (effectiveRate == null) {
+      throw new Error("Enter a positive FX rate to the workspace currency.");
+    }
+    const feeMinor = parseFeeMinor(priceCurrency);
+    await investmentGraphQLRequest(INVESTMENT_ACTIVITY_REALIZE_MUTATION, {
+      input: {
+        instrumentId: resolvedInstrumentId,
+        activityDate,
+        type: side,
+        priceCurrency,
+        fxRate: effectiveRate,
+        quantity: quantity.trim(),
+        openPrice: openPrice.trim(),
+        closePrice: closePrice.trim(),
+        feeMinor,
+        notes: notes.trim() || null,
+        categoryId: effectiveCloseCategoryId || null,
+      },
+    });
+    notify.success("Trade saved", "P&L was posted to Money.");
+    setQuantity("");
+    setOpenPrice("");
+    setClosePrice("");
+    setCloseFee("");
+  }
+
+  async function submitOpen() {
+    const resolvedInstrumentId = await ensureInstrumentId();
+    const vol = Number(quantity);
+    const price = Number(openPrice);
+    if (!Number.isFinite(vol) || vol <= 0) {
+      throw new Error("Quantity must be positive.");
+    }
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new Error("Open price must be positive.");
+    }
+    await investmentGraphQLRequest(INVESTMENT_ACTIVITY_CREATE_MUTATION, {
+      input: {
+        instrumentId: resolvedInstrumentId,
+        activityDate,
+        type: side,
+        quantity: quantity.trim(),
+        openPrice: openPrice.trim(),
+        stopLoss: stopLoss.trim() || null,
+        takeProfit: takeProfit.trim() || null,
+        amountMinor: 0,
+        notes: notes.trim() || null,
+      },
+    });
+    notify.success("Position opened", "No cash was booked yet.", {
+      href: "/investments",
+      label: "View investments",
+    });
+    setQuantity("");
+    setOpenPrice("");
+    setStopLoss("");
+    setTakeProfit("");
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      if (mode === "close") {
-        if (!openActivityId) throw new Error("Pick an open activity.");
-        const close = Number(closePrice);
-        if (!Number.isFinite(close) || close <= 0) {
-          throw new Error("Close price must be positive.");
-        }
-        const feeCurrency = priceCurrency ?? defaultCurrency;
-        const feeMinor = parseFeeMinor(feeCurrency);
-        if (effectiveRate == null) {
-          throw new Error("Enter a positive FX rate to the workspace currency.");
-        }
-        await investmentGraphQLRequest(INVESTMENT_ACTIVITY_CLOSE_MUTATION, {
-          input: {
-            id: openActivityId,
-            closePrice: closePrice.trim(),
-            feeMinor,
-            activityDate,
-            notes: notes.trim() || null,
-            categoryId: effectiveCloseCategoryId || null,
-            fxRate: effectiveRate,
-          },
-        });
-        notify.success("Activity closed", "P&L was posted to Money.");
-        setOpenActivityId("");
-        setClosePrice("");
-        setCloseFee("");
-      } else if (mode === "trade") {
-        const resolvedInstrumentId = await ensureInstrumentId();
-        if (!priceCurrency) {
-          throw new Error("Select a symbol so its currency can be used.");
-        }
-        const vol = Number(quantity);
-        const open = Number(openPrice);
-        const close = Number(closePrice);
-        if (!Number.isFinite(vol) || vol <= 0) {
-          throw new Error("Quantity must be positive.");
-        }
-        if (!Number.isFinite(open) || open <= 0) {
-          throw new Error("Open price must be positive.");
-        }
-        if (!Number.isFinite(close) || close <= 0) {
-          throw new Error("Close price must be positive.");
-        }
-        if (effectiveRate == null) {
-          throw new Error("Enter a positive FX rate to the workspace currency.");
-        }
-        const feeMinor = parseFeeMinor(priceCurrency);
-        await investmentGraphQLRequest(INVESTMENT_ACTIVITY_REALIZE_MUTATION, {
-          input: {
-            instrumentId: resolvedInstrumentId,
-            activityDate,
-            type: side,
-            priceCurrency,
-            fxRate: effectiveRate,
-            quantity: quantity.trim(),
-            openPrice: openPrice.trim(),
-            closePrice: closePrice.trim(),
-            feeMinor,
-            notes: notes.trim() || null,
-            categoryId: effectiveCloseCategoryId || null,
-          },
-        });
-        notify.success("Trade saved", "P&L was posted to Money.");
-        setQuantity("");
-        setOpenPrice("");
-        setClosePrice("");
-        setCloseFee("");
-      } else {
-        const resolvedInstrumentId = await ensureInstrumentId();
-        const vol = Number(quantity);
-        const price = Number(openPrice);
-        if (!Number.isFinite(vol) || vol <= 0) {
-          throw new Error("Quantity must be positive.");
-        }
-        if (!Number.isFinite(price) || price <= 0) {
-          throw new Error("Open price must be positive.");
-        }
-        await investmentGraphQLRequest(INVESTMENT_ACTIVITY_CREATE_MUTATION, {
-          input: {
-            instrumentId: resolvedInstrumentId,
-            activityDate,
-            type: side,
-            quantity: quantity.trim(),
-            openPrice: openPrice.trim(),
-            stopLoss: stopLoss.trim() || null,
-            takeProfit: takeProfit.trim() || null,
-            amountMinor: 0,
-            notes: notes.trim() || null,
-          },
-        });
-        notify.success("Position opened", "No cash was booked yet.", {
-          href: "/investments",
-          label: "View investments",
-        });
-        setQuantity("");
-        setOpenPrice("");
-        setStopLoss("");
-        setTakeProfit("");
-      }
+      if (mode === "close") await submitClose();
+      else if (mode === "trade") await submitTrade();
+      else await submitOpen();
       await invalidateMoneyWorkspaceQueries(queryClient);
     } catch (err) {
       notify.error(

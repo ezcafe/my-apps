@@ -36,6 +36,30 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+type LoansTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function insertScheduleInstallmentRow(
+  tx: LoansTx,
+  loanId: string,
+  row: AmortizationScheduleRow,
+): Promise<string> {
+  const [sched] = await tx
+    .insert(loanScheduleInstallment)
+    .values({
+      loanId,
+      installmentNumber: row.installmentNumber,
+      dueDate: row.dueDate,
+      paymentMinor: row.paymentMinor,
+      principalMinor: row.principalMinor,
+      interestMinor: row.interestMinor,
+      balanceAfterMinor: row.balanceAfterMinor,
+    })
+    .returning({ id: loanScheduleInstallment.id });
+
+  if (!sched) throw new Error("Failed to create schedule row");
+  return sched.id;
+}
+
 export type SerializedLoanListItem = {
   id: string;
   name: string;
@@ -214,20 +238,11 @@ export async function createLoan(
     let autoMarkedCount = 0;
 
     for (const row of schedule) {
-      const [sched] = await tx
-        .insert(loanScheduleInstallment)
-        .values({
-          loanId: inserted.id,
-          installmentNumber: row.installmentNumber,
-          dueDate: row.dueDate,
-          paymentMinor: row.paymentMinor,
-          principalMinor: row.principalMinor,
-          interestMinor: row.interestMinor,
-          balanceAfterMinor: row.balanceAfterMinor,
-        })
-        .returning({ id: loanScheduleInstallment.id });
-
-      if (!sched) throw new Error("Failed to create schedule row");
+      const scheduleInstallmentId = await insertScheduleInstallmentRow(
+        tx,
+        inserted.id,
+        row,
+      );
 
       const isPastDue = row.dueDate <= today;
       const autoMark =
@@ -236,7 +251,7 @@ export async function createLoan(
       if (autoMark) {
         autoMarkedCount += 1;
         await tx.insert(loanInstallmentStatus).values({
-          scheduleInstallmentId: sched.id,
+          scheduleInstallmentId,
           status: "paid",
           paidAt: new Date(),
           paidWithoutTransaction: true,
@@ -244,12 +259,12 @@ export async function createLoan(
         });
       } else {
         await tx.insert(loanInstallmentStatus).values({
-          scheduleInstallmentId: sched.id,
+          scheduleInstallmentId,
           status: "pending",
         });
         if (autoMarkPastDuePaid && isPastDue && !autoMarkPastDueWithoutTransaction) {
           pendingMoneyTx.push({
-            scheduleInstallmentId: sched.id,
+            scheduleInstallmentId,
             dueDate: row.dueDate,
             paymentMinor: row.paymentMinor,
           });
@@ -636,23 +651,13 @@ export async function updateLoan(
 
     if (plan.newSchedule) {
       for (const row of plan.newSchedule) {
-        const [sched] = await tx
-          .insert(loanScheduleInstallment)
-          .values({
-            loanId: parsed.data.id,
-            installmentNumber: row.installmentNumber,
-            dueDate: row.dueDate,
-            paymentMinor: row.paymentMinor,
-            principalMinor: row.principalMinor,
-            interestMinor: row.interestMinor,
-            balanceAfterMinor: row.balanceAfterMinor,
-          })
-          .returning({ id: loanScheduleInstallment.id });
-
-        if (!sched) throw new Error("Failed to create schedule row");
-
+        const scheduleInstallmentId = await insertScheduleInstallmentRow(
+          tx,
+          parsed.data.id,
+          row,
+        );
         await tx.insert(loanInstallmentStatus).values({
-          scheduleInstallmentId: sched.id,
+          scheduleInstallmentId,
           status: "pending",
         });
       }

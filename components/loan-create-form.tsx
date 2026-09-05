@@ -372,64 +372,38 @@ export function LoanCreateForm({
     e.preventDefault();
     setSaving(true);
     try {
-      const principalMinor = parseMajorToMinor(principal, currency);
-      if (principalMinor == null || principalMinor <= 0) {
-        throw new Error("Enter a valid principal amount");
+      if (!parsedInputs || !scheduleInput) {
+        throw new Error("Enter valid loan terms before saving");
       }
-      const annualRateBps = Math.round(parseFloat(ratePercent) * 100);
-      let paymentMinor: number | undefined;
-      if (useCustomPayment) {
-        paymentMinor = parseMajorToMinor(customPayment, currency) ?? undefined;
-        if (paymentMinor == null || paymentMinor <= 0) {
-          throw new Error("Enter a valid custom monthly payment");
-        }
+      if (useCustomPayment && scheduleInput.paymentMinor == null) {
+        throw new Error("Enter a valid custom monthly payment");
       }
-      let paymentAfterRateChangeMinor: number | undefined;
-      if (useCustomPaymentAfterRateChange) {
-        paymentAfterRateChangeMinor =
-          parseMajorToMinor(customPaymentAfterRateChange, currency) ??
-          undefined;
-        if (
-          paymentAfterRateChangeMinor == null ||
-          paymentAfterRateChangeMinor <= 0
-        ) {
-          throw new Error("Enter a valid payment after rate change");
-        }
+      if (
+        useCustomPaymentAfterRateChange &&
+        scheduleInput.paymentAfterRateChangeMinor == null
+      ) {
+        throw new Error("Enter a valid payment after rate change");
       }
-      const collateralMinor = parseMajorToMinor(collateral, currency);
-      const term = Number(termMonths);
-      const initialRateMonthsNum =
-        initialRateMonths.trim() === "" ? null : Number(initialRateMonths);
-      const rateAfterInitialBps =
-        rateAfterInitialPercent.trim() === ""
-          ? null
-          : Math.round(parseFloat(rateAfterInitialPercent) * 100);
 
       const input = {
         name: name.trim(),
-        principalMinor,
-        annualRateBps,
-        termMonths: term,
-        startDate,
-        dueDayOfMonth: Number(dueDay),
-        ...(paymentMinor != null ? { paymentMinor } : {}),
-        ...(initialRateMonthsNum != null &&
-        initialRateMonthsNum > 0 &&
-        initialRateMonthsNum < term
-          ? {
-              initialRateMonths: initialRateMonthsNum,
-              rateAfterInitialBps,
-            }
-          : {
-              initialRateMonths: null,
-              rateAfterInitialBps: null,
-            }),
-        ...(paymentAfterRateChangeMinor != null
-          ? { paymentAfterRateChangeMinor }
-          : { paymentAfterRateChangeMinor: null }),
-        ...(collateralMinor != null && collateralMinor > 0
-          ? { collateralValueMinor: collateralMinor }
-          : { collateralValueMinor: null }),
+        principalMinor: scheduleInput.principalMinor,
+        annualRateBps: scheduleInput.annualRateBps,
+        termMonths: scheduleInput.termMonths,
+        startDate: scheduleInput.startDate,
+        dueDayOfMonth: scheduleInput.dueDayOfMonth,
+        ...(scheduleInput.paymentMinor != null
+          ? { paymentMinor: scheduleInput.paymentMinor }
+          : {}),
+        initialRateMonths: scheduleInput.initialRateMonths,
+        rateAfterInitialBps: scheduleInput.rateAfterInitialBps,
+        paymentAfterRateChangeMinor:
+          scheduleInput.paymentAfterRateChangeMinor ?? null,
+        collateralValueMinor:
+          parsedInputs.collateralMinor != null &&
+          parsedInputs.collateralMinor > 0
+            ? parsedInputs.collateralMinor
+            : null,
         moneyWorkspaceId: moneyBootstrap.data?.workspaceId ?? null,
         moneyAccountId: moneyAccountId || null,
         moneyCategoryId: moneyCategoryId || null,
@@ -472,6 +446,11 @@ export function LoanCreateForm({
     } finally {
       setSaving(false);
     }
+  }
+
+  function submitLabel(): string {
+    if (saving) return isEdit ? "Saving…" : "Creating…";
+    return isEdit ? "Save changes" : "Create loan";
   }
 
   return (
@@ -866,13 +845,7 @@ export function LoanCreateForm({
             type="submit"
             disabled={saving || (!isEdit && needsMoneyAccountForAutoMark)}
           >
-            {saving
-              ? isEdit
-                ? "Saving…"
-                : "Creating…"
-              : isEdit
-                ? "Save changes"
-                : "Create loan"}
+            {submitLabel()}
           </Button>
           {!isEdit && needsMoneyAccountForAutoMark ? (
             <Alert

@@ -67,18 +67,12 @@ export function formatMinor(minor: number, currency = "USD") {
   return output;
 }
 
-/** Formats minor units into compact currency strings (e.g. $1.5M, 150M₫, $12.5k). */
-export function formatCompactMinor(minor: number, currency = "USD"): string {
-  const code = currency.toUpperCase();
-  const fractionDigits = getCurrencyFractionDigits(currency);
-  const scale = 10 ** fractionDigits;
-  const major = minor / scale;
-  const abs = Math.abs(major);
-
-  if (abs < 1000) {
-    return formatMinor(minor, currency);
-  }
-
+/** Shared k/M/B/T ladder for compact currency and percent display. */
+function compactScale(abs: number): {
+  divisor: number;
+  suffix: string;
+  maxDigits: number;
+} {
   let divisor = 1;
   let suffix = "";
   if (abs >= 1e12) {
@@ -94,13 +88,28 @@ export function formatCompactMinor(minor: number, currency = "USD"): string {
     divisor = 1e3;
     suffix = "k";
   }
-
   const scaled = abs / divisor;
   const maxDigits = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+  return { divisor, suffix, maxDigits };
+}
+
+/** Formats minor units into compact currency strings (e.g. $1.5M, 150M₫, $12.5k). */
+export function formatCompactMinor(minor: number, currency = "USD"): string {
+  const code = currency.toUpperCase();
+  const fractionDigits = getCurrencyFractionDigits(currency);
+  const scale = 10 ** fractionDigits;
+  const major = minor / scale;
+  const abs = Math.abs(major);
+
+  if (abs < 1000) {
+    return formatMinor(minor, currency);
+  }
+
+  const { divisor, suffix, maxDigits } = compactScale(abs);
   const numStr = new Intl.NumberFormat(code === "VND" ? "vi-VN" : "en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: maxDigits,
-  }).format(scaled);
+  }).format(abs / divisor);
 
   const sign = major < 0 ? "-" : "";
 
@@ -120,28 +129,11 @@ export function formatCompactPercent(percent: number): string {
     return `${percent.toFixed(1)}%`;
   }
 
-  let divisor = 1;
-  let suffix = "";
-  if (abs >= 1e12) {
-    divisor = 1e12;
-    suffix = "T";
-  } else if (abs >= 1e9) {
-    divisor = 1e9;
-    suffix = "B";
-  } else if (abs >= 1e6) {
-    divisor = 1e6;
-    suffix = "M";
-  } else if (abs >= 1e3) {
-    divisor = 1e3;
-    suffix = "k";
-  }
-
-  const scaled = abs / divisor;
-  const maxDigits = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+  const { divisor, suffix, maxDigits } = compactScale(abs);
   const numStr = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: maxDigits,
-  }).format(scaled);
+  }).format(abs / divisor);
 
   const sign = percent < 0 ? "-" : "";
   return `${sign}${numStr}${suffix}%`;

@@ -105,6 +105,68 @@ async function loadTagIds(transactionId: string) {
   return links.map((l) => l.tagId);
 }
 
+type RuleModel = Parameters<typeof applyRulesToTransaction>[1][number];
+
+async function loadActiveRuleModels(workspaceId: string): Promise<RuleModel[]> {
+  const rules = await db
+    .select({
+      kind: moneyRule.kind,
+      priority: moneyRule.priority,
+      match: moneyRule.match,
+      action: moneyRule.action,
+    })
+    .from(moneyRule)
+    .where(
+      and(eq(moneyRule.workspaceId, workspaceId), eq(moneyRule.active, true)),
+    );
+
+  return rules.map((r) => ({
+    kind: r.kind,
+    priority: r.priority,
+    match: r.match as RuleModel["match"],
+    action: r.action as RuleModel["action"],
+  }));
+}
+
+async function assertTagIdsInWorkspace(
+  workspaceId: string,
+  tagIds: readonly string[],
+): Promise<void> {
+  if (!tagIds.length) return;
+  const tagsOk = await db
+    .select({ id: moneyTag.id })
+    .from(moneyTag)
+    .where(
+      and(eq(moneyTag.workspaceId, workspaceId), inArray(moneyTag.id, [...tagIds])),
+    );
+  if (tagsOk.length !== tagIds.length) {
+    throw new Error("Invalid tag reference");
+  }
+}
+
+function toTxRowForBalance(
+  row: Pick<
+    typeof moneyTransaction.$inferSelect,
+    | "id"
+    | "accountId"
+    | "kind"
+    | "amountMinor"
+    | "occurredAt"
+    | "createdAt"
+    | "transferPairId"
+  >,
+): TxRowForBalance {
+  return {
+    id: row.id,
+    accountId: row.accountId,
+    kind: row.kind,
+    amountMinor: row.amountMinor,
+    occurredAt: row.occurredAt,
+    createdAt: row.createdAt,
+    transferPairId: row.transferPairId,
+  };
+}
+
 function serializeRow(
   row: typeof moneyTransaction.$inferSelect,
   tagIds: string[],
@@ -329,27 +391,7 @@ export async function createMoneyTransaction(
   const excludeFromAnalyticsAndBudget =
     parsed.data.excludeFromAnalyticsAndBudget ?? false;
 
-  const rules = await db
-    .select({
-      kind: moneyRule.kind,
-      priority: moneyRule.priority,
-      match: moneyRule.match,
-      action: moneyRule.action,
-    })
-    .from(moneyRule)
-    .where(
-      and(
-        eq(moneyRule.workspaceId, ctx.workspaceId),
-        eq(moneyRule.active, true),
-      ),
-    );
-
-  const ruleModels = rules.map((r) => ({
-    kind: r.kind,
-    priority: r.priority,
-    match: r.match as Parameters<typeof applyRulesToTransaction>[1][number]["match"],
-    action: r.action as Parameters<typeof applyRulesToTransaction>[1][number]["action"],
-  }));
+  const ruleModels = await loadActiveRuleModels(ctx.workspaceId);
 
   const afterRules = applyRulesToTransaction(
     {
@@ -374,20 +416,7 @@ export async function createMoneyTransaction(
   }
 
   const baseTagIds = [...new Set(afterRules.tagIds ?? [])];
-  if (baseTagIds.length) {
-    const tagsOk = await db
-      .select({ id: moneyTag.id })
-      .from(moneyTag)
-      .where(
-        and(
-          eq(moneyTag.workspaceId, ctx.workspaceId),
-          inArray(moneyTag.id, baseTagIds),
-        ),
-      );
-    if (tagsOk.length !== baseTagIds.length) {
-      throw new Error("Invalid tag reference");
-    }
-  }
+  await assertTagIdsInWorkspace(ctx.workspaceId, baseTagIds);
 
   const normalizedTagNames = [
     ...new Set(
@@ -499,15 +528,7 @@ export async function createMoneyTransaction(
           );
         }
 
-        const balanceRow: TxRowForBalance = {
-          id: row.id,
-          accountId: row.accountId,
-          kind: row.kind,
-          amountMinor: row.amountMinor,
-          occurredAt: row.occurredAt,
-          createdAt: row.createdAt,
-          transferPairId: row.transferPairId,
-        };
+        const balanceRow = toTxRowForBalance(row);
         await applyTransactionBalanceEffect(tx, ctx.workspaceId, balanceRow, 1);
         return { row, uniqueTags };
       }
@@ -561,26 +582,18 @@ export async function createMoneyTransaction(
         );
       }
 
-      const fromBalanceRow: TxRowForBalance = {
-        id: fromRow.id,
-        accountId: fromRow.accountId,
-        kind: fromRow.kind,
-        amountMinor: fromRow.amountMinor,
-        occurredAt: fromRow.occurredAt,
-        createdAt: fromRow.createdAt,
-        transferPairId: fromRow.transferPairId,
-      };
-      const toBalanceRow: TxRowForBalance = {
-        id: toRow.id,
-        accountId: toRow.accountId,
-        kind: toRow.kind,
-        amountMinor: toRow.amountMinor,
-        occurredAt: toRow.occurredAt,
-        createdAt: toRow.createdAt,
-        transferPairId: toRow.transferPairId,
-      };
-      await applyTransactionBalanceEffect(tx, ctx.workspaceId, fromBalanceRow, 1);
-      await applyTransactionBalanceEffect(tx, ctx.workspaceId, toBalanceRow, 1);
+      await applyTransactionBalanceEffect(
+        tx,
+        ctx.workspaceId,
+        toTxRowForBalance(fromRow),
+        1,
+      );
+      await applyTransactionBalanceEffect(
+        tx,
+        ctx.workspaceId,
+        toTxRowForBalance(toRow),
+        1,
+      );
 
       return { row: fromRow, uniqueTags };
     });
@@ -626,27 +639,7 @@ export async function updateMoneyTransaction(
 
   if (!accountRow.length) throw new Error("Invalid account");
 
-  const rules = await db
-    .select({
-      kind: moneyRule.kind,
-      priority: moneyRule.priority,
-      match: moneyRule.match,
-      action: moneyRule.action,
-    })
-    .from(moneyRule)
-    .where(
-      and(
-        eq(moneyRule.workspaceId, ctx.workspaceId),
-        eq(moneyRule.active, true),
-      ),
-    );
-
-  const ruleModels = rules.map((r) => ({
-    kind: r.kind,
-    priority: r.priority,
-    match: r.match as Parameters<typeof applyRulesToTransaction>[1][number]["match"],
-    action: r.action as Parameters<typeof applyRulesToTransaction>[1][number]["action"],
-  }));
+  const ruleModels = await loadActiveRuleModels(ctx.workspaceId);
 
   const nextKind = patch.kind ?? existing.kind;
 
@@ -675,30 +668,9 @@ export async function updateMoneyTransaction(
   }
 
   const uniqueTags = [...new Set(mergedForRules.tagIds ?? [])];
-  if (uniqueTags.length) {
-    const tagsOk = await db
-      .select({ id: moneyTag.id })
-      .from(moneyTag)
-      .where(
-        and(
-          eq(moneyTag.workspaceId, ctx.workspaceId),
-          inArray(moneyTag.id, uniqueTags),
-        ),
-      );
-    if (tagsOk.length !== uniqueTags.length) {
-      throw new Error("Invalid tag reference");
-    }
-  }
+  await assertTagIdsInWorkspace(ctx.workspaceId, uniqueTags);
 
-  const before: TxRowForBalance = {
-    id: existing.id,
-    accountId: existing.accountId,
-    kind: existing.kind,
-    amountMinor: existing.amountMinor,
-    occurredAt: existing.occurredAt,
-    createdAt: existing.createdAt,
-    transferPairId: existing.transferPairId,
-  };
+  const before = toTxRowForBalance(existing);
 
   const updated = await db.transaction(async (tx) => {
     const oldTotals = await accountEffectsSnapshotForTransaction(
@@ -759,15 +731,7 @@ export async function updateMoneyTransaction(
         );
     }
 
-    const after: TxRowForBalance = {
-      id: row.id,
-      accountId: row.accountId,
-      kind: row.kind,
-      amountMinor: row.amountMinor,
-      occurredAt: row.occurredAt,
-      createdAt: row.createdAt,
-      transferPairId: row.transferPairId,
-    };
+    const after = toTxRowForBalance(row);
     await applyBalanceAfterTransactionUpdate(
       tx,
       ctx.workspaceId,
@@ -812,15 +776,7 @@ export async function deleteMoneyTransaction(
   const existing = await loadTx(ctx.workspaceId, id);
   if (!existing) return false;
 
-  const deleted: TxRowForBalance = {
-    id: existing.id,
-    accountId: existing.accountId,
-    kind: existing.kind,
-    amountMinor: existing.amountMinor,
-    occurredAt: existing.occurredAt,
-    createdAt: existing.createdAt,
-    transferPairId: existing.transferPairId,
-  };
+  const deleted = toTxRowForBalance(existing);
 
   await db.transaction(async (tx) => {
     await deleteJournalLotsForLedgerTransaction(tx, ctx.workspaceId, id);

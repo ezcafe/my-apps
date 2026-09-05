@@ -21,8 +21,12 @@ import {
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/format-money";
 import { MONEY_FULL_SPAN } from "@/lib/money-layout";
-import { moneyQuickPickChipCls, moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
+import {
+  moneyQuickPickChipCls,
+  moneyQuickPickGroupCls,
+} from "@/lib/money-quick-pick-chip-cls";
 import { MoneyStatusEmphasis, MoneyStatusStrip } from "@/lib/money-status-strip";
+import { ImportWizardStepProgress } from "@/components/import-wizard-step-progress";
 import type { StatementPlatform } from "@/lib/investment-statement-parsers";
 import type { StatementImportPreviewResponse } from "@/lib/investment-services/import-statement";
 import { invalidateInvestmentWorkspaceQueries } from "@/lib/investment-query-options";
@@ -101,58 +105,13 @@ function ImportProgress({
   current: WizardStep;
   onStepClick: (s: WizardStep) => void;
 }) {
-  const currentIdx = STEP_ORDER.indexOf(current);
-  const progressPct = ((currentIdx + 1) / STEP_ORDER.length) * 100;
-
   return (
-    <nav aria-label="Import steps" className="space-y-3">
-      <div className="flex items-center justify-between text-sm text-muted">
-        <span>
-          Step {currentIdx + 1} of {STEP_ORDER.length}
-        </span>
-        <span className="font-medium text-foreground">
-          {STEP_META[current].title}
-        </span>
-      </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-border">
-        <div
-          className="h-full rounded-full bg-accent transition-[width] duration-300"
-          style={{ width: `${progressPct}%` }}
-        />
-      </div>
-      <p className="text-sm text-muted">{STEP_META[current].hint}</p>
-      <div
-        role="radiogroup"
-        aria-label="Import steps"
-        className={moneyQuickPickGroupCls}
-      >
-        {STEP_ORDER.map((id, i) => {
-          const done = i < currentIdx;
-          const active = id === current;
-          const future = i > currentIdx;
-          return (
-            <button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              aria-current={active ? "step" : undefined}
-              disabled={future}
-              onClick={() => {
-                if (!future && i !== currentIdx) onStepClick(id);
-              }}
-              className={cn(
-                moneyQuickPickChipCls(active),
-                "disabled:cursor-not-allowed disabled:opacity-45",
-                done && !active ? "text-foreground" : null,
-              )}
-            >
-              {STEP_META[id].title}
-            </button>
-          );
-        })}
-      </div>
-    </nav>
+    <ImportWizardStepProgress
+      steps={STEP_ORDER}
+      stepMeta={STEP_META}
+      current={current}
+      onStepClick={onStepClick}
+    />
   );
 }
 

@@ -34,8 +34,8 @@ export type ScheduleInput = {
   rateAfterInitialBps?: number | null;
   paymentAfterRateChangeMinor?: number | null;
   /**
-   * When rebuilding after paid installments, due dates use
-   * installmentNumberOffset + n (1-based loop index).
+   * When rebuilding after kept installments, due dates and
+   * installmentNumber use offset + n (1-based loop index).
    */
   installmentNumberOffset?: number;
   /** Accrual window start for installment 1 (defaults to startDate). */
@@ -248,7 +248,7 @@ export function buildAmortizationSchedule(
     balance -= principalMinor;
 
     rows.push({
-      installmentNumber: n,
+      installmentNumber: installmentOffset + n,
       dueDate,
       paymentMinor: rowPayment,
       principalMinor,

@@ -44,6 +44,74 @@ export type LoanScheduleRebuildPlan =
       status: "active" | "paid_off";
     };
 
+type RemainingRateTerms =
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      annualRateBps: number;
+      initialRateMonths: number | null;
+      rateAfterInitialBps: number | null;
+      paymentAfterRateChangeMinor: number | null | undefined;
+    };
+
+/**
+ * Map loan-level rate-change terms onto the unpaid suffix after `keptCount`
+ * installments are already done.
+ */
+function resolveRemainingRateTerms(
+  terms: LoanUpdateTerms,
+  keptCount: number,
+  remainingTerm: number,
+): RemainingRateTerms {
+  const remainingInitial =
+    terms.initialRateMonths != null && terms.initialRateMonths > 0
+      ? Math.max(0, terms.initialRateMonths - keptCount)
+      : 0;
+
+  if (remainingInitial > 0 && remainingInitial < remainingTerm) {
+    const rateAfterInitialBps = terms.rateAfterInitialBps ?? null;
+    if (rateAfterInitialBps == null) {
+      return {
+        ok: false,
+        error:
+          "Rate after initial period is required when the initial rate period is shorter than the loan term",
+      };
+    }
+    return {
+      ok: true,
+      annualRateBps: terms.annualRateBps,
+      initialRateMonths: remainingInitial,
+      rateAfterInitialBps,
+      paymentAfterRateChangeMinor: terms.paymentAfterRateChangeMinor,
+    };
+  }
+
+  // Paid through the initial period — remaining schedule uses post-change rate.
+  if (
+    remainingInitial === 0 &&
+    terms.initialRateMonths != null &&
+    terms.initialRateMonths > 0 &&
+    terms.initialRateMonths < terms.termMonths &&
+    terms.rateAfterInitialBps != null
+  ) {
+    return {
+      ok: true,
+      annualRateBps: terms.rateAfterInitialBps,
+      initialRateMonths: null,
+      rateAfterInitialBps: null,
+      paymentAfterRateChangeMinor: null,
+    };
+  }
+
+  return {
+    ok: true,
+    annualRateBps: terms.annualRateBps,
+    initialRateMonths: null,
+    rateAfterInitialBps: null,
+    paymentAfterRateChangeMinor: terms.paymentAfterRateChangeMinor,
+  };
+}
+
 /**
  * Pure plan for updating a loan: keep paid/skipped rows (with due dates
  * realigned to the new start/due-day), rebuild pending from remaining
@@ -58,7 +126,7 @@ export function planLoanScheduleRebuild(
   );
   const pending = installments.filter((i) => i.status === "pending");
 
-  const paidCount = kept.length;
+  const keptCount = kept.length;
   const paidPrincipal = kept.reduce((sum, i) => sum + i.principalMinor, 0);
   const remainingPrincipal = terms.principalMinor - paidPrincipal;
 
@@ -70,14 +138,14 @@ export function planLoanScheduleRebuild(
     };
   }
 
-  if (terms.termMonths < paidCount) {
+  if (terms.termMonths < keptCount) {
     return {
       ok: false,
       error: "Term cannot be shorter than the number of paid installments",
     };
   }
 
-  const remainingTerm = terms.termMonths - paidCount;
+  const remainingTerm = terms.termMonths - keptCount;
   if (remainingPrincipal > 0 && remainingTerm < 1) {
     return {
       ok: false,
@@ -87,19 +155,25 @@ export function planLoanScheduleRebuild(
 
   const pendingIdsToDelete = pending.map((i) => i.scheduleInstallmentId);
 
+  const keptDueDateById = new Map(
+    kept.map((row) => [
+      row.scheduleInstallmentId,
+      dueDateForInstallment(
+        terms.startDate,
+        terms.dueDayOfMonth,
+        row.installmentNumber,
+      ),
+    ]),
+  );
   const keptDueDateUpdates: KeptDueDateUpdate[] = kept.map((row) => ({
     scheduleInstallmentId: row.scheduleInstallmentId,
-    dueDate: dueDateForInstallment(
-      terms.startDate,
-      terms.dueDayOfMonth,
-      row.installmentNumber,
-    ),
+    dueDate: keptDueDateById.get(row.scheduleInstallmentId)!,
   }));
 
   if (remainingPrincipal === 0) {
     return {
       ok: true,
-      paidCount,
+      paidCount: keptCount,
       remainingPrincipal: 0,
       pendingIdsToDelete,
       keptDueDateUpdates,
@@ -116,62 +190,30 @@ export function planLoanScheduleRebuild(
     if (!best || row.installmentNumber > best.installmentNumber) return row;
     return best;
   }, null);
+  const accrualStartDate = lastKept
+    ? keptDueDateById.get(lastKept.scheduleInstallmentId)!
+    : terms.startDate;
 
-  const lastKeptAlignedDue = lastKept
-    ? dueDateForInstallment(
-        terms.startDate,
-        terms.dueDayOfMonth,
-        lastKept.installmentNumber,
-      )
-    : null;
-
-  const remainingInitial =
-    terms.initialRateMonths != null && terms.initialRateMonths > 0
-      ? Math.max(0, terms.initialRateMonths - paidCount)
-      : 0;
-
-  let annualRateBps = terms.annualRateBps;
-  let initialRateMonths: number | null = null;
-  let rateAfterInitialBps: number | null = null;
-  let paymentAfterRateChangeMinor: number | null | undefined =
-    terms.paymentAfterRateChangeMinor;
-
-  if (remainingInitial > 0 && remainingInitial < remainingTerm) {
-    initialRateMonths = remainingInitial;
-    rateAfterInitialBps = terms.rateAfterInitialBps ?? null;
-    if (rateAfterInitialBps == null) {
-      return {
-        ok: false,
-        error:
-          "Rate after initial period is required when the initial rate period is shorter than the loan term",
-      };
-    }
-  } else if (
-    remainingInitial === 0 &&
-    terms.initialRateMonths != null &&
-    terms.initialRateMonths > 0 &&
-    terms.initialRateMonths < terms.termMonths &&
-    terms.rateAfterInitialBps != null
-  ) {
-    // Paid through the initial period — remaining schedule uses post-change rate.
-    annualRateBps = terms.rateAfterInitialBps;
-    paymentAfterRateChangeMinor = null;
+  const rateTerms = resolveRemainingRateTerms(terms, keptCount, remainingTerm);
+  if (!rateTerms.ok) {
+    return { ok: false, error: rateTerms.error };
   }
 
   let schedule: AmortizationScheduleRow[];
   try {
     schedule = buildAmortizationSchedule({
       principalMinor: remainingPrincipal,
-      annualRateBps,
+      annualRateBps: rateTerms.annualRateBps,
       termMonths: remainingTerm,
       startDate: terms.startDate,
       dueDayOfMonth: terms.dueDayOfMonth,
       paymentMinor: terms.paymentMinor ?? undefined,
-      initialRateMonths,
-      rateAfterInitialBps,
-      paymentAfterRateChangeMinor: paymentAfterRateChangeMinor ?? undefined,
-      installmentNumberOffset: paidCount,
-      accrualStartDate: lastKeptAlignedDue ?? terms.startDate,
+      initialRateMonths: rateTerms.initialRateMonths,
+      rateAfterInitialBps: rateTerms.rateAfterInitialBps,
+      paymentAfterRateChangeMinor:
+        rateTerms.paymentAfterRateChangeMinor ?? undefined,
+      installmentNumberOffset: keptCount,
+      accrualStartDate,
     });
   } catch (e) {
     return {
@@ -180,23 +222,18 @@ export function planLoanScheduleRebuild(
     };
   }
 
-  const renumbered = schedule.map((row, index) => ({
-    ...row,
-    installmentNumber: paidCount + index + 1,
-  }));
-
   const loanPaymentMinor =
     terms.paymentMinor ??
-    renumbered.find((row) => row.paymentMinor > 0)?.paymentMinor ??
+    schedule.find((row) => row.paymentMinor > 0)?.paymentMinor ??
     remainingPrincipal;
 
   return {
     ok: true,
-    paidCount,
+    paidCount: keptCount,
     remainingPrincipal,
     pendingIdsToDelete,
     keptDueDateUpdates,
-    newSchedule: renumbered,
+    newSchedule: schedule,
     loanPaymentMinor,
     status: "active",
   };

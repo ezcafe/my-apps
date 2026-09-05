@@ -92,9 +92,9 @@ export function WeatherCitySettings({
   useEffect(() => {
     const query = city.trim();
     if (query.length < MIN_QUERY_LENGTH) {
-      setSuggestions([]);
-      setSearching(false);
-      setHighlight(-1);
+      setSuggestions((prev) => (prev.length === 0 ? prev : []));
+      setSearching((prev) => (prev ? false : prev));
+      setHighlight((prev) => (prev === -1 ? prev : -1));
       return;
     }
 

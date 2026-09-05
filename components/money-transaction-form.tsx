@@ -618,9 +618,9 @@ export function MoneyTransactionForm({
 
   useEffect(() => {
     if (kind !== "investment") {
-      setInvestmentPnlMinor(null);
-      setInvestmentPnlMajor(null);
-      setInstrumentLedgerDefaults(null);
+      setInvestmentPnlMinor((prev) => (prev == null ? prev : null));
+      setInvestmentPnlMajor((prev) => (prev == null ? prev : null));
+      setInstrumentLedgerDefaults((prev) => (prev == null ? prev : null));
       return;
     }
     if (
