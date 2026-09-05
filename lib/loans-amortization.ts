@@ -33,6 +33,13 @@ export type ScheduleInput = {
   initialRateMonths?: number | null;
   rateAfterInitialBps?: number | null;
   paymentAfterRateChangeMinor?: number | null;
+  /**
+   * When rebuilding after paid installments, due dates use
+   * installmentNumberOffset + n (1-based loop index).
+   */
+  installmentNumberOffset?: number;
+  /** Accrual window start for installment 1 (defaults to startDate). */
+  accrualStartDate?: string;
 };
 
 function assertPositivePrincipalAndTerm(
@@ -202,16 +209,17 @@ export function buildAmortizationSchedule(
 
   const rows: AmortizationScheduleRow[] = [];
   let balance = input.principalMinor;
-  let accrualAnchor = input.startDate;
+  let accrualAnchor = input.accrualStartDate ?? input.startDate;
   let currentRateBps = input.annualRateBps;
   let segmentPaymentMinor = paymentMinor;
+  const installmentOffset = input.installmentNumberOffset ?? 0;
 
   for (let n = 1; n <= input.termMonths; n += 1) {
     const isLast = n === input.termMonths;
     const dueDate = dueDateForInstallment(
       input.startDate,
       input.dueDayOfMonth,
-      n,
+      installmentOffset + n,
     );
 
     if (n === rateChangeAt + 1) {

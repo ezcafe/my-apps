@@ -94,6 +94,19 @@ export function LoanInstallmentsTable({
     return all;
   }, [filter, loan.installments]);
 
+  /** Multi-year views must keep the year — omitYearIfCurrent hides e.g. 2026 next to 2025/2027. */
+  const multiYearView = useMemo(() => {
+    const years = new Set(rows.map((row) => row.dueDate.slice(0, 4)));
+    return years.size > 1;
+  }, [rows]);
+
+  function formatDueDate(dueDate: string): string {
+    return formatDate(
+      dueDate,
+      multiYearView ? undefined : { omitYearIfCurrent: true },
+    );
+  }
+
   const paidCount = loan.installments.filter((i) => i.status === "paid").length;
   const overdueCount = loan.installments.filter(isOverdue).length;
   const empty = emptyCopy(filter);
@@ -106,7 +119,7 @@ export function LoanInstallmentsTable({
           {row.installmentNumber}
         </TableCell>
         <TableCell className="whitespace-nowrap text-muted">
-          {formatDate(row.dueDate, { omitYearIfCurrent: true })}
+          {formatDueDate(row.dueDate)}
         </TableCell>
         <TableCell align="end" numeric className="whitespace-nowrap">
           {formatMinor(row.paymentMinor, loan.currency)}
@@ -140,7 +153,7 @@ export function LoanInstallmentsTable({
 
   function renderMobileCard(row: InstallmentRow) {
     const isNext = row.scheduleInstallmentId === nextPendingId;
-    const dateLabel = formatDate(row.dueDate, { omitYearIfCurrent: true });
+    const dateLabel = formatDueDate(row.dueDate);
     const paymentLabel = formatMinor(row.paymentMinor, loan.currency);
     return (
       <div

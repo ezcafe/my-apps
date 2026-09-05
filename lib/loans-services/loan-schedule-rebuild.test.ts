@@ -101,7 +101,50 @@ describe("planLoanScheduleRebuild", () => {
     assert.ok(plan.newSchedule);
     assert.equal(plan.newSchedule!.length, 5);
     assert.equal(plan.newSchedule![0]!.installmentNumber, 2);
+    assert.equal(plan.newSchedule![0]!.dueDate, "2024-02-25");
+    assert.equal(plan.keptDueDateUpdates.length, 1);
+    assert.equal(plan.keptDueDateUpdates[0]!.dueDate, "2024-01-25");
     assert.equal(plan.status, "active");
+  });
+
+  it("realigns paid and unpaid due dates when start date changes", () => {
+    const plan = planLoanScheduleRebuild(
+      [
+        {
+          scheduleInstallmentId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          installmentNumber: 1,
+          dueDate: "2025-10-25",
+          principalMinor: 10_000_00,
+          status: "paid",
+        },
+        {
+          scheduleInstallmentId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          installmentNumber: 2,
+          dueDate: "2025-11-25",
+          principalMinor: 10_000_00,
+          status: "pending",
+        },
+        {
+          scheduleInstallmentId: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+          installmentNumber: 3,
+          dueDate: "2025-12-25",
+          principalMinor: 10_000_00,
+          status: "pending",
+        },
+      ],
+      {
+        ...baseTerms,
+        startDate: "2025-04-10",
+        dueDayOfMonth: 25,
+        termMonths: 3,
+        principalMinor: 30_000_00,
+      },
+    );
+    assert.equal(plan.ok, true);
+    if (!plan.ok) return;
+    assert.equal(plan.keptDueDateUpdates[0]!.dueDate, "2025-04-25");
+    assert.equal(plan.newSchedule![0]!.dueDate, "2025-05-25");
+    assert.equal(plan.newSchedule![1]!.dueDate, "2025-06-25");
   });
 
   it("rejects principal below paid principal", () => {

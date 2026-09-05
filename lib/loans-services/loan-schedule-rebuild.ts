@@ -1,5 +1,8 @@
 import type { AmortizationScheduleRow } from "@/lib/loans-amortization";
-import { buildAmortizationSchedule } from "@/lib/loans-amortization";
+import {
+  buildAmortizationSchedule,
+  dueDateForInstallment,
+} from "@/lib/loans-amortization";
 
 export type LoanInstallmentForRebuild = {
   scheduleInstallmentId: string;
@@ -21,6 +24,11 @@ export type LoanUpdateTerms = {
   paymentAfterRateChangeMinor?: number | null;
 };
 
+export type KeptDueDateUpdate = {
+  scheduleInstallmentId: string;
+  dueDate: string;
+};
+
 export type LoanScheduleRebuildPlan =
   | { ok: false; error: string }
   | {
@@ -28,21 +36,18 @@ export type LoanScheduleRebuildPlan =
       paidCount: number;
       remainingPrincipal: number;
       pendingIdsToDelete: string[];
+      /** Align paid/skipped rows to the updated start/due-day calendar. */
+      keptDueDateUpdates: KeptDueDateUpdate[];
       /** null when remaining principal is 0 — no new rows */
       newSchedule: AmortizationScheduleRow[] | null;
       loanPaymentMinor: number;
       status: "active" | "paid_off";
     };
 
-function dayAfterIso(iso: string): string {
-  const d = new Date(`${iso}T12:00:00.000Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
 /**
- * Pure plan for updating a loan: keep paid/skipped rows, rebuild pending from
- * remaining principal. Used by `updateLoan` and unit tests.
+ * Pure plan for updating a loan: keep paid/skipped rows (with due dates
+ * realigned to the new start/due-day), rebuild pending from remaining
+ * principal. Used by `updateLoan` and unit tests.
  */
 export function planLoanScheduleRebuild(
   installments: readonly LoanInstallmentForRebuild[],
@@ -82,12 +87,22 @@ export function planLoanScheduleRebuild(
 
   const pendingIdsToDelete = pending.map((i) => i.scheduleInstallmentId);
 
+  const keptDueDateUpdates: KeptDueDateUpdate[] = kept.map((row) => ({
+    scheduleInstallmentId: row.scheduleInstallmentId,
+    dueDate: dueDateForInstallment(
+      terms.startDate,
+      terms.dueDayOfMonth,
+      row.installmentNumber,
+    ),
+  }));
+
   if (remainingPrincipal === 0) {
     return {
       ok: true,
       paidCount,
       remainingPrincipal: 0,
       pendingIdsToDelete,
+      keptDueDateUpdates,
       newSchedule: null,
       loanPaymentMinor:
         terms.paymentMinor != null && terms.paymentMinor > 0
@@ -102,9 +117,13 @@ export function planLoanScheduleRebuild(
     return best;
   }, null);
 
-  const scheduleStartDate = lastKept
-    ? dayAfterIso(lastKept.dueDate)
-    : terms.startDate;
+  const lastKeptAlignedDue = lastKept
+    ? dueDateForInstallment(
+        terms.startDate,
+        terms.dueDayOfMonth,
+        lastKept.installmentNumber,
+      )
+    : null;
 
   const remainingInitial =
     terms.initialRateMonths != null && terms.initialRateMonths > 0
@@ -145,12 +164,14 @@ export function planLoanScheduleRebuild(
       principalMinor: remainingPrincipal,
       annualRateBps,
       termMonths: remainingTerm,
-      startDate: scheduleStartDate,
+      startDate: terms.startDate,
       dueDayOfMonth: terms.dueDayOfMonth,
       paymentMinor: terms.paymentMinor ?? undefined,
       initialRateMonths,
       rateAfterInitialBps,
       paymentAfterRateChangeMinor: paymentAfterRateChangeMinor ?? undefined,
+      installmentNumberOffset: paidCount,
+      accrualStartDate: lastKeptAlignedDue ?? terms.startDate,
     });
   } catch (e) {
     return {
@@ -174,6 +195,7 @@ export function planLoanScheduleRebuild(
     paidCount,
     remainingPrincipal,
     pendingIdsToDelete,
+    keptDueDateUpdates,
     newSchedule: renumbered,
     loanPaymentMinor,
     status: "active",

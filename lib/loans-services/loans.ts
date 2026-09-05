@@ -605,6 +605,13 @@ export async function updateLoan(
         .where(inArray(loanScheduleInstallment.id, plan.pendingIdsToDelete));
     }
 
+    for (const update of plan.keptDueDateUpdates) {
+      await tx
+        .update(loanScheduleInstallment)
+        .set({ dueDate: update.dueDate })
+        .where(eq(loanScheduleInstallment.id, update.scheduleInstallmentId));
+    }
+
     await tx
       .update(loan)
       .set({
