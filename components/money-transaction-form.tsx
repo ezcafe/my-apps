@@ -956,9 +956,18 @@ export function MoneyTransactionForm({
         };
       }
 
-      await moneyGraphQLRequest(MONEY_TRANSACTION_CREATE_MUTATION, {
+      const created = await moneyGraphQLRequest<{
+        moneyTransactionCreate: { id: string };
+      }>(MONEY_TRANSACTION_CREATE_MUTATION, {
         input: body,
       });
+      const createdId = created.moneyTransactionCreate?.id;
+      const viewAction = createdId
+        ? {
+            href: `/money/transactions/${createdId}`,
+            label: "View transaction",
+          }
+        : undefined;
 
         await invalidateMoneyWorkspaceQueries(queryClient);
       if (kind === "expense") {
@@ -969,14 +978,20 @@ export function MoneyTransactionForm({
         notify.success(
           "Recurring transaction saved",
           "The schedule was created and the first entry was posted.",
+          viewAction,
         );
       } else if (recurrenceActive) {
         notify.success(
           "Transaction added",
           "Your entry was saved with a recurrence schedule.",
+          viewAction,
         );
       } else {
-        notify.success("Transaction added", "Your entry was saved.");
+        notify.success(
+          "Transaction added",
+          "Your entry was saved.",
+          viewAction,
+        );
       }
 
       resetFormFields();

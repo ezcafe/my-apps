@@ -4,7 +4,11 @@ import type { ReactNode, SVGProps } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MoneyAppMenu } from "@/components/money-section-tabs";
-import { AppHeaderOverrideProvider, useAppHeaderOverride } from "@/components/app-header-override";
+import {
+  AppHeaderOverrideProvider,
+  useAppHeaderActions,
+  useAppHeaderOverride,
+} from "@/components/app-header-override";
 import { GraphQLMoneyProvider } from "@/components/graphql-money-provider";
 import { PageHeading } from "@/components/page-heading";
 import { buttonClassName } from "@/components/ui/button";
@@ -27,6 +31,7 @@ function IconPlus(props: SVGProps<SVGSVGElement>) {
 function LoanSectionHeading() {
   const pathname = usePathname();
   const override = useAppHeaderOverride();
+  const headerActions = useAppHeaderActions();
   const resolved = resolveLoanAppHeader(pathname);
 
   const title = override?.title ?? resolved.title;
@@ -38,16 +43,10 @@ function LoanSectionHeading() {
       ? override.cta ?? null
       : resolved.cta;
 
-  return (
-    <PageHeading
-      className={MONEY_FULL_SPAN}
-      leading={<MoneyAppMenu />}
-      title={title}
-      description={description}
-      meta={meta}
-      breadcrumbs={breadcrumbs}
-      actions={
-        cta ? (
+  const actions =
+    headerActions != null
+      ? headerActions
+      : cta ? (
           <Link
             href={cta.href}
             aria-label={cta.label}
@@ -62,8 +61,17 @@ function LoanSectionHeading() {
             <IconPlus className="size-5 shrink-0" />
             <span className="hidden sm:inline">{cta.label}</span>
           </Link>
-        ) : null
-      }
+        ) : null;
+
+  return (
+    <PageHeading
+      className={MONEY_FULL_SPAN}
+      leading={<MoneyAppMenu />}
+      title={title}
+      description={description}
+      meta={meta}
+      breadcrumbs={breadcrumbs}
+      actions={actions}
     />
   );
 }

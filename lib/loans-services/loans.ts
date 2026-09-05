@@ -23,8 +23,10 @@ import {
 } from "@/lib/loans-insights";
 import type { LoansWorkspaceCtx } from "@/lib/loans-services/types";
 import { payInstallmentMoneyAtomic } from "@/lib/loans-services/pay";
+import { planLoanScheduleRebuild } from "@/lib/loans-services/loan-schedule-rebuild";
 import {
   loanCreateSchema,
+  loanUpdateSchema,
 } from "@/lib/validators/loans";
 import { assertWorkspaceMember } from "@/lib/workspace-context";
 import { getWorkspaceDefaultCurrency } from "@/lib/workspace-loans";
@@ -544,6 +546,113 @@ export async function cancelLoan(
     .returning({ id: loan.id });
   if (!updated.length) throw new Error("NOT_FOUND");
   return { ok: true };
+}
+
+export async function updateLoan(
+  ctx: LoansWorkspaceCtx,
+  body: unknown,
+  moneyWorkspaceId?: string | null,
+): Promise<{ id: string }> {
+  const parsed = loanUpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new Error(
+      parsed.error.issues.map((i) => i.message).join("; ") || "Validation failed",
+    );
+  }
+
+  if (moneyWorkspaceId && (parsed.data.moneyAccountId || parsed.data.moneyCategoryId)) {
+    await validateMoneyLinks(
+      moneyWorkspaceId,
+      parsed.data.moneyAccountId,
+      parsed.data.moneyCategoryId,
+    );
+  }
+
+  const rows = await db
+    .select()
+    .from(loan)
+    .where(
+      and(eq(loan.id, parsed.data.id), eq(loan.workspaceId, ctx.workspaceId)),
+    )
+    .limit(1);
+  const existing = rows[0];
+  if (!existing) throw new Error("NOT_FOUND");
+  if (existing.status === "cancelled") {
+    throw new Error("Cancelled loans cannot be edited");
+  }
+
+  const installments = await loadInstallmentStates(parsed.data.id);
+  const plan = planLoanScheduleRebuild(installments, {
+    principalMinor: parsed.data.principalMinor,
+    annualRateBps: parsed.data.annualRateBps,
+    termMonths: parsed.data.termMonths,
+    startDate: parsed.data.startDate,
+    dueDayOfMonth: parsed.data.dueDayOfMonth,
+    paymentMinor: parsed.data.paymentMinor,
+    initialRateMonths: parsed.data.initialRateMonths,
+    rateAfterInitialBps: parsed.data.rateAfterInitialBps,
+    paymentAfterRateChangeMinor: parsed.data.paymentAfterRateChangeMinor,
+  });
+
+  if (!plan.ok) {
+    throw new Error(plan.error);
+  }
+
+  await db.transaction(async (tx) => {
+    if (plan.pendingIdsToDelete.length > 0) {
+      await tx
+        .delete(loanScheduleInstallment)
+        .where(inArray(loanScheduleInstallment.id, plan.pendingIdsToDelete));
+    }
+
+    await tx
+      .update(loan)
+      .set({
+        name: parsed.data.name,
+        principalMinor: parsed.data.principalMinor,
+        annualRateBps: parsed.data.annualRateBps,
+        termMonths: parsed.data.termMonths,
+        startDate: parsed.data.startDate,
+        dueDayOfMonth: parsed.data.dueDayOfMonth,
+        paymentMinor: plan.loanPaymentMinor,
+        initialRateMonths: parsed.data.initialRateMonths ?? null,
+        rateAfterInitialBps: parsed.data.rateAfterInitialBps ?? null,
+        paymentAfterRateChangeMinor:
+          parsed.data.paymentAfterRateChangeMinor ?? null,
+        collateralValueMinor: parsed.data.collateralValueMinor ?? null,
+        moneyAccountId: parsed.data.moneyAccountId ?? null,
+        moneyCategoryId: parsed.data.moneyCategoryId ?? null,
+        status: plan.status,
+        updatedAt: new Date(),
+      })
+      .where(eq(loan.id, parsed.data.id));
+
+    if (plan.newSchedule) {
+      for (const row of plan.newSchedule) {
+        const [sched] = await tx
+          .insert(loanScheduleInstallment)
+          .values({
+            loanId: parsed.data.id,
+            installmentNumber: row.installmentNumber,
+            dueDate: row.dueDate,
+            paymentMinor: row.paymentMinor,
+            principalMinor: row.principalMinor,
+            interestMinor: row.interestMinor,
+            balanceAfterMinor: row.balanceAfterMinor,
+          })
+          .returning({ id: loanScheduleInstallment.id });
+
+        if (!sched) throw new Error("Failed to create schedule row");
+
+        await tx.insert(loanInstallmentStatus).values({
+          scheduleInstallmentId: sched.id,
+          status: "pending",
+        });
+      }
+    }
+  });
+
+  return { id: parsed.data.id };
 }
 
 export type LoansInsightsAtfPayload = {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   createContext,
   useCallback,
@@ -11,10 +12,27 @@ import {
 
 type Variant = "success" | "error" | "warning";
 
+export type NotifyAction = {
+  href: string;
+  label: string;
+};
+
 export type NotifyFns = {
-  success: (title: string, description?: string) => void;
-  error: (title: string, description?: string) => void;
-  warning: (title: string, description?: string) => void;
+  success: (
+    title: string,
+    description?: string,
+    action?: NotifyAction,
+  ) => void;
+  error: (
+    title: string,
+    description?: string,
+    action?: NotifyAction,
+  ) => void;
+  warning: (
+    title: string,
+    description?: string,
+    action?: NotifyAction,
+  ) => void;
 };
 
 const NotificationContext = createContext<NotifyFns | null>(null);
@@ -32,12 +50,15 @@ type Toast = {
   title: string;
   description?: string;
   variant: Variant;
+  action?: NotifyAction;
 };
 
-function ToastRow({
+/** Presentational toast row — exported for markup tests. */
+export function ToastRow({
   title,
   description,
   variant,
+  action,
   onDismiss,
 }: Omit<Toast, "id"> & { onDismiss: () => void }) {
   const durationMs =
@@ -77,6 +98,13 @@ function ToastRow({
       : variant === "warning"
         ? "text-[var(--toast-warning-body)]"
         : "text-[var(--toast-error-body)]";
+
+  const actionCls =
+    variant === "success"
+      ? "text-[var(--toast-success-accent)]"
+      : variant === "warning"
+        ? "text-[var(--toast-warning-accent)]"
+        : "text-[var(--toast-error-accent)]";
 
   const progressColor =
     variant === "success"
@@ -136,6 +164,15 @@ function ToastRow({
           {description ? (
             <p className={`text-sm break-words ${bodyCls}`}>{description}</p>
           ) : null}
+          {action ? (
+            <Link
+              href={action.href}
+              onClick={onDismiss}
+              className={`mt-0.5 w-fit text-sm font-medium underline-offset-2 transition-colors duration-200 hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${actionCls}`}
+            >
+              {action.label}
+            </Link>
+          ) : null}
         </div>
         <div className="flex flex-shrink-0">
           <button
@@ -176,9 +213,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const value = useMemo<NotifyFns>(
     () => ({
-      success: (title, description) => push({ title, description, variant: "success" }),
-      error: (title, description) => push({ title, description, variant: "error" }),
-      warning: (title, description) => push({ title, description, variant: "warning" }),
+      success: (title, description, action) =>
+        push({ title, description, action, variant: "success" }),
+      error: (title, description, action) =>
+        push({ title, description, action, variant: "error" }),
+      warning: (title, description, action) =>
+        push({ title, description, action, variant: "warning" }),
     }),
     [push],
   );
@@ -197,6 +237,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               title={t.title}
               description={t.description}
               variant={t.variant}
+              action={t.action}
               onDismiss={() => dismiss(t.id)}
             />
           ))}

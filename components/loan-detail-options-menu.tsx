@@ -2,17 +2,21 @@
 
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useHeaderActionsSetter } from "@/components/app-header-override";
 import { useNotify } from "@/components/notification-provider";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import { useRegisterMoneyMenuPageAction } from "@/lib/money-menu-page-actions";
+import { MoreMenu, MoreMenuItem } from "@/components/ui/more-menu";
 import { loansGraphQLRequest } from "@/lib/loans-gql-client";
 import { LOAN_CANCEL_MUTATION } from "@/lib/loans-gql-documents";
 import { loansKeys } from "@/lib/loans-query-options";
 
-/** Registers “Delete loan” in the Money Menu and owns the confirm modal. */
+/**
+ * Loan detail More menu: Edit + Delete in the page heading actions slot.
+ * Owns the delete confirm modal.
+ */
 export function LoanDetailOptionsMenu({
   loanId,
   loanName,
@@ -25,23 +29,36 @@ export function LoanDetailOptionsMenu({
   const router = useRouter();
   const notify = useNotify();
   const queryClient = useQueryClient();
+  const setActions = useHeaderActionsSetter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const canDelete = status !== "cancelled";
+  const canManage = status !== "cancelled";
 
-  useRegisterMoneyMenuPageAction(
-    canDelete
-      ? {
-          id: "loan-detail-delete",
-          label: "Delete loan",
-          variant: "danger",
-          onSelect: () => setConfirmOpen(true),
-        }
-      : null,
-  );
+  useLayoutEffect(() => {
+    if (!setActions) return;
+    if (!canManage) {
+      setActions(null);
+      return () => setActions(null);
+    }
+    setActions(
+      <MoreMenu aria-label="Loan options">
+        <MoreMenuItem
+          onClick={() => {
+            router.push(`/loans/${loanId}/edit`);
+          }}
+        >
+          Edit loan
+        </MoreMenuItem>
+        <MoreMenuItem variant="danger" onClick={() => setConfirmOpen(true)}>
+          Delete loan
+        </MoreMenuItem>
+      </MoreMenu>,
+    );
+    return () => setActions(null);
+  }, [setActions, canManage, loanId, router]);
 
-  if (!canDelete) {
+  if (!canManage) {
     return null;
   }
 

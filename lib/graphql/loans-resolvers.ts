@@ -9,6 +9,7 @@ import {
   listLoans,
   loansInsightsAtf,
   loansInsightsMore,
+  updateLoan,
 } from "@/lib/loans-services/loans";
 import {
   markLoanInstallmentPaid,
@@ -117,6 +118,24 @@ export const loansResolvers = {
       try {
         return await runInWorkspace(workspaceId, () =>
           createLoan(
+            { userSub, workspaceId },
+            args.input,
+            (args.input.moneyWorkspaceId as string | undefined) ?? null,
+          ),
+        );
+      } catch (e) {
+        mapServiceError(e);
+      }
+    },
+    loanUpdate: async (
+      _: unknown,
+      args: { input: Record<string, unknown> },
+      ctx: LoansGraphQLContext,
+    ) => {
+      const { userSub, workspaceId } = requireLoansWriteWorkspace(ctx);
+      try {
+        return await runInWorkspace(workspaceId, () =>
+          updateLoan(
             { userSub, workspaceId },
             args.input,
             (args.input.moneyWorkspaceId as string | undefined) ?? null,

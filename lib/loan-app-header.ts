@@ -23,6 +23,10 @@ function loanDetailId(pathname: string): string | null {
   return null;
 }
 
+function isLoanEditPath(pathname: string): boolean {
+  return /^\/loans\/[^/]+\/edit\/?$/.test(pathname);
+}
+
 /**
  * Pathname → page heading defaults for `/loans`.
  */
@@ -57,6 +61,23 @@ export function resolveLoanAppHeader(pathname: string): LoanAppHeaderResolved {
       breadcrumbs: [],
       cta: null,
       meta: "Payoff progress, balance trends, and loan metrics for the selected range.",
+    };
+  }
+
+  if (isLoanEditPath(pathname)) {
+    const loanId = loanDetailId(pathname);
+    return {
+      title: "Edit loan",
+      breadcrumbs: [
+        { label: "Loans", href: "/loans" },
+        ...(loanId
+          ? [{ label: "Loan", href: `/loans/${loanId}` } as BreadcrumbItem]
+          : []),
+        { label: "Edit loan" },
+      ],
+      cta: null,
+      meta: "Update terms. Unpaid installments are recalculated; paid payments stay as recorded.",
+      needsOverride: true,
     };
   }
 

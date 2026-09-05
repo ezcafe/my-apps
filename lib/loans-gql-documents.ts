@@ -166,6 +166,14 @@ export const LOAN_CREATE_MUTATION = /* GraphQL */ `
   }
 `;
 
+export const LOAN_UPDATE_MUTATION = /* GraphQL */ `
+  mutation LoanUpdate($input: LoanUpdateInput!) {
+    loanUpdate(input: $input) {
+      id
+    }
+  }
+`;
+
 export const LOAN_CANCEL_MUTATION = /* GraphQL */ `
   mutation LoanCancel($id: ID!) {
     loanCancel(id: $id) {

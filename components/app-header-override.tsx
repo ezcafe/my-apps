@@ -24,6 +24,9 @@ export type AppHeaderOverride = {
 type AppHeaderOverrideContextValue = {
   override: AppHeaderOverride | null;
   setOverride: (next: AppHeaderOverride | null) => void;
+  /** Interactive header actions (e.g. More menu); preferred over CTA when set. */
+  actions: ReactNode | null;
+  setActions: (next: ReactNode | null) => void;
 };
 
 const AppHeaderOverrideContext =
@@ -35,9 +38,10 @@ export function AppHeaderOverrideProvider({
   children: ReactNode;
 }) {
   const [override, setOverride] = useState<AppHeaderOverride | null>(null);
+  const [actions, setActions] = useState<ReactNode | null>(null);
   const value = useMemo(
-    () => ({ override, setOverride }),
-    [override],
+    () => ({ override, setOverride, actions, setActions }),
+    [override, actions],
   );
 
   return (
@@ -49,6 +53,17 @@ export function AppHeaderOverrideProvider({
 
 export function useAppHeaderOverride(): AppHeaderOverride | null {
   return useContext(AppHeaderOverrideContext)?.override ?? null;
+}
+
+export function useAppHeaderActions(): ReactNode | null {
+  return useContext(AppHeaderOverrideContext)?.actions ?? null;
+}
+
+/** Setter for interactive header actions (More menus, etc.). */
+export function useHeaderActionsSetter():
+  | ((next: ReactNode | null) => void)
+  | undefined {
+  return useContext(AppHeaderOverrideContext)?.setActions;
 }
 
 /**

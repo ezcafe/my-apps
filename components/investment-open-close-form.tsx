@@ -422,7 +422,10 @@ export function InvestmentOpenCloseForm({
             notes: notes.trim() || null,
           },
         });
-        notify.success("Position opened", "No cash was booked yet.");
+        notify.success("Position opened", "No cash was booked yet.", {
+          href: "/investments",
+          label: "View investments",
+        });
         setQuantity("");
         setOpenPrice("");
         setStopLoss("");

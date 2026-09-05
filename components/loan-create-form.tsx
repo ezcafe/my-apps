@@ -3,7 +3,7 @@
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotify } from "@/components/notification-provider";
 import { useLoansWorkspace } from "@/components/loans-workspace-provider";
 import {
@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatMinor, parseMajorToMinor } from "@/lib/format-money";
+import { formatMinor, minorToMajorInput, parseMajorToMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import {
   buildAmortizationSchedule,
@@ -34,10 +34,16 @@ import {
   computeMonthlyPaymentMinor,
 } from "@/lib/loans-amortization";
 import { loansGraphQLRequest } from "@/lib/loans-gql-client";
-import { LOAN_CREATE_MUTATION } from "@/lib/loans-gql-documents";
+import {
+  LOAN_CREATE_MUTATION,
+  LOAN_UPDATE_MUTATION,
+} from "@/lib/loans-gql-documents";
+import {
+  loansKeys,
+  type LoanDetail,
+} from "@/lib/loans-query-options";
 import { moneyBootstrapQueryOptions } from "@/lib/money-query-options";
 import { moneyCategoryById, moneyCategoryLabel } from "@/lib/money-category-ui";
-
 function formatLtvPercent(principalMinor: number, collateralMinor: number): string {
   const pct = (principalMinor / collateralMinor) * 100;
   if (Number.isNaN(pct)) return "—";
@@ -45,9 +51,18 @@ function formatLtvPercent(principalMinor: number, collateralMinor: number): stri
   return `${rounded}%`;
 }
 
-export function LoanCreateForm() {
+export function LoanCreateForm({
+  mode = "create",
+  initial,
+}: {
+  mode?: "create" | "edit";
+  /** Required when `mode` is `"edit"`. */
+  initial?: LoanDetail;
+}) {
+  const isEdit = mode === "edit" && initial != null;
   const router = useRouter();
   const notify = useNotify();
+  const queryClient = useQueryClient();
   const { formatDate } = useFormatDate();
   const { defaultCurrency, workspaceReady } = useLoansWorkspace();
   const moneyBootstrap = useQuery({
@@ -55,24 +70,65 @@ export function LoanCreateForm() {
     enabled: workspaceReady,
   });
 
-  const [name, setName] = useState("");
-  const [principal, setPrincipal] = useState("");
-  const [collateral, setCollateral] = useState("");
-  const [ratePercent, setRatePercent] = useState("5.25");
-  const [termMonths, setTermMonths] = useState("300");
-  const [initialRateMonths, setInitialRateMonths] = useState("");
-  const [rateAfterInitialPercent, setRateAfterInitialPercent] = useState("");
-  const [startDate, setStartDate] = useState(localDateString());
-  const [dueDay, setDueDay] = useState("25");
-  const [useCustomPayment, setUseCustomPayment] = useState(false);
-  const [customPayment, setCustomPayment] = useState("");
+  const currency = isEdit ? initial.currency : defaultCurrency;
+
+  const [name, setName] = useState(() => initial?.name ?? "");
+  const [principal, setPrincipal] = useState(() =>
+    initial
+      ? minorToMajorInput(initial.principalMinor, initial.currency)
+      : "",
+  );
+  const [collateral, setCollateral] = useState(() =>
+    initial?.collateralValueMinor != null
+      ? minorToMajorInput(initial.collateralValueMinor, initial.currency)
+      : "",
+  );
+  const [ratePercent, setRatePercent] = useState(() =>
+    initial ? (initial.annualRateBps / 100).toFixed(2) : "5.25",
+  );
+  const [termMonths, setTermMonths] = useState(() =>
+    initial ? String(initial.termMonths) : "300",
+  );
+  const [initialRateMonths, setInitialRateMonths] = useState(() =>
+    initial?.initialRateMonths != null ? String(initial.initialRateMonths) : "",
+  );
+  const [rateAfterInitialPercent, setRateAfterInitialPercent] = useState(() =>
+    initial?.rateAfterInitialBps != null
+      ? (initial.rateAfterInitialBps / 100).toFixed(2)
+      : "",
+  );
+  const [startDate, setStartDate] = useState(
+    () => initial?.startDate ?? localDateString(),
+  );
+  const [dueDay, setDueDay] = useState(() =>
+    initial ? String(initial.dueDayOfMonth) : "25",
+  );
+  const [useCustomPayment, setUseCustomPayment] = useState(
+    () => initial != null && initial.paymentMinor > 0,
+  );
+  const [customPayment, setCustomPayment] = useState(() =>
+    initial
+      ? minorToMajorInput(initial.paymentMinor, initial.currency)
+      : "",
+  );
   const [useCustomPaymentAfterRateChange, setUseCustomPaymentAfterRateChange] =
-    useState(false);
+    useState(() => initial?.paymentAfterRateChangeMinor != null);
   const [customPaymentAfterRateChange, setCustomPaymentAfterRateChange] =
-    useState("");
+    useState(() =>
+      initial?.paymentAfterRateChangeMinor != null
+        ? minorToMajorInput(
+            initial.paymentAfterRateChangeMinor,
+            initial.currency,
+          )
+        : "",
+    );
   const [showSchedulePreview, setShowSchedulePreview] = useState(false);
-  const [moneyAccountId, setMoneyAccountId] = useState("");
-  const [moneyCategoryId, setMoneyCategoryId] = useState("");
+  const [moneyAccountId, setMoneyAccountId] = useState(
+    () => initial?.moneyAccountId ?? "",
+  );
+  const [moneyCategoryId, setMoneyCategoryId] = useState(
+    () => initial?.moneyCategoryId ?? "",
+  );
   const [autoMarkPastDuePaid, setAutoMarkPastDuePaid] = useState(false);
   const [autoMarkPastDueWithoutTransaction, setAutoMarkPastDueWithoutTransaction] =
     useState(true);
@@ -112,8 +168,8 @@ export function LoanCreateForm() {
   );
 
   const parsedInputs = useMemo(() => {
-    const principalMinor = parseMajorToMinor(principal, defaultCurrency);
-    const collateralMinor = parseMajorToMinor(collateral, defaultCurrency);
+    const principalMinor = parseMajorToMinor(principal, currency);
+    const collateralMinor = parseMajorToMinor(collateral, currency);
     const term = Number(termMonths);
     const rateBps = Math.round(parseFloat(ratePercent) * 100);
     const dueDayNum = Number(dueDay);
@@ -172,16 +228,16 @@ export function LoanCreateForm() {
     initialRateMonths,
     rateAfterInitialPercent,
     dueDay,
-    defaultCurrency,
+    currency,
   ]);
 
   const scheduleInput = useMemo(() => {
     if (!parsedInputs) return null;
     const customMinor = useCustomPayment
-      ? parseMajorToMinor(customPayment, defaultCurrency)
+      ? parseMajorToMinor(customPayment, currency)
       : null;
     const customAfterRateChangeMinor = useCustomPaymentAfterRateChange
-      ? parseMajorToMinor(customPaymentAfterRateChange, defaultCurrency)
+      ? parseMajorToMinor(customPaymentAfterRateChange, currency)
       : null;
     return {
       principalMinor: parsedInputs.principalMinor,
@@ -207,7 +263,7 @@ export function LoanCreateForm() {
     customPayment,
     useCustomPaymentAfterRateChange,
     customPaymentAfterRateChange,
-    defaultCurrency,
+    currency,
   ]);
 
   const computedPaymentMinor = useMemo(() => {
@@ -291,18 +347,39 @@ export function LoanCreateForm() {
     parsedInputs?.initialRateMonths != null &&
     parsedInputs.rateAfterInitialBps != null;
 
+  function resetCreateForm() {
+    setName("");
+    setPrincipal("");
+    setCollateral("");
+    setRatePercent("5.25");
+    setTermMonths("300");
+    setInitialRateMonths("");
+    setRateAfterInitialPercent("");
+    setStartDate(localDateString());
+    setDueDay("25");
+    setUseCustomPayment(false);
+    setCustomPayment("");
+    setUseCustomPaymentAfterRateChange(false);
+    setCustomPaymentAfterRateChange("");
+    setShowSchedulePreview(false);
+    setMoneyAccountId("");
+    setMoneyCategoryId("");
+    setAutoMarkPastDuePaid(false);
+    setAutoMarkPastDueWithoutTransaction(true);
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      const principalMinor = parseMajorToMinor(principal, defaultCurrency);
+      const principalMinor = parseMajorToMinor(principal, currency);
       if (principalMinor == null || principalMinor <= 0) {
         throw new Error("Enter a valid principal amount");
       }
       const annualRateBps = Math.round(parseFloat(ratePercent) * 100);
       let paymentMinor: number | undefined;
       if (useCustomPayment) {
-        paymentMinor = parseMajorToMinor(customPayment, defaultCurrency) ?? undefined;
+        paymentMinor = parseMajorToMinor(customPayment, currency) ?? undefined;
         if (paymentMinor == null || paymentMinor <= 0) {
           throw new Error("Enter a valid custom monthly payment");
         }
@@ -310,7 +387,7 @@ export function LoanCreateForm() {
       let paymentAfterRateChangeMinor: number | undefined;
       if (useCustomPaymentAfterRateChange) {
         paymentAfterRateChangeMinor =
-          parseMajorToMinor(customPaymentAfterRateChange, defaultCurrency) ??
+          parseMajorToMinor(customPaymentAfterRateChange, currency) ??
           undefined;
         if (
           paymentAfterRateChangeMinor == null ||
@@ -319,7 +396,7 @@ export function LoanCreateForm() {
           throw new Error("Enter a valid payment after rate change");
         }
       }
-      const collateralMinor = parseMajorToMinor(collateral, defaultCurrency);
+      const collateralMinor = parseMajorToMinor(collateral, currency);
       const term = Number(termMonths);
       const initialRateMonthsNum =
         initialRateMonths.trim() === "" ? null : Number(initialRateMonths);
@@ -328,47 +405,68 @@ export function LoanCreateForm() {
           ? null
           : Math.round(parseFloat(rateAfterInitialPercent) * 100);
 
-      const result = await loansGraphQLRequest<{
-        loanCreate: { id: string };
-      }>(LOAN_CREATE_MUTATION, {
-        input: {
-          name: name.trim(),
-          principalMinor,
-          annualRateBps,
-          termMonths: term,
-          startDate,
-          dueDayOfMonth: Number(dueDay),
-          ...(paymentMinor != null ? { paymentMinor } : {}),
-          ...(initialRateMonthsNum != null &&
-          initialRateMonthsNum > 0 &&
-          initialRateMonthsNum < term
-            ? {
-                initialRateMonths: initialRateMonthsNum,
-                rateAfterInitialBps,
-              }
-            : {}),
-          ...(paymentAfterRateChangeMinor != null
-            ? { paymentAfterRateChangeMinor }
-            : {}),
-          ...(collateralMinor != null && collateralMinor > 0
-            ? { collateralValueMinor: collateralMinor }
-            : {}),
-          moneyWorkspaceId: moneyBootstrap.data?.workspaceId ?? null,
-          moneyAccountId: moneyAccountId || null,
-          moneyCategoryId: moneyCategoryId || null,
-          ...(pastDueCount > 0 && autoMarkPastDuePaid
-            ? {
-                autoMarkPastDuePaid: true,
-                autoMarkPastDueWithoutTransaction,
-              }
-            : {}),
-        },
-      });
-      notify.success("Loan created");
-      router.push(`/loans/${result.loanCreate.id}`);
+      const input = {
+        name: name.trim(),
+        principalMinor,
+        annualRateBps,
+        termMonths: term,
+        startDate,
+        dueDayOfMonth: Number(dueDay),
+        ...(paymentMinor != null ? { paymentMinor } : {}),
+        ...(initialRateMonthsNum != null &&
+        initialRateMonthsNum > 0 &&
+        initialRateMonthsNum < term
+          ? {
+              initialRateMonths: initialRateMonthsNum,
+              rateAfterInitialBps,
+            }
+          : {
+              initialRateMonths: null,
+              rateAfterInitialBps: null,
+            }),
+        ...(paymentAfterRateChangeMinor != null
+          ? { paymentAfterRateChangeMinor }
+          : { paymentAfterRateChangeMinor: null }),
+        ...(collateralMinor != null && collateralMinor > 0
+          ? { collateralValueMinor: collateralMinor }
+          : { collateralValueMinor: null }),
+        moneyWorkspaceId: moneyBootstrap.data?.workspaceId ?? null,
+        moneyAccountId: moneyAccountId || null,
+        moneyCategoryId: moneyCategoryId || null,
+      };
+
+      if (isEdit && initial) {
+        await loansGraphQLRequest<{ loanUpdate: { id: string } }>(
+          LOAN_UPDATE_MUTATION,
+          { input: { id: initial.id, ...input } },
+        );
+        await queryClient.invalidateQueries({ queryKey: loansKeys.all });
+        notify.success("Loan updated");
+        router.push(`/loans/${initial.id}`);
+      } else {
+        const result = await loansGraphQLRequest<{
+          loanCreate: { id: string };
+        }>(LOAN_CREATE_MUTATION, {
+          input: {
+            ...input,
+            ...(pastDueCount > 0 && autoMarkPastDuePaid
+              ? {
+                  autoMarkPastDuePaid: true,
+                  autoMarkPastDueWithoutTransaction,
+                }
+              : {}),
+          },
+        });
+        const loanId = result.loanCreate.id;
+        notify.success("Loan created", undefined, {
+          href: `/loans/${loanId}`,
+          label: "View loan",
+        });
+        resetCreateForm();
+      }
     } catch (err) {
       notify.error(
-        "Could not create loan",
+        isEdit ? "Could not update loan" : "Could not create loan",
         toUserFacingMessage(err),
       );
     } finally {
@@ -379,12 +477,20 @@ export function LoanCreateForm() {
   return (
     <div className="col-span-2 min-w-0 md:col-span-6 lg:col-span-12">
       <form onSubmit={onSubmit} className="space-y-5">
+          {isEdit ? (
+            <p className="rounded-[var(--radius-sm)] bg-muted-surface/40 px-3 py-2 text-sm text-muted">
+              Unpaid installments will be recalculated from the remaining
+              balance. Paid payments and linked Money transactions stay as
+              recorded.
+            </p>
+          ) : null}
+
           <Field label="Loan name">
             <Input value={name} onChange={(e) => setName(e.target.value)} required />
           </Field>
 
           <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
-            <Field label={`Principal (${defaultCurrency})`}>
+            <Field label={`Principal (${currency})`}>
               <Input
                 value={principal}
                 onChange={(e) => setPrincipal(e.target.value)}
@@ -448,14 +554,14 @@ export function LoanCreateForm() {
                 <div>
                   <p className="text-sm text-muted">Monthly payment</p>
                   <p className="mt-0.5 font-display text-xl font-semibold tabular-nums">
-                    {formatMinor(computedPaymentMinor, defaultCurrency)}
+                    {formatMinor(computedPaymentMinor, currency)}
                   </p>
                 </div>
                 {firstMonthInterestMinor != null ? (
                   <div>
                     <p className="text-sm text-muted">First-month interest</p>
                     <p className="mt-0.5 font-display text-xl font-semibold tabular-nums">
-                      {formatMinor(firstMonthInterestMinor, defaultCurrency)}
+                      {formatMinor(firstMonthInterestMinor, currency)}
                     </p>
                   </div>
                 ) : null}
@@ -463,7 +569,7 @@ export function LoanCreateForm() {
                   <div>
                     <p className="text-sm text-muted">First-month principal</p>
                     <p className="mt-0.5 font-display text-xl font-semibold tabular-nums">
-                      {formatMinor(firstMonthPrincipalMinor, defaultCurrency)}
+                      {formatMinor(firstMonthPrincipalMinor, currency)}
                     </p>
                   </div>
                 ) : null}
@@ -512,7 +618,7 @@ export function LoanCreateForm() {
                                 numeric
                                 className="whitespace-nowrap"
                               >
-                                {formatMinor(row.paymentMinor, defaultCurrency)}
+                                {formatMinor(row.paymentMinor, currency)}
                               </TableCell>
                               <TableCell
                                 align="end"
@@ -521,7 +627,7 @@ export function LoanCreateForm() {
                               >
                                 {formatMinor(
                                   row.interestMinor,
-                                  defaultCurrency,
+                                  currency,
                                 )}
                               </TableCell>
                               <TableCell
@@ -531,7 +637,7 @@ export function LoanCreateForm() {
                               >
                                 {formatMinor(
                                   row.principalMinor,
-                                  defaultCurrency,
+                                  currency,
                                 )}
                               </TableCell>
                               <TableCell
@@ -541,7 +647,7 @@ export function LoanCreateForm() {
                               >
                                 {formatMinor(
                                   row.balanceAfterMinor,
-                                  defaultCurrency,
+                                  currency,
                                 )}
                               </TableCell>
                             </TableRow>
@@ -561,7 +667,7 @@ export function LoanCreateForm() {
             </div>
           ) : null}
 
-          <Field label={`Collateral value (${defaultCurrency})`}>
+          <Field label={`Collateral value (${currency})`}>
             <Input
               value={collateral}
               onChange={(e) => setCollateral(e.target.value)}
@@ -586,7 +692,7 @@ export function LoanCreateForm() {
                 <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 px-3 py-2">
                   <p className="text-sm text-muted">Down payment</p>
                   <p className="mt-0.5 text-sm font-medium tabular-nums">
-                    {formatMinor(downPaymentMinor, defaultCurrency)}
+                    {formatMinor(downPaymentMinor, currency)}
                   </p>
                 </div>
               ) : null}
@@ -613,7 +719,7 @@ export function LoanCreateForm() {
             </Field>
           </div>
 
-          {pastDueCount > 0 ? (
+          {!isEdit && pastDueCount > 0 ? (
             <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 p-4">
               <div className="flex items-start gap-2">
                 <Checkbox
@@ -671,11 +777,11 @@ export function LoanCreateForm() {
                 </span>
                 <p className="mt-0.5 text-sm text-muted">
                   {computedPaymentMinor != null
-                    ? `Calculated payment: ${formatMinor(computedPaymentMinor, defaultCurrency)}`
+                    ? `Calculated payment: ${formatMinor(computedPaymentMinor, currency)}`
                     : "Enter principal, rate, and term to see the calculated payment."}
                 </p>
                 {useCustomPayment ? (
-                  <Field label={`Monthly payment (${defaultCurrency})`} className="mt-3">
+                  <Field label={`Monthly payment (${currency})`} className="mt-3">
                     <Input
                       value={customPayment}
                       onChange={(e) => setCustomPayment(e.target.value)}
@@ -708,7 +814,7 @@ export function LoanCreateForm() {
                   </p>
                   {useCustomPaymentAfterRateChange ? (
                     <Field
-                      label={`Payment after rate change (${defaultCurrency})`}
+                      label={`Payment after rate change (${currency})`}
                       className="mt-3"
                     >
                       <Input
@@ -758,11 +864,17 @@ export function LoanCreateForm() {
 
           <Button
             type="submit"
-            disabled={saving || needsMoneyAccountForAutoMark}
+            disabled={saving || (!isEdit && needsMoneyAccountForAutoMark)}
           >
-            {saving ? "Creating…" : "Create loan"}
+            {saving
+              ? isEdit
+                ? "Saving…"
+                : "Creating…"
+              : isEdit
+                ? "Save changes"
+                : "Create loan"}
           </Button>
-          {needsMoneyAccountForAutoMark ? (
+          {!isEdit && needsMoneyAccountForAutoMark ? (
             <Alert
               variant="warning"
               title="Account required"

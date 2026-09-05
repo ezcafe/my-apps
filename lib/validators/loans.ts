@@ -33,6 +33,38 @@ export const loanCreateSchema = z
     }
   });
 
+export const loanUpdateSchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string().trim().min(1).max(200),
+    principalMinor: z.number().int().positive(),
+    annualRateBps: z.number().int().min(0).max(100_000),
+    termMonths: z.number().int().min(1).max(600),
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    dueDayOfMonth: z.number().int().min(1).max(28),
+    paymentMinor: z.number().int().positive().optional().nullable(),
+    initialRateMonths: z.number().int().min(1).max(600).optional().nullable(),
+    rateAfterInitialBps: z.number().int().min(0).max(100_000).optional().nullable(),
+    paymentAfterRateChangeMinor: z.number().int().positive().optional().nullable(),
+    collateralValueMinor: z.number().int().positive().optional().nullable(),
+    moneyAccountId: z.string().uuid().optional().nullable(),
+    moneyCategoryId: z.string().uuid().optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    const hasPartialRatePeriod =
+      data.initialRateMonths != null &&
+      data.initialRateMonths > 0 &&
+      data.initialRateMonths < data.termMonths;
+    if (hasPartialRatePeriod && data.rateAfterInitialBps == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Rate after initial period is required when the initial rate period is shorter than the loan term",
+        path: ["rateAfterInitialBps"],
+      });
+    }
+  });
+
 export const loanInstallmentMarkPaidSchema = z.object({
   scheduleInstallmentId: z.string().uuid(),
 });

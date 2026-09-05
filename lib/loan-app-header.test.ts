@@ -31,4 +31,16 @@ describe("resolveLoanAppHeader", () => {
     ]);
     assert.equal(header.needsOverride, true);
   });
+
+  it("resolves edit loan path", () => {
+    const header = resolveLoanAppHeader("/loans/abc-123/edit");
+    assert.equal(header.title, "Edit loan");
+    assert.equal(header.cta, null);
+    assert.equal(header.needsOverride, true);
+    assert.deepEqual(header.breadcrumbs, [
+      { label: "Loans", href: "/loans" },
+      { label: "Loan", href: "/loans/abc-123" },
+      { label: "Edit loan" },
+    ]);
+  });
 });

@@ -182,6 +182,24 @@ export const moneyFinanceTypeDefs = /* GraphQL */ `
     autoMarkPastDueWithoutTransaction: Boolean
   }
 
+  input LoanUpdateInput {
+    id: ID!
+    name: String!
+    principalMinor: BigInt!
+    annualRateBps: Int!
+    termMonths: Int!
+    startDate: String!
+    dueDayOfMonth: Int!
+    paymentMinor: BigInt
+    initialRateMonths: Int
+    rateAfterInitialBps: Int
+    paymentAfterRateChangeMinor: BigInt
+    collateralValueMinor: BigInt
+    moneyAccountId: ID
+    moneyCategoryId: ID
+    moneyWorkspaceId: ID
+  }
+
   input LoanInstallmentMarkPaidInput {
     scheduleInstallmentId: ID!
   }
@@ -458,6 +476,7 @@ export const moneyFinanceTypeDefs = /* GraphQL */ `
 
   extend type Mutation {
     loanCreate(input: LoanCreateInput!): LoanCreateResult!
+    loanUpdate(input: LoanUpdateInput!): LoanCreateResult!
     loanCancel(id: ID!): LoansOk!
     loanInstallmentMarkPaid(input: LoanInstallmentMarkPaidInput!): LoansOk!
     loanInstallmentPayWithTransaction(

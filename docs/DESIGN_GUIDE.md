@@ -466,9 +466,9 @@ Every error answers three questions: **what happened** (tied to the action, not 
 ### Success copy
 
 - Name the object: “Transaction added”, “Loan created”, “Trade saved” — not “Success” or “Saved”.
-- Scale to frequency: Add transaction → toast (~5s). Creating a loan may toast **and** land on the loan where the next action (add payment) is the heading CTA.
+- Scale to frequency: Add transaction → toast (~5s). Creating a loan stays on the form with a toast; optional “View loan” text link opens the new detail page.
 - Put the confirmation **near the action**. Toasts are for mutations after which the form is gone or the list updated; inline checkmarks are for in-place saves (settings rows).
-- Guide the next step only when it is newly available. Do not invent a second primary CTA on the toast.
+- Guide the next step only when it is newly available. After create flows that stay on the form, an optional text link (“View transaction”, “View loan”, “View investments”) on the toast is allowed — not a filled button or second primary CTA.
 - Undo in a toast is allowed only if the mutation is actually reversible in-session (Gmail-style). Do not fake Undo.
 
 ## Empty & loading
