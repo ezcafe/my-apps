@@ -39,10 +39,10 @@ describe("Settings search and category filtering", () => {
     assert.equal(matchingCategories[0].id, "danger-zone");
   });
 
-  it("filters by category keywords (e.g. weather -> home)", () => {
+  it("filters by category keywords (e.g. weather -> kiosk)", () => {
     const { matchingCategories } = filterSettingsCategories("weather", SETTINGS_CATEGORIES);
     assert.equal(matchingCategories.length, 1);
-    assert.equal(matchingCategories[0].id, "home");
+    assert.equal(matchingCategories[0].id, "kiosk");
   });
 
   it("returns empty matches when query matches nothing", () => {

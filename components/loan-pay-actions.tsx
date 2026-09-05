@@ -2,8 +2,8 @@
 
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useQueryClient } from "@tanstack/react-query";
-import { LoanPayModal } from "@/components/loan-pay-modal";
 import { useNotify } from "@/components/notification-provider";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -11,6 +11,14 @@ import { MoreMenu, MoreMenuItem } from "@/components/ui/more-menu";
 import { loansGraphQLRequest } from "@/lib/loans-gql-client";
 import { LOAN_INSTALLMENT_MARK_PAID_MUTATION } from "@/lib/loans-gql-documents";
 import { loansKeys } from "@/lib/loans-query-options";
+
+const LoanPayModal = dynamic(
+  () =>
+    import("@/components/loan-pay-modal").then((m) => ({
+      default: m.LoanPayModal,
+    })),
+  { ssr: false },
+);
 
 export function LoanPayActions({
   scheduleInstallmentId,
@@ -87,17 +95,19 @@ export function LoanPayActions({
         </MoreMenu>
       </div>
 
-      <LoanPayModal
-        open={payOpen}
-        onClose={() => setPayOpen(false)}
-        scheduleInstallmentId={scheduleInstallmentId}
-        loanName={loanName}
-        installmentNumber={installmentNumber}
-        paymentMinor={paymentMinor}
-        currency={currency}
-        defaultAccountId={moneyAccountId}
-        defaultCategoryId={moneyCategoryId}
-      />
+      {payOpen ? (
+        <LoanPayModal
+          open={payOpen}
+          onClose={() => setPayOpen(false)}
+          scheduleInstallmentId={scheduleInstallmentId}
+          loanName={loanName}
+          installmentNumber={installmentNumber}
+          paymentMinor={paymentMinor}
+          currency={currency}
+          defaultAccountId={moneyAccountId}
+          defaultCategoryId={moneyCategoryId}
+        />
+      ) : null}
 
       <Modal
         open={confirmOpen}

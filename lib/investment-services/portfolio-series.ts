@@ -234,21 +234,56 @@ export async function investmentHoldingsSnapshot(workspaceId: string) {
   return holdingsFromLots(instruments, lots, quoteMap);
 }
 
+export type InvestmentInsightsSummaryPayload = {
+  range: { from: string; to: string };
+  summary: InvestmentInsightsAtfPayload["summary"];
+};
+
+/** KPI strip only — skips portfolio series and allocation (kiosk / slim clients). */
+export async function investmentInsightsSummary(
+  workspaceId: string,
+  from: string,
+  to: string,
+): Promise<InvestmentInsightsSummaryPayload> {
+  const cashBounds = dateRangeParams(from, to);
+  const [holdings, lots, cashSummary] = await Promise.all([
+    investmentHoldingsSnapshot(workspaceId),
+    loadLots(workspaceId),
+    computeMoneyAnalyticsSummary(workspaceId, {
+      from: cashBounds.from,
+      to: cashBounds.to,
+      accountTypes: ["investment"],
+    }),
+  ]);
+  const openNotionalMinor = holdings.reduce((sum, row) => sum + row.valueMinor, 0);
+  return {
+    range: { from, to },
+    summary: {
+      resultsMinor: cashSummary.stats.netMinor,
+      openNotionalMinor,
+      realizedPnlMinor: realizedPnlMinor(lots),
+      openLotsCount: openLotsCount(lots),
+    },
+  };
+}
+
 export async function investmentInsightsAtf(
   workspaceId: string,
   from: string,
   to: string,
 ): Promise<InvestmentInsightsAtfPayload> {
   const series = await investmentPortfolioValueSeries(workspaceId, from, to);
-  const holdings = await investmentHoldingsSnapshot(workspaceId);
-  const lots = await loadLots(workspaceId);
-  const openNotionalMinor = holdings.reduce((sum, row) => sum + row.valueMinor, 0);
   const cashBounds = dateRangeParams(from, to);
-  const cashSummary = await computeMoneyAnalyticsSummary(workspaceId, {
-    from: cashBounds.from,
-    to: cashBounds.to,
-    accountTypes: ["investment"],
-  });
+  const [holdings, lots, cashSummary] = await Promise.all([
+    investmentHoldingsSnapshot(workspaceId),
+    loadLots(workspaceId),
+    computeMoneyAnalyticsSummary(workspaceId, {
+      from: cashBounds.from,
+      to: cashBounds.to,
+      accountTypes: ["investment"],
+    }),
+  ]);
+  const openNotionalMinor = holdings.reduce((sum, row) => sum + row.valueMinor, 0);
   return {
     range: { from, to },
     summary: {

@@ -457,11 +457,20 @@ function MenuFooterLink({
   const pathname = usePathname();
   const active = isShellNavActive(item, pathname);
   const Icon = shellMenuIcons[item.icon];
+  /** Soft nav from Money layout → /kiosk fails to commit (stays on Money); use full load. */
+  const hardNavigate = item.id === "kiosk";
 
   return (
     <Link
       href={item.href}
-      onClick={onNavigate}
+      prefetch={hardNavigate ? false : undefined}
+      onClick={(event) => {
+        onNavigate();
+        if (hardNavigate) {
+          event.preventDefault();
+          window.location.assign(item.href);
+        }
+      }}
       aria-current={active ? "page" : undefined}
       className={menuItemClassName(active)}
     >

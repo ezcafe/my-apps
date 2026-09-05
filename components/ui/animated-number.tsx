@@ -57,7 +57,10 @@ function AnimatedNumberMotion({
   className?: string;
   style?: React.CSSProperties;
 }) {
-  const [display, setDisplay] = useState(0);
+  // SSR + first client paint use the real value so markup matches (no hydration
+  // mismatch). Animate only when `value` changes after mount.
+  const [display, setDisplay] = useState(value);
+  const hasMountedRef = useRef(false);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -66,8 +69,15 @@ function AnimatedNumberMotion({
       rafRef.current = null;
     }
 
-    const from = 0;
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    const from = display;
     const to = value;
+    if (from === to) return;
+
     const start = performance.now();
 
     const tick = (now: number) => {
@@ -88,6 +98,8 @@ function AnimatedNumberMotion({
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
+    // Intentionally omit `display` from deps: we only re-animate when `value` changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
   }, [value]);
 
   const rounded =

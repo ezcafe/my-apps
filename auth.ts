@@ -44,6 +44,9 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request }) {
       const path = request.nextUrl.pathname;
+      // /kiosk is intentionally omitted until it can join proxy.ts matcher without
+      // breaking soft-nav; page-level auth covers it today. Add startsWith("/kiosk")
+      // here in the same change that adds "/kiosk" to the proxy matcher.
       if (
         path.startsWith("/settings") ||
         path.startsWith("/analytics") ||

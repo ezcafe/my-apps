@@ -560,6 +560,11 @@ export type LoansInsightsAtfPayload = {
   paidInterestMinor: number;
 };
 
+export type LoansInsightsSummaryPayload = {
+  range: { from: string; to: string };
+  summary: LoansInsightsAtfPayload["summary"];
+};
+
 export type LoansInsightsMorePayload = {
   remainingInterestMinor: number;
   ltvPct: number | null;
@@ -713,6 +718,27 @@ async function loadSchedulesForLoans(loanIds: string[]) {
     .from(loanScheduleInstallment)
     .where(inArray(loanScheduleInstallment.loanId, loanIds))
     .orderBy(asc(loanScheduleInstallment.installmentNumber));
+}
+
+export async function loansInsightsSummary(
+  ctx: LoansWorkspaceCtx,
+  from: string,
+  to: string,
+): Promise<LoansInsightsSummaryPayload> {
+  const rows = await loadWorkspaceLoans(ctx.workspaceId);
+  const loanIds = rows.map((r) => r.id);
+  const aggregates = await loadInstallmentAggregatesForLoans(loanIds);
+  const summarized = summarizeLoanRowsFromAggregates(rows, aggregates);
+  return {
+    range: { from, to },
+    summary: {
+      remainingMinor: remainingTotal(summarized),
+      monthlyObligationMinor: monthlyObligation(summarized),
+      weightedAprBps: weightedAprBps(summarized),
+      nextDueDate: earliestNextDue(summarized),
+      loanCount: rows.length,
+    },
+  };
 }
 
 export async function loansInsightsAtf(

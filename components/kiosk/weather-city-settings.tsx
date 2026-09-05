@@ -65,7 +65,7 @@ export function WeatherCitySettings({
       setSuggestOpen(false);
       setHighlight(-1);
       notify.success(
-        "Home weather updated",
+        "Kiosk weather updated",
         json.data?.weatherCity ? json.data.weatherCity : "City cleared",
       );
     } catch (e) {
@@ -177,10 +177,10 @@ export function WeatherCitySettings({
   const inner = (
     <>
       {!embedded ? (
-        <h2 className="font-display text-lg font-medium tracking-tight">Home</h2>
+        <h2 className="font-display text-lg font-medium tracking-tight">Kiosk</h2>
       ) : null}
       <p className="text-sm text-muted">
-        City name for weather on your home dashboard. Start typing for
+        City name for weather on your kiosk dashboard. Start typing for
         suggestions — powered by Open-Meteo, no API key required.
       </p>
       <Field label="Weather city">

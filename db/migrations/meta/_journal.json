@@ -253,6 +253,13 @@
       "when": 1779835300000,
       "tag": "0035_user_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1779835400000,
+      "tag": "0036_kiosk_widgets",
+      "breakpoints": true
     }
   ]
 }

@@ -19,7 +19,7 @@ export function InvestmentInsightsStats({
   showPeriodCaption = true,
   variant = "grid",
 }: {
-  atf: InvestmentInsightsAtf;
+  atf: Pick<InvestmentInsightsAtf, "range" | "summary">;
   currency: string;
   showPeriodCaption?: boolean;
   variant?: "grid" | "page";

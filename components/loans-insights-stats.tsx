@@ -22,7 +22,7 @@ export function LoansInsightsStats({
   variant = "grid",
   overdueCount,
 }: {
-  atf: LoansInsightsAtf;
+  atf: Pick<LoansInsightsAtf, "range" | "summary">;
   currency: string;
   showPeriodCaption?: boolean;
   showActiveLoansCaption?: boolean;

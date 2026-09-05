@@ -21,7 +21,7 @@ Every first-class module (Money today; Tasks, Notes, etc. later) **must**:
 
 Finance domains: **Investments** (`/investments`) and **Loans** (`/loans`) are top-level shell routes that still use `workspaceAppKey: "money"` for the Money cookie (loans GraphQL also uses `ctx_workspace_loans`). Investment activities live in `money_transaction` + `money_transaction_investment`; loan payments are `money_transaction` rows linked from installment status. Savings movements stay a Money module.
 
-**Core** routes (Home, Settings) use `kind: "core"` and do not declare an app key; they must not depend on a feature’s bootstrap APIs.
+**Core** routes (Kiosk, Settings) use `kind: "core"` and do not declare an app key; they must not depend on a feature’s bootstrap APIs.
 
 ## Money bootstrap (scoped)
 

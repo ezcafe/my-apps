@@ -94,7 +94,14 @@ export async function searchCities(
   const res = await fetch(url, { next: { revalidate: 3600 } });
   if (!res.ok) return [];
 
-  const data = (await res.json()) as GeocodeApiResponse;
+  let data: GeocodeApiResponse;
+  try {
+    const text = await res.text();
+    if (!text.trim()) return [];
+    data = JSON.parse(text) as GeocodeApiResponse;
+  } catch {
+    return [];
+  }
   return (data.results ?? []).map((hit) => ({
     id: citySearchId(hit),
     name: hit.name,
@@ -136,7 +143,14 @@ export async function fetchCurrentWeather(
   const res = await fetch(url, { next: { revalidate: 900 } });
   if (!res.ok) return null;
 
-  const data = (await res.json()) as ForecastApiResponse;
+  let data: ForecastApiResponse;
+  try {
+    const text = await res.text();
+    if (!text.trim()) return null;
+    data = JSON.parse(text) as ForecastApiResponse;
+  } catch {
+    return null;
+  }
   const tempC = data.current?.temperature_2m;
   const weatherCode = data.current?.weather_code;
   if (tempC == null || weatherCode == null) return null;

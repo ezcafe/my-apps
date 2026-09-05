@@ -14,6 +14,10 @@ export async function proxy(request: Request, event: NextFetchEvent) {
 
 export const config = {
   matcher: [
+    // /kiosk auth is page-only (`auth()` + redirect in app/(shell)/kiosk/page.tsx).
+    // Do not add "/kiosk" here until Money→kiosk soft-nav / RSC refresh works with
+    // the proxy; when that lands, also add path.startsWith("/kiosk") in auth.ts
+    // `authorized` (defense in depth must stay in sync).
     "/help",
     "/help/:path*",
     "/settings",

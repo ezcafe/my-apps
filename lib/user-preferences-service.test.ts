@@ -75,4 +75,32 @@ describe("user preferences service", () => {
 
     await db.delete(userPreferences).where(eq(userPreferences.userSub, TEST_USER));
   });
+
+  it("returns default kiosk widgets when unset", { skip: !hasDb }, async () => {
+    await db.delete(userPreferences).where(eq(userPreferences.userSub, TEST_USER));
+
+    const prefs = await getUserPreferences(TEST_USER);
+    assert.deepEqual(prefs.kioskWidgets, [
+      "context.today_weather",
+      "money.net_month",
+      "loans.payments",
+    ]);
+
+    await db.delete(userPreferences).where(eq(userPreferences.userSub, TEST_USER));
+  });
+
+  it("stores kiosk widget selection in registry order", { skip: !hasDb }, async () => {
+    await db.delete(userPreferences).where(eq(userPreferences.userSub, TEST_USER));
+
+    const updated = await patchUserPreferences(TEST_USER, {
+      kioskWidgets: ["savings.summary", "money.net_month", "bills.summary"],
+    });
+    assert.deepEqual(updated.kioskWidgets, [
+      "money.net_month",
+      "bills.summary",
+      "savings.summary",
+    ]);
+
+    await db.delete(userPreferences).where(eq(userPreferences.userSub, TEST_USER));
+  });
 });

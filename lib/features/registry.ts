@@ -44,9 +44,9 @@ export type ShellNavItem = CoreShellNavItem | FeatureShellNavItem;
 const shellNavItemsSource: ShellNavItem[] = [
   {
     kind: "core",
-    id: "home",
-    label: "Home",
-    href: "/",
+    id: "kiosk",
+    label: "Kiosk",
+    href: "/kiosk",
     order: -1,
     icon: "home",
     activeMatch: "exact",

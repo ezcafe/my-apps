@@ -1,6 +1,11 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { userPreferences } from "@/db/schema/user-preferences";
+import {
+  normalizeKioskWidgets,
+  resolveKioskWidgets,
+  type KioskWidgetId,
+} from "@/lib/kiosk/widget-registry";
 import { geocodeCity } from "@/lib/weather/open-meteo";
 import {
   userPreferencesPatchSchema,
@@ -12,6 +17,7 @@ export type SerializedUserPreferences = {
   weatherLatitude: number | null;
   weatherLongitude: number | null;
   weatherGeocodedAt: string | null;
+  kioskWidgets: KioskWidgetId[];
 };
 
 function parseCoord(value: string | null | undefined): number | null {
@@ -29,6 +35,7 @@ function serializeRow(
       weatherLatitude: null,
       weatherLongitude: null,
       weatherGeocodedAt: null,
+      kioskWidgets: resolveKioskWidgets(null),
     };
   }
   return {
@@ -36,6 +43,7 @@ function serializeRow(
     weatherLatitude: parseCoord(row.weatherLatitude),
     weatherLongitude: parseCoord(row.weatherLongitude),
     weatherGeocodedAt: row.weatherGeocodedAt?.toISOString() ?? null,
+    kioskWidgets: resolveKioskWidgets(row.kioskWidgets ?? null),
   };
 }
 
@@ -68,11 +76,39 @@ async function applyPreferencesPatch(
   userSub: string,
   patch: UserPreferencesPatch,
 ): Promise<SerializedUserPreferences> {
-  if (!("weatherCity" in patch)) {
+  const hasWeather = "weatherCity" in patch;
+  const hasKiosk = "kioskWidgets" in patch;
+
+  if (!hasWeather && !hasKiosk) {
     return getUserPreferences(userSub);
   }
 
-  const city = patch.weatherCity?.trim() ?? "";
+  if (hasKiosk) {
+    const normalized = normalizeKioskWidgets(patch.kioskWidgets ?? []);
+    await db
+      .insert(userPreferences)
+      .values({
+        userSub,
+        kioskWidgets: normalized,
+      })
+      .onConflictDoUpdate({
+        target: userPreferences.userSub,
+        set: { kioskWidgets: normalized },
+      });
+  }
+
+  if (hasWeather) {
+    await applyWeatherCityPatch(userSub, patch.weatherCity);
+  }
+
+  return getUserPreferences(userSub);
+}
+
+async function applyWeatherCityPatch(
+  userSub: string,
+  weatherCity: string | null | undefined,
+): Promise<void> {
+  const city = weatherCity?.trim() ?? "";
   if (!city) {
     await db
       .insert(userPreferences)
@@ -92,7 +128,7 @@ async function applyPreferencesPatch(
           weatherGeocodedAt: null,
         },
       });
-    return getUserPreferences(userSub);
+    return;
   }
 
   const geocoded = await geocodeCity(city);
@@ -119,6 +155,4 @@ async function applyPreferencesPatch(
         weatherGeocodedAt: now,
       },
     });
-
-  return getUserPreferences(userSub);
 }

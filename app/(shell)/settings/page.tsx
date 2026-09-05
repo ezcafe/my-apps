@@ -6,12 +6,14 @@ import { SettingsSection } from "@/components/money-settings/money-settings-shar
 import { ApiTokenSettings } from "@/components/api-token-settings";
 import { CoreShellPage } from "@/components/core-shell-page";
 import { DateFormatSettings } from "@/components/date-format-settings";
-import { WeatherCitySettings } from "@/components/home/weather-city-settings";
+import { WeatherCitySettings } from "@/components/kiosk/weather-city-settings";
+import { KioskWidgetSettings } from "@/components/kiosk/kiosk-widget-settings";
 import { ThemeSettings } from "@/components/theme-settings";
 import { WorkspaceSettings } from "@/components/workspace-settings";
 import { WorkspaceResetSettings } from "@/components/workspace-reset-settings";
 import { Alert } from "@/components/ui/alert";
 import { isDbUnreachable } from "@/lib/db-errors";
+import { DEFAULT_KIOSK_WIDGETS } from "@/lib/kiosk/widget-registry";
 import { getUserPreferences } from "@/lib/user-preferences-service";
 import { SettingsClientLayout } from "@/components/settings/settings-client-layout";
 
@@ -28,6 +30,7 @@ async function loadSettingsDbData(userSub: string) {
       defaultWorkspaceId,
       apiTokens,
       weatherCity: preferences.weatherCity,
+      kioskWidgets: preferences.kioskWidgets,
       dbUnavailable: false as const,
     };
   } catch (e) {
@@ -37,6 +40,7 @@ async function loadSettingsDbData(userSub: string) {
         defaultWorkspaceId: null,
         apiTokens: [],
         weatherCity: null,
+        kioskWidgets: [...DEFAULT_KIOSK_WIDGETS],
         dbUnavailable: true as const,
       };
     }
@@ -47,13 +51,14 @@ async function loadSettingsDbData(userSub: string) {
 export default async function SettingsPage() {
   const session = await auth();
   const userSub = session?.user?.id;
-  const { workspaces, defaultWorkspaceId, apiTokens, weatherCity, dbUnavailable } = userSub
+  const { workspaces, defaultWorkspaceId, apiTokens, weatherCity, kioskWidgets, dbUnavailable } = userSub
     ? await loadSettingsDbData(userSub)
     : {
         workspaces: [],
         defaultWorkspaceId: null,
         apiTokens: [],
         weatherCity: null,
+        kioskWidgets: [],
         dbUnavailable: false as const,
       };
 
@@ -87,13 +92,16 @@ export default async function SettingsPage() {
             <DateFormatSettings embedded />
           </SettingsSection>
         }
-        homeContent={
+        kioskContent={
           <SettingsSection
-            id="settings-home"
-            title="Home"
-            description="Weather city for your home dashboard."
+            id="settings-kiosk"
+            title="Kiosk"
+            description="Widgets and weather for your kiosk dashboard."
           >
-            <WeatherCitySettings embedded initialCity={weatherCity} />
+            <KioskWidgetSettings initialWidgets={kioskWidgets} />
+            <div className="mt-8 border-t border-border pt-8">
+              <WeatherCitySettings embedded initialCity={weatherCity} />
+            </div>
           </SettingsSection>
         }
         accountContent={

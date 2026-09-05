@@ -18,7 +18,7 @@ export type SettingsCategoryMeta<T extends string = string> = {
 export type SettingsCategoryId =
   | "appearance"
   | "date-format"
-  | "home"
+  | "kiosk"
   | "account"
   | "workspaces"
   | "api-tokens"
@@ -38,10 +38,10 @@ export const SETTINGS_CATEGORIES: SettingsCategoryMeta<SettingsCategoryId>[] = [
     keywords: ["date", "time", "format", "iso", "locale", "dmy", "mdy", "ymd", "calendar"],
   },
   {
-    id: "home",
-    label: "Home",
-    description: "Weather city shown on the home dashboard.",
-    keywords: ["home", "weather", "city", "forecast", "temperature", "location", "dashboard"],
+    id: "kiosk",
+    label: "Kiosk",
+    description: "Widgets and weather city for your kiosk dashboard.",
+    keywords: ["kiosk", "dashboard", "widgets", "home", "weather", "city", "forecast", "temperature", "location"],
   },
   {
     id: "account",

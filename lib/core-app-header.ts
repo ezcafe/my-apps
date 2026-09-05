@@ -11,11 +11,11 @@ export type CoreAppHeaderResolved = {
  * Pathname → page heading defaults for core shell routes (`/settings`, `/help`).
  */
 export function resolveCoreAppHeader(pathname: string): CoreAppHeaderResolved {
-  if (pathname === "/") {
+  if (pathname === "/kiosk") {
     return {
-      title: "Home",
+      title: "Kiosk",
       breadcrumbs: [],
-      meta: "Today at a glance — net money, loans, and weather.",
+      meta: "Today at a glance",
       cta: null,
     };
   }

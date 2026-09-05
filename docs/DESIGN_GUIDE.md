@@ -103,6 +103,17 @@ Wrap page bodies in [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) (`flex fle
 | **Empty / load** | [`AnalyticsEmptyState`](../components/analytics-empty-state.tsx) with a next action; [`Skeleton`](../components/ui/skeleton.tsx) while fetching. Empty is not an error. |
 | **Out of scope** | Drag-to-rearrange modules, per-user dashboard builders, rainbow stoplight palettes. Ask before adding. |
 
+### Kiosk glance pattern
+
+`/kiosk` is a **status board**, not a Money home dashboard. Stack **context strip → metrics band → action list**:
+
+1. **Context strip** — today + weather in one full-width card (no section heading).
+2. **Metrics band** — enabled summary cards (`net`, `bills`, `savings`) in `repeat(auto-fit, minmax(min(100%,14rem),1fr))`. Labels live **inside** the card — no outer section heading.
+3. **Insight bands** *(optional)* — loan / investment KPI grids full-width under metrics; still no outer heading.
+4. **Action list** — loan payments due as a flat divide-y list with a thin title + one deep link (“All loans”). Not wrapped in a Card.
+
+Do not double-title (section heading + in-card label). Keep secondary links rare (city setup only when weather needs it). Skeleton must mirror this stack with the same `@container` / auto-fit structure.
+
 ## Clean-minimal rules
 
 Information-grid first: readable density in controls, tables, filters, and forms; generous section whitespace on an **8px grid** (8 / 16 / 24 / 32 / 48 / 64).
@@ -188,8 +199,8 @@ Default audience is a **busy parent**: log a spend in seconds, then scan where m
 
 | Tab / route | Job |
 |-------------|-----|
-| **Spending** `/money` (home) | Default landing: full ledger. Signed-in `/` redirects here. `/money/spending` redirects here. |
-| **Add** `/money/new` | Capture a transaction (form lookups load here, not on Insights). |
+| **Spending** `/money` | Full ledger. `/money/spending` redirects here. |
+| **Add** `/money/new` | Default landing after sign-in (`/` redirects here). Capture a transaction (form lookups load here, not on Insights). |
 | **Insights** `/money/insights` | KPIs + spend-by-category + income vs expense. Remaining charts behind **More insights**. |
 | **Investments Insights** `/investments/insights` | Results, open notional, realized P&amp;L, open lots; results-over-time + allocation. Holdings tables behind **More insights**. |
 | **Loans Insights** `/loans/insights` | Remaining, monthly obligation, weighted APR, next due; remaining-by-loan + paid principal vs interest. Extra payoff charts behind **More insights**. |
@@ -549,6 +560,7 @@ Wizard steps: render the step hint under the progress bar. Review/summary steps 
 - [ ] Feedback scale matches stakes (field / Alert / toast / Modal); error copy via `toUserFacingMessage`; success names the object.
 - [ ] Nested pages use location crumbs from the section origin; top-level sections have none.
 - [ ] Dashboards: metrics → optional chart → table; no extra viz “because we have the data.”
+- [ ] Kiosk: context strip → metrics band → action list; no double headings; skeleton matches `@container` / auto-fit.
 - [ ] Skeleton/loading order matches live page stack (chip → filters → KPIs → content).
 - [ ] Verified light and dark via `/settings`.
 - [ ] `npm run lint` and `npm run build` pass.

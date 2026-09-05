@@ -15,7 +15,7 @@ const WEEKDAYS = [
   "Saturday",
 ] as const;
 
-export function HomeContextStrip({
+export function KioskContextStrip({
   weather,
   weatherCity,
 }: {
@@ -32,11 +32,11 @@ export function HomeContextStrip({
     iso;
 
   return (
-    <Card className="@container px-4 py-4">
+    <Card className="@container px-4 py-5">
       <div className="grid min-w-0 gap-4 @[32rem]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] @[32rem]:items-center @[32rem]:gap-6">
         <div className="min-w-0">
           <p className="text-sm font-medium text-muted">Today</p>
-          <p className="mt-1 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          <p className="mt-1 font-display text-3xl font-semibold tracking-tight text-foreground">
             {weekday}
           </p>
           <p className="mt-0.5 text-sm text-muted">{calendarDate}</p>
@@ -48,18 +48,10 @@ export function HomeContextStrip({
         />
 
         <div className="min-w-0 @[32rem]:text-end">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 @[32rem]:justify-end">
-            <p className="text-sm font-medium text-muted">Weather</p>
-            <Link
-              href="/settings#settings-home"
-              className="text-sm font-medium text-accent underline-offset-4 transition-colors duration-150 hover:underline"
-            >
-              Change city
-            </Link>
-          </div>
+          <p className="text-sm font-medium text-muted">Weather</p>
           {weather ? (
             <>
-              <p className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl @[32rem]:text-end">
+              <p className="mt-1 font-display text-3xl font-semibold tracking-tight tabular-nums @[32rem]:text-end">
                 {Math.round(weather.tempC)}°C
               </p>
               <p className="mt-0.5 text-sm text-foreground @[32rem]:text-end">
@@ -77,7 +69,7 @@ export function HomeContextStrip({
                 <>
                   Set your city in{" "}
                   <Link
-                    href="/settings#settings-home"
+                    href="/settings#settings-kiosk"
                     className="font-medium text-accent underline-offset-4 hover:underline"
                   >
                     Settings

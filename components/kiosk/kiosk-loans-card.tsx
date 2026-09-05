@@ -6,7 +6,7 @@ import { LoanPayActions } from "@/components/loan-pay-actions";
 import { Alert } from "@/components/ui/alert";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
-import type { HomePageData } from "@/lib/home-services/load-home-page";
+import type { KioskLoansPaymentsWidget } from "@/lib/kiosk/load-kiosk-page";
 
 function LoanPaymentRow({
   loanName,
@@ -52,10 +52,10 @@ function LoanPaymentRow({
   );
 }
 
-export function HomeLoansCard({
+export function KioskLoansCard({
   loans,
 }: {
-  loans: HomePageData["loans"];
+  loans: KioskLoansPaymentsWidget;
 }) {
   const { formatDate } = useFormatDate();
   const hasOverdue = loans.overdue.length > 0;
@@ -120,12 +120,6 @@ export function HomeLoansCard({
           <p className="mt-1 text-sm text-muted">
             Active loans with a due date will show up here.
           </p>
-          <Link
-            href="/loans"
-            className="mt-4 inline-flex text-sm font-medium text-accent underline-offset-4 transition-colors duration-150 hover:underline"
-          >
-            Open loans
-          </Link>
         </div>
       )}
     </div>
