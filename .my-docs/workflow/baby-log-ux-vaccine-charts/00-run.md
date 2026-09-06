@@ -1,6 +1,6 @@
 # Workflow run: baby-log-ux-vaccine-charts
 
-**Status:** test-passed (round 4 green; ready for Gate 3 / merge)
+**Status:** done
 
 ## Resolved models
 
@@ -129,3 +129,5 @@ Newest at the bottom. Format: `- **HH:MM** · running|done|paused|stopped · Ste
 - **05:53** · failed · Step 12 — Run suite (round 3) · build 0 · unit 0 · e2e 1 · 20 pass · 2 fail (sleep navigate, vaccine create) · 0 auth-skipped · write tests ran · 06-test-log.md
 - **05:59** · done · Fix from test log (round 3) · sleep e2e settle + vaccine cursor/migrate · focused e2e green · parent re-runs suite · see 06-test-log Round notes
 - **06:05** · done · Step 12 — Run suite (round 4) · success · build 0 · unit 0 · e2e 0 · 22 pass · 0 MISSING · 06-test-log.md
+- **06:16** · done · Gate 3 — push main (no PR) · `49e28a0`
+- **06:16** · done · Workflow finished
