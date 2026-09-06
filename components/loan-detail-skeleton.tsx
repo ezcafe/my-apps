@@ -12,12 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 import { MoneyQuickPickGroupSkeleton } from "@/components/money-dashboard-skeleton";
 
 const LOAN_DETAIL_GRID_CLASS = cn(
-  MONEY_FULL_SPAN,
+  SHELL_FULL_SPAN,
   "grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3",
 );
 

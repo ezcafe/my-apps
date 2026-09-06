@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
 import { useNotify } from "@/components/notification-provider";
-import { SettingsSection } from "@/components/money-settings/money-settings-shared";
+import { SettingsSection } from "@/components/settings/settings-section";
 import { CoreShellPage } from "@/components/core-shell-page";
 import {
   API_HELP_BASE_URL_PLACEHOLDER,

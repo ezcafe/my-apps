@@ -32,7 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatMinor, formatCompactMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { toggleSetKey } from "@/lib/chart-legend-toggle";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { loanDetailQueryOptions, type LoanDetail } from "@/lib/loans-query-options";
 import { cn } from "@/lib/cn";
 
@@ -58,7 +58,7 @@ const LoanProgressChart = dynamic(
 );
 
 const LOAN_DETAIL_GRID_CLASS = cn(
-  MONEY_FULL_SPAN,
+  SHELL_FULL_SPAN,
   "grid w-full grid-cols-2 gap-2 md:grid-cols-6 md:gap-3 lg:grid-cols-12 lg:gap-3",
 );
 
@@ -183,7 +183,7 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
 
   if (detailQuery.isError || !loan) {
     return (
-      <div className={MONEY_FULL_SPAN}>
+      <div className={SHELL_FULL_SPAN}>
         <Alert
           variant="error"
           title="Couldn’t load loan"

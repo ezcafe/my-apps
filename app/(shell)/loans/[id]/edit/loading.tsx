@@ -1,10 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 
 export default function LoanEditLoading() {
   return (
-    <div className={cn(MONEY_FULL_SPAN, "space-y-5")}>
+    <div className={cn(SHELL_FULL_SPAN, "space-y-5")}>
       <Skeleton className="h-10 w-full max-w-xl rounded-[var(--radius-sm)]" />
       <div className="grid gap-2">
         <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />

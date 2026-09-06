@@ -1,5 +1,5 @@
 import dynamic from "next/dynamic";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { InvestmentOpenCloseFormSkeleton } from "@/components/money-dashboard-skeleton";
 
 const InvestmentOpenCloseFormLazy = dynamic(
@@ -21,7 +21,7 @@ export default async function InvestmentsNewPage({
 }) {
   const { instrumentId, mode, openActivityId } = await searchParams;
   return (
-    <div className={MONEY_FULL_SPAN}>
+    <div className={SHELL_FULL_SPAN}>
       <InvestmentOpenCloseFormLazy
         initialInstrumentId={instrumentId}
         initialMode={mode}

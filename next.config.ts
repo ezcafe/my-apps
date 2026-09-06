@@ -31,6 +31,19 @@ const nextConfig: NextConfig = {
         destination: "/money/insights/:path*",
         permanent: true,
       },
+      // Baby: Growth + Timeline merged into Insights
+      { source: "/baby/growth", destination: "/baby/insights", permanent: true },
+      {
+        source: "/baby/growth/:path*",
+        destination: "/baby/insights",
+        permanent: true,
+      },
+      { source: "/baby/timeline", destination: "/baby/insights", permanent: true },
+      {
+        source: "/baby/timeline/:path*",
+        destination: "/baby/insights",
+        permanent: true,
+      },
       { source: "/savings", destination: "/money/savings", permanent: true },
       { source: "/savings/:path*", destination: "/money/savings", permanent: true },
       { source: "/investment/activities", destination: "/investments", permanent: true },

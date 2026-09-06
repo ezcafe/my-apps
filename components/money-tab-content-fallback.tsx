@@ -1,12 +1,12 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 
 /** Placeholder while a money tab panel chunk loads (`next/dynamic`). */
 export function MoneyTabContentFallback() {
   return (
     <div
-      className={cn(MONEY_FULL_SPAN, "space-y-6")}
+      className={cn(SHELL_FULL_SPAN, "space-y-6")}
       aria-busy="true"
       aria-live="polite"
       aria-label="Loading settings content"

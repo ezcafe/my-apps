@@ -27,7 +27,7 @@ import { resolveActiveFilterLabels } from "@/lib/money-active-filter-summary";
 import { useSetAppHeader } from "@/components/app-header-override";
 import { MoneyLedgerSummaryStats } from "@/components/money-ledger-summary-stats";
 import { MoneyLedgerTrendCard } from "@/components/money-ledger-trend-card";
-import { MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
@@ -369,8 +369,8 @@ export function MoneyTransactionsPage({
     return (
       <div
         className={cn(
-          !isSection && MONEY_FULL_SPAN,
-          MONEY_DASHBOARD_STACK,
+          !isSection && SHELL_FULL_SPAN,
+          SHELL_DASHBOARD_STACK,
         )}
       >
         <MoneyAnalyticsFiltersBarSkeleton />
@@ -384,8 +384,8 @@ export function MoneyTransactionsPage({
   return (
     <div
       className={cn(
-        !isSection && MONEY_FULL_SPAN,
-        MONEY_DASHBOARD_STACK,
+        !isSection && SHELL_FULL_SPAN,
+        SHELL_DASHBOARD_STACK,
       )}
     >
       <AnalyticsFiltersBar

@@ -9,7 +9,7 @@ import {
   ANALYTICS_HERO_SIDE_CLASS,
 } from "@/components/analytics-chart-layout";
 import { MoneyFilterToolbar } from "@/components/money-page-header";
-import { MONEY_DASHBOARD_STACK, MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -359,7 +359,7 @@ export function MoneyAnalyticsTransactionsTableSkeleton({
 export function MoneyAnalyticsPageSkeleton() {
   return (
     <div
-      className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}
+      className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK)}
       role="status"
       aria-busy="true"
       aria-live="polite"
@@ -381,7 +381,7 @@ export function MoneyAnalyticsPageSkeleton() {
 export function FeatureInsightsPageSkeleton() {
   return (
     <div
-      className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}
+      className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK)}
       role="status"
       aria-busy="true"
       aria-live="polite"
@@ -409,7 +409,7 @@ export function MoneyLedgerPageSkeleton({
 } = {}) {
   return (
     <div
-      className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}
+      className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK)}
       role="status"
       aria-busy="true"
       aria-live="polite"

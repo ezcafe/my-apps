@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
-import { SettingsSection } from "@/components/money-settings/money-settings-shared";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SettingsSection } from "@/components/settings/settings-section";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 
 type NamedEntityRow = { id: string; name: string };
 
@@ -163,7 +163,7 @@ export function MoneyNamedEntitySettingsSection({
   );
 
   return (
-    <div className={MONEY_FULL_SPAN}>
+    <div className={SHELL_FULL_SPAN}>
       {bootstrapErr ? (
         <Alert
           variant="error"

@@ -27,8 +27,8 @@ import {
 } from "@/lib/money-category-ui";
 import {
   SettingsSection,
-} from "@/components/money-settings/money-settings-shared";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+} from "@/components/settings/settings-section";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 
 type Category = MoneyCategoryRow & { archived?: boolean };
 
@@ -80,7 +80,7 @@ export function MoneySettingsCategoriesSection() {
   }, [loadCategories]);
 
   return (
-    <div className={MONEY_FULL_SPAN}>
+    <div className={SHELL_FULL_SPAN}>
       {bootstrapErr ? (
         <Alert
           variant="error"

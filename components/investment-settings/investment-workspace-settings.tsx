@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "@/components/ui/alert";
-import { SettingsSection } from "@/components/money-settings/money-settings-shared";
+import { SettingsSection } from "@/components/settings/settings-section";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import { MONEY_LIST_ACCOUNTS_QUERY } from "@/lib/money-gql-documents";

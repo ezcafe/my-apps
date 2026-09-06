@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { MoneyStatusEmphasis, MoneyStatusStrip } from "@/lib/money-status-strip";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import type { UsageRankedItem } from "@/lib/money-usage-quick-pick";
@@ -922,7 +922,7 @@ export function MoneyCsvImportWizard({
   }, [headers, parsedRows, preview]);
 
   return (
-    <div className={cn(MONEY_FULL_SPAN, "min-w-0")}>
+    <div className={cn(SHELL_FULL_SPAN, "min-w-0")}>
       <ImportProgress current={step} onStepClick={goToStep} />
 
       {step === "type" ? (

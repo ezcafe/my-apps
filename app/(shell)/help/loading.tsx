@@ -1,10 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 
 export default function HelpLoading() {
   return (
-    <div className={`${MONEY_FULL_SPAN} space-y-8`} aria-busy aria-label="Loading API help">
+    <div className={`${SHELL_FULL_SPAN} space-y-8`} aria-busy aria-label="Loading API help">
       {/* Anchor Jump Bar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
         <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useNotify } from "@/components/notification-provider";
-import { SettingsSection } from "@/components/money-settings/money-settings-shared";
+import { SettingsSection } from "@/components/settings/settings-section";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";

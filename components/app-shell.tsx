@@ -6,6 +6,11 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { MoneyAppMenu } from "@/components/money-section-tabs";
+import { IconBaby } from "@/components/icons/icon-baby";
+import {
+  shellItemLabel,
+  useBabyNavLabel,
+} from "@/components/use-baby-nav-label";
 import {
   isShellNavActive,
   type ShellNavIconId,
@@ -175,6 +180,7 @@ const shellNavIcons: Record<
   savings: IconSavings,
   investment: IconInvestment,
   loans: IconLoans,
+  baby: IconBaby,
   help: IconHelp,
   settings: IconSettings,
 };
@@ -188,7 +194,8 @@ function NavLinkRail({
   const active = isShellNavActive(item, pathname);
   const Icon = shellNavIcons[item.icon];
   const href = item.href;
-  const label = item.label;
+  const babyLabel = useBabyNavLabel(item.label);
+  const label = shellItemLabel(item, babyLabel);
 
   return (
     <Link

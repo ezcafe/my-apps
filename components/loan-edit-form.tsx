@@ -12,13 +12,13 @@ import {
 import { Alert } from "@/components/ui/alert";
 import { buttonClassName } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { loanDetailQueryOptions } from "@/lib/loans-query-options";
 import { cn } from "@/lib/cn";
 
 function LoanEditFormSkeleton() {
   return (
-    <div className={cn(MONEY_FULL_SPAN, "space-y-5")}>
+    <div className={cn(SHELL_FULL_SPAN, "space-y-5")}>
       <Skeleton className="h-10 w-full max-w-xl rounded-[var(--radius-sm)]" />
       <div className="grid gap-2">
         <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
@@ -85,7 +85,7 @@ function LoanEditInner({ loanId }: { loanId: string }) {
 
   if (detailQuery.isError || !loan) {
     return (
-      <div className={MONEY_FULL_SPAN}>
+      <div className={SHELL_FULL_SPAN}>
         <Alert
           variant="error"
           title="Couldn’t load loan"
@@ -109,7 +109,7 @@ function LoanEditInner({ loanId }: { loanId: string }) {
 
   if (loan.status === "cancelled") {
     return (
-      <div className={MONEY_FULL_SPAN}>
+      <div className={SHELL_FULL_SPAN}>
         <Alert
           variant="warning"
           title="This loan was deleted"

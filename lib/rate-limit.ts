@@ -93,7 +93,10 @@ export async function enforceRateLimit(opts: RateLimitOptions): Promise<boolean>
     const count = rows[0]?.count ?? 1;
     return count <= opts.points;
   } catch (e) {
-    if (isDbUnreachable(e)) {
+    if (
+      isDbUnreachable(e) ||
+      (e instanceof Error && e.message === "DATABASE_URL is not set")
+    ) {
       // Prefer in-memory fallback over fail-open when the rate-limit store is down.
       return enforceMemoryRateLimit(key, opts.points, opts.durationSeconds);
     }

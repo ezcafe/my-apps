@@ -14,7 +14,7 @@ import {
   type SettingsCategoryMeta,
 } from "./settings-types";
 import { Button } from "@/components/ui/button";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 
 export type SettingsPageLayoutProps<T extends string = string> = {
@@ -94,7 +94,7 @@ export function SettingsPageLayout<T extends string = string>({
   const hasMatches = matchingCategories.length > 0;
 
   return (
-    <div className={cn(MONEY_FULL_SPAN, "space-y-6", className)}>
+    <div className={cn(SHELL_FULL_SPAN, "space-y-6", className)}>
       {topAlert}
 
       <div className="flex flex-col md:flex-row gap-6 md:gap-8 lg:gap-10 items-start">

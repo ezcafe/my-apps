@@ -1209,7 +1209,20 @@ export type InsightsDateRangeValue = {
   toDate: string;
 };
 
-/** Date-only Insights toolbar (Investments / Loans) — same chrome as Money Insights. */
+/** Optional Accounts-style multi-select menu on the Insights date toolbar. */
+export type InsightsMultiSelectFilter = {
+  id: string;
+  label: string;
+  legend: string;
+  ariaLabel: string;
+  items: readonly { id: string; label: string }[];
+  value: string[];
+  onChange: (next: string[]) => void;
+  otherLabel?: string;
+  emptyMessage?: string;
+};
+
+/** Date Insights toolbar (Investments / Loans / Baby). Optional multi-selects mirror Money Accounts. */
 export function InsightsDateRangeFiltersBar({
   value,
   onChange,
@@ -1217,6 +1230,8 @@ export function InsightsDateRangeFiltersBar({
   onReset,
   applying,
   dirty,
+  labels,
+  multiSelectFilters = [],
 }: {
   value: InsightsDateRangeValue;
   onChange: (next: InsightsDateRangeValue) => void;
@@ -1224,6 +1239,15 @@ export function InsightsDateRangeFiltersBar({
   onReset: () => void;
   applying: boolean;
   dirty: boolean;
+  /** Optional locale strings (Baby VI); defaults keep Money English chrome. */
+  labels?: {
+    apply?: string;
+    applyFilters?: string;
+    reset?: string;
+    applying?: string;
+  };
+  /** Extra FilterMenus (e.g. Baby Care = Feed/Sleep/Diaper), same pattern as Money Accounts. */
+  multiSelectFilters?: readonly InsightsMultiSelectFilter[];
 }) {
   const { formatDate } = useFormatDate();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -1231,7 +1255,15 @@ export function InsightsDateRangeFiltersBar({
   const defaults = defaultAnalyticsFilters();
   const dateActive =
     value.fromDate !== defaults.fromDate || value.toDate !== defaults.toDate;
+  const multiActive = multiSelectFilters.some((f) => f.value.length > 0);
   const dateLabel = `${formatDate(value.fromDate, { omitYear: true }) || "—"} – ${formatDate(value.toDate, { omitYear: true }) || "—"}`;
+  const applyLabel = labels?.apply ?? "Apply";
+  const resetLabel = labels?.reset ?? "Reset";
+  const applyingLabel = labels?.applying ?? "Loading…";
+  const mobileApplyLabel = applying
+    ? applyingLabel
+    : (labels?.applyFilters ?? "Apply filters");
+  const desktopApplyLabel = applying ? applyingLabel : applyLabel;
 
   const dateFields = (
     <div className="grid gap-4">
@@ -1250,6 +1282,25 @@ export function InsightsDateRangeFiltersBar({
     </div>
   );
 
+  const multiSelectFields = multiSelectFilters.map((filter) => (
+    <MoneyUsageMultiQuickPick
+      key={filter.id}
+      legend={filter.legend}
+      ariaLabel={filter.ariaLabel}
+      items={filter.items.map(
+        (i): UsageRankedItem => ({
+          id: i.id,
+          label: i.label,
+          usageCount: 0,
+        }),
+      )}
+      value={filter.value}
+      onChange={filter.onChange}
+      otherLabel={filter.otherLabel ?? "Other"}
+      emptyMessage={filter.emptyMessage ?? "No options"}
+    />
+  ));
+
   return (
     <section className={cn("@container fx-fade-in")} aria-label="Insights filters">
       <div className="w-full @md:hidden">
@@ -1259,7 +1310,7 @@ export function InsightsDateRangeFiltersBar({
           className="w-full justify-between"
           onClick={() => setMobileFiltersOpen(true)}
           trailing={
-            dirty || dateActive ? (
+            dirty || dateActive || multiActive ? (
               <span className="size-1.5 rounded-full bg-accent/70" aria-hidden />
             ) : null
           }
@@ -1299,7 +1350,10 @@ export function InsightsDateRangeFiltersBar({
                 ✕
               </Button>
             </div>
-            <div className="mt-4">{dateFields}</div>
+            <div className="mt-4 space-y-4">
+              {dateFields}
+              {multiSelectFields}
+            </div>
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <Button
                 type="button"
@@ -1310,7 +1364,7 @@ export function InsightsDateRangeFiltersBar({
                 }}
                 disabled={applying || !dirty}
               >
-                {applying ? "Loading…" : "Apply filters"}
+                {mobileApplyLabel}
               </Button>
               <Button
                 type="button"
@@ -1318,7 +1372,7 @@ export function InsightsDateRangeFiltersBar({
                 onClick={onReset}
                 disabled={applying}
               >
-                Reset
+                {resetLabel}
               </Button>
               {dirty ? (
                 <span className="text-sm text-muted fx-fade-in">
@@ -1341,6 +1395,33 @@ export function InsightsDateRangeFiltersBar({
         >
           {dateFields}
         </FilterMenu>
+        {multiSelectFilters.map((filter) => (
+          <FilterMenu
+            key={filter.id}
+            id={filter.id}
+            label={filter.label}
+            activeCount={filter.value.length}
+            openMenu={openMenu}
+            onOpenMenu={setOpenMenu}
+            panelClassName="min-w-[min(100vw-2rem,22rem)]"
+          >
+            <MoneyUsageMultiQuickPick
+              legend={filter.legend}
+              ariaLabel={filter.ariaLabel}
+              items={filter.items.map(
+                (i): UsageRankedItem => ({
+                  id: i.id,
+                  label: i.label,
+                  usageCount: 0,
+                }),
+              )}
+              value={filter.value}
+              onChange={filter.onChange}
+              otherLabel={filter.otherLabel ?? "Other"}
+              emptyMessage={filter.emptyMessage ?? "No options"}
+            />
+          </FilterMenu>
+        ))}
         <div className="ms-2 flex shrink-0 items-center gap-2 border-s border-border ps-3">
           <Button
             type="button"
@@ -1352,7 +1433,7 @@ export function InsightsDateRangeFiltersBar({
             }}
             disabled={applying || !dirty}
           >
-            {applying ? "Loading…" : "Apply"}
+            {desktopApplyLabel}
           </Button>
           <Button
             type="button"
@@ -1361,7 +1442,7 @@ export function InsightsDateRangeFiltersBar({
             onClick={onReset}
             disabled={applying}
           >
-            Reset
+            {resetLabel}
           </Button>
         </div>
       </MoneyFilterToolbar>

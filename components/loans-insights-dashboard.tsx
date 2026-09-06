@@ -30,7 +30,7 @@ import { LoansInsightsStats } from "@/components/loans-insights-stats";
 import { LoansRemainingByLoanCard } from "@/components/loan-chart-cards/remaining-by-loan-card";
 import { LoansPaidPrincipalInterestCard } from "@/components/loan-chart-cards/paid-principal-interest-card";
 import { useLoansWorkspace } from "@/components/loans-workspace-provider";
-import { MONEY_DASHBOARD_STACK, MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 import { formatMinor, formatCompactMinor } from "@/lib/format-money";
 import { loansInsightsDefaultRange } from "@/lib/money-first-load-filters";
@@ -103,7 +103,7 @@ export function LoansInsightsDashboard() {
   }
 
   return (
-    <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
+    <div className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK)}>
       <InsightsDateRangeFiltersBar
         value={{ fromDate: draft.from, toDate: draft.to }}
         onChange={(next) => setDraft({ from: next.fromDate, to: next.toDate })}

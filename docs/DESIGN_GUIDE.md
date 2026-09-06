@@ -80,7 +80,7 @@ Stack **metric cards → (optional chart) → table**, top to bottom (F/Z scan: 
 3. **Chart** *(optional)* — visx chart card when the ledger preset defines `chart` (e.g. Bills, Savings). **Spending** omits the chart — metrics + table only. Do not add a viz because the data exists.
 4. **Table** — transaction ledger ([`AnalyticsTransactionsTable`](../components/analytics-transactions-table.tsx)) as a flat `<section>` with hairline table chrome — **not** wrapped in a Card.
 
-Wrap page bodies in [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) (`flex flex-col gap-8`) with semantic `<section>` landmarks. Apply [`MONEY_FULL_SPAN`](../lib/money-layout.ts) **once** on the outermost page body in the shell grid — never on nested filters, tables, or section children.
+Wrap page bodies in [`SHELL_DASHBOARD_STACK`](../lib/shell-layout.ts) (`flex flex-col gap-8`) with semantic `<section>` landmarks. Apply [`SHELL_FULL_SPAN`](../lib/shell-layout.ts) **once** on the outermost page body in the shell grid — never on nested filters, tables, or section children.
 
 ```text
 [ Crumbs when nested ──────────── ]
@@ -369,9 +369,9 @@ withViewTransition(() => setTheme("dark"));
 ## Layout rules
 
 - **Container**: `.shell-main` for top-level page padding/max width.
-- **One full-span**: [`MONEY_FULL_SPAN`](../lib/money-layout.ts) once per grid child under Money / ShellMainPage — not on nested filters or tables.
-- **Dashboard stack**: [`MONEY_DASHBOARD_STACK`](../lib/money-layout.ts) for metric cards + chart + table pages (`gap-8`).
-- **Flat sections**: tables and forms are `<section>` / heading + content on the page background; Cards reserved for metrics, charts, and entity tiles. Settings use [`SettingsSection`](../components/money-settings/money-settings-shared.tsx) (heading + body, no Card).
+- **One full-span**: [`SHELL_FULL_SPAN`](../lib/shell-layout.ts) once per grid child under Money / ShellMainPage — not on nested filters or tables.
+- **Dashboard stack**: [`SHELL_DASHBOARD_STACK`](../lib/shell-layout.ts) for metric cards + chart + table pages (`gap-8`).
+- **Flat sections**: tables and forms are `<section>` / heading + content on the page background; Cards reserved for metrics, charts, and entity tiles. Settings use [`SettingsSection`](../components/settings/settings-section.tsx) (heading + body, no Card).
 - **Multi-column**: `repeat(auto-fit, minmax(min(100%, 22rem), 1fr))` (`.auto-fit-2`). Breakpoint utilities only for shell chrome (hamburger vs rail).
 - **Container queries**: `cqi` / `container-type` / `@container` for filter bars and chart cards.
 - **Density**: `--space-step`; compact controls + airy section rhythm.

@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { MoneyQuickPickGroupSkeleton } from "@/components/money-dashboard-skeleton";
 
 const PLATFORM_COUNT = 3;
@@ -14,7 +14,7 @@ export function InvestmentStatementImportSkeleton({
 }) {
   return (
     <div
-      className={cn(MONEY_FULL_SPAN, "min-w-0", className)}
+      className={cn(SHELL_FULL_SPAN, "min-w-0", className)}
       aria-busy="true"
       aria-live="polite"
       aria-label="Loading statement import wizard"

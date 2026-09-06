@@ -260,6 +260,20 @@
       "when": 1779835400000,
       "tag": "0036_kiosk_widgets",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1779835500000,
+      "tag": "0037_baby",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1779835600000,
+      "tag": "0038_baby_vaccine",
+      "breakpoints": true
     }
   ]
 }

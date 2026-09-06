@@ -12,7 +12,7 @@ import { AnalyticsStatsSkeleton } from "@/components/money-analytics-skeleton";
 import { MoneyTransactionsPage } from "@/components/money-transactions-page";
 import { useInvestmentWorkspace } from "@/components/investment-workspace-provider";
 import { MONEY_LEDGER_INVESTMENT } from "@/lib/money-ledger-presets";
-import { MONEY_DASHBOARD_STACK, MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 import { investmentInsightsDefaultRange } from "@/lib/money-first-load-filters";
 import {
@@ -44,7 +44,7 @@ export function InvestmentOverviewPage({
   });
 
   return (
-    <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
+    <div className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK)}>
       {atfQuery.data ? (
         <section aria-label="Portfolio summary">
           <InvestmentInsightsStats

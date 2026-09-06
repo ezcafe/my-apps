@@ -4,6 +4,9 @@ import { IBM_Plex_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { RootProviders } from "@/components/root-providers";
 import {
+  babyLocaleInitInlineScript,
+} from "@/lib/baby-i18n";
+import {
   DATE_FORMAT_COOKIE,
   dateFormatInitInlineScript,
   parseDateFormat,
@@ -53,6 +56,9 @@ export default async function RootLayout({
         />
         <script
           dangerouslySetInnerHTML={{ __html: dateFormatInitInlineScript() }}
+        />
+        <script
+          dangerouslySetInnerHTML={{ __html: babyLocaleInitInlineScript() }}
         />
       </head>
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">

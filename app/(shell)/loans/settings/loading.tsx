@@ -1,10 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 
 export default function LoansSettingsLoading() {
   return (
     <div
-      className={`${MONEY_FULL_SPAN} space-y-6`}
+      className={`${SHELL_FULL_SPAN} space-y-6`}
       aria-busy
       aria-label="Loading loans settings"
     >

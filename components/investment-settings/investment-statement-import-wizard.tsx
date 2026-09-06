@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { formatMinor } from "@/lib/format-money";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import {
   moneyQuickPickChipCls,
   moneyQuickPickGroupCls,
@@ -265,7 +265,7 @@ export function InvestmentStatementImportWizard() {
   const selectedPlatformObj = PLATFORMS.find((p) => p.id === selectedPlatform);
 
   return (
-    <div className={cn(MONEY_FULL_SPAN, "min-w-0")}>
+    <div className={cn(SHELL_FULL_SPAN, "min-w-0")}>
       <ImportProgress current={step} onStepClick={goToStep} />
 
       {error ? (

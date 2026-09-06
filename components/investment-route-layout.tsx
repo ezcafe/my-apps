@@ -9,7 +9,7 @@ import { GraphQLMoneyProvider } from "@/components/graphql-money-provider";
 import { PageHeading } from "@/components/page-heading";
 import { buttonClassName } from "@/components/ui/button";
 import { resolveInvestmentAppHeader } from "@/lib/investment-app-header";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 
 function IconPlus(props: SVGProps<SVGSVGElement>) {
   return (
@@ -40,7 +40,7 @@ function InvestmentSectionHeading() {
 
   return (
     <PageHeading
-      className={MONEY_FULL_SPAN}
+      className={SHELL_FULL_SPAN}
       leading={<MoneyAppMenu />}
       title={title}
       description={description}

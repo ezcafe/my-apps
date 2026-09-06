@@ -20,7 +20,7 @@ import {
   MONEY_OPTIONAL_SECTION_TAB_LABELS,
   useMoneySectionTabVisibility,
 } from "@/lib/money-section-tab-visibility";
-import { SettingsSection } from "@/components/money-settings/money-settings-shared";
+import { SettingsSection } from "@/components/settings/settings-section";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { SettingsPageLayout } from "@/components/settings/settings-page-layout";
 import {

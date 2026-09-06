@@ -1,9 +1,9 @@
 import { LoansDashboard } from "@/components/loans-dashboard";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 
 export function MoneyLoansHome() {
   return (
-    <div className={MONEY_FULL_SPAN}>
+    <div className={SHELL_FULL_SPAN}>
       <LoansDashboard />
     </div>
   );

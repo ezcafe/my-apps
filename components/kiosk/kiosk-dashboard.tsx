@@ -7,7 +7,7 @@ import { KioskNetCard, KioskNetUnavailable } from "@/components/kiosk/kiosk-net-
 import { KioskSectionHeading } from "@/components/kiosk/kiosk-section-heading";
 import { kioskWidgetDefinition, type KioskWidgetId } from "@/lib/kiosk/widget-registry";
 import type { KioskPageData } from "@/lib/kiosk/load-kiosk-page";
-import { MONEY_DASHBOARD_STACK } from "@/lib/money-layout";
+import { SHELL_DASHBOARD_STACK } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 
 const LoansInsightsStats = dynamic(() =>
@@ -55,7 +55,7 @@ export function KioskDashboard({ data }: { data: KioskPageData }) {
   const loansDef = kioskWidgetDefinition("loans.payments");
 
   return (
-    <div className={cn(MONEY_DASHBOARD_STACK, "fx-fade-in fx-stagger-children")}>
+    <div className={cn(SHELL_DASHBOARD_STACK, "fx-fade-in fx-stagger-children")}>
       {showFinanceAlerts && data.dbUnavailable ? (
         <Alert
           variant="warning"

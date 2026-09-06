@@ -1,12 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MONEY_DASHBOARD_STACK } from "@/lib/money-layout";
+import { SHELL_DASHBOARD_STACK } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 
 export function KioskDashboardSkeleton() {
   return (
     <div
-      className={cn(MONEY_DASHBOARD_STACK)}
+      className={cn(SHELL_DASHBOARD_STACK)}
       aria-busy
       aria-label="Loading kiosk"
     >

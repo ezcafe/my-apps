@@ -10,6 +10,7 @@ export function AnalyticsPeriodChip({
   activeFilters,
   dirty = false,
   className,
+  labels,
 }: {
   fromDate: string;
   toDate: string;
@@ -18,18 +19,25 @@ export function AnalyticsPeriodChip({
   /** Draft filters differ from applied — prompt Apply. */
   dirty?: boolean;
   className?: string;
+  /** Optional locale strings (Baby VI); defaults keep Money English chrome. */
+  labels?: {
+    showing?: string;
+    applyToUpdate?: string;
+  };
 }) {
   const { formatDate, formatPeriod } = useFormatDate();
   const period =
     formatPeriod(fromDate, toDate) ||
     `${formatDate(fromDate, { omitYear: true }) || "—"} – ${formatDate(toDate, { omitYear: true }) || "—"}`;
+  const showing = labels?.showing ?? "Showing";
+  const applyToUpdate = labels?.applyToUpdate ?? "Apply to update";
 
   return (
     <p
       className={cn("text-sm text-muted fx-fade-in", className)}
       aria-live="polite"
     >
-      Showing{" "}
+      {showing}{" "}
       <span className="font-medium text-foreground tabular-nums">{period}</span>
       {activeFilters && activeFilters.length > 0 ? (
         <>
@@ -46,7 +54,7 @@ export function AnalyticsPeriodChip({
         <>
           {" "}
           ·{" "}
-          <span className="font-medium text-foreground">Apply to update</span>
+          <span className="font-medium text-foreground">{applyToUpdate}</span>
         </>
       ) : null}
     </p>

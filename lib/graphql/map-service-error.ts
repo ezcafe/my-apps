@@ -12,6 +12,7 @@ const ALLOWLISTED: Record<string, { message: string; code: string }> = {
     message: "Service temporarily unavailable",
     code: "DB_UNAVAILABLE",
   },
+  CONFLICT: { message: "Conflict", code: "CONFLICT" },
 };
 
 /**
@@ -20,6 +21,10 @@ const ALLOWLISTED: Record<string, { message: string; code: string }> = {
  */
 export function mapServiceError(e: unknown, requestId?: string): never {
   const msg = e instanceof Error ? e.message : String(e);
+  if (msg.startsWith("CONFLICT")) {
+    const cleaned = msg.replace(/^CONFLICT:\s*/i, "") || "Conflict";
+    gqlErr(cleaned, "CONFLICT");
+  }
   const known = ALLOWLISTED[msg];
   if (known) gqlErr(known.message, known.code);
 

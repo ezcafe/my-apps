@@ -3,7 +3,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
@@ -27,7 +27,7 @@ export class AnalyticsErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div className={MONEY_FULL_SPAN}>
+        <div className={SHELL_FULL_SPAN}>
           <Alert
             variant="error"
             title="Analytics failed to load"

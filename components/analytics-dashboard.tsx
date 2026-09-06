@@ -36,7 +36,7 @@ import { resolveActiveFilterLabels } from "@/lib/money-active-filter-summary";
 import { useSetAppHeader } from "@/components/app-header-override";
 import { useTheme } from "@/components/theme-provider";
 import { Alert } from "@/components/ui/alert";
-import { MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 import {
   defaultAnalyticsFilters,
@@ -904,7 +904,7 @@ export function AnalyticsDashboard({
   }
 
   return (
-    <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
+    <div className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK)}>
       <AnalyticsFiltersBar
         viewFilter={{
           menuLabel: "Ledger",

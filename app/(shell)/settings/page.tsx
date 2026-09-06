@@ -2,7 +2,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { listApiTokensForUser } from "@/lib/api-token-service";
 import { fetchWorkspacesForUser } from "@/lib/workspace-list";
-import { SettingsSection } from "@/components/money-settings/money-settings-shared";
+import { SettingsSection } from "@/components/settings/settings-section";
 import { ApiTokenSettings } from "@/components/api-token-settings";
 import { CoreShellPage } from "@/components/core-shell-page";
 import { DateFormatSettings } from "@/components/date-format-settings";

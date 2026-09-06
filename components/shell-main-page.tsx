@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { MoneyAppMenu } from "@/components/money-section-tabs";
 import { PageHeading } from "@/components/page-heading";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 
 const SHELL_MAIN_GRID =
@@ -34,7 +34,7 @@ export function ShellMainPage({
   return (
     <div className={SHELL_MAIN_GRID}>
       <PageHeading
-        className={MONEY_FULL_SPAN}
+        className={SHELL_FULL_SPAN}
         leading={<MoneyAppMenu />}
         title={title}
         meta={meta ?? subtitle}
@@ -42,7 +42,7 @@ export function ShellMainPage({
         actions={actions}
         breadcrumbs={breadcrumbs}
       />
-      <div className={cn(MONEY_FULL_SPAN, "space-y-6")}>{children}</div>
+      <div className={cn(SHELL_FULL_SPAN, "space-y-6")}>{children}</div>
     </div>
   );
 }

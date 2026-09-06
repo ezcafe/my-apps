@@ -2,7 +2,7 @@ import dynamic from "next/dynamic";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 
 function InstrumentFormSkeleton() {
   return (
@@ -42,7 +42,7 @@ const InvestmentInstrumentFormLazy = dynamic(
 
 export default function InvestmentInstrumentNewPage() {
   return (
-    <div className={MONEY_FULL_SPAN}>
+    <div className={SHELL_FULL_SPAN}>
       <InvestmentInstrumentFormLazy />
     </div>
   );

@@ -1,10 +1,10 @@
 import dynamic from "next/dynamic";
 import { MoneyListSkeleton } from "@/components/money-feedback";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 
 function InstrumentsPageSkeleton() {
   return (
-    <section className={`${MONEY_FULL_SPAN} w-full`}>
+    <section className={`${SHELL_FULL_SPAN} w-full`}>
       <MoneyListSkeleton variant="loansTable" />
     </section>
   );

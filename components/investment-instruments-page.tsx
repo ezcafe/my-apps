@@ -29,7 +29,7 @@ import {
   TableRowActions,
 } from "@/components/ui/table";
 import { Tag } from "@/components/ui/tag";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { investmentGraphQLRequest } from "@/lib/investment-gql-client";
 import {
   INVESTMENT_INSTRUMENT_UPDATE_MUTATION,
@@ -475,7 +475,7 @@ export function InvestmentInstrumentsPage() {
   );
 
   return (
-    <div className={`${MONEY_FULL_SPAN} min-w-0 space-y-4`}>
+    <div className={`${SHELL_FULL_SPAN} min-w-0 space-y-4`}>
       {instrumentsQuery.isLoading ? (
         <MoneyListSkeleton variant="loansTable" />
       ) : null}

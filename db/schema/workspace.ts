@@ -19,6 +19,7 @@ export const WORKSPACE_APP_KEYS = [
   "money",
   "notes",
   "tasks",
+  "baby",
 ] as const;
 export type WorkspaceAppKey = (typeof WORKSPACE_APP_KEYS)[number];
 

@@ -1,4 +1,4 @@
-import { MONEY_DASHBOARD_STACK, MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
@@ -11,7 +11,7 @@ export function MoneyOverviewSkeleton({
 }) {
   return (
     <div
-      className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK, className)}
+      className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK, className)}
       role="status"
       aria-busy="true"
       aria-live="polite"

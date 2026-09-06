@@ -17,7 +17,7 @@ import {
   type ShellNavItem,
 } from "@/lib/features/registry";
 import { resolveMoneyAppHeader } from "@/lib/money-app-header";
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import {
   APP_SECTION_NAV,
   APP_SECTION_ORDER,
@@ -32,6 +32,21 @@ import {
   type MoneyOptionalSectionTabKey,
 } from "@/lib/money-section-tab-visibility";
 import { useMoneyMenuPageActions } from "@/lib/money-menu-page-actions";
+import { IconBaby } from "@/components/icons/icon-baby";
+import {
+  IconBabyDiaper,
+  IconBabyFeed,
+  IconBabyHome,
+  IconBabyInsights,
+  IconBabyMeasure,
+  IconBabySettings,
+  IconBabySleep,
+  IconBabyVaccine,
+} from "@/components/icons/icon-baby-nav";
+import {
+  shellItemLabel,
+  useBabyNavLabel,
+} from "@/components/use-baby-nav-label";
 
 type MoneySectionTabIconId = AppSectionTabIconId;
 
@@ -312,6 +327,15 @@ const moneySectionTabIcons: Record<
   instruments: IconInstruments,
   import: IconImport,
   settings: IconSettings,
+  baby: IconBaby,
+  babyHome: IconBabyHome,
+  babyInsights: IconBabyInsights,
+  babyFeed: IconBabyFeed,
+  babySleep: IconBabySleep,
+  babyDiaper: IconBabyDiaper,
+  babyMeasure: IconBabyMeasure,
+  babyVaccine: IconBabyVaccine,
+  babySettings: IconBabySettings,
 };
 
 const shellMenuIcons: Record<
@@ -323,6 +347,7 @@ const shellMenuIcons: Record<
   savings: IconSavings,
   investment: IconInvestments,
   loans: IconLoans,
+  baby: IconBaby,
   help: IconHelp,
   settings: IconSettings,
 };
@@ -344,6 +369,7 @@ const appSwitcherIcon: Record<AppSectionKey, AppSectionTabIconId> = {
   money: "spending",
   investments: "investments",
   loans: "loans",
+  baby: "baby",
 };
 
 function MenuSectionLabel({ children }: { children: ReactNode }) {
@@ -415,6 +441,13 @@ function AppSectionNavPanel({
   );
 }
 
+function appSectionDisplayLabel(
+  appKey: AppSectionKey,
+  babyLabel: string,
+): string {
+  return appKey === "baby" ? babyLabel : APP_SECTION_NAV[appKey].label;
+}
+
 function OtherAppsJumpLinks({
   currentApp,
   onNavigate,
@@ -422,6 +455,7 @@ function OtherAppsJumpLinks({
   currentApp: AppSectionKey;
   onNavigate: () => void;
 }) {
+  const babyLabel = useBabyNavLabel();
   const others = APP_SECTION_ORDER.filter((key) => key !== currentApp);
   if (others.length === 0) return null;
 
@@ -439,7 +473,7 @@ function OtherAppsJumpLinks({
             className={menuItemClassName(false)}
           >
             <Icon className="size-5 shrink-0" />
-            {config.label}
+            {appSectionDisplayLabel(appKey, babyLabel)}
           </Link>
         );
       })}
@@ -457,6 +491,8 @@ function MenuFooterLink({
   const pathname = usePathname();
   const active = isShellNavActive(item, pathname);
   const Icon = shellMenuIcons[item.icon];
+  const babyLabel = useBabyNavLabel(item.label);
+  const label = shellItemLabel(item, babyLabel);
   /** Soft nav from Money layout → /kiosk fails to commit (stays on Money); use full load. */
   const hardNavigate = item.id === "kiosk";
 
@@ -475,7 +511,7 @@ function MenuFooterLink({
       className={menuItemClassName(active)}
     >
       <Icon className="size-5 shrink-0" />
-      {item.label}
+      {label}
     </Link>
   );
 }
@@ -516,6 +552,7 @@ export function MoneyAppMenu() {
   const pageActions = useMoneyMenuPageActions();
   const { isTabVisible } = useMoneySectionTabVisibility();
   const currentApp = resolveAppSectionFromPath(pathname);
+  const babyLabel = useBabyNavLabel();
   const [open, setOpen] = useState(false);
   const [menuPath, setMenuPath] = useState(pathname);
 
@@ -526,7 +563,7 @@ export function MoneyAppMenu() {
 
   const close = () => setOpen(false);
   const menuLabel = currentApp
-    ? `Open ${APP_SECTION_NAV[currentApp].label} menu`
+    ? `Open ${appSectionDisplayLabel(currentApp, babyLabel)} menu`
     : "Open app menu";
 
   return (
@@ -598,7 +635,7 @@ export function MoneyAppMenu() {
                   className={menuItemClassName(false)}
                 >
                   <Icon className="size-5 shrink-0" />
-                  {config.label}
+                  {appSectionDisplayLabel(appKey, babyLabel)}
                 </Link>
               );
             })}
@@ -643,7 +680,7 @@ export function MoneySectionTabs() {
 
   return (
     <PageHeading
-      className={MONEY_FULL_SPAN}
+      className={SHELL_FULL_SPAN}
       leading={<MoneyAppMenu />}
       title={title}
       description={description}
@@ -679,7 +716,7 @@ export function MoneySectionChromeSkeleton({
 }) {
   return (
     <div
-      className={cn(MONEY_FULL_SPAN, "flex items-center gap-3")}
+      className={cn(SHELL_FULL_SPAN, "flex items-center gap-3")}
       aria-hidden
     >
       <Skeleton className="size-10 shrink-0 rounded-[var(--radius-md)]" />

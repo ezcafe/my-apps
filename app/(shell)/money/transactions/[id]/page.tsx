@@ -1,4 +1,4 @@
-import { MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { TransactionEditFormLazy } from "@/components/transaction-edit-form-lazy";
 import { TransactionEditHeaderSync } from "@/components/transaction-edit-header-sync";
 
@@ -15,7 +15,7 @@ export default async function MoneyTransactionEditPage({
   return (
     <>
       <TransactionEditHeaderSync returnTo={returnTo} />
-      <div className={MONEY_FULL_SPAN}>
+      <div className={SHELL_FULL_SPAN}>
         <TransactionEditFormLazy transactionId={id} returnTo={returnTo} />
       </div>
     </>

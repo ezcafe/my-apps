@@ -1,7 +1,7 @@
 import type { MoneyOptionalSectionTabKey } from "@/lib/money-section-tab-visibility";
 
 /** Product areas reachable from the in-page hamburger. */
-export type AppSectionKey = "money" | "investments" | "loans";
+export type AppSectionKey = "money" | "investments" | "loans" | "baby";
 
 /** Task-oriented groups within an app (P&P long-nav mental model). */
 export type AppNavGroup = "review" | "capture" | "browse" | "configure";
@@ -16,7 +16,16 @@ export type AppSectionTabIconId =
   | "investments"
   | "instruments"
   | "import"
-  | "settings";
+  | "settings"
+  | "baby"
+  | "babyHome"
+  | "babyInsights"
+  | "babyFeed"
+  | "babySleep"
+  | "babyDiaper"
+  | "babyMeasure"
+  | "babyVaccine"
+  | "babySettings";
 
 export type AppSectionNavItem = {
   href: string;
@@ -53,6 +62,7 @@ export const APP_SECTION_ORDER: AppSectionKey[] = [
   "money",
   "investments",
   "loans",
+  "baby",
 ];
 
 export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
@@ -199,6 +209,69 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
       },
     ],
   },
+  baby: {
+    label: "Baby Care",
+    homeHref: "/baby",
+    matchPrefix: "/baby",
+    items: [
+      {
+        href: "/baby",
+        label: "Home",
+        icon: "babyHome",
+        exact: true,
+        group: "browse",
+      },
+      {
+        href: "/baby/insights",
+        label: "Insights",
+        icon: "babyInsights",
+        exact: false,
+        group: "review",
+      },
+      {
+        href: "/baby/feed",
+        label: "Log feed",
+        icon: "babyFeed",
+        exact: false,
+        group: "capture",
+      },
+      {
+        href: "/baby/sleep",
+        label: "Log nap",
+        icon: "babySleep",
+        exact: false,
+        group: "capture",
+      },
+      {
+        href: "/baby/diaper",
+        label: "Log diaper",
+        icon: "babyDiaper",
+        exact: false,
+        group: "capture",
+      },
+      {
+        href: "/baby/measure",
+        label: "Log measurement",
+        icon: "babyMeasure",
+        exact: false,
+        group: "capture",
+      },
+      {
+        href: "/baby/vaccines",
+        label: "Vaccines",
+        icon: "babyVaccine",
+        exact: false,
+        group: "capture",
+      },
+      {
+        href: "/baby/settings",
+        label: "Settings",
+        icon: "babySettings",
+        exact: false,
+        group: "configure",
+      },
+    ],
+  },
 };
 
 /** Active app for context-first menu chrome, or `null` on Help / Settings. */
@@ -208,6 +281,9 @@ export function resolveAppSectionFromPath(pathname: string): AppSectionKey | nul
   }
   if (pathname === "/loans" || pathname.startsWith("/loans/")) {
     return "loans";
+  }
+  if (pathname === "/baby" || pathname.startsWith("/baby/")) {
+    return "baby";
   }
   if (pathname === "/money" || pathname.startsWith("/money/")) {
     return "money";

@@ -30,7 +30,7 @@ import { InvestmentInsightsStats } from "@/components/investment-insights-stats"
 import { InvestmentResultsOverTimeCard } from "@/components/investment-chart-cards/results-over-time-card";
 import { InvestmentAllocationCard } from "@/components/investment-chart-cards/allocation-card";
 import { useInvestmentWorkspace } from "@/components/investment-workspace-provider";
-import { MONEY_DASHBOARD_STACK, MONEY_FULL_SPAN } from "@/lib/money-layout";
+import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 import { formatMinor, formatCompactMinor } from "@/lib/format-money";
 import { investmentInsightsDefaultRange } from "@/lib/money-first-load-filters";
@@ -115,7 +115,7 @@ export function InvestmentInsightsDashboard() {
   }
 
   return (
-    <div className={cn(MONEY_FULL_SPAN, MONEY_DASHBOARD_STACK)}>
+    <div className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK)}>
       <InsightsDateRangeFiltersBar
         value={{ fromDate: draft.from, toDate: draft.to }}
         onChange={(next) => setDraft({ from: next.fromDate, to: next.toDate })}
