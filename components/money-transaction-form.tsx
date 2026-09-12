@@ -1424,21 +1424,34 @@ export function MoneyTransactionForm({
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                aria-label="Notes"
               />
             </Field>
-          ) : !showMoreDetails ? (
-            <div className="[grid-column:1/-1]">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowMoreDetails(true)}
-              >
-                Notes & extras
-              </Button>
-            </div>
           ) : (
             <>
+              {/* Notes stay visible so a form remount / chunk swap cannot hide
+                  the Write-B control behind a collapsed toggle. */}
+              <Field label="Notes" className="[grid-column:1/-1]">
+                <Textarea
+                  rows={3}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  aria-label="Notes"
+                />
+              </Field>
+              {!showMoreDetails ? (
+                <div className="[grid-column:1/-1]">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowMoreDetails(true)}
+                  >
+                    Notes & extras
+                  </Button>
+                </div>
+              ) : (
+                <>
           {lookupSkeletonVisible ? (
             <MoneyLookupQuickPickSkeleton
               legend="Merchant"
@@ -1577,14 +1590,6 @@ export function MoneyTransactionForm({
             </Field>
           )}
 
-          <Field label="Notes" className="[grid-column:1/-1]">
-            <Textarea
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </Field>
-
           <div className="rounded-[var(--radius-sm)] bg-muted-surface/40 p-4 [grid-column:1/-1]">
             <div className="flex items-start gap-2">
               <Checkbox
@@ -1659,6 +1664,8 @@ export function MoneyTransactionForm({
               Recurring transfers are not supported yet.
             </p>
           ) : null}
+                </>
+              )}
             </>
           )}
 

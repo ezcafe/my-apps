@@ -42,32 +42,22 @@ export function Modal({
   );
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || !open) return;
     const el = ref.current;
-    if (!el) return;
-    if (open) {
-      if (!el.open) {
-        queueMicrotask(() => {
-          try {
-            if (!el.isConnected || el.open) return;
-            el.showModal();
-          } catch {
-            // Safari can throw InvalidStateError if the dialog was detached
-            // or already open between schedule and run — ignore.
-          }
-        });
-      }
-    } else if (el.open) {
+    if (!el || el.open) return;
+    queueMicrotask(() => {
       try {
-        el.close();
+        if (!el.isConnected || el.open) return;
+        el.showModal();
       } catch {
-        // ignore
+        // Safari can throw InvalidStateError if the dialog was detached
+        // or already open between schedule and run — ignore.
       }
-    }
+    });
   }, [mounted, open]);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || !open) return;
     const el = ref.current;
     if (!el) return;
     const onCancel = (e: Event) => {
@@ -76,9 +66,11 @@ export function Modal({
     };
     el.addEventListener("cancel", onCancel);
     return () => el.removeEventListener("cancel", onCancel);
-  }, [mounted, onClose]);
+  }, [mounted, open, onClose]);
 
-  if (!mounted) return null;
+  // Unmount when closed so closed sheets leave the a11y tree (Playwright
+  // getByRole('dialog') must only see the open payment / confirm sheet).
+  if (!mounted || !open) return null;
 
   const ariaLabelledBy =
     bare ? labelledBy : title ? "modal-dialog-title" : labelledBy;

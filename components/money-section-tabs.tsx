@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useState, type ReactNode, type SVGProps } from "react";
+import {
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+  type ReactNode,
+  type SVGProps,
+} from "react";
 import { useAppHeaderOverride } from "@/components/app-header-override";
 import { PageHeading } from "@/components/page-heading";
 import { Popover } from "@/components/ui/popover";
@@ -47,6 +53,30 @@ import {
   shellItemLabel,
   useBabyNavLabel,
 } from "@/components/use-baby-nav-label";
+
+/**
+ * Menu open store shared across MoneyAppMenu remounts (ledger refresh /
+ * header sync). useState alone resets when the trigger remounts mid-click.
+ */
+let appMenuOpenStore = false;
+const appMenuOpenListeners = new Set<() => void>();
+
+function subscribeAppMenuOpen(onStoreChange: () => void): () => void {
+  appMenuOpenListeners.add(onStoreChange);
+  return () => {
+    appMenuOpenListeners.delete(onStoreChange);
+  };
+}
+
+function getAppMenuOpenSnapshot(): boolean {
+  return appMenuOpenStore;
+}
+
+function setAppMenuOpenStore(next: boolean): void {
+  if (appMenuOpenStore === next) return;
+  appMenuOpenStore = next;
+  for (const listener of appMenuOpenListeners) listener();
+}
 
 type MoneySectionTabIconId = AppSectionTabIconId;
 
@@ -380,6 +410,15 @@ function MenuSectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Close the menu after the click turn. Sync close unmounts the popover panel
+ * mid-click and can cancel Next.js soft-nav before the route commits (menu
+ * stays open, URL unchanged — seen in Baby Insights e2e).
+ */
+function deferMenuClose(onNavigate: () => void): void {
+  queueMicrotask(onNavigate);
+}
+
 function MoneyAppMenuNavLink({
   href,
   label,
@@ -401,7 +440,7 @@ function MoneyAppMenuNavLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      onClick={onNavigate}
+      onClick={() => deferMenuClose(onNavigate)}
       className={menuItemClassName(active)}
     >
       <Icon className="size-5 shrink-0" />
@@ -469,7 +508,7 @@ function OtherAppsJumpLinks({
           <Link
             key={appKey}
             href={config.homeHref}
-            onClick={onNavigate}
+            onClick={() => deferMenuClose(onNavigate)}
             className={menuItemClassName(false)}
           >
             <Icon className="size-5 shrink-0" />
@@ -501,11 +540,13 @@ function MenuFooterLink({
       href={item.href}
       prefetch={hardNavigate ? false : undefined}
       onClick={(event) => {
-        onNavigate();
         if (hardNavigate) {
+          onNavigate();
           event.preventDefault();
           window.location.assign(item.href);
+          return;
         }
+        deferMenuClose(onNavigate);
       }}
       aria-current={active ? "page" : undefined}
       className={menuItemClassName(active)}
@@ -536,7 +577,11 @@ function MoneyMenuAuth({ onNavigate }: { onNavigate: () => void }) {
   }
 
   return (
-    <Link href="/login" onClick={onNavigate} className={menuItemClassName(false)}>
+    <Link
+      href="/login"
+      onClick={() => deferMenuClose(onNavigate)}
+      className={menuItemClassName(false)}
+    >
       <IconSignIn className="size-5 shrink-0" />
       Sign in
     </Link>
@@ -553,13 +598,21 @@ export function MoneyAppMenu() {
   const { isTabVisible } = useMoneySectionTabVisibility();
   const currentApp = resolveAppSectionFromPath(pathname);
   const babyLabel = useBabyNavLabel();
-  const [open, setOpen] = useState(false);
-  const [menuPath, setMenuPath] = useState(pathname);
+  const open = useSyncExternalStore(
+    subscribeAppMenuOpen,
+    getAppMenuOpenSnapshot,
+    () => false,
+  );
+  const setOpen = setAppMenuOpenStore;
+  const prevPathRef = useRef(pathname);
 
-  if (pathname !== menuPath) {
-    setMenuPath(pathname);
-    if (open) setOpen(false);
-  }
+  // Close on route change in an effect — render-phase setState can race the
+  // open click on heavy Money pages and leave aria-expanded stuck false.
+  useEffect(() => {
+    if (prevPathRef.current === pathname) return;
+    prevPathRef.current = pathname;
+    setAppMenuOpenStore(false);
+  }, [pathname]);
 
   const close = () => setOpen(false);
   const menuLabel = currentApp
@@ -631,7 +684,7 @@ export function MoneyAppMenu() {
                 <Link
                   key={appKey}
                   href={config.homeHref}
-                  onClick={close}
+                  onClick={() => deferMenuClose(close)}
                   className={menuItemClassName(false)}
                 >
                   <Icon className="size-5 shrink-0" />

@@ -406,79 +406,79 @@ export function MoneyUsageQuickPick({
             >
               <MoneyUsageQuickPickOtherChipContent label={otherLabelText} />
             </button>
-            <div
-              id={listboxId}
-              role="dialog"
-              aria-modal="false"
-              aria-label={otherLabel}
-              data-open={pickerOpen}
-              inert={!pickerOpen}
-              className={cn(
-                "pointer-events-none absolute start-0 top-[calc(100%+0.5rem)] z-50 min-w-[min(100vw-2rem,18rem)] max-w-[min(100vw-2rem,22rem)] -translate-y-1 rounded-[var(--radius-md)] border border-border bg-surface p-2 opacity-0 shadow-[var(--shadow-md)] transition-[opacity,transform] duration-200 ease-out data-[open=true]:pointer-events-auto data-[open=true]:translate-y-0 data-[open=true]:opacity-100 motion-reduce:transition-none",
-              )}
-            >
-              <Input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={searchAria}
-                className="mb-2"
-                aria-label={searchAria}
-                autoFocus={pickerOpen}
-              />
-              <ul
-                role="listbox"
-                aria-label={ariaLabel}
-                className="max-h-64 overflow-auto rounded-[var(--radius-sm)]"
+            {/* Unmount when closed so role=dialog leaves the a11y tree. */}
+            {pickerOpen ? (
+              <div
+                id={listboxId}
+                role="dialog"
+                aria-modal="false"
+                aria-label={otherLabel}
+                data-open="true"
+                className="absolute start-0 top-[calc(100%+0.5rem)] z-50 min-w-[min(100vw-2rem,18rem)] max-w-[min(100vw-2rem,22rem)] rounded-[var(--radius-md)] border border-border bg-surface p-2 opacity-100 shadow-[var(--shadow-md)] translate-y-0 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none"
               >
-                {pickerItems.length === 0 ? (
-                  <li className="px-3 py-2 text-sm text-muted">No matches</li>
-                ) : (
-                  pickerItems.map((item) => {
-                    const fill = item.id
-                      ? budgetUtilizationChipFill(
-                          chipBudgetProgressPct?.(item.id),
-                        )
-                      : null;
-                    const selected = selectedId === item.id;
-                    return (
-                      <li
-                        key={item.id === "" ? "__none" : item.id}
-                        role="option"
-                        aria-selected={selected}
-                      >
-                        <button
-                          type="button"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => pick(item.id)}
-                          className={cn(
-                            "relative isolate flex w-full items-center justify-between gap-2 overflow-hidden rounded-[var(--radius-sm)] py-2 pr-3 text-left text-sm transition-[background-color,color] duration-150",
-                            item.isChild ? "pl-8" : "pl-3",
-                            selected ? "bg-accent" : "hover:bg-muted-surface",
-                            selected
-                              ? "text-accent-foreground"
-                              : "text-foreground",
-                          )}
-                          title={fill ? budgetFillTitle(fill) : undefined}
+                <Input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={searchAria}
+                  className="mb-2"
+                  aria-label={searchAria}
+                  autoFocus
+                />
+                <ul
+                  role="listbox"
+                  aria-label={ariaLabel}
+                  className="max-h-64 overflow-auto rounded-[var(--radius-sm)]"
+                >
+                  {pickerItems.length === 0 ? (
+                    <li className="px-3 py-2 text-sm text-muted">No matches</li>
+                  ) : (
+                    pickerItems.map((item) => {
+                      const fill = item.id
+                        ? budgetUtilizationChipFill(
+                            chipBudgetProgressPct?.(item.id),
+                          )
+                        : null;
+                      const selected = selectedId === item.id;
+                      return (
+                        <li
+                          key={item.id === "" ? "__none" : item.id}
+                          role="option"
+                          aria-selected={selected}
                         >
-                          <QuickPickChipLabel
-                            label={item.label}
-                            fill={fill}
-                            align="start"
-                            selected={selected}
-                          />
-                          {renderPickerRow ? (
-                            <span className="shrink-0 text-sm text-muted">
-                              {renderPickerRow(item)}
-                            </span>
-                          ) : null}
-                        </button>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </div>
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => pick(item.id)}
+                            className={cn(
+                              "relative isolate flex w-full items-center justify-between gap-2 overflow-hidden rounded-[var(--radius-sm)] py-2 pr-3 text-left text-sm transition-[background-color,color] duration-150",
+                              item.isChild ? "pl-8" : "pl-3",
+                              selected ? "bg-accent" : "hover:bg-muted-surface",
+                              selected
+                                ? "text-accent-foreground"
+                                : "text-foreground",
+                            )}
+                            title={fill ? budgetFillTitle(fill) : undefined}
+                          >
+                            <QuickPickChipLabel
+                              label={item.label}
+                              fill={fill}
+                              align="start"
+                              selected={selected}
+                            />
+                            {renderPickerRow ? (
+                              <span className="shrink-0 text-sm text-muted">
+                                {renderPickerRow(item)}
+                              </span>
+                            ) : null}
+                          </button>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

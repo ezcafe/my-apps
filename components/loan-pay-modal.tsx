@@ -208,7 +208,11 @@ export function LoanPayModal({
           emptyMessage="No categories yet."
         />
         <Field label="Notes">
-          <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <Input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            aria-label="Notes"
+          />
         </Field>
         <div className="flex flex-wrap gap-2">
           <Button type="button" onClick={onPay} disabled={saving}>

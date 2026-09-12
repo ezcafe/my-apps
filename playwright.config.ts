@@ -29,6 +29,16 @@ export default defineConfig({
     baseURL,
     trace: "on-first-retry",
     ...(storageState ? { storageState } : {}),
+    // Cap Chromium CPU/RAM spikes on local machines (workers already 1).
+    launchOptions: {
+      args: [
+        "--disable-extensions",
+        "--disable-background-networking",
+        "--disable-component-extensions-with-background-pages",
+        "--renderer-process-limit=1",
+        "--js-flags=--max-old-space-size=512",
+      ],
+    },
   },
   projects: [
     {

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { clickSoftNav } from "./helpers/shell";
 
 /** Smoke: hamburger nav + home CTAs + EN/VI in settings. Writes need E2E_STORAGE_STATE. */
 
@@ -86,8 +87,12 @@ test.describe("Baby Care smoke", () => {
         .first(),
     ).toBeVisible();
 
-    await page.getByRole("link", { name: /log feed|ghi bú/i }).click();
-    await expect(page).toHaveURL(/\/baby\/feed/);
+    // First soft-nav to /baby/feed in this file — cold Next compile can
+    // cancel a single click within the default 15s URL wait.
+    const feedCta = page
+      .getByRole("main")
+      .getByRole("link", { name: /log feed|ghi bú/i });
+    await clickSoftNav(page, feedCta, /\/baby\/feed/, 120_000);
     await expect(
       page.getByRole("heading", { name: /log feed|ghi bú/i }),
     ).toBeVisible();
@@ -138,8 +143,16 @@ test.describe("Baby Care smoke", () => {
   }) => {
     await gotoBabyHome(page);
     await openAppMenu(page);
-    await page.getByRole("link", { name: /^insights$|^thống kê$/i }).click();
-    await expect(page).toHaveURL(/\/baby\/insights/);
+    // Scope to the open menu panel so we do not hit a stale/home control.
+    const insightsLink = page
+      .getByRole("dialog")
+      .getByRole("navigation", { name: /Baby Care sections|mục Chăm bé/i })
+      .getByRole("link", { name: /^insights$|^thống kê$/i });
+    await expect(insightsLink).toBeVisible();
+    await Promise.all([
+      page.waitForURL(/\/baby\/insights/),
+      insightsLink.click(),
+    ]);
     await expect(
       page.getByRole("heading", { name: /insights|thống kê/i }),
     ).toBeVisible();
