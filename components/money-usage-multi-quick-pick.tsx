@@ -168,67 +168,67 @@ export function MoneyUsageMultiQuickPick({
             >
               <MoneyUsageQuickPickOtherChipContent label={otherLabelText} />
             </button>
-            <div
-              id={listboxId}
-              role="dialog"
-              aria-modal="false"
-              aria-label={otherLabel}
-              data-open={pickerOpen}
-              inert={!pickerOpen}
-              className={cn(
-                "pointer-events-none absolute start-0 top-[calc(100%+0.5rem)] z-50 min-w-[min(100vw-2rem,18rem)] max-w-[min(100vw-2rem,22rem)] -translate-y-1 rounded-[var(--radius-md)] border border-border bg-surface p-2 opacity-0 shadow-[var(--shadow-md)] transition-[opacity,transform] duration-200 ease-out data-[open=true]:pointer-events-auto data-[open=true]:translate-y-0 data-[open=true]:opacity-100 motion-reduce:transition-none",
-              )}
-            >
-              <Input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search…"
-                className="mb-2"
-                aria-label={`Search ${ariaLabel}`}
-                autoFocus={pickerOpen}
-              />
-              <ul
-                role="listbox"
-                aria-multiselectable="true"
-                aria-label={ariaLabel}
-                className="max-h-64 overflow-auto rounded-[var(--radius-sm)]"
+            {/* Unmount when closed so role=dialog leaves the a11y tree. */}
+            {pickerOpen ? (
+              <div
+                id={listboxId}
+                role="dialog"
+                aria-modal="false"
+                aria-label={otherLabel}
+                data-open="true"
+                className="absolute start-0 top-[calc(100%+0.5rem)] z-50 min-w-[min(100vw-2rem,18rem)] max-w-[min(100vw-2rem,22rem)] rounded-[var(--radius-md)] border border-border bg-surface p-2 opacity-100 shadow-[var(--shadow-md)] translate-y-0 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none"
               >
-                {pickerItems.length === 0 ? (
-                  <li className="px-3 py-2 text-sm text-muted">No matches</li>
-                ) : (
-                  pickerItems.map((item) => {
-                    const checked = selectedSet.has(item.id);
-                    return (
-                      <li
-                        key={item.id}
-                        role="option"
-                        aria-selected={checked}
-                        className={cn(
-                          "flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm text-foreground transition-colors duration-150 hover:bg-muted-surface",
-                          checked && "bg-muted-surface",
-                          item.isChild && "pl-6",
-                        )}
-                      >
-                        <Checkbox
-                          checked={checked}
-                          onChange={() => toggle(item.id)}
-                          ariaLabel={item.label}
-                        />
-                        <button
-                          type="button"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => toggle(item.id)}
-                          className="min-w-0 flex-1 truncate text-left fx-press"
+                <Input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search…"
+                  className="mb-2"
+                  aria-label={`Search ${ariaLabel}`}
+                  autoFocus
+                />
+                <ul
+                  role="listbox"
+                  aria-multiselectable="true"
+                  aria-label={ariaLabel}
+                  className="max-h-64 overflow-auto rounded-[var(--radius-sm)]"
+                >
+                  {pickerItems.length === 0 ? (
+                    <li className="px-3 py-2 text-sm text-muted">No matches</li>
+                  ) : (
+                    pickerItems.map((item) => {
+                      const checked = selectedSet.has(item.id);
+                      return (
+                        <li
+                          key={item.id}
+                          role="option"
+                          aria-selected={checked}
+                          className={cn(
+                            "flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm text-foreground transition-colors duration-150 hover:bg-muted-surface",
+                            checked && "bg-muted-surface",
+                            item.isChild && "pl-6",
+                          )}
                         >
-                          {item.label}
-                        </button>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </div>
+                          <Checkbox
+                            checked={checked}
+                            onChange={() => toggle(item.id)}
+                            ariaLabel={item.label}
+                          />
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => toggle(item.id)}
+                            className="min-w-0 flex-1 truncate text-left fx-press"
+                          >
+                            {item.label}
+                          </button>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

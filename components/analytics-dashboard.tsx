@@ -9,10 +9,12 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
 } from "react";
 import {
   CHART_CARD_HEIGHT_FULL,
+  CHART_CARD_HEIGHT_HALF,
   CHART_CARD_HEIGHT_TALL,
   CHART_CARD_HEIGHT_FILL,
   CHART_CARD_LAYOUT,
@@ -88,6 +90,30 @@ import {
 } from "@/lib/money-ledger-presets";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+/**
+ * More-expand store — survives AnalyticsDashboard remounts (late chart
+ * chunks / Suspense) so teasers do not come back after a successful click.
+ */
+let moneyInsightsMoreExpanded = false;
+const moneyInsightsMoreListeners = new Set<() => void>();
+
+function subscribeMoneyInsightsMore(onStoreChange: () => void): () => void {
+  moneyInsightsMoreListeners.add(onStoreChange);
+  return () => {
+    moneyInsightsMoreListeners.delete(onStoreChange);
+  };
+}
+
+function getMoneyInsightsMoreSnapshot(): boolean {
+  return moneyInsightsMoreExpanded;
+}
+
+function setMoneyInsightsMoreExpanded(next: boolean): void {
+  if (moneyInsightsMoreExpanded === next) return;
+  moneyInsightsMoreExpanded = next;
+  for (const listener of moneyInsightsMoreListeners) listener();
+}
+
 const chartCardLoading = () => (
   <Card
     className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_FULL}`}
@@ -104,7 +130,21 @@ const NetCumulativeFlowCard = dynamic(
 );
 const BudgetVsActualCard = dynamic(
   () => import("@/components/analytics-chart-cards/budget-vs-actual-card"),
-  { ssr: false },
+  {
+    ssr: false,
+    // Heading must show as soon as More expands — do not wait on the chart chunk.
+    loading: () => (
+      <Card
+        className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
+      >
+        <h2 className="mb-2 font-display text-lg font-medium">
+          Budget vs actual
+        </h2>
+        <Skeleton className="mb-2 h-4 w-56 max-w-full rounded-[var(--radius-sm)]" />
+        <Skeleton className="min-h-0 w-full flex-1 rounded-[var(--radius-sm)]" />
+      </Card>
+    ),
+  },
 );
 const MoneyFlowSankeyCard = dynamic(
   () => import("@/components/analytics-chart-cards/money-flow-sankey-card"),
@@ -270,6 +310,11 @@ function AnalyticsChartsView({
   onChartDrilldown,
 }: AnalyticsChartsViewProps) {
   const { formatMonthYear } = useFormatDate();
+  // Teasers only after mount so onClick is attached (force-click on SSR markup was a no-op).
+  const [teasersReady, setTeasersReady] = useState(false);
+  useEffect(() => {
+    setTeasersReady(true);
+  }, []);
   const {
     ref: budgetRef,
     isInView: budgetInView,
@@ -467,8 +512,11 @@ function AnalyticsChartsView({
         />
       </div>
 
-      {!moreInsights ? (
-        <div className="col-span-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 md:col-span-6 lg:col-span-12">
+      {!moreInsights && teasersReady ? (
+        <div
+          className="col-span-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 md:col-span-6 lg:col-span-12"
+          data-insights-more-teasers=""
+        >
           {(
             [
               { title: "Budget vs actual", hint: "See if you are on track this month" },
@@ -491,17 +539,19 @@ function AnalyticsChartsView({
 
       {moreInsights ? (
         <>
-          <MoneyFlowSankeyCard
-            cardRef={sankeyRef}
-            inView={sankeyInView}
-            sankeyPayload={sankeyPayload}
-            sankeyHasData={sankeyHasData}
-            defaultCurrency={defaultCurrency}
-            baseFilterQuery={filterQuery}
-            onDrilldown={onChartDrilldown}
-          />
-
+          {/* First teaser → first expanded card so the heading is immediate. */}
           <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:gap-3 lg:col-span-12 lg:grid-cols-3 lg:gap-3">
+            <BudgetVsActualCard
+              cardRef={budgetRef}
+              inView={budgetInView}
+              lookupsReady={lookupsReady}
+              budgets={budgets}
+              budgetChartRows={budgetChartRows}
+              budgetChartHasData={budgetChartHasData}
+              formatChartValue={formatChartValue}
+              baseFilterQuery={filterQuery}
+              onDrilldown={onChartDrilldown}
+            />
             <IncomeByCategoryCard
               inView={moreInsights}
               distribution={distribution}
@@ -555,18 +605,17 @@ function AnalyticsChartsView({
               baseFilterQuery={filterQuery}
               onDrilldown={onChartDrilldown}
             />
-            <BudgetVsActualCard
-              cardRef={budgetRef}
-              inView={budgetInView}
-              lookupsReady={lookupsReady}
-              budgets={budgets}
-              budgetChartRows={budgetChartRows}
-              budgetChartHasData={budgetChartHasData}
-              formatChartValue={formatChartValue}
-              baseFilterQuery={filterQuery}
-              onDrilldown={onChartDrilldown}
-            />
           </div>
+
+          <MoneyFlowSankeyCard
+            cardRef={sankeyRef}
+            inView={sankeyInView}
+            sankeyPayload={sankeyPayload}
+            sankeyHasData={sankeyHasData}
+            defaultCurrency={defaultCurrency}
+            baseFilterQuery={filterQuery}
+            onDrilldown={onChartDrilldown}
+          />
 
           <RecurringSpendCard
             cardRef={recurringRef}
@@ -617,7 +666,33 @@ export function AnalyticsDashboard({
     [pathname, router, searchParams],
   );
 
-  const [moreInsights, setMoreInsights] = useState(false);
+  const moreFromUrl = searchParams.get("more") === "1";
+  const moreFromStore = useSyncExternalStore(
+    subscribeMoneyInsightsMore,
+    getMoneyInsightsMoreSnapshot,
+    () => false,
+  );
+  const moreInsights = moreFromUrl || moreFromStore;
+
+  const expandMoreInsights = useCallback(() => {
+    setMoneyInsightsMoreExpanded(true);
+    if (searchParams.get("more") === "1") return;
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set("more", "1");
+    const qs = sp.toString();
+    const next = qs ? `${pathname}?${qs}` : pathname;
+    // History first so e2e / remounts see ?more=1 even if App Router replace lags.
+    if (typeof window !== "undefined") {
+      window.history.replaceState(window.history.state, "", next);
+    }
+    router.replace(next, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  // Keep store aligned when landing with ?more=1 (shareable / remount-safe).
+  useEffect(() => {
+    if (moreFromUrl) setMoneyInsightsMoreExpanded(true);
+  }, [moreFromUrl]);
+
   const [advancedFilterLookups, setAdvancedFilterLookups] = useState(false);
   const needAdvancedLookups = moreInsights || advancedFilterLookups;
 
@@ -967,7 +1042,7 @@ export function AnalyticsDashboard({
             workspaceKey={activeWorkspaceId}
             defaultCurrency={defaultCurrency}
             moreInsights={moreInsights}
-            onExpandMoreInsights={() => setMoreInsights(true)}
+            onExpandMoreInsights={expandMoreInsights}
             resolved={resolved}
             style={style}
             lookupsReady={lookupsReady}

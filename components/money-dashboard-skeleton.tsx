@@ -320,6 +320,10 @@ export function MoneyDashboardSkeleton() {
             </div>
           </fieldset>
 
+          <Field label="Notes" className="[grid-column:1/-1]">
+            <Textarea rows={3} disabled aria-label="Notes" value="" />
+          </Field>
+
           <div className="[grid-column:1/-1]">
             <Button type="button" variant="ghost" size="sm" disabled>
               Notes &amp; extras
