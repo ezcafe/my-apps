@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { formatBabyDurationCompact } from "@/lib/baby-format-duration";
+import {
+  formatBabyDurationCompact,
+  formatBabyDurationLocale,
+} from "@/lib/baby-format-duration";
 
 describe("formatBabyDurationCompact", () => {
   it("formats minutes only under one hour", () => {
@@ -22,5 +25,20 @@ describe("formatBabyDurationCompact", () => {
 
   it("floors fractional seconds to whole minutes", () => {
     assert.equal(formatBabyDurationCompact(90), "1m");
+  });
+});
+
+describe("formatBabyDurationLocale", () => {
+  it("formats EN next-due / overdue compact (no spaces in units)", () => {
+    assert.equal(formatBabyDurationLocale(5 * 60, "en"), "5min");
+    assert.equal(formatBabyDurationLocale(60 * 60, "en"), "1h");
+    assert.equal(formatBabyDurationLocale(65 * 60, "en"), "1h 5min");
+    assert.equal(formatBabyDurationLocale(5.5 * 60 * 60, "en"), "5h 30min");
+  });
+
+  it("formats VI with phút and giờ", () => {
+    assert.equal(formatBabyDurationLocale(5 * 60, "vi"), "5 phút");
+    assert.equal(formatBabyDurationLocale(60 * 60, "vi"), "1 giờ");
+    assert.equal(formatBabyDurationLocale(65 * 60, "vi"), "1 giờ 5 phút");
   });
 });

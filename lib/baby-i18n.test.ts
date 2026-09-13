@@ -5,25 +5,24 @@ import { babyEn } from "@/messages/baby/en";
 import { babyVi } from "@/messages/baby/vi";
 
 describe("baby i18n t()", () => {
-  it("returns Vietnamese for home.logFeed", () => {
-    assert.equal(t("home.logFeed", "vi"), "Ghi bú");
+  it("returns Vietnamese for home.formula", () => {
+    assert.equal(t("home.formula", "vi"), "Bình sữa");
   });
 
   it("falls back to en when key missing from locale", () => {
     const viCopy = { ...babyVi };
-    delete viCopy["home.logFeed"];
+    delete viCopy["home.formula"];
     assert.equal(
-      lookupBabyMessage("home.logFeed", "vi", { en: babyEn, vi: viCopy }),
-      "Log feed",
+      lookupBabyMessage("home.formula", "vi", { en: babyEn, vi: viCopy }),
+      "Bottle",
     );
-    // Shared module map unchanged
-    assert.equal(babyVi["home.logFeed"], "Ghi bú");
-    assert.equal(t("home.logFeed", "vi"), "Ghi bú");
+    assert.equal(babyVi["home.formula"], "Bình sữa");
+    assert.equal(t("home.formula", "vi"), "Bình sữa");
   });
 
   it("returns key string when missing from all locales", () => {
     assert.equal(t("missing.key.xyz", "vi"), "missing.key.xyz");
-    assert.equal(t("home.logFeed", "en"), "Log feed");
+    assert.equal(t("home.formula", "en"), "Bottle");
   });
 
   it("parses baby_locale from cookie header", () => {
@@ -62,55 +61,63 @@ describe("baby i18n t()", () => {
     assert.notEqual(t("sleep.checkIncomplete", "vi"), "sleep.checkIncomplete");
   });
 
-  it("home last-care status keys exist in EN and VI", () => {
+  it("home last-care and quick-care keys exist in EN and VI", () => {
     assert.equal(t("home.statusHeading", "en"), "Last care");
-    assert.equal(t("home.statusEmpty", "en"), "Not logged yet");
+    assert.equal(t("home.status.feedEmpty", "en"), "No feed logged yet.");
+    assert.equal(t("home.status.feedEmpty", "vi"), "Chưa ghi lần bú nào.");
+    assert.match(t("home.header.breastNext", "en"), /Next feed is in about/);
+    assert.match(t("home.header.breastNext", "vi"), /Lần bú tiếp theo còn khoảng/);
+    assert.equal(t("home.nextIn", "en"), "next in {duration}");
     assert.equal(
-      t("home.statusError", "en"),
-      "Could not load. You can still log care below.",
+      t("home.nextIn", "vi"),
+      "lần tiếp theo trong {duration}",
     );
-    assert.equal(t("home.statusInProgress", "en"), "Napping now");
-    assert.equal(t("home.whenJustNow", "en"), "Just now");
-    assert.equal(t("home.whenMinutes", "en"), "{n} min ago");
-    assert.equal(t("home.statusHeading", "vi"), "Lần chăm gần nhất");
-    assert.equal(t("home.statusEmpty", "vi"), "Chưa ghi");
+    assert.equal(t("home.overdue", "vi"), "{duration} quá hạn");
+    assert.equal(t("home.whenMinutes.inline", "en"), "about {n} minutes ago");
     assert.equal(
-      t("home.statusError", "vi"),
-      "Không tải được. Bạn vẫn có thể ghi bên dưới.",
+      t("home.whenMinutes.inline", "vi"),
+      "khoảng {n} phút trước",
     );
-    assert.equal(t("home.statusInProgress", "vi"), "Đang ngủ");
-    assert.equal(t("home.whenMinutes", "vi"), "{n} phút trước");
-
+    assert.equal(t("diaper.dirty", "en"), "Poop Only");
+    assert.equal(t("diaper.dirty", "vi"), "Chỉ phân");
+    assert.equal(t("diaper.dry", "en"), "Dry");
+    assert.equal(t("diaper.dry", "vi"), "Khô");
+    assert.equal(t("home.done", "en"), "Done");
+    assert.equal(t("home.done", "vi"), "Xong");
+    assert.equal(t("home.logged", "en"), "Logged");
+    assert.equal(t("home.logged", "vi"), "Đã ghi");
+    assert.equal(t("home.diaperTileWet", "en"), "Wet");
+    assert.equal(t("home.diaperTileWet", "vi"), "Ướt");
+    assert.equal(t("home.diaperTilePoop", "en"), "Poop");
+    assert.equal(t("home.diaperTilePoop", "vi"), "Phân");
+    assert.equal(t("home.diaperTileMixed", "en"), "Mixed");
+    assert.equal(t("home.diaperTileMixed", "vi"), "Hỗn hợp");
+    assert.equal(t("home.diaperTileDry", "en"), "Dry");
+    assert.equal(t("home.diaperTileDry", "vi"), "Khô");
+    assert.ok(t("diaper.colorRedFlagWarn", "en").length > 0);
+    assert.ok(t("diaper.colorRedFlagWarn", "vi").length > 0);
+    assert.notEqual(t("diaper.colorRedFlagWarn", "vi"), "diaper.colorRedFlagWarn");
+    assert.ok(t("diaper.textureCautionWarn", "en").length > 0);
+    assert.ok(t("diaper.textureCautionWarn", "vi").length > 0);
+    assert.notEqual(
+      t("diaper.textureCautionWarn", "vi"),
+      "diaper.textureCautionWarn",
+    );
+    assert.equal(t("home.formulaCustomUnder", "en"), "Custom ml");
+    assert.equal(t("home.formulaCustomUnder", "vi"), "Nhập ml");
+    assert.equal(t("home.chainFailed", "en"), "Nothing was saved. Try again.");
+    assert.equal(t("home.saving", "en"), "Saving…");
     assert.ok(t("home.statusFeed", "vi").length > 0);
-    assert.ok(t("home.statusSleep", "vi").length > 0);
-    assert.ok(t("home.statusDiaper", "vi").length > 0);
-    assert.ok(t("home.statusHint", "en").length > 0);
-    assert.ok(t("home.logDiaper", "vi").length > 0);
+    assert.ok(t("home.pendingTitle", "vi").length > 0);
+    assert.ok(t("settings.birthDate", "en").length > 0);
+    assert.ok(t("settings.birthDateInvalid", "vi").length > 0);
   });
 
   it("insights and measure keys exist in EN and VI", () => {
     assert.equal(t("insights.title", "en"), "Insights");
     assert.equal(t("measure.title", "en"), "Log measurement");
-    assert.equal(t("home.logMeasure", "en"), "Log measurement");
     assert.ok(t("insights.about", "en").length > 0);
     assert.ok(t("insights.emptyGrowth", "vi").length > 0);
-    assert.ok(t("insights.emptyTimeline", "vi").length > 0);
-    assert.ok(t("insights.careCountHeading", "en").length > 0);
-    assert.ok(t("insights.emptyCareCount", "vi").length > 0);
-    assert.ok(t("insights.partialCareCount", "en").length > 0);
-    assert.ok(t("insights.partialCareCount", "vi").length > 0);
-    assert.ok(t("insights.partialCareCountCapped", "en").length > 0);
-    assert.ok(t("insights.partialGrowth", "en").length > 0);
-    assert.ok(t("insights.partialGrowth", "vi").length > 0);
-    assert.ok(t("insights.partialGrowthCapped", "vi").length > 0);
-    assert.ok(t("insights.showMoreList", "en").length > 0);
-    assert.ok(t("insights.showMoreList", "vi").length > 0);
-    assert.ok(t("vaccine.partialList", "en").length > 0);
-    assert.ok(t("vaccine.partialList", "vi").length > 0);
-    assert.ok(t("vaccine.partialListCapped", "en").length > 0);
-    assert.ok(t("vaccine.partialListCapped", "vi").length > 0);
-    assert.equal(t("vaccine.title", "en"), "Vaccines");
-    assert.equal(t("vaccine.doseFirst", "vi"), "Mũi 1");
     assert.equal(t("insights.title", "vi"), "Thống kê");
     assert.equal(t("measure.title", "vi"), "Ghi cân đo");
     assert.notEqual(t("insights.kpiFeeds", "vi"), "insights.kpiFeeds");

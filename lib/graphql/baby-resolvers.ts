@@ -15,7 +15,17 @@ import {
   listBabyGrowthEntries,
   updateBabyGrowth,
 } from "@/features/baby/server/growth";
-import { ensureBabyProfile } from "@/features/baby/server/profile";
+import { getBabyHomeQuickStatus } from "@/features/baby/server/home-quick-status";
+import {
+  scheduleNotifyBabyCareCreated,
+  scheduleNotifyBabyCareCreatedMany,
+  type NotifyBabyCareInput,
+} from "@/features/baby/server/notify";
+import {
+  ensureBabyProfile,
+  updateBabyProfile,
+} from "@/features/baby/server/profile";
+import { runBabyQuickCare } from "@/features/baby/server/quick-care";
 import {
   getBabyTelegramLink,
   linkBabyTelegramChat,
@@ -25,6 +35,7 @@ import {
   careSummary,
   listBabyTimeline,
 } from "@/features/baby/server/timeline";
+import { babyQuickCareNotifyKinds } from "@/lib/baby-quick-care-notify";
 import {
   createBabyVaccine,
   deleteBabyVaccine,
@@ -44,7 +55,6 @@ import {
   t,
   type BabyLocale,
 } from "@/lib/baby-i18n";
-import { scheduleNotifyBabyCareCreated } from "@/features/baby/server/notify";
 
 function localeOf(ctx: BabyGraphQLContext): BabyLocale {
   return babyLocaleFromCookieHeader(ctx.request?.headers.get("cookie"));
@@ -127,6 +137,37 @@ export const babyProfileQuery = {
   },
 };
 
+/** Overridable service hooks for Yoga wiring tests. */
+export const babyHomeQuickStatusQuery = {
+  async load(
+    workspaceId: string,
+    args: { dayFrom: string; dayTo: string },
+    locale: BabyLocale,
+  ) {
+    return runInWorkspace(workspaceId, () =>
+      getBabyHomeQuickStatus(workspaceId, args, locale),
+    );
+  },
+};
+
+export const babyUpdateProfileMutation = {
+  async run(workspaceId: string, userSub: string, input: unknown) {
+    return runInWorkspace(workspaceId, () =>
+      updateBabyProfile(workspaceId, userSub, input),
+    );
+  },
+};
+
+export const babyQuickCareMutation = {
+  async run(workspaceId: string, userSub: string, input: unknown) {
+    return runInWorkspace(workspaceId, () =>
+      runBabyQuickCare(workspaceId, userSub, input),
+    );
+  },
+  notify: scheduleNotifyBabyCareCreated,
+  notifyMany: scheduleNotifyBabyCareCreatedMany,
+};
+
 export const babyResolvers = {
   JSON: GraphQLJSON,
   Query: {
@@ -164,6 +205,28 @@ export const babyResolvers = {
           const open = await findOpenSleep(workspaceId, baby.id);
           return open ? serializeCare(open) : null;
         });
+      } catch (e) {
+        mapServiceError(e, ctx.requestId);
+      }
+    },
+    babyHomeQuickStatus: async (
+      _: unknown,
+      args: { dayFrom: string; dayTo: string },
+      ctx: BabyGraphQLContext,
+    ) => {
+      const { workspaceId } = requireBabyWorkspace(ctx);
+      try {
+        const status = await babyHomeQuickStatusQuery.load(
+          workspaceId,
+          args,
+          localeOf(ctx),
+        );
+        return {
+          ...status,
+          openSleep: status.openSleep
+            ? serializeCare(status.openSleep)
+            : null,
+        };
       } catch (e) {
         mapServiceError(e, ctx.requestId);
       }
@@ -263,6 +326,24 @@ export const babyResolvers = {
         mapServiceError(e, ctx.requestId);
       }
     },
+    updateBabyProfile: async (
+      _: unknown,
+      args: { input: { birthDate?: string | null } },
+      ctx: BabyGraphQLContext,
+    ) => {
+      const { userSub, workspaceId } = requireBabyWriteWorkspace(ctx);
+      try {
+        return serializeProfile(
+          await babyUpdateProfileMutation.run(
+            workspaceId,
+            userSub,
+            args.input,
+          ),
+        );
+      } catch (e) {
+        mapServiceError(e, ctx.requestId);
+      }
+    },
     createBabyFeed: async (
       _: unknown,
       args: { input: Record<string, unknown> },
@@ -340,6 +421,79 @@ export const babyResolvers = {
           endBabySleep(workspaceId, userSub, (args.input ?? {}) as never),
         );
         return serializeCare(row);
+      } catch (e) {
+        mapServiceError(e, ctx.requestId);
+      }
+    },
+    babyQuickCare: async (
+      _: unknown,
+      args: { input: Record<string, unknown> },
+      ctx: BabyGraphQLContext,
+    ) => {
+      const { userSub, workspaceId } = requireBabyWriteWorkspace(ctx);
+      const locale = localeOf(ctx);
+      try {
+        const result = await babyQuickCareMutation.run(
+          workspaceId,
+          userSub,
+          args.input,
+        );
+        // Notify filter: babyQuickCareNotifyKinds (insert-only feed; endNap silent).
+        // One Telegram link read for the whole chain (not per step).
+        if (!result.replayed) {
+          const payloads: NotifyBabyCareInput[] = [];
+          for (const step of result.steps) {
+            const kinds = babyQuickCareNotifyKinds([step], false);
+            for (const kind of kinds) {
+              if (kind === "feed") {
+                payloads.push({
+                  workspaceId,
+                  kind: "feed",
+                  summary: careSummary(
+                    "feed",
+                    step.event.payload,
+                    locale,
+                    step.event.endedAt,
+                    step.event.occurredAt,
+                  ),
+                  source: "web",
+                });
+              } else if (kind === "diaper") {
+                payloads.push({
+                  workspaceId,
+                  kind: "diaper",
+                  summary: careSummary(
+                    "diaper",
+                    step.event.payload,
+                    locale,
+                  ),
+                  source: "web",
+                });
+              } else if (kind === "sleep") {
+                payloads.push({
+                  workspaceId,
+                  kind: "sleep",
+                  summary: t("summary.sleepStarted", locale),
+                  source: "web",
+                });
+              }
+            }
+          }
+          if (payloads.length > 0) {
+            babyQuickCareMutation.notifyMany(payloads);
+          }
+        }
+        return {
+          replayed: result.replayed,
+          openSleep: result.openSleep
+            ? serializeCare(result.openSleep)
+            : null,
+          steps: result.steps.map((s) => ({
+            step: s.step,
+            wrote: s.wrote,
+            event: serializeCare(s.event),
+          })),
+        };
       } catch (e) {
         mapServiceError(e, ctx.requestId);
       }

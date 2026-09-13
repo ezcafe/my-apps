@@ -22,6 +22,7 @@ export function Modal({
   bare,
   children,
   className,
+  closeDisabled,
 }: {
   open: boolean;
   onClose: () => void;
@@ -33,6 +34,8 @@ export function Modal({
   bare?: boolean;
   children: ReactNode;
   className?: string;
+  /** When true, Escape and ✕ do not call onClose (e.g. mutation in flight). */
+  closeDisabled?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const mounted = useSyncExternalStore(
@@ -62,11 +65,12 @@ export function Modal({
     if (!el) return;
     const onCancel = (e: Event) => {
       e.preventDefault();
+      if (closeDisabled) return;
       onClose();
     };
     el.addEventListener("cancel", onCancel);
     return () => el.removeEventListener("cancel", onCancel);
-  }, [mounted, open, onClose]);
+  }, [mounted, open, onClose, closeDisabled]);
 
   // Unmount when closed so closed sheets leave the a11y tree (Playwright
   // getByRole('dialog') must only see the open payment / confirm sheet).
@@ -105,6 +109,7 @@ export function Modal({
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
+                disabled={closeDisabled}
                 aria-label="Close"
                 iconOnly
               >

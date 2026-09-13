@@ -11,6 +11,12 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { workspace } from "./workspace";
+import type {
+  BabyFeedLeg,
+  BabyFeedMethod,
+} from "@/lib/baby-feed-session";
+
+export type { BabyFeedLeg };
 
 export const babyCareEventTypeEnum = pgEnum("baby_care_event_type", [
   "feed",
@@ -32,15 +38,22 @@ export const babyGrowthKindEnum = pgEnum("baby_growth_kind", [
 ]);
 
 export type BabyFeedPayload = {
-  method: "breast_l" | "breast_r" | "formula" | "pump";
+  method: BabyFeedMethod;
   durationSec?: number;
   amountMl?: number;
+  /** Multi-part session legs (one per method). Omit on legacy single-method rows. */
+  legs?: BabyFeedLeg[];
   notes?: string;
+  quickRequestId?: string;
 };
 
 export type BabyDiaperPayload = {
-  kind: "wet" | "dirty" | "mixed";
+  kind: "wet" | "dirty" | "mixed" | "dry";
+  color?: "yellow" | "brown" | "green" | "black" | "white_pale" | "red_bloody";
+  texture?: "soft" | "seedy" | "mushy" | "watery" | "hard" | "formed";
+  amount?: "smear" | "medium" | "blowout";
   notes?: string;
+  quickRequestId?: string;
 };
 
 export type BabySleepPayload = {
@@ -167,6 +180,55 @@ export const babyVaccineDoseEnum = pgEnum("baby_vaccine_dose", [
   "first",
   "second",
 ]);
+
+/** Ordered result of one babyQuickCare press — durable exactly-once replay. */
+export type BabyQuickCareStoredResult = {
+  v: 1;
+  steps: {
+    step:
+      | "saveBreast"
+      | "endNap"
+      | "startNap"
+      | "createFormula"
+      | "createDiaper";
+    /** insert = first physical write; update = in-session merge. */
+    wrote?: "insert" | "update";
+    event: {
+      id: string;
+      type: "feed" | "diaper" | "sleep";
+      occurredAt: string;
+      endedAt: string | null;
+      payload: BabyCarePayload;
+    };
+  }[];
+  openSleep: {
+    id: string;
+    occurredAt: string;
+    endedAt: string | null;
+  } | null;
+};
+
+export const babyQuickCareRequest = pgTable(
+  "baby_quick_care_request",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    babyId: uuid("baby_id")
+      .notNull()
+      .references(() => babyProfile.id, { onDelete: "cascade" }),
+    requestId: text("request_id").notNull(),
+    result: jsonb("result").$type<BabyQuickCareStoredResult>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("baby_quick_care_request_uq").on(t.workspaceId, t.requestId),
+    index("baby_quick_care_request_created_idx").on(t.createdAt),
+  ],
+);
 
 /** Log-only vaccine doses (not care events, not growth). */
 export const babyVaccineEntry = pgTable(

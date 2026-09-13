@@ -12,6 +12,7 @@ export const BABY_CARE_AFTER_SAVE = {
   sleepStart: "stay",
   sleepEnd: "home",
   diaper: "home",
+  homeQuick: "stay",
 } as const satisfies Record<string, BabyCareAfterSave>;
 
 type PushRouter = { push: (href: string) => void };

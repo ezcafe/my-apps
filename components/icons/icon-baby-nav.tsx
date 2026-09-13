@@ -86,6 +86,26 @@ export function IconBabyDiaper(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Breast glyph — same stroke style as the other Baby nav icons. */
+export function IconBabyBreast(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M12 4c-3.5 0-6 2.8-6 6.2 0 3.4 2.2 6.3 5.2 8.3a1.5 1.5 0 0 0 1.6 0c3-2 5.2-4.9 5.2-8.3C18 6.8 15.5 4 12 4Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 11.5a1.5 1.5 0 1 0 0.01 0"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function IconBabyMeasure(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
@@ -142,4 +162,62 @@ export function IconBabySettings(props: SVGProps<SVGSVGElement>) {
       />
     </svg>
   );
+}
+
+/** Droplet / ml glyph for bottle Custom (icon-only). */
+export function IconBabyDroplet(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M12 3.5c0 0-6 7.2-6 11.2a6 6 0 0 0 12 0C18 10.7 12 3.5 12 3.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Wet diaper tile — droplet. */
+export function IconBabyDiaperWet(props: SVGProps<SVGSVGElement>) {
+  return <IconBabyDroplet {...props} />;
+}
+
+/** Poop-only diaper tile — soft blob. */
+export function IconBabyDiaperPoop(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M12 6c-1.2 0-2.2.7-2.6 1.7-.8-.3-1.7 0-2.1.8-.9.1-1.6.9-1.6 1.9 0 2.2 2.8 4.6 6.3 4.6s6.3-2.4 6.3-4.6c0-1-.7-1.8-1.6-1.9-.4-.8-1.3-1.1-2.1-.8C14.2 6.7 13.2 6 12 6Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Mixed diaper tile — droplet + small blob. */
+export function IconBabyDiaperMixed(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M8 4.5c0 0-3.5 4.2-3.5 6.5a3.5 3.5 0 0 0 7 0C11.5 8.7 8 4.5 8 4.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15 11c-.8 0-1.5.5-1.8 1.2-.6-.2-1.2 0-1.5.6-.6.1-1.1.7-1.1 1.4 0 1.6 2 3.3 4.4 3.3s4.4-1.7 4.4-3.3c0-.7-.5-1.3-1.1-1.4-.3-.6-.9-.8-1.5-.6C16.5 11.5 15.8 11 15 11Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Dry diaper tile — empty diaper outline. */
+export function IconBabyDiaperDry(props: SVGProps<SVGSVGElement>) {
+  return <IconBabyDiaper {...props} />;
 }

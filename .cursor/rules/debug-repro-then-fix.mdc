@@ -1,0 +1,27 @@
+---
+description: Debug with failing tests first — reproduce, then unit/e2e, then fix
+alwaysApply: true
+---
+
+# Debug: reproduce → tests → fix
+
+When debugging a bug or regression:
+
+1. **Reproduce** — Confirm the failure (manual steps, logs, or existing failing test).
+2. **Add failing tests first** — Before changing production code, add tests that fail for the same reason:
+   - **Unit** (or focused integration) for logic, API, validators, stores, pure helpers.
+   - **E2E** when the bug is user-visible flow, navigation, or multi-layer wiring — skip e2e only when the issue cannot be reached from the UI (say so in one line).
+3. **Fix** — Change production code until the new tests pass. Keep the repro tests.
+4. **Verify** — Re-run the new tests (and nearby related suite). Do not delete the repro tests after the fix.
+
+## Order (mandatory)
+
+```text
+reproduce → failing unit (+ e2e if applicable) → fix → green tests
+```
+
+## Do not
+
+- Fix production code before a failing automated repro exists (unless the user explicitly waives tests).
+- “Fix forward” with only a manual check and no new coverage for this bug.
+- Mark done while the new repro tests are skipped or deleted.

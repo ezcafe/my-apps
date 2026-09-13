@@ -8,11 +8,12 @@ import {
 } from "@/lib/baby-care-save-navigate";
 
 describe("BABY_CARE_AFTER_SAVE caller contracts", () => {
-  it("locks feed method + sleep End + diaper to home; sleep Start to stay", () => {
+  it("locks feed method + sleep End + diaper to home; sleep Start and homeQuick to stay", () => {
     assert.equal(BABY_CARE_AFTER_SAVE.feedMethod, "home");
     assert.equal(BABY_CARE_AFTER_SAVE.sleepStart, "stay");
     assert.equal(BABY_CARE_AFTER_SAVE.sleepEnd, "home");
     assert.equal(BABY_CARE_AFTER_SAVE.diaper, "home");
+    assert.equal(BABY_CARE_AFTER_SAVE.homeQuick, "stay");
   });
 });
 

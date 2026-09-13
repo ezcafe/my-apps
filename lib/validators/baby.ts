@@ -1,4 +1,15 @@
 import { z } from "zod";
+import {
+  babyCalendarDayNumber,
+  parseBabyCalendarDate,
+} from "@/lib/baby-calendar-date";
+import {
+  BABY_DIAPER_AMOUNTS,
+  BABY_DIAPER_COLORS,
+  BABY_DIAPER_KINDS,
+  BABY_DIAPER_TEXTURES,
+  babyDiaperDetailAllowed,
+} from "@/lib/baby-diaper-detail";
 
 export const babyFeedMethodSchema = z.enum([
   "breast_l",
@@ -7,7 +18,45 @@ export const babyFeedMethodSchema = z.enum([
   "pump",
 ]);
 
-export const babyDiaperKindSchema = z.enum(["wet", "dirty", "mixed"]);
+export const babyDiaperKindSchema = z.enum(BABY_DIAPER_KINDS);
+export const babyDiaperColorSchema = z.enum(BABY_DIAPER_COLORS);
+export const babyDiaperTextureSchema = z.enum(BABY_DIAPER_TEXTURES);
+export const babyDiaperAmountSchema = z.enum(BABY_DIAPER_AMOUNTS);
+
+/** Reject color/texture/amount when kind is wet or dry. */
+function refineDiaperDetailAllowed(
+  val: {
+    kind?: z.infer<typeof babyDiaperKindSchema>;
+    color?: unknown;
+    texture?: unknown;
+    amount?: unknown;
+  },
+  ctx: z.RefinementCtx,
+  paths: { color: string[]; texture: string[]; amount: string[] },
+) {
+  if (val.kind == null || babyDiaperDetailAllowed(val.kind)) return;
+  if (val.color !== undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message: "diaper detail not allowed for this kind",
+      path: paths.color,
+    });
+  }
+  if (val.texture !== undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message: "diaper detail not allowed for this kind",
+      path: paths.texture,
+    });
+  }
+  if (val.amount !== undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message: "diaper detail not allowed for this kind",
+      path: paths.amount,
+    });
+  }
+}
 
 export const babyGrowthKindSchema = z.enum([
   "weight",
@@ -23,21 +72,42 @@ export const babyDisplayNameSchema = z.string().trim().min(1).max(100);
 
 const UPDATE_BABY_EVENT_PAYLOAD_MAX_CHARS = 4096;
 
+export const babyFeedLegSchema = z.object({
+  method: babyFeedMethodSchema,
+  durationSec: z.number().int().positive().optional(),
+  amountMl: z.number().positive().optional(),
+});
+
+/** Cap matches mergeFeedLegs after same-method collapse. */
+export const BABY_FEED_LEGS_ZOD_MAX = 8;
+
 export const createBabyFeedSchema = z.object({
   method: babyFeedMethodSchema,
   durationSec: z.number().int().positive().optional(),
   amountMl: z.number().positive().optional(),
+  legs: z.array(babyFeedLegSchema).max(BABY_FEED_LEGS_ZOD_MAX).optional(),
   notes: z.string().max(2000).optional(),
   occurredAt: z.string().datetime({ offset: true }).optional(),
   source: babyCareSourceSchema,
 });
 
-export const createBabyDiaperSchema = z.object({
-  kind: babyDiaperKindSchema,
-  notes: z.string().max(2000).optional(),
-  occurredAt: z.string().datetime({ offset: true }).optional(),
-  source: babyCareSourceSchema,
-});
+export const createBabyDiaperSchema = z
+  .object({
+    kind: babyDiaperKindSchema,
+    color: babyDiaperColorSchema.optional(),
+    texture: babyDiaperTextureSchema.optional(),
+    amount: babyDiaperAmountSchema.optional(),
+    notes: z.string().max(2000).optional(),
+    occurredAt: z.string().datetime({ offset: true }).optional(),
+    source: babyCareSourceSchema,
+  })
+  .superRefine((val, ctx) => {
+    refineDiaperDetailAllowed(val, ctx, {
+      color: ["color"],
+      texture: ["texture"],
+      amount: ["amount"],
+    });
+  });
 
 export const startBabySleepSchema = z.object({
   notes: z.string().max(2000).optional(),
@@ -77,6 +147,7 @@ export const updateBabyEventFeedPayloadSchema = z
     method: babyFeedMethodSchema.optional(),
     durationSec: z.number().int().positive().optional(),
     amountMl: z.number().positive().optional(),
+    legs: z.array(babyFeedLegSchema).max(BABY_FEED_LEGS_ZOD_MAX).optional(),
     notes: z.string().max(2000).optional(),
   })
   .strict();
@@ -84,9 +155,56 @@ export const updateBabyEventFeedPayloadSchema = z
 export const updateBabyEventDiaperPayloadSchema = z
   .object({
     kind: babyDiaperKindSchema.optional(),
+    color: babyDiaperColorSchema.optional(),
+    texture: babyDiaperTextureSchema.optional(),
+    amount: babyDiaperAmountSchema.optional(),
     notes: z.string().max(2000).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((val, ctx) => {
+    refineDiaperDetailAllowed(val, ctx, {
+      color: ["color"],
+      texture: ["texture"],
+      amount: ["amount"],
+    });
+  });
+
+export type UpdateBabyEventDiaperPayload = z.infer<
+  typeof updateBabyEventDiaperPayloadSchema
+>;
+
+const DIAPER_DETAIL_KEYS = ["color", "texture", "amount"] as const;
+
+/**
+ * Merge diaper update patch onto existing payload.
+ * - Omit-kind detail on wet/dry → Validation failed (same ban as create/quick-care).
+ * - Kind flip to wet/dry → strip leftover color/texture/amount.
+ */
+export function mergeBabyEventDiaperPayload(
+  existing: Record<string, unknown>,
+  patch: UpdateBabyEventDiaperPayload,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...existing, ...patch };
+  const kind = merged.kind;
+  const kindOk =
+    typeof kind === "string" &&
+    (BABY_DIAPER_KINDS as readonly string[]).includes(kind);
+
+  if (!kindOk || !babyDiaperDetailAllowed(kind as (typeof BABY_DIAPER_KINDS)[number])) {
+    const patchSetsDetail = DIAPER_DETAIL_KEYS.some(
+      (key) => patch[key] !== undefined,
+    );
+    if (patchSetsDetail) {
+      throw new Error(
+        "Validation failed: diaper detail not allowed for this kind",
+      );
+    }
+    for (const key of DIAPER_DETAIL_KEYS) {
+      delete merged[key];
+    }
+  }
+  return merged;
+}
 
 export const updateBabyEventSleepPayloadSchema = z
   .object({
@@ -205,3 +323,121 @@ export const babyVaccineListInputSchema = z
   });
 
 export type CreateBabyVaccineInput = z.input<typeof createBabyVaccineSchema>;
+
+export const babyBreastSideSchema = z.enum(["breast_l", "breast_r"]);
+
+export const babyHomeQuickStatusInputSchema = z
+  .object({
+    dayFrom: z.string().datetime({ offset: true }),
+    dayTo: z.string().datetime({ offset: true }),
+  })
+  .superRefine((val, ctx) => {
+    const from = Date.parse(val.dayFrom);
+    const to = Date.parse(val.dayTo);
+    if (from >= to) {
+      ctx.addIssue({
+        code: "custom",
+        message: "dayFrom must be before dayTo",
+        path: ["dayFrom"],
+      });
+    }
+    if (to - from > 26 * 60 * 60 * 1000) {
+      ctx.addIssue({
+        code: "custom",
+        message: "window must be one day",
+        path: ["dayTo"],
+      });
+    }
+  });
+
+export const babyBirthDateSchema = z
+  .string()
+  .trim()
+  .refine((v) => parseBabyCalendarDate(v) !== null, "BABY_BIRTH_DATE_INVALID");
+
+export const updateBabyProfileSchema = z
+  .object({
+    birthDate: babyBirthDateSchema.nullable(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.birthDate == null) return;
+    const parsed = parseBabyCalendarDate(val.birthDate);
+    if (!parsed) return; // babyBirthDateSchema already reported INVALID
+    const day = babyCalendarDayNumber(parsed);
+    const todayUtc = Math.floor(Date.now() / 86_400_000);
+    if (day > todayUtc + 1) {
+      ctx.addIssue({
+        code: "custom",
+        message: "BABY_BIRTH_DATE_FUTURE",
+        path: ["birthDate"],
+      });
+    }
+    if (day < todayUtc - 10 * 366) {
+      ctx.addIssue({
+        code: "custom",
+        message: "BABY_BIRTH_DATE_TOO_OLD",
+        path: ["birthDate"],
+      });
+    }
+  });
+
+export const babyQuickCareSchema = z
+  .object({
+    action: z.object({
+      kind: z.enum(["BREAST", "FORMULA", "SLEEP", "DIAPER"]),
+      side: babyBreastSideSchema.optional(),
+      amountMl: z.number().positive().optional(),
+      diaperKind: babyDiaperKindSchema.optional(),
+      diaperColor: babyDiaperColorSchema.optional(),
+      diaperTexture: babyDiaperTextureSchema.optional(),
+      diaperAmount: babyDiaperAmountSchema.optional(),
+    }),
+    breastRunning: z
+      .object({
+        side: babyBreastSideSchema,
+        durationSec: z.number().int().positive(),
+      })
+      .nullable()
+      .optional(),
+    /** Target feed row to merge when client still has an open/grace session. */
+    feedSessionEventId: z.string().uuid().optional(),
+    clientRequestId: z.string().trim().min(8).max(64),
+  })
+  .superRefine((v, ctx) => {
+    const need = (ok: boolean, message: string, path: string) => {
+      if (!ok) {
+        ctx.addIssue({
+          code: "custom",
+          message,
+          path: ["action", path],
+        });
+      }
+    };
+    if (v.action.kind === "BREAST") {
+      need(!!v.action.side, "BABY_QUICK_SIDE_REQUIRED", "side");
+    }
+    if (v.action.kind === "FORMULA") {
+      need(
+        v.action.amountMl != null,
+        "BABY_QUICK_AMOUNT_REQUIRED",
+        "amountMl",
+      );
+    }
+    if (v.action.kind === "DIAPER") {
+      need(!!v.action.diaperKind, "BABY_QUICK_DIAPER_REQUIRED", "diaperKind");
+      refineDiaperDetailAllowed(
+        {
+          kind: v.action.diaperKind,
+          color: v.action.diaperColor,
+          texture: v.action.diaperTexture,
+          amount: v.action.diaperAmount,
+        },
+        ctx,
+        {
+          color: ["action", "diaperColor"],
+          texture: ["action", "diaperTexture"],
+          amount: ["action", "diaperAmount"],
+        },
+      );
+    }
+  });

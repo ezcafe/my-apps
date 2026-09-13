@@ -4,9 +4,15 @@ import { getTableConfig } from "drizzle-orm/pg-core";
 import {
   babyCareEvent,
   babyProfile,
+  babyQuickCareRequest,
   babyVaccineDoseEnum,
   babyVaccineEntry,
+  type BabyFeedLeg,
+  type BabyQuickCareStoredResult,
 } from "@/db/schema/baby";
+import type { BabyFeedLeg as LibBabyFeedLeg } from "@/lib/baby-feed-session";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 describe("baby_profile schema", () => {
   it("defines unique workspace_id (one baby per workspace)", () => {
@@ -29,6 +35,60 @@ describe("baby_care_event schema", () => {
     );
     assert.ok(openSleep, "expected baby_care_event_open_sleep_uq");
     assert.equal(openSleep.config.unique, true);
+  });
+
+  it("BabyFeedLeg is shared from lib/baby-feed-session", () => {
+    const leg: BabyFeedLeg = { method: "breast_l", durationSec: 60 };
+    const same: LibBabyFeedLeg = leg;
+    assert.equal(same.method, "breast_l");
+  });
+});
+
+describe("baby_quick_care_request schema", () => {
+  it("defines unique (workspace, request_id) and created_at index", () => {
+    const config = getTableConfig(babyQuickCareRequest);
+    const names = config.indexes.map((idx) => idx.config.name);
+    assert.ok(names.includes("baby_quick_care_request_uq"));
+    assert.ok(names.includes("baby_quick_care_request_created_idx"));
+    const uq = config.indexes.find(
+      (idx) => idx.config.name === "baby_quick_care_request_uq",
+    );
+    assert.equal(uq?.config.unique, true);
+  });
+
+  it("typed result shape uses v:1 and ISO step events", () => {
+    const sample: BabyQuickCareStoredResult = {
+      v: 1,
+      steps: [
+        {
+          step: "createDiaper",
+          event: {
+            id: "e1",
+            type: "diaper",
+            occurredAt: "2026-07-04T12:00:00.000Z",
+            endedAt: null,
+            payload: { kind: "wet" },
+          },
+        },
+      ],
+      openSleep: null,
+    };
+    assert.equal(sample.v, 1);
+    assert.equal(sample.steps[0]?.step, "createDiaper");
+  });
+
+  it("migration SQL enables RLS, FORCE, and workspace policy", () => {
+    const sql = readFileSync(
+      join(
+        process.cwd(),
+        "db/migrations/0039_baby_quick_care_request.sql",
+      ),
+      "utf8",
+    );
+    assert.match(sql, /ENABLE ROW LEVEL SECURITY/);
+    assert.match(sql, /FORCE ROW LEVEL SECURITY/);
+    assert.match(sql, /CREATE POLICY baby_quick_care_request_workspace_rls/);
+    assert.match(sql, /app_current_workspace_id\(\)/);
   });
 });
 
