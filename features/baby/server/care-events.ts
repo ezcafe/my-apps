@@ -6,6 +6,7 @@ import {
   type BabyFeedPayload,
   type BabySleepPayload,
 } from "@/db/schema/baby";
+import { withBabyCareLock } from "@/features/baby/server/care-lock";
 import { ensureBabyProfile } from "@/features/baby/server/profile";
 import { isPgUniqueViolation } from "@/lib/pg-unique";
 import { parseOrThrow } from "@/lib/parse-or-throw";
@@ -13,6 +14,7 @@ import {
   createBabyDiaperSchema,
   createBabyFeedSchema,
   endBabySleepSchema,
+  mergeBabyEventDiaperPayload,
   startBabySleepSchema,
   updateBabyEventPayloadSchemaForType,
   updateBabyEventSchema,
@@ -20,6 +22,7 @@ import {
   type CreateBabyFeedInput,
   type EndBabySleepInput,
   type StartBabySleepInput,
+  type UpdateBabyEventDiaperPayload,
 } from "@/lib/validators/baby";
 
 function toDate(iso?: string): Date {
@@ -75,7 +78,30 @@ export type CareEventDeps = {
     workspaceId: string,
     eventId: string,
   ) => Promise<BabyCareEventRow | null>;
+  deleteCareEvent?: (
+    workspaceId: string,
+    eventId: string,
+  ) => Promise<BabyCareEventRow>;
+  /**
+   * Nap writers run inside the shared lock. Unit tests inject a passthrough.
+   * Production uses withBabyCareLock (ALS binds db to the transaction).
+   */
+  runInCareLock?: <T>(
+    workspaceId: string,
+    run: () => Promise<T>,
+  ) => Promise<T>;
 };
+
+async function runNapLocked<T>(
+  workspaceId: string,
+  deps: CareEventDeps,
+  run: () => Promise<T>,
+): Promise<T> {
+  if (deps.runInCareLock) {
+    return deps.runInCareLock(workspaceId, run);
+  }
+  return withBabyCareLock(workspaceId, async () => run());
+}
 
 export function assertCanStartSleep(
   open: { id: string } | null | undefined,
@@ -227,8 +253,12 @@ export async function createBabyDiaper(
 ) {
   const input = parseOrThrow(createBabyDiaperSchema, raw);
   const baby = await deps.ensureBabyProfile(workspaceId);
+  // createBabyDiaper: write amount only when the client sends it (no silent medium).
   const payload: BabyDiaperPayload = {
     kind: input.kind,
+    ...(input.color ? { color: input.color } : {}),
+    ...(input.texture ? { texture: input.texture } : {}),
+    ...(input.amount ? { amount: input.amount } : {}),
     ...(input.notes ? { notes: input.notes } : {}),
   };
   return deps.insertCareEvent({
@@ -267,27 +297,29 @@ export async function startBabySleep(
   deps: CareEventDeps = defaultDeps(),
 ) {
   const input = parseOrThrow(startBabySleepSchema, raw);
-  const baby = await deps.ensureBabyProfile(workspaceId);
-  const open = await deps.findOpenSleep(workspaceId, baby.id);
-  assertCanStartSleep(open);
-  const payload: BabySleepPayload = {
-    ...(input.notes ? { notes: input.notes } : {}),
-  };
-  try {
-    return await deps.insertCareEvent({
-      workspaceId,
-      babyId: baby.id,
-      type: "sleep",
-      occurredAt: toDate(input.occurredAt),
-      endedAt: null,
-      payload,
-      source: input.source ?? "web",
-      createdByUserSub: userSub,
-      updatedByUserSub: userSub,
-    });
-  } catch (e) {
-    rethrowOpenSleepConflict(e);
-  }
+  return runNapLocked(workspaceId, deps, async () => {
+    const baby = await deps.ensureBabyProfile(workspaceId);
+    const open = await deps.findOpenSleep(workspaceId, baby.id);
+    assertCanStartSleep(open);
+    const payload: BabySleepPayload = {
+      ...(input.notes ? { notes: input.notes } : {}),
+    };
+    try {
+      return await deps.insertCareEvent({
+        workspaceId,
+        babyId: baby.id,
+        type: "sleep",
+        occurredAt: toDate(input.occurredAt),
+        endedAt: null,
+        payload,
+        source: input.source ?? "web",
+        createdByUserSub: userSub,
+        updatedByUserSub: userSub,
+      });
+    } catch (e) {
+      rethrowOpenSleepConflict(e);
+    }
+  });
 }
 
 export async function endBabySleep(
@@ -297,17 +329,19 @@ export async function endBabySleep(
   deps: CareEventDeps = defaultDeps(),
 ) {
   const input = parseOrThrow(endBabySleepSchema, raw);
-  const baby = await deps.ensureBabyProfile(workspaceId);
-  const open = input.eventId
-    ? await deps.getSleepById(workspaceId, input.eventId)
-    : await deps.findOpenSleep(workspaceId, baby.id);
+  return runNapLocked(workspaceId, deps, async () => {
+    const baby = await deps.ensureBabyProfile(workspaceId);
+    const open = input.eventId
+      ? await deps.getSleepById(workspaceId, input.eventId)
+      : await deps.findOpenSleep(workspaceId, baby.id);
 
-  const target = requireOpenSleepForEnd(open);
+    const target = requireOpenSleepForEnd(open);
 
-  return deps.updateCareEvent(workspaceId, target.id, {
-    endedAt: toDate(input.endedAt),
-    updatedByUserSub: userSub,
-    updatedAt: new Date(),
+    return deps.updateCareEvent(workspaceId, target.id, {
+      endedAt: toDate(input.endedAt),
+      updatedByUserSub: userSub,
+      updatedAt: new Date(),
+    });
   });
 }
 
@@ -319,6 +353,7 @@ export async function updateBabyEvent(
 ) {
   const input = parseOrThrow(updateBabyEventSchema, raw);
   const getById = deps.getEventById ?? defaultGetEventById;
+  // Type is immutable — pre-read outside the lock is safe.
   const existing = await getById(workspaceId, input.id);
   if (!existing) throw new Error("NOT_FOUND");
 
@@ -328,21 +363,37 @@ export async function updateBabyEvent(
       updateBabyEventPayloadSchemaForType(existing.type),
       input.payload,
     );
-    nextPayload = { ...(existing.payload as object), ...patch };
+    if (existing.type === "diaper") {
+      nextPayload = mergeBabyEventDiaperPayload(
+        (existing.payload ?? {}) as Record<string, unknown>,
+        patch as UpdateBabyEventDiaperPayload,
+      );
+    } else {
+      nextPayload = { ...(existing.payload as object), ...patch };
+    }
   }
 
-  return deps.updateCareEvent(workspaceId, existing.id, {
-    ...(input.occurredAt ? { occurredAt: new Date(input.occurredAt) } : {}),
-    ...(input.endedAt !== undefined
-      ? { endedAt: input.endedAt ? new Date(input.endedAt) : null }
-      : {}),
-    ...(input.payload !== undefined ? { payload: nextPayload } : {}),
-    updatedByUserSub: userSub,
-    updatedAt: new Date(),
-  });
+  const apply = () =>
+    deps.updateCareEvent(workspaceId, existing.id, {
+      ...(input.occurredAt ? { occurredAt: new Date(input.occurredAt) } : {}),
+      ...(input.endedAt !== undefined
+        ? { endedAt: input.endedAt ? new Date(input.endedAt) : null }
+        : {}),
+      ...(input.payload !== undefined ? { payload: nextPayload } : {}),
+      updatedByUserSub: userSub,
+      updatedAt: new Date(),
+    });
+
+  if (existing.type === "sleep") {
+    return runNapLocked(workspaceId, deps, apply);
+  }
+  return apply();
 }
 
-export async function deleteBabyEvent(workspaceId: string, eventId: string) {
+async function defaultDeleteCareEvent(
+  workspaceId: string,
+  eventId: string,
+): Promise<BabyCareEventRow> {
   const [row] = await db
     .delete(babyCareEvent)
     .where(
@@ -354,6 +405,26 @@ export async function deleteBabyEvent(workspaceId: string, eventId: string) {
     .returning();
   if (!row) throw new Error("NOT_FOUND");
   return row;
+}
+
+export async function deleteBabyEvent(
+  workspaceId: string,
+  eventId: string,
+  deps: CareEventDeps = defaultDeps(),
+) {
+  const getById = deps.getEventById ?? defaultGetEventById;
+  const existing = await getById(workspaceId, eventId);
+  if (!existing) throw new Error("NOT_FOUND");
+
+  const doDelete = async () => {
+    const del = deps.deleteCareEvent ?? defaultDeleteCareEvent;
+    return del(workspaceId, eventId);
+  };
+
+  if (existing.type === "sleep") {
+    return runNapLocked(workspaceId, deps, doDelete);
+  }
+  return doDelete();
 }
 
 export async function getBabyEvent(workspaceId: string, eventId: string) {

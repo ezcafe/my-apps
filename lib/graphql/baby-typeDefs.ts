@@ -91,6 +91,94 @@ export const babyTypeDefs = /* GraphQL */ `
     intervalMinutes: Int!
   }
 
+  type BabyHomeQuickStatus {
+    lastFeed: BabyTimelineItem
+    lastSleep: BabyTimelineItem
+    lastDiaper: BabyTimelineItem
+    openSleep: BabyCareEvent
+    feedsToday: Int!
+    birthDate: String
+    latestWeightKg: Float
+    """Distinct formula ml from recent feed events, newest by occurredAt first, max 3."""
+    recentBottleMl: [Int!]!
+  }
+
+  enum BabyQuickActionKind {
+    BREAST
+    FORMULA
+    SLEEP
+    DIAPER
+  }
+
+  enum BabyDiaperKind {
+    wet
+    dirty
+    mixed
+    dry
+  }
+
+  enum BabyDiaperColor {
+    yellow
+    brown
+    green
+    black
+    white_pale
+    red_bloody
+  }
+
+  enum BabyDiaperTexture {
+    soft
+    seedy
+    mushy
+    watery
+    hard
+    formed
+  }
+
+  enum BabyDiaperAmount {
+    smear
+    medium
+    blowout
+  }
+
+  input BabyQuickActionInput {
+    kind: BabyQuickActionKind!
+    side: String
+    amountMl: Float
+    diaperKind: BabyDiaperKind
+    diaperColor: BabyDiaperColor
+    diaperTexture: BabyDiaperTexture
+    diaperAmount: BabyDiaperAmount
+  }
+
+  input BabyQuickBreastInput {
+    side: String!
+    durationSec: Int!
+  }
+
+  input BabyQuickCareInput {
+    action: BabyQuickActionInput!
+    breastRunning: BabyQuickBreastInput
+    feedSessionEventId: ID
+    clientRequestId: String!
+  }
+
+  type BabyQuickCareStepResult {
+    step: String!
+    wrote: String!
+    event: BabyCareEvent!
+  }
+
+  type BabyQuickCareResult {
+    steps: [BabyQuickCareStepResult!]!
+    replayed: Boolean!
+    openSleep: BabyCareEvent
+  }
+
+  input UpdateBabyProfileInput {
+    birthDate: String
+  }
+
   scalar JSON
 
   type Query {
@@ -103,6 +191,8 @@ export const babyTypeDefs = /* GraphQL */ `
     ): BabyTimelineConnection!
     """Indexed open nap for Start-disable — null when none."""
     babyOpenSleep: BabyCareEvent
+    """One-shot read for the Baby home quick-log page."""
+    babyHomeQuickStatus(dayFrom: String!, dayTo: String!): BabyHomeQuickStatus!
     babyGrowthEntries(
       kind: String
       from: String
@@ -129,7 +219,10 @@ export const babyTypeDefs = /* GraphQL */ `
   }
 
   input CreateBabyDiaperInput {
-    kind: String!
+    kind: BabyDiaperKind!
+    color: BabyDiaperColor
+    texture: BabyDiaperTexture
+    amount: BabyDiaperAmount
     notes: String
     occurredAt: String
   }
@@ -192,10 +285,12 @@ export const babyTypeDefs = /* GraphQL */ `
 
   type Mutation {
     ensureBabyProfile(displayName: String): BabyProfile!
+    updateBabyProfile(input: UpdateBabyProfileInput!): BabyProfile!
     createBabyFeed(input: CreateBabyFeedInput!): BabyCareEvent!
     createBabyDiaper(input: CreateBabyDiaperInput!): BabyCareEvent!
     startBabySleep(input: StartBabySleepInput): BabyCareEvent!
     endBabySleep(input: EndBabySleepInput): BabyCareEvent!
+    babyQuickCare(input: BabyQuickCareInput!): BabyQuickCareResult!
     updateBabyEvent(input: UpdateBabyEventInput!): BabyCareEvent!
     deleteBabyEvent(id: ID!): BabyCareEvent!
     createBabyGrowth(input: CreateBabyGrowthInput!): BabyGrowthEntry!

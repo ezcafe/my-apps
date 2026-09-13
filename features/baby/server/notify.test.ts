@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   maybeNotifyBabyCareCreated,
+  maybeNotifyBabyCareCreatedMany,
   scheduleNotifyBabyCareCreated,
 } from "@/features/baby/server/notify";
 import {
@@ -296,5 +297,41 @@ describe("scheduleNotifyBabyCareCreated", () => {
     await Promise.resolve();
     await Promise.resolve();
     assert.equal(sendFinished, true);
+  });
+});
+
+describe("maybeNotifyBabyCareCreatedMany", () => {
+  it("reads Telegram link once for multi-step notify", async () => {
+    let linkReads = 0;
+    const sends: string[] = [];
+    await maybeNotifyBabyCareCreatedMany(
+      [
+        {
+          workspaceId: "ws-1",
+          kind: "feed",
+          summary: "Breast",
+          source: "web",
+        },
+        {
+          workspaceId: "ws-1",
+          kind: "diaper",
+          summary: "Diaper",
+          source: "web",
+        },
+      ],
+      {
+        isTelegramEnabled: () => true,
+        getLink: async () => {
+          linkReads += 1;
+          return { chatId: "1", confirmedAt: new Date() };
+        },
+        send: async (_chat, text) => {
+          sends.push(text);
+          return { ok: true };
+        },
+      },
+    );
+    assert.equal(linkReads, 1);
+    assert.deepEqual(sends, ["Breast", "Diaper"]);
   });
 });

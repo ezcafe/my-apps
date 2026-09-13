@@ -1,7 +1,7 @@
 # Workflow run: money-investments-loans-e2e
 
 **Status:** gate-merge
-**Last stage:** Push PR and merge · in progress
+**Last stage:** Push PR and merge · paused — need `gh auth login`
 
 ## Resolved models
 
@@ -119,3 +119,6 @@ Newest at the bottom. Format: `- **HH:MM** · running|done|paused|stopped · Ste
 - **13:41** · paused · Gate 3 — Merge · await user approve (top risks)
 - **13:39** · done · Gate 3 — Merge · user approved yes · next: Push PR and merge
 - **13:39** · running · Push PR and merge · Fast=inherit
+- **13:45** · paused · Push PR and merge · branch `e2e/money-investments-loans` pushed (`0de9a0a`); `gh` not authenticated · await `gh auth login` then resume
+- **13:42** · done · Push · branch `e2e/money-investments-loans` → origin (commit `0de9a0a`)
+- **13:45** · paused · Push PR and merge · `gh` installed but not logged in; await `gh auth login` then resume PR create + merge

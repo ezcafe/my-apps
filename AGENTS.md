@@ -57,6 +57,18 @@ Polish principles applied automatically by tokens/primitives are documented in D
 
 Interaction patterns (error, success, empty, loading, search, breadcrumbs, dashboards) are also in DESIGN_GUIDE. Match feedback scale to stakes; every action needs a visible reaction; empty is not an error; crumbs are location-based from the section origin.
 
+## Debugging (mandatory)
+
+When fixing a bug or regression:
+
+1. **Reproduce** the issue first.
+2. **Add failing tests** that capture the bug **before** changing production code:
+   - **Unit** (or focused integration) for logic / API / helpers.
+   - **E2E** when the bug is a user-visible flow (skip only if not UI-reachable; say so briefly).
+3. **Then fix** until those tests pass. Keep the repro tests.
+
+Order: `reproduce → failing unit (+ e2e if applicable) → fix → green`. Do not fix-forward with only a manual check unless the user explicitly waives tests.
+
 ## Database / Drizzle (postgres.js)
 
 This app uses **postgres.js** via Drizzle (`db/index.ts`, `prepare: false`). Do **not** bind JavaScript arrays as PostgreSQL array parameters in raw `sql` templates:

@@ -1,7 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
-import { clickSoftNav } from "./helpers/shell";
+import { clickSoftNav, openAppMenu, appMenuPanel } from "./helpers/shell";
+import {
+  defaultStatus,
+  gotoBabyHomeReady,
+  installBabyHomeMocks,
+  breastL,
+  bottleHeader,
+  bottleSave,
+  diaperSave,
+} from "./helpers/baby-home-graphql";
 
-/** Smoke: hamburger nav + home CTAs + EN/VI in settings. Writes need E2E_STORAGE_STATE. */
+/** Smoke: hamburger nav + Option B home + EN/VI in settings. Writes need E2E_STORAGE_STATE. */
 
 const hasAuthStorage = Boolean(process.env.E2E_STORAGE_STATE?.trim());
 
@@ -10,8 +19,15 @@ async function gotoBabyHome(page: Page) {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 }
 
-async function openAppMenu(page: Page) {
-  await page.getByRole("button", { name: /open .+ menu/i }).click();
+/** Open a full care form from the hamburger (not home quick cards). */
+async function openCareFormFromMenu(
+  page: Page,
+  linkName: RegExp,
+  url: RegExp,
+) {
+  await openAppMenu(page);
+  const link = appMenuPanel(page).getByRole("link", { name: linkName });
+  await clickSoftNav(page, link, url, 120_000);
 }
 
 /** Assert a status row left the empty chip (no wall-clock timestamp asserts). */
@@ -21,7 +37,7 @@ async function expectStatusRowNotEmpty(
   valueHint?: RegExp,
 ) {
   const status = page.getByTestId("baby-home-status");
-  const row = status.locator("li").filter({ hasText: label });
+  const row = status.locator("div").filter({ hasText: label }).first();
   await expect(row).toBeVisible();
   await expect(row.getByText(/not logged yet|chưa ghi/i)).toHaveCount(0);
   if (valueHint) {
@@ -46,62 +62,84 @@ test.describe("Baby Care smoke", () => {
     ).toBeVisible();
   });
 
-  test("home shows last-care status above CTAs", async ({ page }) => {
-    await gotoBabyHome(page);
+  test("home shows last-care status below quick cards", async ({ page }) => {
+    await installBabyHomeMocks(page, {
+      status: defaultStatus({
+        lastFeed: {
+          id: "f1",
+          kind: "care",
+          type: "feed",
+          at: "2026-09-12T08:00:00.000Z",
+          endedAt: null,
+          payload: { method: "breast_l" },
+          summary: "Feed (Breast L)",
+          source: "web",
+          cursor: "c1",
+        },
+        feedsToday: 2,
+      }),
+    });
+    await gotoBabyHomeReady(page);
     const status = page.getByTestId("baby-home-status");
     await expect(status).toBeVisible();
-    await expect(
-      status.getByRole("heading", { name: /last care|lần chăm gần nhất/i }),
-    ).toBeVisible();
     await expect(status.getByText(/last feed|lần bú/i).first()).toBeVisible();
     await expect(status.getByText(/last nap|giấc ngủ/i).first()).toBeVisible();
     await expect(status.getByText(/last diaper|đổi tã/i).first()).toBeVisible();
-    await expect(status.getByText(/how long since|đã bao lâu/i)).toBeVisible();
+    // Option B: no link CTAs on home — forms live in the hamburger.
     await expect(
-      page.getByRole("link", { name: /log feed|ghi bú/i }),
-    ).toBeVisible();
+      page.getByRole("main").getByRole("link", { name: /log feed|ghi bú/i }),
+    ).toHaveCount(0);
+    await expect(breastL(page)).toBeVisible();
   });
 
-  test("home status error keeps CTAs working", async ({ page }) => {
-    // Force last-care timeline walk to fail; other baby GraphQL ops pass through.
-    await page.route("**/api/graphql/baby", async (route) => {
-      const body = route.request().postData() ?? "";
-      if (/BabyTimeline|babyTimeline/.test(body)) {
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            errors: [{ message: "e2e forced timeline error" }],
-          }),
-        });
-        return;
-      }
-      await route.continue();
+  test("home status error keeps breast bottle diaper saving", async ({
+    page,
+  }) => {
+    const mocks = await installBabyHomeMocks(page, {
+      status: "error",
+      quickCare: {
+        replayed: false,
+        openSleep: null,
+        steps: [
+          {
+            step: "createDiaper",
+            event: {
+              id: "d1",
+              type: "diaper",
+              occurredAt: "2026-09-12T10:00:00.000Z",
+              endedAt: null,
+              payload: { kind: "wet" },
+            },
+          },
+        ],
+      },
     });
 
-    await gotoBabyHome(page);
+    await gotoBabyHomeReady(page);
     const status = page.getByTestId("baby-home-status");
     await expect(
       status
         .getByText(/could not load\. you can still log|không tải được\. bạn vẫn/i)
         .first(),
     ).toBeVisible();
-
-    // First soft-nav to /baby/feed in this file — cold Next compile can
-    // cancel a single click within the default 15s URL wait.
-    const feedCta = page
-      .getByRole("main")
-      .getByRole("link", { name: /log feed|ghi bú/i });
-    await clickSoftNav(page, feedCta, /\/baby\/feed/, 120_000);
+    // Sleep is fail-closed with Retry; breast / bottle / diaper still work.
     await expect(
-      page.getByRole("heading", { name: /log feed|ghi bú/i }),
+      page.getByText(/could not check nap|không kiểm tra được/i),
     ).toBeVisible();
+    await expect(page.getByRole("button", { name: /^retry$|^thử lại$/i })).toBeVisible();
+    await expect(breastL(page)).toBeVisible();
+    await expect(bottleSave(page)).toBeVisible();
+    await diaperSave(page).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: /saved diaper|đã lưu tã/i }),
+    ).toBeVisible();
+    expect(mocks.quickCareCount()).toBe(1);
+    mocks.assertNoLegacyEventIdShape();
   });
 
-  test("home Log feed CTA opens feed form", async ({ page }) => {
+  test("hamburger Log feed opens feed form", async ({ page }) => {
     await gotoBabyHome(page);
-    await page.getByRole("link", { name: /log feed|ghi bú/i }).click();
-    await expect(page).toHaveURL(/\/baby\/feed/);
+    await openCareFormFromMenu(page, /log feed|ghi bú/i, /\/baby\/feed/);
     await expect(
       page.getByRole("heading", { name: /log feed|ghi bú/i }),
     ).toBeVisible();
@@ -110,10 +148,9 @@ test.describe("Baby Care smoke", () => {
     ).toBeVisible();
   });
 
-  test("home Log nap CTA opens sleep form", async ({ page }) => {
+  test("hamburger Log nap opens sleep form", async ({ page }) => {
     await gotoBabyHome(page);
-    await page.getByRole("link", { name: /log nap|ghi ngủ/i }).click();
-    await expect(page).toHaveURL(/\/baby\/sleep/);
+    await openCareFormFromMenu(page, /log nap|ghi ngủ/i, /\/baby\/sleep/);
     await expect(
       page.getByRole("heading", { name: /sleep|giấc ngủ/i }),
     ).toBeVisible();
@@ -122,16 +159,15 @@ test.describe("Baby Care smoke", () => {
     ).toBeVisible();
   });
 
-  test("home Log diaper CTA opens diaper form", async ({ page }) => {
+  test("hamburger Log diaper opens diaper form", async ({ page }) => {
     await gotoBabyHome(page);
-    await page.getByRole("link", { name: /log diaper|ghi tã/i }).click();
-    await expect(page).toHaveURL(/\/baby\/diaper/);
+    await openCareFormFromMenu(page, /log diaper|ghi tã/i, /\/baby\/diaper/);
     await expect(
       page.getByRole("heading", { name: /log diaper|ghi tã/i }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: /wet|ướt/i })).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /dirty|bẩn/i }),
+      page.getByRole("button", { name: /poop only|chỉ phân/i }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: /mixed|hỗn hợp/i }),
@@ -360,8 +396,11 @@ test.describe("Baby Care smoke", () => {
 
   test("measure page shows title and add form", async ({ page }) => {
     await gotoBabyHome(page);
-    await page.getByRole("link", { name: /log measurement|ghi cân đo/i }).click();
-    await expect(page).toHaveURL(/\/baby\/measure/);
+    await openCareFormFromMenu(
+      page,
+      /log measurement|ghi cân đo/i,
+      /\/baby\/measure/,
+    );
     await expect(
       page.getByRole("heading", { name: /log measurement|ghi cân đo/i }),
     ).toBeVisible();
@@ -371,6 +410,7 @@ test.describe("Baby Care smoke", () => {
   });
 
   test("EN ↔ VI toggles from settings", async ({ page }) => {
+    await installBabyHomeMocks(page, { status: defaultStatus() });
     await page.goto("/baby/settings");
     await expect(
       page.getByRole("heading", { level: 1, name: /settings|cài đặt/i }),
@@ -385,7 +425,10 @@ test.describe("Baby Care smoke", () => {
 
     await page.goto("/baby");
     await expect(page.getByRole("heading", { name: "Chăm bé" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Ghi bú" })).toBeVisible();
+    await expect(breastL(page)).toBeVisible();
+    await expect(page.getByText("Trái", { exact: true })).toBeVisible();
+    // Header may include · ~ml · n/N when birth is set.
+    await expect(bottleHeader(page)).toContainText("Bình sữa");
 
     await page.goto("/baby/settings");
     await expect(async () => {
@@ -397,7 +440,8 @@ test.describe("Baby Care smoke", () => {
 
     await page.goto("/baby");
     await expect(page.getByRole("heading", { name: "Baby Care" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Log feed" })).toBeVisible();
+    await expect(page.getByText("Left", { exact: true })).toBeVisible();
+    await expect(bottleHeader(page)).toContainText("Bottle");
   });
 });
 

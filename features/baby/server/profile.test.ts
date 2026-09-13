@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { resolveEnsuredRow } from "@/features/baby/server/profile";
+import {
+  resolveEnsuredRow,
+  updateBabyProfile,
+} from "@/features/baby/server/profile";
 
 describe("ensureBabyProfile (idempotent algorithm)", () => {
   it("calling twice yields one row", async () => {
@@ -36,5 +39,73 @@ describe("ensureBabyProfile (idempotent algorithm)", () => {
       findAgain: async () => existing,
     });
     assert.equal(row.id, "profile-1");
+  });
+});
+
+describe("updateBabyProfile", () => {
+  const base = {
+    id: "profile-1",
+    workspaceId: "ws-1",
+    displayName: "Ada",
+    birthDate: null as string | null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
+
+  it("sets, changes, and clears birthDate", async () => {
+    let current = { ...base };
+    const deps = {
+      ensureBabyProfile: async () => current,
+      updateProfile: async (id: string, birthDate: string | null) => {
+        assert.equal(id, "profile-1");
+        current = {
+          ...current,
+          birthDate,
+          updatedAt: new Date("2026-07-04T12:00:00.000Z"),
+        };
+        return current;
+      },
+    };
+
+    const set = await updateBabyProfile(
+      "ws-1",
+      "u1",
+      { birthDate: "2026-01-15" },
+      deps,
+    );
+    assert.equal(set.birthDate, "2026-01-15");
+
+    const change = await updateBabyProfile(
+      "ws-1",
+      "u1",
+      { birthDate: "2026-02-01" },
+      deps,
+    );
+    assert.equal(change.birthDate, "2026-02-01");
+
+    const cleared = await updateBabyProfile(
+      "ws-1",
+      "u1",
+      { birthDate: null },
+      deps,
+    );
+    assert.equal(cleared.birthDate, null);
+  });
+
+  it("rejects empty object and missing birthDate key", async () => {
+    const deps = {
+      ensureBabyProfile: async () => base,
+      updateProfile: async () => {
+        throw new Error("should not update");
+      },
+    };
+    await assert.rejects(
+      () => updateBabyProfile("ws-1", "u1", {}, deps),
+      /BABY_BIRTH_DATE_REQUIRED/,
+    );
+    await assert.rejects(
+      () => updateBabyProfile("ws-1", "u1", { displayName: "x" }, deps),
+      /BABY_BIRTH_DATE_REQUIRED/,
+    );
   });
 });

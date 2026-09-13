@@ -11,6 +11,10 @@ import {
 } from "drizzle-orm";
 import { db } from "@/db";
 import { babyCareEvent, babyGrowthEntry } from "@/db/schema/baby";
+import {
+  feedSessionSummaryParts,
+  type BabyFeedLeg,
+} from "@/lib/baby-feed-session";
 import { formatBabyDurationCompact } from "@/lib/baby-format-duration";
 import { t, type BabyLocale } from "@/lib/baby-i18n";
 import { babyTimelineInputSchema } from "@/lib/validators/baby";
@@ -91,15 +95,35 @@ export function careSummary(
   const ended = endedAt != null && String(endedAt).length > 0;
 
   if (type === "feed") {
-    const method = friendlyFeedMethod(String(p.method ?? ""), locale);
-    const label = t("summary.feed", locale).replace("{method}", method);
+    const legsRaw = p.legs;
+    let methodPart: string;
+    if (Array.isArray(legsRaw) && legsRaw.length > 0) {
+      const parts = feedSessionSummaryParts(legsRaw as BabyFeedLeg[]).map(
+        (leg) => {
+          if (leg.method === "formula") {
+            return t("feed.formulaMl", locale).replace(
+              "{ml}",
+              String(leg.amountMl),
+            );
+          }
+          return friendlyFeedMethod(leg.method, locale);
+        },
+      );
+      methodPart =
+        parts.length > 0
+          ? parts.join(" + ")
+          : friendlyFeedMethod(String(p.method ?? ""), locale);
+    } else {
+      methodPart = friendlyFeedMethod(String(p.method ?? ""), locale);
+    }
+    const label = t("summary.feed", locale).replace("{method}", methodPart);
     return appendCompactDuration(
       label,
       careDurationSec("feed", payload, endedAt, occurredAt),
     );
   }
   if (type === "diaper") {
-    const kind = friendlyDiaperKind(String(p.kind ?? ""));
+    const kind = friendlyDiaperKind(String(p.kind ?? ""), locale);
     return t("summary.diaper", locale).replace("{kind}", kind);
   }
   if (type === "sleep") {
@@ -133,7 +157,11 @@ function friendlyFeedMethod(method: string, locale: BabyLocale): string {
   return method || "—";
 }
 
-function friendlyDiaperKind(kind: string): string {
+function friendlyDiaperKind(kind: string, locale: BabyLocale): string {
+  if (kind === "wet") return t("diaper.wet", locale);
+  if (kind === "dirty") return t("diaper.dirty", locale);
+  if (kind === "mixed") return t("diaper.mixed", locale);
+  if (kind === "dry") return t("diaper.dry", locale);
   return kind || "—";
 }
 

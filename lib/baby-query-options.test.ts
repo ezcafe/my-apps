@@ -181,7 +181,7 @@ describe("invalidateBabyQueries", () => {
     assert.deepEqual(keys, [babyKeys.all]);
   });
 
-  it("care scope invalidates timeline (+ profile), not growth/sync", async () => {
+  it("care scope invalidates timeline, not growth/sync", async () => {
     const keys: unknown[][] = [];
     await invalidateBabyQueries(
       {
@@ -191,10 +191,7 @@ describe("invalidateBabyQueries", () => {
       },
       "care",
     );
-    assert.deepEqual(keys, [
-      [...babyKeys.all, "timeline"],
-      babyKeys.profile(),
-    ]);
+    assert.deepEqual(keys, [[...babyKeys.all, "timeline"]]);
   });
 
   it("growth scope invalidates growth + timeline", async () => {
@@ -729,5 +726,16 @@ describe("babyVaccinesNextPageParam", () => {
       babyVaccinesNextPageParam(pages[pages.length - 1]!, pages),
       undefined,
     );
+  });
+});
+
+describe("BABY_HOME_QUICK_STATUS_QUERY", () => {
+  it("requests recentBottleMl for bottle chips", async () => {
+    const { BABY_HOME_QUICK_STATUS_QUERY } = await import(
+      "@/lib/baby-query-options"
+    );
+    assert.match(BABY_HOME_QUICK_STATUS_QUERY, /recentBottleMl/);
+    assert.match(BABY_HOME_QUICK_STATUS_QUERY, /feedsToday/);
+    assert.match(BABY_HOME_QUICK_STATUS_QUERY, /latestWeightKg/);
   });
 });

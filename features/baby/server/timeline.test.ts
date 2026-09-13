@@ -244,6 +244,79 @@ describe("careSummary", () => {
     );
   });
 
+  it("joins non-empty legs into combined feed summary", () => {
+    assert.equal(
+      careSummary(
+        "feed",
+        {
+          method: "formula",
+          durationSec: 420,
+          amountMl: 90,
+          legs: [
+            { method: "breast_l", durationSec: 300 },
+            { method: "breast_r", durationSec: 120 },
+            { method: "formula", amountMl: 90 },
+          ],
+        },
+        "en",
+        null,
+      ),
+      "Feed (Breast L + Breast R + Formula 90 ml) · 7m",
+    );
+    assert.equal(
+      careSummary(
+        "feed",
+        {
+          method: "formula",
+          durationSec: 420,
+          amountMl: 90,
+          legs: [
+            { method: "breast_l", durationSec: 300 },
+            { method: "breast_r", durationSec: 120 },
+            { method: "formula", amountMl: 90 },
+          ],
+        },
+        "vi",
+        null,
+      ),
+      "Bú (Ngực trái + Ngực phải + Sữa công thức 90 ml) · 7m",
+    );
+    assert.equal(
+      careSummary(
+        "feed",
+        {
+          method: "formula",
+          durationSec: 300,
+          amountMl: 90,
+          legs: [
+            { method: "breast_l", durationSec: 0 },
+            { method: "formula", amountMl: 90 },
+          ],
+        },
+        "en",
+        null,
+      ),
+      "Feed (Formula 90 ml) · 5m",
+    );
+    assert.equal(
+      careSummary(
+        "feed",
+        {
+          method: "formula",
+          durationSec: 300,
+          amountMl: 90,
+          legs: [
+            { method: "breast_l", durationSec: 0 },
+            { method: "formula", amountMl: 90 },
+          ],
+        },
+        "vi",
+        null,
+      ),
+      "Bú (Sữa công thức 90 ml) · 5m",
+    );
+  });
+
   it("does not invent a duration fragment when durationSec is missing", () => {
     assert.equal(
       careSummary("feed", { method: "pump" }, "en", "2026-09-06T12:00:00.000Z"),
@@ -278,6 +351,29 @@ describe("careSummary", () => {
     assert.equal(
       careSummary("sleep", {}, "vi", "2026-09-06T12:00:00.000Z"),
       "Kết thúc ngủ",
+    );
+  });
+
+  it("maps dirty to Poop Only / Chỉ phân and dry to Dry / Khô", () => {
+    assert.equal(
+      careSummary("diaper", { kind: "dirty" }, "en", null),
+      "Diaper (Poop Only)",
+    );
+    assert.equal(
+      careSummary("diaper", { kind: "dirty" }, "vi", null),
+      "Tã (Chỉ phân)",
+    );
+    assert.equal(
+      careSummary("diaper", { kind: "dry" }, "en", null),
+      "Diaper (Dry)",
+    );
+    assert.equal(
+      careSummary("diaper", { kind: "dry" }, "vi", null),
+      "Tã (Khô)",
+    );
+    assert.equal(
+      careSummary("diaper", { kind: "mystery" }, "en", null),
+      "Diaper (mystery)",
     );
   });
 });

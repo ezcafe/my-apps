@@ -59,3 +59,36 @@ export function scheduleNotifyBabyCareCreated(
     console.error("[baby] telegram notify failed", err);
   });
 }
+
+export type NotifyBabyCareInput = {
+  workspaceId: string;
+  kind: "feed" | "diaper" | "sleep" | "growth";
+  summary: string;
+  source: "web" | "telegram";
+};
+
+/**
+ * One getLink read for the whole batch (quick-care multi-step notify).
+ */
+export async function maybeNotifyBabyCareCreatedMany(
+  inputs: NotifyBabyCareInput[],
+  deps: NotifyBabyCareDeps = defaultNotifyDeps(),
+): Promise<void> {
+  if (inputs.length === 0) return;
+  if (!deps.isTelegramEnabled()) return;
+  const link = await deps.getLink(inputs[0]!.workspaceId);
+  if (!link?.confirmedAt) return;
+  for (const input of inputs) {
+    await deps.send(link.chatId, input.summary);
+  }
+}
+
+/** Fire-and-forget batch; caches Telegram link once per mutation. */
+export function scheduleNotifyBabyCareCreatedMany(
+  inputs: NotifyBabyCareInput[],
+  deps: NotifyBabyCareDeps = defaultNotifyDeps(),
+): void {
+  void maybeNotifyBabyCareCreatedMany(inputs, deps).catch((err) => {
+    console.error("[baby] telegram notify failed", err);
+  });
+}

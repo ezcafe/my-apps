@@ -1,5 +1,6 @@
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import { babyGraphQLRequest } from "@/lib/baby-gql-client";
+import { babyLocalDayWindow } from "@/lib/baby-home-day-window";
 import {
   BABY_LAST_CARE_MAX_PAGES,
   BABY_LAST_CARE_PAGE_LIMIT,
@@ -7,6 +8,8 @@ import {
   shouldFetchNextCareStatusPage,
   type LastCareStatusByType,
 } from "@/lib/baby-last-care-status";
+import { classifyBabyQuickCareError } from "@/lib/baby-quick-care-outcome";
+import type { BabyQuickCareRequest } from "@/lib/baby-quick-care-plan";
 import { getBabySyncIntervalMinutes } from "@/lib/baby-sync-interval";
 
 export const babyKeys = {
@@ -14,6 +17,9 @@ export const babyKeys = {
   profile: () => [...babyKeys.all, "profile"] as const,
   timeline: (from?: string, to?: string) =>
     [...babyKeys.all, "timeline", from ?? "", to ?? ""] as const,
+  /** Under timeline prefix so invalidateBabyQueries(…, "care") refreshes it. */
+  homeQuick: (dayKey: string) =>
+    [...babyKeys.all, "timeline", "homeQuick", dayKey] as const,
   growth: (kind?: string, from?: string, to?: string) =>
     [
       ...babyKeys.all,
@@ -395,9 +401,13 @@ export function babyProfileQueryOptions() {
   return queryOptions({
     queryKey: babyKeys.profile(),
     queryFn: () =>
-      babyGraphQLRequest<{ babyProfile: { id: string; displayName: string } }>(
-        PROFILE_Q,
-      ),
+      babyGraphQLRequest<{
+        babyProfile: {
+          id: string;
+          displayName: string;
+          birthDate: string | null;
+        };
+      }>(PROFILE_Q),
   });
 }
 
@@ -542,14 +552,15 @@ export function babySyncConfigQueryOptions() {
 export type BabyInvalidateScope =
   | "all"
   | "care"
+  | "profile"
   | "growth"
   | "vaccines"
   | "telegram";
 
 /**
- * Selective invalidation: care writes refresh timeline (+ profile);
- * growth writes refresh growth + timeline. Avoids refetching sync/telegram
- * on every diaper log.
+ * Selective invalidation: care writes refresh timeline/homeQuick only;
+ * profile changes use scope "profile" (or "all"). Growth refreshes growth +
+ * timeline. Avoids refetching sync/telegram on every diaper log.
  */
 export async function invalidateBabyQueries(
   queryClient: {
@@ -564,11 +575,17 @@ export async function invalidateBabyQueries(
     return;
   }
   if (scope === "care") {
+    await queryClient.invalidateQueries({
+      queryKey: [...babyKeys.all, "timeline"],
+    });
+    return;
+  }
+  if (scope === "profile") {
     await Promise.all([
+      queryClient.invalidateQueries({ queryKey: babyKeys.profile() }),
       queryClient.invalidateQueries({
         queryKey: [...babyKeys.all, "timeline"],
       }),
-      queryClient.invalidateQueries({ queryKey: babyKeys.profile() }),
     ]);
     return;
   }
@@ -590,4 +607,192 @@ export async function invalidateBabyQueries(
     return;
   }
   await queryClient.invalidateQueries({ queryKey: babyKeys.telegram() });
+}
+
+export const BABY_HOME_QUICK_STATUS_QUERY = /* GraphQL */ `
+  query BabyHomeQuickStatus($dayFrom: String!, $dayTo: String!) {
+    babyHomeQuickStatus(dayFrom: $dayFrom, dayTo: $dayTo) {
+      lastFeed {
+        id
+        kind
+        type
+        at
+        endedAt
+        payload
+        summary
+        source
+        cursor
+      }
+      lastSleep {
+        id
+        kind
+        type
+        at
+        endedAt
+        payload
+        summary
+        source
+        cursor
+      }
+      lastDiaper {
+        id
+        kind
+        type
+        at
+        endedAt
+        payload
+        summary
+        source
+        cursor
+      }
+      openSleep {
+        id
+        type
+        occurredAt
+        endedAt
+        payload
+      }
+      feedsToday
+      birthDate
+      latestWeightKg
+      recentBottleMl
+    }
+  }
+`;
+
+export const BABY_QUICK_CARE_MUTATION = /* GraphQL */ `
+  mutation BabyQuickCare($input: BabyQuickCareInput!) {
+    babyQuickCare(input: $input) {
+      replayed
+      openSleep {
+        id
+        type
+        occurredAt
+        endedAt
+        payload
+      }
+      steps {
+        step
+        wrote
+        event {
+          id
+          type
+          occurredAt
+          endedAt
+          payload
+        }
+      }
+    }
+  }
+`;
+
+export type BabyHomeQuickStatusData = {
+  babyHomeQuickStatus: {
+    lastFeed: {
+      id: string;
+      at: string;
+      endedAt: string | null;
+      payload: unknown;
+      summary: string;
+    } | null;
+    lastSleep: {
+      id: string;
+      at: string;
+      endedAt: string | null;
+      payload: unknown;
+      summary: string;
+    } | null;
+    lastDiaper: {
+      id: string;
+      at: string;
+      endedAt: string | null;
+      payload: unknown;
+      summary: string;
+    } | null;
+    openSleep: {
+      id: string;
+      occurredAt: string;
+      endedAt: string | null;
+      payload: unknown;
+    } | null;
+    feedsToday: number;
+    birthDate: string | null;
+    latestWeightKg: number | null;
+    recentBottleMl: number[];
+  };
+};
+
+export type BabyQuickCareMutationResult = {
+  babyQuickCare: {
+    replayed: boolean;
+    openSleep: {
+      id: string;
+      occurredAt: string;
+      endedAt: string | null;
+      payload: unknown;
+    } | null;
+    steps: Array<{
+      step: string;
+      wrote: string;
+      event: {
+        id: string;
+        type: string;
+        occurredAt: string;
+        endedAt: string | null;
+        payload: unknown;
+      };
+    }>;
+  };
+};
+
+type BabyRequestFn = <T>(
+  document: string,
+  variables?: Record<string, unknown>,
+) => Promise<T>;
+
+export function babyHomeQuickStatusQueryOptions(
+  now: Date,
+  request: BabyRequestFn = babyGraphQLRequest as BabyRequestFn,
+) {
+  const window = babyLocalDayWindow(now);
+  return queryOptions({
+    queryKey: babyKeys.homeQuick(window.dayKey),
+    queryFn: () =>
+      request<BabyHomeQuickStatusData>(BABY_HOME_QUICK_STATUS_QUERY, {
+        dayFrom: window.from,
+        dayTo: window.to,
+      }),
+  });
+}
+
+export function babyQuickCareMutationOptions(
+  request: BabyRequestFn = babyGraphQLRequest as BabyRequestFn,
+) {
+  return {
+    mutationFn: async (vars: {
+      request: BabyQuickCareRequest;
+      clientRequestId: string;
+    }) => {
+      try {
+        return await request<BabyQuickCareMutationResult>(
+          BABY_QUICK_CARE_MUTATION,
+          {
+            input: {
+              action: vars.request.action,
+              breastRunning: vars.request.breastRunning,
+              ...(vars.request.feedSessionEventId
+                ? { feedSessionEventId: vars.request.feedSessionEventId }
+                : {}),
+              clientRequestId: vars.clientRequestId,
+            },
+          },
+        );
+      } catch (error) {
+        // Attach classifier result for callers — does not clear pending here.
+        (error as { babyQuickErrorClass?: string }).babyQuickErrorClass =
+          classifyBabyQuickCareError(error);
+        throw error;
+      }
+    },
+  };
 }

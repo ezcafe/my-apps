@@ -8,8 +8,13 @@ import { SettingsSection } from "@/components/settings/settings-section";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { babyBirthDateErrorKey } from "@/lib/baby-birth-date-errors";
 import { babyGraphQLRequest } from "@/lib/baby-gql-client";
-import { babyKeys } from "@/lib/baby-query-options";
+import {
+  babyKeys,
+  babyProfileQueryOptions,
+  invalidateBabyQueries,
+} from "@/lib/baby-query-options";
 import { cn } from "@/lib/cn";
 import {
   quickPickChipCls,
@@ -51,7 +56,15 @@ export function BabySettingsPage({
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [chatId, setChatId] = useState("");
+  const [birthDraft, setBirthDraft] = useState<string | null>(null);
+  const [birthError, setBirthError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const profileQuery = useQuery({
+    ...babyProfileQueryOptions(),
+  });
+  const profileBirth = profileQuery.data?.babyProfile?.birthDate ?? "";
+  const birthDate = birthDraft ?? profileBirth;
 
   const linkQuery = useQuery({
     queryKey: babyKeys.telegram(),
@@ -93,10 +106,69 @@ export function BabySettingsPage({
     });
   }
 
+  function saveBirthDate() {
+    setBirthError(null);
+    const trimmed = birthDate.trim();
+    startTransition(async () => {
+      try {
+        await babyGraphQLRequest(
+          /* GraphQL */ `
+            mutation UpdateBabyProfile($input: UpdateBabyProfileInput!) {
+              updateBabyProfile(input: $input) {
+                id
+                birthDate
+              }
+            }
+          `,
+          {
+            input: {
+              birthDate: trimmed === "" ? null : trimmed,
+            },
+          },
+        );
+        await invalidateBabyQueries(queryClient, "profile");
+        setBirthDraft(null);
+        notify.success(t("settings.birthDateSaved"));
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const key = babyBirthDateErrorKey(msg);
+        setBirthError(t(key as never));
+        notify.error(t(key as never));
+      }
+    });
+  }
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+
   return (
     <div
       className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK, "fx-fade-in")}
     >
+      <SettingsSection id="baby-profile" title={t("settings.babyProfile")}>
+        <Field
+          label={t("settings.birthDate")}
+          hint={birthError ? undefined : t("settings.birthDateHint")}
+          error={birthError ?? undefined}
+        >
+          <Input
+            type="date"
+            max={todayIso}
+            value={birthDate}
+            onChange={(e) => {
+              setBirthDraft(e.target.value);
+              setBirthError(null);
+            }}
+          />
+        </Field>
+        <Button
+          type="button"
+          size="lg"
+          disabled={pending}
+          onClick={saveBirthDate}
+        >
+          {t("common.save")}
+        </Button>
+      </SettingsSection>
       <SettingsSection id="baby-language" title={t("settings.language")}>
         <div
           role="radiogroup"

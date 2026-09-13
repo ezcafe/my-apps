@@ -57,6 +57,17 @@ function memoryDeps(seed: {
       if (openSleep?.id === id) openSleep = null;
       return next;
     },
+    getEventById: async (_ws, eventId) =>
+      rows.find((r) => r.id === eventId) ?? null,
+    deleteCareEvent: async (_ws, eventId) => {
+      const idx = rows.findIndex((r) => r.id === eventId);
+      assert.ok(idx >= 0);
+      const [removed] = rows.splice(idx, 1);
+      if (openSleep?.id === eventId) openSleep = null;
+      return removed!;
+    },
+    // Passthrough so stubbed tests do not hit Postgres for the nap lock.
+    runInCareLock: async (_ws, run) => run(),
   };
 }
 
@@ -88,9 +99,9 @@ describe("care event services (mocked store)", () => {
     assert.equal(deps.rows.length, 1);
   });
 
-  it("createBabyDiaper wet/dirty/mixed ok; other fails", async () => {
+  it("createBabyDiaper wet/dirty/mixed/dry ok; other fails", async () => {
     const deps = memoryDeps({});
-    for (const kind of ["wet", "dirty", "mixed"] as const) {
+    for (const kind of ["wet", "dirty", "mixed", "dry"] as const) {
       const row = await createBabyDiaper(
         workspaceId,
         userSub,
@@ -106,6 +117,46 @@ describe("care event services (mocked store)", () => {
           workspaceId,
           userSub,
           { kind: "messy" } as never,
+          deps,
+        ),
+      /Validation failed/,
+    );
+  });
+
+  it("createBabyDiaper dirty without amount omits amount; with detail stores fields", async () => {
+    const deps = memoryDeps({});
+    const noAmount = await createBabyDiaper(
+      workspaceId,
+      userSub,
+      { kind: "dirty", color: "yellow", texture: "soft" },
+      deps,
+    );
+    const payload = noAmount.payload as Record<string, unknown>;
+    assert.equal(payload.kind, "dirty");
+    assert.equal(payload.color, "yellow");
+    assert.equal(payload.texture, "soft");
+    assert.equal("amount" in payload, false);
+
+    const withAmount = await createBabyDiaper(
+      workspaceId,
+      userSub,
+      { kind: "mixed", amount: "blowout" },
+      deps,
+    );
+    assert.equal(
+      (withAmount.payload as { amount?: string }).amount,
+      "blowout",
+    );
+  });
+
+  it("createBabyDiaper rejects detail on wet", async () => {
+    const deps = memoryDeps({});
+    await assert.rejects(
+      () =>
+        createBabyDiaper(
+          workspaceId,
+          userSub,
+          { kind: "wet", color: "yellow" } as never,
           deps,
         ),
       /Validation failed/,
@@ -248,6 +299,72 @@ describe("startBabySleep / endBabySleep", () => {
     );
   });
 
+  it("updateBabyEvent rejects omit-kind detail on wet/dry diaper", async () => {
+    const deps = memoryDeps({});
+    const wet = await createBabyDiaper(
+      workspaceId,
+      userSub,
+      { kind: "wet" },
+      deps,
+    );
+    deps.getEventById = async (_ws, id) =>
+      deps.rows.find((r) => r.id === id) ?? null;
+    await assert.rejects(
+      () =>
+        updateBabyEvent(
+          workspaceId,
+          userSub,
+          { id: wet.id, payload: { color: "red_bloody" } },
+          deps,
+        ),
+      /Validation failed|diaper detail not allowed/i,
+    );
+    const dry = await createBabyDiaper(
+      workspaceId,
+      userSub,
+      { kind: "dry" },
+      deps,
+    );
+    await assert.rejects(
+      () =>
+        updateBabyEvent(
+          workspaceId,
+          userSub,
+          { id: dry.id, payload: { amount: "medium" } },
+          deps,
+        ),
+      /Validation failed|diaper detail not allowed/i,
+    );
+  });
+
+  it("updateBabyEvent strips detail when kind flips to wet/dry", async () => {
+    const deps = memoryDeps({});
+    const dirty = await createBabyDiaper(
+      workspaceId,
+      userSub,
+      {
+        kind: "dirty",
+        color: "yellow",
+        texture: "soft",
+        amount: "medium",
+      },
+      deps,
+    );
+    deps.getEventById = async (_ws, id) =>
+      deps.rows.find((r) => r.id === id) ?? null;
+    const updated = await updateBabyEvent(
+      workspaceId,
+      userSub,
+      { id: dirty.id, payload: { kind: "wet" } },
+      deps,
+    );
+    const payload = updated.payload as Record<string, unknown>;
+    assert.equal(payload.kind, "wet");
+    assert.equal("color" in payload, false);
+    assert.equal("texture" in payload, false);
+    assert.equal("amount" in payload, false);
+  });
+
   it("requireOpenSleepForEnd rejects already ended", () => {
     assert.throws(
       () =>
@@ -265,5 +382,85 @@ describe("startBabySleep / endBabySleep", () => {
         }),
       (e: unknown) => e instanceof Error && e.message === "NOT_FOUND",
     );
+  });
+
+  it("start/end sleep take the care lock; feed/diaper create do not", async () => {
+    const sleepLocks: string[] = [];
+    const feedLocks: string[] = [];
+    const sleepDeps = memoryDeps({});
+    sleepDeps.runInCareLock = async (ws, run) => {
+      sleepLocks.push(ws);
+      return run();
+    };
+    await startBabySleep(workspaceId, userSub, {}, sleepDeps);
+    assert.equal(sleepLocks.length, 1);
+
+    const open = sleepDeps.rows.find((r) => r.type === "sleep")!;
+    await endBabySleep(workspaceId, userSub, { eventId: open.id }, sleepDeps);
+    assert.equal(sleepLocks.length, 2);
+
+    const feedDeps = memoryDeps({});
+    feedDeps.runInCareLock = async (ws, run) => {
+      feedLocks.push(ws);
+      return run();
+    };
+    await createBabyFeed(
+      workspaceId,
+      userSub,
+      { method: "formula", amountMl: 120 },
+      feedDeps,
+    );
+    await createBabyDiaper(workspaceId, userSub, { kind: "wet" }, feedDeps);
+    assert.equal(feedLocks.length, 0);
+  });
+
+  it("sleep-row update/delete take the lock; feed correction does not", async () => {
+    const locks: string[] = [];
+    const sleepRow: BabyCareEventRow = {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000099",
+      workspaceId,
+      babyId,
+      type: "sleep",
+      occurredAt: new Date(),
+      endedAt: new Date(),
+      payload: {},
+      source: "web",
+      createdByUserSub: userSub,
+      updatedByUserSub: userSub,
+    };
+    const feedRow: BabyCareEventRow = {
+      ...sleepRow,
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000098",
+      type: "feed",
+      payload: { method: "formula", amountMl: 100 },
+      endedAt: null,
+    };
+    const deps = memoryDeps({ rows: [sleepRow, feedRow] });
+    deps.runInCareLock = async (ws, run) => {
+      locks.push(ws);
+      return run();
+    };
+
+    await updateBabyEvent(
+      workspaceId,
+      userSub,
+      { id: sleepRow.id, endedAt: null },
+      deps,
+    );
+    assert.equal(locks.length, 1);
+
+    await updateBabyEvent(
+      workspaceId,
+      userSub,
+      { id: feedRow.id, payload: { amountMl: 110 } },
+      deps,
+    );
+    assert.equal(locks.length, 1);
+
+    const { deleteBabyEvent } = await import(
+      "@/features/baby/server/care-events"
+    );
+    await deleteBabyEvent(workspaceId, sleepRow.id, deps);
+    assert.equal(locks.length, 2);
   });
 });

@@ -7,7 +7,9 @@ import {
   MoneyAnalyticsFiltersBarSkeleton,
 } from "@/components/money-analytics-skeleton";
 
-/** Matches Baby home: status strip + four primary CTAs (feed / nap / diaper / measure). */
+/** Matches Baby home: breast row, then bottle | nap | diaper (auto-fit row),
+ *  then guide caveat + status. Pending bar and birth-date prompt are below —
+ *  skeleton draws nothing for them so they never shift the rows. */
 export function BabyHomeSkeleton() {
   return (
     <div
@@ -18,39 +20,102 @@ export function BabyHomeSkeleton() {
       )}
       aria-hidden
     >
-      <div className="space-y-3">
-        <div className="space-y-1">
-          <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
-          <Skeleton className="h-4 w-56 max-w-full rounded-[var(--radius-sm)]" />
-        </div>
-        <div className="space-y-3">
-          <div className="space-y-1 border-b border-border/70 pb-3">
+      {/* Breast section */}
+      <div data-skeleton="section-breast" className="space-y-2">
+        <Skeleton className="h-4 w-48 max-w-full rounded-[var(--radius-sm)]" />
+        <div
+          className="grid gap-3"
+          style={{
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(100%, 8rem), 1fr))",
+          }}
+        >
+          <div className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3">
+            <Skeleton className="size-6 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
             <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-5 w-24 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
           </div>
-          <div className="space-y-1 border-b border-border/70 pb-3">
+          <div className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3">
+            <Skeleton className="size-6 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
             <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-4 w-24 rounded-[var(--radius-sm)]" />
-          </div>
-          <div className="space-y-1">
-            <Skeleton className="h-5 w-24 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-5 w-28 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
           </div>
         </div>
       </div>
+
+      {/* Wide: Bottle | Nap | Diaper one row */}
       <div
+        data-skeleton="home-row-bottle-nap-diaper"
         className="grid gap-3"
         style={{
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
         }}
       >
-        <Skeleton className="h-14 rounded-[var(--radius-md)]" />
-        <Skeleton className="h-14 rounded-[var(--radius-md)]" />
-        <Skeleton className="h-14 rounded-[var(--radius-md)]" />
-        <Skeleton className="h-14 rounded-[var(--radius-md)]" />
+        <div
+          data-skeleton="section-bottle"
+          className="flex min-w-0 flex-col space-y-2"
+        >
+          <Skeleton className="h-4 w-40 rounded-[var(--radius-sm)]" />
+          <div
+            data-skeleton="bottle-ml-chips"
+            className="grid min-h-20 grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border"
+          >
+            <Skeleton className="min-h-11 w-full rounded-none" />
+            <Skeleton className="min-h-11 w-full rounded-none" />
+            <Skeleton className="min-h-11 w-full rounded-none" />
+            <Skeleton
+              data-skeleton="custom-ml"
+              className="min-h-11 w-full rounded-none"
+            />
+          </div>
+        </div>
+
+        <div
+          data-skeleton="section-nap"
+          className="flex min-w-0 flex-col space-y-2"
+        >
+          <Skeleton className="h-4 w-full max-w-md rounded-[var(--radius-sm)]" />
+          <div className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3">
+            <Skeleton className="size-6 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-5 w-16 rounded-[var(--radius-sm)]" />
+          </div>
+        </div>
+
+        <div
+          data-skeleton="section-diaper"
+          className="flex min-w-0 flex-col space-y-2"
+        >
+          <Skeleton className="h-4 w-48 max-w-full rounded-[var(--radius-sm)]" />
+          <div
+            data-skeleton="diaper-kind-2x2"
+            className="grid min-h-20 grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border"
+          >
+            <Skeleton className="min-h-11 w-full rounded-none" />
+            <Skeleton className="min-h-11 w-full rounded-none" />
+            <Skeleton className="min-h-11 w-full rounded-none" />
+            <Skeleton className="min-h-11 w-full rounded-none" />
+          </div>
+        </div>
+      </div>
+
+      {/* Guide caveat — live UI shows when birthDate set; reserve slot for CLS */}
+      <Skeleton
+        data-skeleton="guide-caveat"
+        className="h-3 w-full max-w-md rounded-[var(--radius-sm)]"
+      />
+      {/* Status lines — one sentence each (no separate title row) */}
+      <div className="space-y-3" data-skeleton="home-status">
+        <div className="space-y-1 border-b border-border/70 pb-3">
+          <Skeleton className="h-5 w-full max-w-sm rounded-[var(--radius-sm)]" />
+        </div>
+        <div className="space-y-1 border-b border-border/70 pb-3">
+          <Skeleton className="h-5 w-full max-w-xs rounded-[var(--radius-sm)]" />
+        </div>
+        <div className="space-y-1">
+          <Skeleton className="h-5 w-full max-w-sm rounded-[var(--radius-sm)]" />
+        </div>
       </div>
     </div>
   );
