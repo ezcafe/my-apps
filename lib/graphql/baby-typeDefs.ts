@@ -91,6 +91,115 @@ export const babyTypeDefs = /* GraphQL */ `
     intervalMinutes: Int!
   }
 
+  type BabyHydrationDay {
+    date: String!
+    wetCount: Int!
+    feedCount: Int!
+    formulaMl: Float
+  }
+
+  type BabyHydrationSeries {
+    days: [BabyHydrationDay!]!
+    alert: String
+    emptyReason: String
+  }
+
+  type BabyNightRestDay {
+    date: String!
+    nightSleepMinutes: Int!
+    intervalCount: Int!
+  }
+
+  type BabyNightRestSeries {
+    days: [BabyNightRestDay!]!
+    emptyReason: String
+  }
+
+  type BabyWakeWindowKpi {
+    avgMinutes: Float
+    emptyReason: String
+  }
+
+  type BabyMilkToDiaperKpi {
+    avgLagMinutes: Float
+    emptyReason: String
+  }
+
+  type BabySleepEfficiencyKpi {
+    emptyReason: String!
+  }
+
+  type BabyPatternSleepBlock {
+    startMin: Int!
+    endMin: Int!
+  }
+
+  type BabyPatternMarker {
+    minuteOfDay: Int!
+    kind: String!
+  }
+
+  type BabyPatternDay {
+    date: String!
+    sleepBlocks: [BabyPatternSleepBlock!]!
+    markers: [BabyPatternMarker!]!
+  }
+
+  type BabyPatternFinderSeries {
+    days: [BabyPatternDay!]
+    emptyReason: String
+  }
+
+  type BabyAwakeTrendDay {
+    date: String!
+    meanWakeMinutes: Float!
+    rollingMeanWakeMinutes: Float
+  }
+
+  type BabyAwakeTrendSeries {
+    days: [BabyAwakeTrendDay!]
+    emptyReason: String
+  }
+
+  type BabyDiaperOutputBuckets {
+    wet: Int!
+    normal: Int!
+    watery: Int!
+    blowouts: Int!
+  }
+
+  type BabyDiaperOutputSeries {
+    buckets: BabyDiaperOutputBuckets
+    alert: String
+    emptyReason: String
+  }
+
+  type BabyInsightsCareCounts {
+    feeds: Int!
+    sleep: Int!
+    diapers: Int!
+  }
+
+  type BabyInsightsCareCountDay {
+    day: String!
+    feed: Int!
+    sleep: Int!
+    diaper: Int!
+  }
+
+  type BabyInsightsSeries {
+    hydration: BabyHydrationSeries!
+    nightRest: BabyNightRestSeries!
+    wakeWindow: BabyWakeWindowKpi!
+    milkToDiaper: BabyMilkToDiaperKpi!
+    sleepEfficiency: BabySleepEfficiencyKpi!
+    patternFinder: BabyPatternFinderSeries!
+    awakeTrend: BabyAwakeTrendSeries!
+    diaperOutput: BabyDiaperOutputSeries!
+    counts: BabyInsightsCareCounts!
+    careCountDays: [BabyInsightsCareCountDay!]!
+  }
+
   type BabyHomeQuickStatus {
     lastFeed: BabyTimelineItem
     lastSleep: BabyTimelineItem
@@ -208,6 +317,8 @@ export const babyTypeDefs = /* GraphQL */ `
     ): BabyVaccineConnection!
     babyTelegramLink: BabyTelegramLink
     babySyncConfig: BabySyncConfig!
+    """Full-range Insights chart/KPI snapshot for the applied date filter."""
+    babyInsightsSeries(from: String!, to: String!): BabyInsightsSeries!
   }
 
   input CreateBabyFeedInput {

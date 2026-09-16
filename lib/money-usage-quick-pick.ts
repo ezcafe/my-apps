@@ -21,12 +21,20 @@ export function cmpUsageThenLabel(
   return a.label.localeCompare(b.label);
 }
 
-/** Top N items by 90-day usage, then label. */
+/** Top N items by 90-day usage; equal usage keeps input order (not A–Z). */
 export function topUsageItems<T extends UsageRankedItem>(
   items: readonly T[],
   n = QUICK_PICK_N,
 ): T[] {
-  return [...items].sort(cmpUsageThenLabel).slice(0, n);
+  return [...items]
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const du = usageOrZero(b.item) - usageOrZero(a.item);
+      if (du !== 0) return du;
+      return a.index - b.index;
+    })
+    .slice(0, n)
+    .map(({ item }) => item);
 }
 
 /** Other chip when the list overflows or pinned actions (e.g. create) exist. */

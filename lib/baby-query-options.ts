@@ -20,6 +20,8 @@ export const babyKeys = {
   /** Under timeline prefix so invalidateBabyQueries(…, "care") refreshes it. */
   homeQuick: (dayKey: string) =>
     [...babyKeys.all, "timeline", "homeQuick", dayKey] as const,
+  insightsSeries: (from?: string, to?: string) =>
+    [...babyKeys.all, "insightsSeries", from ?? "", to ?? ""] as const,
   growth: (kind?: string, from?: string, to?: string) =>
     [
       ...babyKeys.all,
@@ -69,6 +71,112 @@ const TIMELINE_Q = /* GraphQL */ `
   }
 `;
 
+/**
+ * Insights Activity log only — includes payload for edit modal.
+ * Do not use for Home / shared TIMELINE_Q callers.
+ */
+export const BABY_INSIGHTS_TIMELINE_QUERY = /* GraphQL */ `
+  query BabyInsightsTimeline(
+    $from: String
+    $to: String
+    $cursor: String
+    $limit: Int
+  ) {
+    babyTimeline(from: $from, to: $to, cursor: $cursor, limit: $limit) {
+      items {
+        id
+        kind
+        type
+        at
+        endedAt
+        payload
+        summary
+        source
+        cursor
+      }
+      nextCursor
+    }
+  }
+`;
+
+export const BABY_INSIGHTS_SERIES_QUERY = /* GraphQL */ `
+  query BabyInsightsSeries($from: String!, $to: String!) {
+    babyInsightsSeries(from: $from, to: $to) {
+      hydration {
+        days {
+          date
+          wetCount
+          feedCount
+          formulaMl
+        }
+        alert
+        emptyReason
+      }
+      nightRest {
+        days {
+          date
+          nightSleepMinutes
+          intervalCount
+        }
+        emptyReason
+      }
+      wakeWindow {
+        avgMinutes
+        emptyReason
+      }
+      milkToDiaper {
+        avgLagMinutes
+        emptyReason
+      }
+      sleepEfficiency {
+        emptyReason
+      }
+      patternFinder {
+        days {
+          date
+          sleepBlocks {
+            startMin
+            endMin
+          }
+          markers {
+            minuteOfDay
+            kind
+          }
+        }
+        emptyReason
+      }
+      awakeTrend {
+        days {
+          date
+          meanWakeMinutes
+          rollingMeanWakeMinutes
+        }
+        emptyReason
+      }
+      diaperOutput {
+        buckets {
+          wet
+          normal
+          watery
+          blowouts
+        }
+        alert
+        emptyReason
+      }
+      counts {
+        feeds
+        sleep
+        diapers
+      }
+      careCountDays {
+        day
+        feed
+        sleep
+        diaper
+      }
+    }
+  }
+`;
 /** Exported for wiring tests — must pass `$from` / `$to` into babyGrowthEntries. */
 export const BABY_GROWTH_ENTRIES_QUERY = /* GraphQL */ `
   query BabyGrowth(
@@ -152,12 +260,83 @@ export type BabyTimelinePage = {
       type: string;
       at: string;
       endedAt: string | null;
+      /** Present on Insights Activity log document only. */
+      payload?: unknown;
       summary: string;
       source: string;
       cursor: string;
     }>;
     nextCursor: string | null;
   };
+};
+
+export type BabyInsightsSeriesDto = {
+  hydration: {
+    days: Array<{
+      date: string;
+      wetCount: number;
+      feedCount: number;
+      formulaMl?: number | null;
+    }>;
+    alert: string | null;
+    emptyReason?: string | null;
+  };
+  nightRest: {
+    days: Array<{
+      date: string;
+      nightSleepMinutes: number;
+      intervalCount: number;
+    }>;
+    emptyReason?: string | null;
+  };
+  wakeWindow: {
+    avgMinutes?: number | null;
+    emptyReason?: string | null;
+  };
+  milkToDiaper: {
+    avgLagMinutes?: number | null;
+    emptyReason?: string | null;
+  };
+  sleepEfficiency: {
+    emptyReason: string;
+  };
+  patternFinder: {
+    days?: Array<{
+      date: string;
+      sleepBlocks: Array<{ startMin: number; endMin: number }>;
+      markers: Array<{ minuteOfDay: number; kind: string }>;
+    }> | null;
+    emptyReason?: string | null;
+  };
+  awakeTrend: {
+    days?: Array<{
+      date: string;
+      meanWakeMinutes: number;
+      rollingMeanWakeMinutes?: number | null;
+    }> | null;
+    emptyReason?: string | null;
+  };
+  diaperOutput: {
+    buckets?: {
+      wet: number;
+      normal: number;
+      watery: number;
+      blowouts: number;
+    } | null;
+    alert?: string | null;
+    emptyReason?: string | null;
+  };
+  counts: {
+    feeds: number;
+    sleep: number;
+    diapers: number;
+  };
+  careCountDays: Array<{
+    day: string;
+    feed: number;
+    sleep: number;
+    diaper: number;
+  }>;
 };
 
 export type BabyGrowthEntryRow = {
@@ -326,12 +505,39 @@ export function fetchBabyTimelinePage(input: {
   });
 }
 
+/** Insights Activity log — selects payload (Home TIMELINE_Q stays lean). */
+export function fetchBabyInsightsTimelinePage(input: {
+  from?: string;
+  to?: string;
+  cursor?: string | null;
+  limit?: number;
+}) {
+  return babyGraphQLRequest<BabyTimelinePage>(BABY_INSIGHTS_TIMELINE_QUERY, {
+    from: input.from,
+    to: input.to,
+    cursor: input.cursor ?? undefined,
+    limit: input.limit ?? 50,
+  });
+}
+
+export function fetchBabyInsightsSeries(input: { from: string; to: string }) {
+  return babyGraphQLRequest<{ babyInsightsSeries: BabyInsightsSeriesDto }>(
+    BABY_INSIGHTS_SERIES_QUERY,
+    { from: input.from, to: input.to },
+  );
+}
+
 export type FetchBabyTimelinePageFn = (input: {
   from?: string;
   to?: string;
   cursor?: string | null;
   limit?: number;
 }) => Promise<BabyTimelinePage>;
+
+export type FetchBabyInsightsSeriesFn = (input: {
+  from: string;
+  to: string;
+}) => Promise<{ babyInsightsSeries: BabyInsightsSeriesDto }>;
 
 export function fetchBabyGrowthPage(input: {
   kind?: string;
@@ -358,7 +564,7 @@ export type FetchBabyGrowthPageFn = (input: {
 }) => Promise<BabyGrowthPage>;
 
 /**
- * Insights live path: infinite queryFns + sync tick share applied bounds.
+ * Insights live path: series + infinite lists (timeline with payload) + sync.
  * Inject fetchers in unit tests so dropping from/to fails the suite.
  */
 export function buildBabyInsightsQueryFns(
@@ -366,14 +572,19 @@ export function buildBabyInsightsQueryFns(
   deps: {
     fetchTimeline?: FetchBabyTimelinePageFn;
     fetchGrowth?: FetchBabyGrowthPageFn;
+    fetchSeries?: FetchBabyInsightsSeriesFn;
   } = {},
 ) {
-  const fetchTimeline = deps.fetchTimeline ?? fetchBabyTimelinePage;
+  const fetchTimeline = deps.fetchTimeline ?? fetchBabyInsightsTimelinePage;
   const fetchGrowth = deps.fetchGrowth ?? fetchBabyGrowthPage;
+  const fetchSeries = deps.fetchSeries ?? fetchBabyInsightsSeries;
 
   return {
     timelineQueryKey: babyKeys.timeline(bounds.from, bounds.to),
     growthQueryKey: babyKeys.growth(undefined, bounds.from, bounds.to),
+    seriesQueryKey: babyKeys.insightsSeries(bounds.from, bounds.to),
+    seriesQueryFn: () =>
+      fetchSeries({ from: bounds.from, to: bounds.to }),
     timelineQueryFn: ({ pageParam }: { pageParam: string | null }) =>
       fetchTimeline({
         from: bounds.from,
@@ -575,9 +786,14 @@ export async function invalidateBabyQueries(
     return;
   }
   if (scope === "care") {
-    await queryClient.invalidateQueries({
-      queryKey: [...babyKeys.all, "timeline"],
-    });
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: [...babyKeys.all, "timeline"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: [...babyKeys.all, "insightsSeries"],
+      }),
+    ]);
     return;
   }
   if (scope === "profile") {
@@ -585,6 +801,9 @@ export async function invalidateBabyQueries(
       queryClient.invalidateQueries({ queryKey: babyKeys.profile() }),
       queryClient.invalidateQueries({
         queryKey: [...babyKeys.all, "timeline"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: [...babyKeys.all, "insightsSeries"],
       }),
     ]);
     return;
@@ -596,6 +815,9 @@ export async function invalidateBabyQueries(
       }),
       queryClient.invalidateQueries({
         queryKey: [...babyKeys.all, "timeline"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: [...babyKeys.all, "insightsSeries"],
       }),
     ]);
     return;

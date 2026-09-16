@@ -118,6 +118,7 @@ describe("buildBabyInsightsQueryFns", () => {
       cursor?: string | null;
       limit?: number;
     }> = [];
+    const seriesCalls: Array<{ from: string; to: string }> = [];
 
     const emptyTimeline = {
       babyTimeline: { items: [], nextCursor: null },
@@ -137,18 +138,40 @@ describe("buildBabyInsightsQueryFns", () => {
           growthCalls.push(input);
           return emptyGrowth;
         },
+        fetchSeries: async (input) => {
+          seriesCalls.push(input);
+          return {
+            babyInsightsSeries: {
+              hydration: { days: [], alert: null },
+              nightRest: { days: [] },
+              wakeWindow: {},
+              milkToDiaper: {},
+              sleepEfficiency: { emptyReason: "need_night_waking_logs" },
+              patternFinder: {},
+              awakeTrend: {},
+              diaperOutput: {},
+              counts: { feeds: 0, sleep: 0, diapers: 0 },
+              careCountDays: [],
+            },
+          };
+        },
       },
     );
 
     assert.deepEqual(fns.timelineQueryKey, babyKeys.timeline(from, to));
     assert.deepEqual(fns.growthQueryKey, babyKeys.growth(undefined, from, to));
+    assert.deepEqual(fns.seriesQueryKey, babyKeys.insightsSeries(from, to));
 
     await fns.timelineQueryFn({ pageParam: "cursor-1" });
     await fns.growthQueryFn({ pageParam: "cursor-2" });
     await fns.syncTimelineFirstPage();
+    await fns.seriesQueryFn();
 
     assert.equal(timelineCalls.length, 2);
     assert.equal(growthCalls.length, 1);
+    assert.equal(seriesCalls.length, 1);
+    assert.equal(seriesCalls[0]?.from, from);
+    assert.equal(seriesCalls[0]?.to, to);
 
     assert.equal(timelineCalls[0]?.from, from);
     assert.equal(timelineCalls[0]?.to, to);
@@ -181,7 +204,7 @@ describe("invalidateBabyQueries", () => {
     assert.deepEqual(keys, [babyKeys.all]);
   });
 
-  it("care scope invalidates timeline, not growth/sync", async () => {
+  it("care scope invalidates timeline + insights series", async () => {
     const keys: unknown[][] = [];
     await invalidateBabyQueries(
       {
@@ -191,10 +214,13 @@ describe("invalidateBabyQueries", () => {
       },
       "care",
     );
-    assert.deepEqual(keys, [[...babyKeys.all, "timeline"]]);
+    assert.deepEqual(keys, [
+      [...babyKeys.all, "timeline"],
+      [...babyKeys.all, "insightsSeries"],
+    ]);
   });
 
-  it("growth scope invalidates growth + timeline", async () => {
+  it("growth scope invalidates growth + timeline + insights series", async () => {
     const keys: unknown[][] = [];
     await invalidateBabyQueries(
       {
@@ -207,6 +233,7 @@ describe("invalidateBabyQueries", () => {
     assert.deepEqual(keys, [
       [...babyKeys.all, "growth"],
       [...babyKeys.all, "timeline"],
+      [...babyKeys.all, "insightsSeries"],
     ]);
   });
 

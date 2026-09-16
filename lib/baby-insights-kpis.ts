@@ -51,3 +51,47 @@ export function deriveBabyInsightsKpis(
         : null,
   };
 }
+
+export type SeriesCountTotals = {
+  feeds: number;
+  sleep: number;
+  diapers: number;
+};
+
+/**
+ * Prefer full-range series totals for More insights count KPIs.
+ * Apply care chips; latest weight still comes from growth lists when loaded.
+ */
+export function preferSeriesInsightCountKpis(opts: {
+  seriesCounts: SeriesCountTotals | null | undefined;
+  careTypes?: readonly BabyInsightsCareChip[];
+  /** Growth pages (Activity log) — null/empty → no weight yet. */
+  growth?: BabyInsightsKpiSource["growth"];
+  /** Fallback when series is unavailable (legacy list path). */
+  timelineFallback?: BabyInsightsKpiSource["timeline"];
+}): BabyInsightsKpis {
+  const careTypes = opts.careTypes ?? [];
+  const growth = opts.growth ?? [];
+
+  if (opts.seriesCounts) {
+    const set =
+      careTypes.length === 0 ? null : new Set<string>(careTypes);
+    const weight = growth.find(
+      (g) => g.kind === "weight" && g.valueNum != null,
+    );
+    return {
+      feeds: !set || set.has("feed") ? opts.seriesCounts.feeds : 0,
+      sleep: !set || set.has("sleep") ? opts.seriesCounts.sleep : 0,
+      diapers: !set || set.has("diaper") ? opts.seriesCounts.diapers : 0,
+      latestWeight:
+        weight && weight.valueNum != null
+          ? { valueNum: weight.valueNum, unit: weight.unit }
+          : null,
+    };
+  }
+
+  return deriveBabyInsightsKpis(
+    { timeline: opts.timelineFallback ?? [], growth },
+    careTypes,
+  );
+}

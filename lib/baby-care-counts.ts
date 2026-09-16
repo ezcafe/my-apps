@@ -65,3 +65,52 @@ export function aggregateCareCountsByDay(
 
   return [...map.values()].sort((a, b) => a.day.localeCompare(b.day));
 }
+
+export type SeriesCareCountItem = {
+  type: string;
+  at: string;
+};
+
+export type SeriesCareCounts = {
+  feeds: number;
+  sleep: number;
+  diapers: number;
+  days: BabyCareCountDay[];
+};
+
+/**
+ * Full-range care counts for Insights series (applied local days only).
+ * Skips lookback rows whose local day falls outside [fromDate, toDate].
+ */
+export function aggregateSeriesCareCounts(
+  items: readonly SeriesCareCountItem[],
+  fromDate: string,
+  toDate: string,
+): SeriesCareCounts {
+  const inRange: BabyCareCountTimelineItem[] = [];
+  for (const item of items) {
+    if (item.type !== "feed" && item.type !== "sleep" && item.type !== "diaper") {
+      continue;
+    }
+    const day = careCountDayKey(item.at);
+    if (!day || day < fromDate || day > toDate) continue;
+    inRange.push({ kind: "care", type: item.type, at: item.at });
+  }
+  const days = aggregateCareCountsByDay(inRange);
+  let feeds = 0;
+  let sleep = 0;
+  let diapers = 0;
+  for (const d of days) {
+    feeds += d.feed;
+    sleep += d.sleep;
+    diapers += d.diaper;
+  }
+  return { feeds, sleep, diapers, days };
+}
+
+/** Series path is full-range — never “partial” from timeline page caps. */
+export function babyCareCountChartCopyFromSeries(
+  dayCount: number,
+): "empty" | "ready" {
+  return dayCount > 0 ? "ready" : "empty";
+}

@@ -121,5 +121,103 @@ describe("baby i18n t()", () => {
     assert.equal(t("insights.title", "vi"), "Thống kê");
     assert.equal(t("measure.title", "vi"), "Ghi cân đo");
     assert.notEqual(t("insights.kpiFeeds", "vi"), "insights.kpiFeeds");
+    assert.equal(t("insights.filterCare", "en"), "Care types");
+    assert.notEqual(t("insights.filterCare", "vi"), "insights.filterCare");
+    assert.equal(t("insights.nightRestTitle", "en"), "Night Rest");
+    assert.match(t("insights.nightRestPurpose", "en"), /not efficiency/i);
+    assert.doesNotMatch(t("insights.nightRestTitle", "en"), /efficiency/i);
+    assert.notEqual(
+      t("insights.nightRestTitle", "vi"),
+      "insights.nightRestTitle",
+    );
+    assert.notEqual(t("insights.moreInsights", "vi"), "insights.moreInsights");
+    assert.notEqual(t("insights.activityLog", "vi"), "insights.activityLog");
+    assert.equal(t("insights.editInvalidStart", "en"), "Invalid start time");
+    assert.equal(
+      t("insights.editEndBeforeStart", "en"),
+      "End time must be after start",
+    );
+    assert.notEqual(
+      t("insights.editEndBeforeStart", "vi"),
+      "insights.editEndBeforeStart",
+    );
+    assert.notEqual(
+      t("insights.hydrationWetLegend", "vi"),
+      "insights.hydrationWetLegend",
+    );
+    assert.notEqual(
+      t("insights.diaperBucketBlowouts", "vi"),
+      "insights.diaperBucketBlowouts",
+    );
+    assert.notEqual(
+      t("insights.nightRestBlocks", "vi"),
+      "insights.nightRestBlocks",
+    );
+    assert.equal(t("insights.selectionEdit", "en"), "Edit");
+    assert.equal(t("insights.selectionDelete", "en"), "Delete");
+    assert.equal(t("insights.selectionClear", "en"), "Clear");
+    assert.match(t("insights.selectionCountOne", "en"), /activity selected/i);
+    assert.match(t("insights.selectionCountMany", "en"), /\{n\}/);
+    assert.match(t("insights.selectionDeleteConfirmMany", "en"), /\{n\}/);
+    assert.ok(t("insights.selectionDeletePartialFail", "en").length > 0);
+    assert.equal(
+      t("insights.selectionDeleteAllFail", "en"),
+      "Couldn’t delete activities.",
+    );
+    assert.notEqual(
+      t("insights.selectionDeleteAllFail", "vi"),
+      "insights.selectionDeleteAllFail",
+    );
+    assert.notEqual(
+      t("insights.selectionToolbar", "vi"),
+      "insights.selectionToolbar",
+    );
+    assert.notEqual(
+      t("insights.selectionDeleteConfirmOne", "vi"),
+      "insights.selectionDeleteConfirmOne",
+    );
+    assert.notEqual(
+      t("insights.selectionDeletePartialFail", "vi"),
+      "insights.selectionDeletePartialFail",
+    );
+    assert.doesNotMatch(t("insights.selectionCountMany", "en"), /transaction/i);
+    assert.doesNotMatch(t("insights.selectionToolbar", "en"), /transaction/i);
+  });
+
+  it("insights empty copy guides caregivers to widen the date filter", () => {
+    const emptyGrowthEn = t("insights.emptyGrowth", "en");
+    const emptyTimelineEn = t("insights.emptyTimeline", "en");
+    const emptyGrowthVi = t("insights.emptyGrowth", "vi");
+    const emptyTimelineVi = t("insights.emptyTimeline", "vi");
+
+    // Next-action sentence must include both ideas (widen range + Apply), not one token.
+    assert.match(emptyGrowthEn, /Widen/i);
+    assert.match(emptyGrowthEn, /Apply/i);
+    assert.match(emptyTimelineEn, /Widen/i);
+    assert.match(emptyTimelineEn, /Apply/i);
+    assert.match(emptyGrowthVi, /Mở rộng/i);
+    assert.match(emptyGrowthVi, /Áp dụng/i);
+    assert.match(emptyTimelineVi, /Mở rộng/i);
+    assert.match(emptyTimelineVi, /Áp dụng/i);
+  });
+
+  it("growth chart empty stays short without list recovery guidance", () => {
+    const chartEn = t("insights.emptyGrowthChart", "en");
+    const chartVi = t("insights.emptyGrowthChart", "vi");
+    assert.ok(chartEn.length > 0);
+    assert.ok(chartVi.length > 0);
+    assert.notEqual(chartEn, "insights.emptyGrowthChart");
+    assert.notEqual(chartVi, chartEn);
+    // List recovery (Widen / Apply) belongs on emptyGrowth only.
+    assert.doesNotMatch(chartEn, /Widen/i);
+    assert.doesNotMatch(chartEn, /Apply/i);
+    assert.doesNotMatch(chartVi, /Mở rộng/i);
+    assert.doesNotMatch(chartVi, /Áp dụng/i);
+  });
+
+  it("insights.sourceWeb is localized in VI (not English Web)", () => {
+    assert.equal(t("insights.sourceWeb", "en"), "Web");
+    assert.notEqual(t("insights.sourceWeb", "vi"), "Web");
+    assert.notEqual(t("insights.sourceWeb", "vi"), "insights.sourceWeb");
   });
 });
