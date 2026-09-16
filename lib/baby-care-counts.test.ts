@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   aggregateCareCountsByDay,
+  aggregateSeriesCareCounts,
   babyCareCountChartCopy,
+  babyCareCountChartCopyFromSeries,
   careCountDayKey,
 } from "@/lib/baby-care-counts";
 import { toLocalDateString } from "@/lib/money-date-calendar";
@@ -67,6 +69,41 @@ describe("aggregateCareCountsByDay", () => {
     if (local !== utc) {
       assert.notEqual(out[0]?.day, utc);
     }
+  });
+});
+
+describe("aggregateSeriesCareCounts", () => {
+  it("sums applied-range days and skips lookback outside fromDate", () => {
+    const out = aggregateSeriesCareCounts(
+      [
+        { type: "sleep", at: "2026-09-14T19:30:00" },
+        { type: "feed", at: "2026-09-15T08:00:00" },
+        { type: "feed", at: "2026-09-15T12:00:00" },
+        { type: "diaper", at: "2026-09-15T09:00:00" },
+      ],
+      "2026-09-15",
+      "2026-09-15",
+    );
+    assert.deepEqual(out, {
+      feeds: 2,
+      sleep: 0,
+      diapers: 1,
+      days: [
+        {
+          day: "2026-09-15",
+          feed: 2,
+          sleep: 0,
+          diaper: 1,
+        },
+      ],
+    });
+  });
+});
+
+describe("babyCareCountChartCopyFromSeries", () => {
+  it("never marks series days partial", () => {
+    assert.equal(babyCareCountChartCopyFromSeries(0), "empty");
+    assert.equal(babyCareCountChartCopyFromSeries(2), "ready");
   });
 });
 

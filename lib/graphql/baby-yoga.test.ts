@@ -133,6 +133,28 @@ describe("babyGrowthEntries schema from/to", () => {
   });
 });
 
+describe("babyInsightsSeries schema", () => {
+  it("accepts babyInsightsSeries query (validate only)", async () => {
+    const { parse, validate } = await import("graphql");
+    const { babyGraphQLSchema } = await import("@/lib/graphql/baby-yoga");
+    const errors = validate(
+      babyGraphQLSchema,
+      parse(`
+        query BabyInsightsSeries($from: String!, $to: String!) {
+          babyInsightsSeries(from: $from, to: $to) {
+            hydration { days { date wetCount feedCount } alert emptyReason }
+            nightRest { days { date nightSleepMinutes intervalCount } emptyReason }
+            sleepEfficiency { emptyReason }
+            counts { feeds sleep diapers }
+            careCountDays { day feed sleep diaper }
+          }
+        }
+      `),
+    );
+    assert.deepEqual(errors, []);
+  });
+});
+
 describe("babyVaccines schema", () => {
   it("accepts babyVaccines query and create/update/delete vaccine mutations", async () => {
     const { parse, validate } = await import("graphql");

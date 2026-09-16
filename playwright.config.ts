@@ -46,10 +46,15 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: process.env.E2E_WEB_SERVER_COMMAND ?? "pnpm dev",
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-  },
+  ...(process.env.E2E_SKIP_WEBSERVER
+    ? {}
+    : {
+        webServer: {
+          command: process.env.E2E_WEB_SERVER_COMMAND ?? "pnpm dev",
+          // Prefer a page that returns 200 without auth redirects (root → /money/new → login).
+          url: `${baseURL.replace(/\/$/, "")}/baby`,
+          reuseExistingServer: !process.env.CI,
+          timeout: 180_000,
+        },
+      }),
 });

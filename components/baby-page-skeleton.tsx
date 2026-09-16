@@ -1,5 +1,13 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import {
@@ -329,9 +337,105 @@ export function BabyGrowthChartSkeleton() {
   );
 }
 
+/** Selectable list chrome: checkbox → event → recorded → actions (+ mobile). */
+export function BabyInsightsListSkeleton({
+  columns = 4,
+  rows = 2,
+  selectable = true,
+}: {
+  columns?: number;
+  rows?: number;
+  selectable?: boolean;
+}) {
+  const colCount = selectable ? Math.max(columns, 4) : columns;
+  return (
+    <div className="@container w-full min-w-0" aria-hidden>
+      <div className="hidden min-w-0 @md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {Array.from({ length: colCount }, (_, index) => (
+                <TableHead
+                  key={`insights-list-head-${index}`}
+                  className={index === 0 && selectable ? "w-10" : undefined}
+                  freeze={
+                    selectable
+                      ? index === 0
+                        ? "leading"
+                        : index === 1
+                          ? "afterCheckbox"
+                          : undefined
+                      : undefined
+                  }
+                >
+                  {selectable && index === 0 ? (
+                    <Skeleton className="size-4 rounded-[var(--radius-sm)]" />
+                  ) : (
+                    <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                  )}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: rows }, (_, rowIndex) => (
+              <TableRow key={`insights-list-row-${rowIndex}`}>
+                {Array.from({ length: colCount }, (_, colIndex) => (
+                  <TableCell
+                    key={`insights-list-cell-${rowIndex}-${colIndex}`}
+                    className={
+                      colIndex === 0 && selectable ? "w-10" : undefined
+                    }
+                    freeze={
+                      selectable
+                        ? colIndex === 0
+                          ? "leading"
+                          : colIndex === 1
+                            ? "afterCheckbox"
+                            : undefined
+                        : undefined
+                    }
+                  >
+                    {selectable && colIndex === 0 ? (
+                      <Skeleton className="size-4 rounded-[var(--radius-sm)]" />
+                    ) : selectable && colIndex === colCount - 1 ? (
+                      <Skeleton className="ml-auto h-8 w-12 rounded-[var(--radius-sm)]" />
+                    ) : (
+                      <Skeleton className="h-4 w-full rounded-[var(--radius-sm)]" />
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="space-y-2 @md:hidden">
+        {Array.from({ length: rows }, (_, index) => (
+          <div
+            key={`insights-list-card-${index}`}
+            className="flex min-h-12 items-start gap-3 rounded-[var(--radius-sm)] border border-border bg-surface px-4 py-3"
+          >
+            {selectable ? (
+              <Skeleton className="mt-0.5 size-4 shrink-0 rounded-[var(--radius-sm)]" />
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <Skeleton className="h-5 w-40 max-w-full rounded-[var(--radius-sm)]" />
+              <Skeleton className="mt-2 h-4 w-28 rounded-[var(--radius-sm)]" />
+            </div>
+            {selectable ? (
+              <Skeleton className="h-8 w-12 shrink-0 rounded-[var(--radius-sm)]" />
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
- * Insights stack (CLS): About → filters bar → chips → period → Card KPIs →
- * growth heading+CTA → charts → growth list → timeline heading → timeline list.
+ * Insights stack (CLS): filters → period →
+ * Hydration + Night Rest charts → collapsed More insights → collapsed Activity log.
  */
 export function BabyInsightsPageSkeleton() {
   return (
@@ -342,58 +446,21 @@ export function BabyInsightsPageSkeleton() {
       aria-live="polite"
       aria-label="Loading insights"
     >
-      <Skeleton className="size-7 rounded-[var(--radius-sm)]" />
       <MoneyAnalyticsFiltersBarSkeleton triggerCount={2} />
-      <div className="flex flex-wrap gap-1 rounded-[var(--radius-md)] border border-border p-1">
-        <Skeleton className="h-11 w-20 rounded-[var(--radius-sm)]" />
-        <Skeleton className="h-11 w-20 rounded-[var(--radius-sm)]" />
-        <Skeleton className="h-11 w-24 rounded-[var(--radius-sm)]" />
-        <Skeleton className="h-11 w-24 rounded-[var(--radius-sm)]" />
-        <Skeleton className="h-11 w-28 rounded-[var(--radius-sm)]" />
-      </div>
       <AnalyticsPeriodChipSkeleton />
       <section
-        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
+        className="grid gap-4"
+        style={{
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(min(100%, 16rem), 1fr))",
+        }}
         aria-hidden
       >
-        {Array.from({ length: 4 }, (_, index) => (
-          <Card key={`insights-kpi-${index}`} className="px-4 py-4">
-            <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
-            <Skeleton className="mt-2 h-8 w-24 max-w-full rounded-[var(--radius-sm)] sm:h-9" />
-          </Card>
-        ))}
+        <BabyGrowthChartSkeleton />
+        <BabyGrowthChartSkeleton />
       </section>
-      <section className="space-y-3" aria-hidden>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Skeleton className="h-5 w-24 rounded-[var(--radius-sm)]" />
-          <Skeleton className="h-5 w-32 rounded-[var(--radius-sm)]" />
-        </div>
-        <div
-          className="grid gap-4"
-          style={{
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(min(100%, 16rem), 1fr))",
-          }}
-        >
-          <BabyGrowthChartSkeleton />
-          <BabyGrowthChartSkeleton />
-          <BabyGrowthChartSkeleton />
-          <BabyGrowthChartSkeleton />
-          <BabyGrowthChartSkeleton />
-        </div>
-        <div className="divide-y divide-border/80 border-y border-border/80">
-          <Skeleton className="my-3 h-10 w-full rounded-[var(--radius-sm)]" />
-          <Skeleton className="my-3 h-10 w-full rounded-[var(--radius-sm)]" />
-        </div>
-      </section>
-      <section className="space-y-3" aria-hidden>
-        <Skeleton className="h-5 w-28 rounded-[var(--radius-sm)]" />
-        <div className="divide-y divide-border/80 border-y border-border/80">
-          <Skeleton className="my-4 h-10 w-full rounded-[var(--radius-sm)]" />
-          <Skeleton className="my-4 h-10 w-full rounded-[var(--radius-sm)]" />
-          <Skeleton className="my-4 h-10 w-full rounded-[var(--radius-sm)]" />
-        </div>
-      </section>
+      <Skeleton className="h-12 w-40 rounded-[var(--radius-md)]" />
+      <Skeleton className="h-12 w-40 rounded-[var(--radius-md)]" />
     </div>
   );
 }

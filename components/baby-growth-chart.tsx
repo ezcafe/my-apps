@@ -5,16 +5,12 @@ import { scaleLinear, scaleTime } from "@visx/scale";
 import { LinePath } from "@visx/shape";
 import { curveMonotoneX } from "@visx/curve";
 import { useMemo } from "react";
-import { ParentSize } from "@visx/responsive";
-import {
-  AnalyticsChartContainer,
-  ChartViewportFallback,
-} from "@/components/analytics-chart-card-shared";
+import { ChartViewportFallback } from "@/components/analytics-chart-card-shared";
 import {
   CHART_CARD_HEIGHT_HALF,
   CHART_CARD_LAYOUT,
-  CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import { ChartParentSize } from "@/components/charts/chart-parent-size";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { useTheme } from "@/components/theme-provider";
 import { BabyGrowthChartSkeleton } from "@/components/baby-page-skeleton";
@@ -51,9 +47,9 @@ export function BabyGrowthChart({
         <p className="text-sm text-muted">{emptyLabel}</p>
       ) : (
         <>
-          <div className={cn(CHART_SLOT_CLASS, "flex-1")}>
-            <AnalyticsChartContainer>
-              <ParentSize>
+          <div className="relative h-[11.5rem] min-h-[11.5rem] w-full min-w-0 overflow-hidden">
+            <div className="absolute inset-0 min-h-0 min-w-0">
+              <ChartParentSize>
                 {({ width, height }) =>
                   width < 10 || height < 10 ? (
                     <ChartViewportFallback ariaLabel={label} />
@@ -67,8 +63,8 @@ export function BabyGrowthChart({
                     />
                   )
                 }
-              </ParentSize>
-            </AnalyticsChartContainer>
+              </ChartParentSize>
+            </div>
           </div>
           {partialNote ? (
             <p className="mt-2 text-xs text-muted">{partialNote}</p>

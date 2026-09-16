@@ -1,4 +1,4 @@
-import { defaultAnalyticsFilters } from "@/lib/analytics-default-filters";
+import { toLocalDateString } from "@/lib/money-date-calendar";
 
 export type BabyInsightsDateRange = {
   /** YYYY-MM-DD (HTML date input), local calendar. */
@@ -6,12 +6,17 @@ export type BabyInsightsDateRange = {
   toDate: string;
 };
 
-/** This calendar month — same shape as Money Insights defaults. */
+/** Last 7 local calendar days ending today (inclusive). */
 export function babyInsightsDefaultRange(
   now: Date = new Date(),
 ): BabyInsightsDateRange {
-  const { fromDate, toDate } = defaultAnalyticsFilters(now);
-  return { fromDate, toDate };
+  const to = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const from = new Date(to);
+  from.setDate(from.getDate() - 6);
+  return {
+    fromDate: toLocalDateString(from),
+    toDate: toLocalDateString(to),
+  };
 }
 
 /**

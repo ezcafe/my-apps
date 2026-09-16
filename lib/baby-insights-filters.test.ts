@@ -4,7 +4,12 @@ import {
   babyInsightsFiltersDirty,
   emptyBabyInsightsChips,
   filterGrowthByKindChips,
+  filterGrowthByMergedChips,
   filterTimelineByCareChips,
+  filterTimelineByMergedChips,
+  growthKindVisibleInMergedChips,
+  mergeBabyInsightsFilterChips,
+  splitBabyInsightsFilterChips,
   toggleBabyInsightsCareChip,
   toggleBabyInsightsGrowthChip,
 } from "@/lib/baby-insights-filters";
@@ -70,6 +75,51 @@ describe("filterGrowthByKindChips", () => {
   });
 });
 
+describe("filterTimelineByMergedChips / filterGrowthByMergedChips", () => {
+  const timeline = [
+    { id: "1", kind: "care", type: "feed" },
+    { id: "2", kind: "care", type: "diaper" },
+    { id: "3", kind: "growth", type: "head" },
+  ];
+  const growth = [
+    { id: "a", kind: "head" },
+    { id: "b", kind: "weight" },
+  ];
+
+  it("empty merged selection keeps everything", () => {
+    const chips = emptyBabyInsightsChips();
+    assert.equal(filterTimelineByMergedChips(timeline, chips).length, 3);
+    assert.equal(filterGrowthByMergedChips(growth, chips).length, 2);
+  });
+
+  it("Diaper alone drops Head and other care types", () => {
+    const chips = { careTypes: ["diaper"] as const, growthKinds: [] as const };
+    assert.deepEqual(
+      filterTimelineByMergedChips(timeline, chips).map((r) => r.id),
+      ["2"],
+    );
+    assert.deepEqual(filterGrowthByMergedChips(growth, chips).map((r) => r.id), []);
+    assert.equal(growthKindVisibleInMergedChips("head", chips), false);
+  });
+
+  it("Diaper + Head keeps both", () => {
+    const chips = {
+      careTypes: ["diaper"] as const,
+      growthKinds: ["head"] as const,
+    };
+    assert.deepEqual(
+      filterTimelineByMergedChips(timeline, chips).map((r) => r.id),
+      ["2", "3"],
+    );
+    assert.deepEqual(
+      filterGrowthByMergedChips(growth, chips).map((r) => r.id),
+      ["a"],
+    );
+    assert.equal(growthKindVisibleInMergedChips("head", chips), true);
+    assert.equal(growthKindVisibleInMergedChips("weight", chips), false);
+  });
+});
+
 describe("toggleBabyInsightsCareChip", () => {
   it("adds and removes", () => {
     assert.deepEqual(toggleBabyInsightsCareChip([], "feed"), ["feed"]);
@@ -84,6 +134,31 @@ describe("toggleBabyInsightsGrowthChip", () => {
       toggleBabyInsightsGrowthChip(["weight", "height"], "weight"),
       ["height"],
     );
+  });
+});
+
+describe("mergeBabyInsightsFilterChips / splitBabyInsightsFilterChips", () => {
+  it("round-trips care + measure ids", () => {
+    const chips = {
+      careTypes: ["feed", "diaper"] as const,
+      growthKinds: ["weight", "height"] as const,
+    };
+    const merged = mergeBabyInsightsFilterChips({
+      careTypes: [...chips.careTypes],
+      growthKinds: [...chips.growthKinds],
+    });
+    assert.deepEqual(merged, ["feed", "diaper", "weight", "height"]);
+    assert.deepEqual(splitBabyInsightsFilterChips(merged), {
+      careTypes: ["feed", "diaper"],
+      growthKinds: ["weight", "height"],
+    });
+  });
+
+  it("ignores unknown ids when splitting", () => {
+    assert.deepEqual(splitBabyInsightsFilterChips(["feed", "nope", "weight"]), {
+      careTypes: ["feed"],
+      growthKinds: ["weight"],
+    });
   });
 });
 

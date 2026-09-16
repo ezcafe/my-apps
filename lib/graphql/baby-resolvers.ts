@@ -35,6 +35,7 @@ import {
   careSummary,
   listBabyTimeline,
 } from "@/features/baby/server/timeline";
+import { getBabyInsightsSeries } from "@/features/baby/server/insights-series";
 import { babyQuickCareNotifyKinds } from "@/lib/baby-quick-care-notify";
 import {
   createBabyVaccine,
@@ -188,6 +189,20 @@ export const babyResolvers = {
       try {
         return await runInWorkspace(workspaceId, () =>
           listBabyTimeline(workspaceId, args, localeOf(ctx)),
+        );
+      } catch (e) {
+        mapServiceError(e, ctx.requestId);
+      }
+    },
+    babyInsightsSeries: async (
+      _: unknown,
+      args: { from: string; to: string },
+      ctx: BabyGraphQLContext,
+    ) => {
+      const { workspaceId } = requireBabyWorkspace(ctx);
+      try {
+        return await runInWorkspace(workspaceId, () =>
+          getBabyInsightsSeries(workspaceId, args),
         );
       } catch (e) {
         mapServiceError(e, ctx.requestId);

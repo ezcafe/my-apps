@@ -3,16 +3,12 @@
 import { Group } from "@visx/group";
 import { scaleBand, scaleLinear } from "@visx/scale";
 import { Bar } from "@visx/shape";
-import { ParentSize } from "@visx/responsive";
-import {
-  AnalyticsChartContainer,
-  ChartViewportFallback,
-} from "@/components/analytics-chart-card-shared";
+import { ChartViewportFallback } from "@/components/analytics-chart-card-shared";
 import {
   CHART_CARD_HEIGHT_HALF,
   CHART_CARD_LAYOUT,
-  CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import { ChartParentSize } from "@/components/charts/chart-parent-size";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { useTheme } from "@/components/theme-provider";
 import { Card } from "@/components/ui/card";
@@ -40,7 +36,10 @@ export function BabyCareCountChart({
   ready: boolean;
 }) {
   const { resolved, style } = useTheme();
-  const colors = SERIES.map((_, i) => colorByIndex(resolved, i, style));
+  // Skip adjacent near-duplicate teal (index 1) — same readable spread as money multi-series.
+  const colors = SERIES.map((_, i) =>
+    colorByIndex(resolved, i === 0 ? 0 : i + 1, style),
+  );
 
   return (
     <Card
@@ -52,9 +51,9 @@ export function BabyCareCountChart({
         <p className="text-sm text-muted">{emptyLabel}</p>
       ) : (
         <>
-          <div className={cn(CHART_SLOT_CLASS, "flex-1")}>
-            <AnalyticsChartContainer>
-              <ParentSize>
+          <div className="relative h-[11.5rem] min-h-[11.5rem] w-full min-w-0 overflow-hidden">
+            <div className="absolute inset-0 min-h-0 min-w-0">
+              <ChartParentSize>
                 {({ width, height }) =>
                   width < 10 || height < 10 ? (
                     <ChartViewportFallback ariaLabel={label} />
@@ -68,8 +67,8 @@ export function BabyCareCountChart({
                     />
                   )
                 }
-              </ParentSize>
-            </AnalyticsChartContainer>
+              </ChartParentSize>
+            </div>
           </div>
           <ul className="mt-2 flex flex-wrap gap-3 text-xs text-muted">
             {SERIES.map((key, i) => (
@@ -146,7 +145,8 @@ function BabyCareCountChartInner({
                 width={group.bandwidth()}
                 height={Math.max(0, barH)}
                 fill={colors[i]}
-                rx={2}
+                opacity={0.9}
+                rx={4}
               />
             );
           }),

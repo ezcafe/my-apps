@@ -1,4 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
+import {
+  babyInsightsDateBoundsIso,
+  babyInsightsDefaultRange,
+} from "../lib/baby-insights-default-range";
+import { BABY_INSIGHTS_LIST_VISIBLE_CAP } from "../lib/baby-insights-list-visible";
 import { clickSoftNav, openAppMenu, appMenuPanel } from "./helpers/shell";
 import {
   defaultStatus,
@@ -9,6 +14,183 @@ import {
   bottleSave,
   diaperSave,
 } from "./helpers/baby-home-graphql";
+
+type InsightsQueryBounds = { from: string; to: string };
+
+function parseGraphqlVariables(
+  raw: string | null,
+): Record<string, unknown> | undefined {
+  if (!raw) return undefined;
+  try {
+    return (JSON.parse(raw) as { variables?: Record<string, unknown> })
+      .variables;
+  } catch {
+    return undefined;
+  }
+}
+
+function pushInsightsBounds(
+  target: InsightsQueryBounds[],
+  variables: Record<string, unknown> | undefined,
+) {
+  if (
+    typeof variables?.from === "string" &&
+    typeof variables?.to === "string"
+  ) {
+    target.push({ from: variables.from, to: variables.to });
+  }
+}
+
+/** Local calendar day inclusive ISO bounds (same helper the dashboard uses). */
+function insightsBoundsForLocalDate(ymd: string): InsightsQueryBounds {
+  return babyInsightsDateBoundsIso(ymd, ymd);
+}
+
+/** Soft-empty series snapshot for Insights GraphQL mocks. */
+function emptyBabyInsightsSeries() {
+  return {
+    hydration: { days: [], alert: null, emptyReason: "need_more_logs" },
+    nightRest: { days: [], emptyReason: "need_more_sleep_logs" },
+    wakeWindow: { avgMinutes: null, emptyReason: "need_3_days" },
+    milkToDiaper: { avgLagMinutes: null, emptyReason: "need_more_logs" },
+    sleepEfficiency: { emptyReason: "need_night_waking_logs" },
+    patternFinder: { days: null, emptyReason: "need_more_logs" },
+    awakeTrend: { days: null, emptyReason: "need_3_days" },
+    diaperOutput: {
+      buckets: null,
+      alert: null,
+      emptyReason: "need_more_texture_logs",
+    },
+    counts: { feeds: 0, sleep: 0, diapers: 0 },
+    careCountDays: [],
+  };
+}
+
+async function fulfillBabyInsightsGraphql(
+  route: import("@playwright/test").Route,
+  handlers: {
+    timeline?: unknown;
+    growth?: unknown;
+    series?: unknown;
+  } = {},
+) {
+  const body = route.request().postData() ?? "";
+  if (/BabySyncConfig|babySyncConfig/.test(body)) {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: { babySyncConfig: { intervalMinutes: 60 } },
+      }),
+    });
+    return;
+  }
+  if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          babyInsightsSeries: handlers.series ?? emptyBabyInsightsSeries(),
+        },
+      }),
+    });
+    return;
+  }
+  if (/BabyTimeline|babyTimeline|BabyInsightsTimeline/.test(body)) {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: handlers.timeline ?? {
+          babyTimeline: { items: [], nextCursor: null },
+        },
+      }),
+    });
+    return;
+  }
+  // Do not treat UpdateBabyGrowth / DeleteBabyGrowth mutations as list queries.
+  if (
+    (/BabyGrowth\b|babyGrowthEntries/.test(body) ||
+      /query\s+BabyGrowth\b/.test(body)) &&
+    !/updateBabyGrowth|UpdateBabyGrowth|deleteBabyGrowth|DeleteBabyGrowth/.test(
+      body,
+    )
+  ) {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: handlers.growth ?? {
+          babyGrowthEntries: { items: [], nextCursor: null },
+        },
+      }),
+    });
+    return;
+  }
+  await route.continue();
+}
+
+function expectedDefaultInsightsBounds(): InsightsQueryBounds {
+  const { fromDate, toDate } = babyInsightsDefaultRange();
+  return babyInsightsDateBoundsIso(fromDate, toDate);
+}
+
+function expectedYesterdayInsightsBounds(): InsightsQueryBounds {
+  const now = new Date();
+  const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const ymd = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, "0")}-${String(y.getDate()).padStart(2, "0")}`;
+  return insightsBoundsForLocalDate(ymd);
+}
+
+function boundsMatch(
+  actual: InsightsQueryBounds,
+  expected: InsightsQueryBounds,
+): boolean {
+  return actual.from === expected.from && actual.to === expected.to;
+}
+
+/** Expand deferred Activity log; returns the open panel locator. */
+async function openActivityLog(page: Page) {
+  await page.getByTestId("baby-activity-log").click();
+  const panel = page.getByTestId("baby-activity-log-panel");
+  await expect(panel).toBeVisible();
+  return panel;
+}
+
+/** Custom Checkbox uses sr-only input + visual span; force avoids span interception. */
+async function checkActivityCheckbox(
+  locator: import("@playwright/test").Locator,
+) {
+  await locator.check({ force: true });
+}
+
+/** Shared Baby GraphQL stubs used by Insights list e2e. */
+async function fulfillBabySyncConfig(route: Route) {
+  await route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      data: { babySyncConfig: { intervalMinutes: 60 } },
+    }),
+  });
+}
+
+function growthEntryFixture(
+  id: string,
+  valueNum: number,
+  recordedAt = "2026-09-14T09:00:00.000Z",
+) {
+  return {
+    id,
+    kind: "weight",
+    recordedAt,
+    valueNum,
+    valueText: null,
+    unit: "kg",
+    notes: null,
+  };
+}
 
 /** Smoke: hamburger nav + Option B home + EN/VI in settings. Writes need E2E_STORAGE_STATE. */
 
@@ -218,12 +400,13 @@ test.describe("Baby Care smoke", () => {
     ).toBeVisible();
     await expect(page.getByText(/^showing\b/i)).toBeVisible();
 
-    await expect(
-      page.getByRole("heading", { name: /growth|cân đo/i }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: /timeline|dòng thời gian/i }),
-    ).toBeVisible();
+    await expect(page.getByTestId("baby-hydration-chart")).toBeVisible();
+    await expect(page.getByTestId("baby-night-rest-chart")).toBeVisible();
+    await expect(page.getByTestId("baby-more-insights")).toBeVisible();
+    await expect(page.getByTestId("baby-activity-log")).toBeVisible();
+    // KPI strips and legacy charts stay behind More insights.
+    await expect(page.getByTestId("baby-count-kpis")).toHaveCount(0);
+    await expect(page.getByTestId("baby-insights-charts")).toHaveCount(0);
 
     // View-only: no Measure editors on Insights (writes live on /baby/measure).
     await expect(
@@ -237,9 +420,7 @@ test.describe("Baby Care smoke", () => {
     ).toHaveCount(0);
   });
 
-  test("insights shared chips apply to growth and timeline", async ({
-    page,
-  }) => {
+  test("insights shared chips apply to Activity log", async ({ page }) => {
     // Mock GraphQL so chip Apply effects are deterministic without a write session.
     await page.route("**/api/graphql/baby", async (route) => {
       const body = route.request().postData() ?? "";
@@ -323,6 +504,16 @@ test.describe("Baby Care smoke", () => {
         });
         return;
       }
+      if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyInsightsSeries: emptyBabyInsightsSeries() },
+          }),
+        });
+        return;
+      }
       await route.continue();
     });
 
@@ -331,16 +522,29 @@ test.describe("Baby Care smoke", () => {
       page.getByRole("heading", { name: /insights|thống kê/i }),
     ).toBeVisible();
 
-    // Unfiltered: both care rows and both growth kinds visible.
-    await expect(page.getByText("E2E feed event")).toBeVisible();
-    await expect(page.getByText("E2E sleep event")).toBeVisible();
-    await expect(page.getByText(/Weight 4\.2 kg/i)).toBeVisible();
-    await expect(page.getByText(/Height 55 cm/i)).toBeVisible();
+    // Collapsed by default — expand unified Activity log.
+    await expect(page.getByTestId("baby-activity-log-panel")).toHaveCount(0);
+    const panel = await openActivityLog(page);
 
-    // Care types live in filter bar (Accounts-style); growth kinds stay as chips.
-    // Toolbar uses @container @md — wait for either desktop Care or mobile Filter.
+    // Unfiltered: care + growth rows in one table (+ mobile cards).
+    const table = panel.getByRole("table");
+    await expect(table).toHaveCount(1);
+    await expect(table.getByText("E2E feed event")).toBeVisible();
+    await expect(table.getByText("E2E sleep event")).toBeVisible();
+    await expect(table.getByText(/Weight:\s*4\.2 kg/i)).toBeVisible();
+    await expect(table.getByText(/Height:\s*55 cm/i)).toBeVisible();
+
+    const cards = panel.locator("ul > li");
+    await expect(cards).toHaveCount(4);
+    await expect(cards.getByText(/Weight:\s*4\.2 kg/i)).toHaveCount(1);
+    await expect(cards.getByText(/Height:\s*55 cm/i)).toHaveCount(1);
+    await expect(cards.getByText("E2E feed event")).toHaveCount(1);
+    await expect(cards.getByText("E2E sleep event")).toHaveCount(1);
+
+    // Care types (care + measures) live in one filter-bar multi-select.
+    // Toolbar uses @container @md — wait for either desktop Care types or mobile Filter.
     const careOrFilter = page.getByRole("button", {
-      name: /^(care|chăm sóc|filter)\b/i,
+      name: /^(care types|loại chăm sóc|filter)\b/i,
     });
     await expect(careOrFilter.first()).toBeVisible({ timeout: 15_000 });
     const chromeLabel = (await careOrFilter.first().innerText()).toLowerCase();
@@ -348,41 +552,909 @@ test.describe("Baby Care smoke", () => {
     if (chromeLabel.startsWith("filter")) {
       await careOrFilter.first().click();
       await page.getByRole("button", { name: /^feed$|^bú$/i }).click();
+      await page.getByRole("button", { name: /^weight$|^cân nặng$/i }).click();
       await page
         .getByRole("button", { name: /apply filters|áp dụng bộ lọc/i })
         .click();
     } else {
       await careOrFilter.first().click();
-      await page
-        .getByRole("dialog")
-        .getByRole("button", { name: /^feed$|^bú$/i })
-        .click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByRole("button", { name: /^feed$|^bú$/i }).click();
+      await dialog.getByRole("button", { name: /^weight$|^cân nặng$/i }).click();
       await page
         .getByLabel("Insights filters")
         .getByRole("button", { name: /^apply$|^áp dụng$/i })
         .click();
     }
 
-    const kinds = page.getByRole("region", {
-      name: /growth kinds|loại cân đo/i,
-    });
-    await kinds.getByRole("button", { name: /^weight$|^cân nặng$/i }).click();
-    await kinds.getByRole("button", { name: /^apply$|^áp dụng$/i }).click();
-
     // Period chip reflects applied care + growth filters.
     const period = page.getByText(/^showing\b|^đang xem\b/i);
     await expect(period).toContainText(/Feed|Bú/i);
     await expect(period).toContainText(/Weight|Cân/i);
 
-    // Timeline follows care filter; growth follows growth chips.
-    await expect(page.getByText("E2E feed event")).toBeVisible();
-    await expect(page.getByText("E2E sleep event")).toHaveCount(0);
+    // Activity log follows the merged Care types filter (single list).
+    await expect(table.getByText("E2E feed event")).toBeVisible();
+    await expect(table.getByText("E2E sleep event")).toHaveCount(0);
+    await expect(table.getByText(/Weight:\s*4\.2 kg/i)).toBeVisible();
+    await expect(table.getByText(/Height:\s*55 cm/i)).toHaveCount(0);
+
+    // Re-open Care types: Diaper alone must drop growth rows (merged exclusivity).
+    if (chromeLabel.startsWith("filter")) {
+      await careOrFilter.first().click();
+      await page.getByRole("button", { name: /^feed$|^bú$/i }).click();
+      await page.getByRole("button", { name: /^weight$|^cân nặng$/i }).click();
+      await page.getByRole("button", { name: /^diaper$|^tã$/i }).click();
+      await page
+        .getByRole("button", { name: /apply filters|áp dụng bộ lọc/i })
+        .click();
+    } else {
+      await careOrFilter.first().click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByRole("button", { name: /^feed$|^bú$/i }).click();
+      await dialog.getByRole("button", { name: /^weight$|^cân nặng$/i }).click();
+      await dialog.getByRole("button", { name: /^diaper$|^tã$/i }).click();
+      await page
+        .getByLabel("Insights filters")
+        .getByRole("button", { name: /^apply$|^áp dụng$/i })
+        .click();
+    }
+
+    await expect(table.getByText("E2E feed event")).toHaveCount(0);
+    await expect(table.getByText("E2E sleep event")).toHaveCount(0);
+    await expect(table.getByText(/Weight:\s*4\.2 kg/i)).toHaveCount(0);
+    await expect(table.getByText(/Height:\s*55 cm/i)).toHaveCount(0);
+    // Diaper row may use summary or chip title — sleep/feed gone is the contract.
+  });
+
+  test("insights defaults to last 7 days, empty is non-error, Reset restores default", async ({
+    page,
+  }) => {
+    const timelineBounds: InsightsQueryBounds[] = [];
+    const growthBounds: InsightsQueryBounds[] = [];
+    const defaultBounds = expectedDefaultInsightsBounds();
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      const variables = parseGraphqlVariables(body);
+      if (/BabySyncConfig|babySyncConfig/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babySyncConfig: { intervalMinutes: 60 } },
+          }),
+        });
+        return;
+      }
+      if (/BabyTimeline|babyTimeline/.test(body)) {
+        pushInsightsBounds(timelineBounds, variables);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyTimeline: { items: [], nextCursor: null } },
+          }),
+        });
+        return;
+      }
+      if (/BabyGrowth|babyGrowthEntries/.test(body)) {
+        pushInsightsBounds(growthBounds, variables);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyGrowthEntries: { items: [], nextCursor: null } },
+          }),
+        });
+        return;
+      }
+            if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyInsightsSeries: emptyBabyInsightsSeries() },
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/baby/insights");
     await expect(
-      page.getByText(/Weight 4\.2 kg|Cân nặng 4\.2 kg/i),
+      page.getByRole("heading", { name: /insights|thống kê/i }),
+    ).toBeVisible();
+
+    const filters = page.getByRole("region", { name: /insights filters/i });
+    await expect(filters).toBeVisible();
+    const applyDesktop = filters.getByRole("button", { name: /^apply$/i });
+    if (await applyDesktop.isVisible()) {
+      await filters.locator("button[aria-expanded]").first().click();
+    } else {
+      await filters.getByRole("button", { name: /^filter/i }).click();
+    }
+
+    const fromDate = page.getByRole("radiogroup", { name: /^from date$/i });
+    const toDate = page.getByRole("radiogroup", { name: /^to date$/i });
+    // Last 7 days: from is a custom date chip (not Today/Yesterday), to is today.
+    await expect(fromDate.getByRole("radio", { name: /^today$/i })).not.toBeChecked();
+    await expect(
+      fromDate.getByRole("radio", { name: /^yesterday$/i }),
+    ).not.toBeChecked();
+    await expect(toDate.getByRole("radio", { name: /^today$/i })).toBeChecked();
+
+    const period = page.getByText(/^showing\b|^đang xem\b/i);
+    await expect(period).toBeVisible();
+    await expect(period).not.toContainText(/this month|tháng này/i);
+    // Multi-day default: from and to display text differ.
+    const periodRange = period.locator("span").first();
+    const initialPeriodRangeText = (await periodRange.innerText()).trim();
+    const periodParts = initialPeriodRangeText.split(/\s+[–—-]\s+/);
+    expect(periodParts).toHaveLength(2);
+    expect(periodParts[0]?.trim()).toBeTruthy();
+    expect(periodParts[1]?.trim()).toBeTruthy();
+    expect(periodParts[0]?.trim()).not.toBe(periodParts[1]?.trim());
+
+    // Lists (timeline/growth) load after Activity log expand — not on Insights open.
+    await page.getByTestId("baby-activity-log").click();
+    const activityPanel = page.getByTestId("baby-activity-log-panel");
+    await expect(activityPanel).toBeVisible();
+
+    // GraphQL list loads use default last-7-days inclusive bounds.
+    await expect
+      .poll(() => timelineBounds.some((b) => boundsMatch(b, defaultBounds)))
+      .toBe(true);
+    await expect
+      .poll(() => growthBounds.some((b) => boundsMatch(b, defaultBounds)))
+      .toBe(true);
+
+    // Empty range: muted Activity log copy (unified list), not section error.
+    const activityEmpty = activityPanel.getByText(
+      /no care or measurements in this range|không có chăm sóc hoặc cân đo/i,
+    );
+    await expect(activityEmpty).toBeVisible();
+    await expect(activityEmpty).toHaveClass(/text-muted/);
+    await expect(
+      activityPanel.getByText(
+        /could not load timeline|không tải được dòng thời gian|could not load growth|không tải được cân đo/i,
+      ),
+    ).toHaveCount(0);
+    await expect(activityPanel.getByRole("table")).toHaveCount(0);
+
+    // Re-open filters (Activity log click can dismiss the date menu).
+    if (await applyDesktop.isVisible()) {
+      await filters.locator("button[aria-expanded]").first().click();
+    } else {
+      await filters.getByRole("button", { name: /^filter/i }).click();
+    }
+
+    const desktopChrome = await applyDesktop.isVisible();
+    await fromDate.getByRole("radio", { name: /^yesterday$/i }).click();
+    await toDate.getByRole("radio", { name: /^yesterday$/i }).click();
+    if (desktopChrome) {
+      await applyDesktop.click();
+      // Apply closes the date menu — reopen to read radiogroups.
+      await filters.locator("button[aria-expanded]").first().click();
+    } else {
+      await page
+        .getByRole("button", { name: /apply filters|áp dụng bộ lọc/i })
+        .click();
+      await filters.getByRole("button", { name: /^filter/i }).click();
+    }
+
+    await expect(
+      fromDate.getByRole("radio", { name: /^yesterday$/i }),
+    ).toBeChecked();
+
+    // Apply wiring: GraphQL must use yesterday inclusive bounds (not still default).
+    const yesterdayBounds = expectedYesterdayInsightsBounds();
+    await expect
+      .poll(() => timelineBounds.some((b) => boundsMatch(b, yesterdayBounds)))
+      .toBe(true);
+    await expect
+      .poll(() => growthBounds.some((b) => boundsMatch(b, yesterdayBounds)))
+      .toBe(true);
+
+    const timelineCountBeforeReset = timelineBounds.length;
+    const growthCountBeforeReset = growthBounds.length;
+
+    if (desktopChrome) {
+      await filters.getByRole("button", { name: /^reset$|^đặt lại$/i }).click();
+      await filters.locator("button[aria-expanded]").first().click();
+    } else {
+      await page.getByRole("button", { name: /^reset$|^đặt lại$/i }).click();
+      await filters.getByRole("button", { name: /^filter/i }).click();
+    }
+
+    await expect(fromDate.getByRole("radio", { name: /^today$/i })).not.toBeChecked();
+    await expect(
+      fromDate.getByRole("radio", { name: /^yesterday$/i }),
+    ).not.toBeChecked();
+    await expect(toDate.getByRole("radio", { name: /^today$/i })).toBeChecked();
+    await expect(period).not.toContainText(/this month|tháng này/i);
+    // Positive default restore: period chip matches the initial last-7-days label
+    // (yesterday is same-day, so equal from/to alone is not enough after Reset).
+    await expect(periodRange).toHaveText(initialPeriodRangeText);
+
+    // Reset → default last 7 days: any new GraphQL must use default bounds.
+    // Fresh cache (staleTime 30s) may skip refetch; initial default + Apply yesterday already
+    // proved dashboard→query wiring, so zero new requests after Reset is allowed.
+    await expect
+      .poll(() => {
+        const newer = [
+          ...timelineBounds.slice(timelineCountBeforeReset),
+          ...growthBounds.slice(growthCountBeforeReset),
+        ];
+        if (newer.some((b) => !boundsMatch(b, defaultBounds))) return false;
+        if (newer.length === 0) return true; // cache hit
+        const newerTimeline = timelineBounds.slice(timelineCountBeforeReset);
+        const newerGrowth = growthBounds.slice(growthCountBeforeReset);
+        return (
+          newerTimeline.some((b) => boundsMatch(b, defaultBounds)) &&
+          newerGrowth.some((b) => boundsMatch(b, defaultBounds))
+        );
+      })
+      .toBe(true);
+    await expect(
+      page.getByText(/could not load growth|không tải được cân đo/i),
+    ).toHaveCount(0);
+  });
+
+  test("insights Apply date range refetches series and updates hydration chart", async ({
+    page,
+  }) => {
+    const seriesBounds: InsightsQueryBounds[] = [];
+    const defaultBounds = expectedDefaultInsightsBounds();
+    const yesterdayBounds = expectedYesterdayInsightsBounds();
+    const now = new Date();
+    const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const yesterdayYmd = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, "0")}-${String(y.getDate()).padStart(2, "0")}`;
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      const variables = parseGraphqlVariables(body);
+      if (/BabySyncConfig|babySyncConfig/.test(body)) {
+        await fulfillBabySyncConfig(route);
+        return;
+      }
+      if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+        pushInsightsBounds(seriesBounds, variables);
+        const forYesterday =
+          typeof variables?.from === "string" &&
+          typeof variables?.to === "string" &&
+          boundsMatch(
+            { from: variables.from, to: variables.to },
+            yesterdayBounds,
+          );
+        const series = forYesterday
+          ? {
+              ...emptyBabyInsightsSeries(),
+              hydration: {
+                days: [],
+                alert: null,
+                emptyReason: "need_more_logs",
+              },
+            }
+          : {
+              ...emptyBabyInsightsSeries(),
+              hydration: {
+                days: [
+                  {
+                    date: yesterdayYmd,
+                    wetCount: 8,
+                    feedCount: 5,
+                    formulaMl: null,
+                  },
+                ],
+                alert: null,
+                emptyReason: null,
+              },
+              nightRest: {
+                days: [
+                  {
+                    date: yesterdayYmd,
+                    nightSleepMinutes: 420,
+                    intervalCount: 1,
+                  },
+                ],
+                emptyReason: null,
+              },
+            };
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ data: { babyInsightsSeries: series } }),
+        });
+        return;
+      }
+      if (/BabyTimeline|babyTimeline/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyTimeline: { items: [], nextCursor: null } },
+          }),
+        });
+        return;
+      }
+      if (/BabyGrowth|babyGrowthEntries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyGrowthEntries: { items: [], nextCursor: null } },
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/baby/insights");
+    const hydration = page.getByTestId("baby-hydration-chart");
+    await expect(hydration).toBeVisible({ timeout: 15_000 });
+    await expect
+      .poll(() => seriesBounds.some((b) => boundsMatch(b, defaultBounds)))
+      .toBe(true);
+    // Default range has hydration days — not the soft-empty copy.
+    await expect(
+      hydration.getByText(
+        /need more feed or diaper logs|cần thêm nhật ký bú hoặc tã/i,
+      ),
+    ).toHaveCount(0);
+    // Filter chrome stays mounted (not swapped for full-page skeleton on later loads).
+    const filters = page.getByRole("region", { name: /insights filters/i });
+    await expect(filters).toBeVisible();
+
+    const applyDesktop = filters.getByRole("button", { name: /^apply$/i });
+    if (await applyDesktop.isVisible()) {
+      await filters.locator("button[aria-expanded]").first().click();
+    } else {
+      await filters.getByRole("button", { name: /^filter/i }).click();
+    }
+
+    const fromDate = page.getByRole("radiogroup", { name: /^from date$/i });
+    const toDate = page.getByRole("radiogroup", { name: /^to date$/i });
+    await fromDate.getByRole("radio", { name: /^yesterday$/i }).click();
+    await toDate.getByRole("radio", { name: /^yesterday$/i }).click();
+
+    if (await applyDesktop.isVisible()) {
+      await applyDesktop.click();
+    } else {
+      await page
+        .getByRole("button", { name: /apply filters|áp dụng bộ lọc/i })
+        .click();
+    }
+
+    // Filters must remain visible while the new series loads (no full-page swap).
+    await expect(filters).toBeVisible();
+    await expect(
+      page.getByRole("status", { name: /loading insights/i }),
+    ).toHaveCount(0);
+
+    await expect
+      .poll(() => seriesBounds.some((b) => boundsMatch(b, yesterdayBounds)))
+      .toBe(true);
+    await expect(
+      hydration.getByText(
+        /need more feed or diaper logs|cần thêm nhật ký bú hoặc tã/i,
+      ),
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("insights Activity log uses table chrome", async ({ page }) => {
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/BabySyncConfig|babySyncConfig/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babySyncConfig: { intervalMinutes: 60 } },
+          }),
+        });
+        return;
+      }
+      if (/BabyTimeline|babyTimeline/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: {
+              babyTimeline: {
+                items: [
+                  {
+                    id: "e2e-table-feed",
+                    kind: "care",
+                    type: "feed",
+                    at: "2026-09-14T10:00:00.000Z",
+                    endedAt: null,
+                    summary: "E2E table feed",
+                    source: "web",
+                    cursor: "c1",
+                  },
+                ],
+                nextCursor: null,
+              },
+            },
+          }),
+        });
+        return;
+      }
+      if (/BabyGrowth|babyGrowthEntries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: {
+              babyGrowthEntries: {
+                items: [
+                  {
+                    id: "e2e-table-weight",
+                    kind: "weight",
+                    valueNum: 4.2,
+                    unit: "kg",
+                    recordedAt: "2026-09-14T09:00:00.000Z",
+                    valueText: null,
+                    notes: null,
+                    cursor: "g1",
+                  },
+                ],
+                nextCursor: null,
+              },
+            },
+          }),
+        });
+        return;
+      }
+      if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyInsightsSeries: emptyBabyInsightsSeries() },
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/baby/insights");
+    await expect(page.getByTestId("baby-activity-log")).toBeVisible();
+    await expect(page.getByTestId("baby-activity-log-panel")).toHaveCount(0);
+
+    const panel = await openActivityLog(page);
+
+    // One merged table (Event / Recorded) + mobile card rows.
+    const table = panel.getByRole("table");
+    await expect(table).toHaveCount(1);
+    await expect(
+      table.getByRole("columnheader", { name: /^event$|^sự kiện$/i }),
     ).toBeVisible();
     await expect(
-      page.getByText(/Height 55 cm|Chiều cao 55 cm/i),
+      table.getByRole("columnheader", { name: /^recorded$|^ghi nhận$/i }),
+    ).toBeVisible();
+    await expect(table.getByText(/Weight:\s*4\.2 kg/i)).toBeVisible();
+    await expect(table.getByText("E2E table feed")).toBeVisible();
+
+    // Mobile card chrome uses @container @md:hidden — narrow viewport so cards show.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const cards = panel.locator("ul > li");
+    await expect(cards).toHaveCount(2);
+    await expect(cards.first()).toContainText(/E2E table feed|Weight:\s*4\.2 kg/i);
+    // Card chrome: bordered surface row with checkbox + Edit (not one big button).
+    await expect(cards.first().locator("div").first()).toHaveClass(/border/);
+    await expect(
+      cards.first().getByRole("button", { name: /^edit$|^sửa$/i }),
+    ).toBeVisible();
+    await expect(
+      cards.first().getByRole("checkbox"),
+    ).toBeVisible();
+  });
+
+  test("insights Activity log show more and load more still work", async ({
+    page,
+  }) => {
+    // DOM cap is 100; one extra row unlocks Show more. nextCursor unlocks Load more.
+    const pageOneCount = BABY_INSIGHTS_LIST_VISIBLE_CAP + 1;
+    const pageOneItems = Array.from({ length: pageOneCount }, (_, i) =>
+      growthEntryFixture(
+        `e2e-show-${i}`,
+        i === pageOneCount - 1 ? 9.91 : 4.2,
+        // Oldest timestamp → last after newest-first merge → beyond DOM cap.
+        i === pageOneCount - 1
+          ? "2026-09-01T09:00:00.000Z"
+          : "2026-09-14T09:00:00.000Z",
+      ),
+    );
+    const pageTwoItem = growthEntryFixture(
+      "e2e-load-more",
+      8.88,
+      "2026-09-15T09:00:00.000Z",
+    );
+    let loadMoreCalls = 0;
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/BabySyncConfig|babySyncConfig/.test(body)) {
+        await fulfillBabySyncConfig(route);
+        return;
+      }
+      if (/BabyTimeline|babyTimeline/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyTimeline: { items: [], nextCursor: null } },
+          }),
+        });
+        return;
+      }
+      if (/BabyGrowth|babyGrowthEntries/.test(body)) {
+        const variables = parseGraphqlVariables(body);
+        const cursor =
+          typeof variables?.cursor === "string" ? variables.cursor : null;
+        if (cursor === "g2") {
+          loadMoreCalls += 1;
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              data: {
+                babyGrowthEntries: {
+                  items: [pageTwoItem],
+                  nextCursor: null,
+                },
+              },
+            }),
+          });
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: {
+              babyGrowthEntries: {
+                items: pageOneItems,
+                nextCursor: "g2",
+              },
+            },
+          }),
+        });
+        return;
+      }
+      if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyInsightsSeries: emptyBabyInsightsSeries() },
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/baby/insights");
+    const panel = await openActivityLog(page);
+
+    const activityTable = panel.getByRole("table");
+    const activityCards = panel.locator("ul > li");
+    // Header + capped data rows; extra DOM row stays hidden until Show more.
+    await expect(activityTable.getByRole("row")).toHaveCount(
+      BABY_INSIGHTS_LIST_VISIBLE_CAP + 1,
+    );
+    await expect(activityCards).toHaveCount(BABY_INSIGHTS_LIST_VISIBLE_CAP);
+    await expect(activityTable.getByText(/9\.91 kg/i)).toHaveCount(0);
+
+    const showMore = panel.getByRole("button", {
+      name: /show more rows|hiện thêm dòng/i,
+    });
+    const loadMore = panel.getByRole("button", {
+      name: /load more|tải thêm/i,
+    });
+    await expect(showMore).toBeVisible();
+    await expect(loadMore).toBeVisible();
+
+    await showMore.click();
+    await expect(activityTable.getByRole("row")).toHaveCount(pageOneCount + 1);
+    await expect(activityCards).toHaveCount(pageOneCount);
+    await expect(activityTable.getByText(/9\.91 kg/i)).toBeVisible();
+
+    await loadMore.click();
+    await expect.poll(() => loadMoreCalls).toBeGreaterThan(0);
+    await expect(activityTable.getByText(/8\.88 kg/i)).toBeVisible();
+    await expect(activityTable.getByRole("row")).toHaveCount(pageOneCount + 2);
+  });
+
+  test("insights loading skeleton matches collapsed Activity log", async ({
+    page,
+  }) => {
+    // Hold series (+ lists) so the client loading skeleton stays visible long enough.
+    let releaseLists!: () => void;
+    const listsGate = new Promise<void>((resolve) => {
+      releaseLists = resolve;
+    });
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/BabySyncConfig|babySyncConfig/.test(body)) {
+        await fulfillBabySyncConfig(route);
+        return;
+      }
+      if (
+        /BabyInsightsSeries|babyInsightsSeries|BabyTimeline|babyTimeline|BabyGrowth|babyGrowthEntries/.test(
+          body,
+        )
+      ) {
+        await listsGate;
+        if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              data: { babyInsightsSeries: emptyBabyInsightsSeries() },
+            }),
+          });
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: /BabyTimeline|babyTimeline/.test(body)
+              ? { babyTimeline: { items: [], nextCursor: null } }
+              : { babyGrowthEntries: { items: [], nextCursor: null } },
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    const nav = page.goto("/baby/insights");
+    const loading = page.getByRole("status", { name: /loading insights/i });
+    await expect(loading).toBeVisible({ timeout: 15_000 });
+    // Collapsed Activity log parity: no list tables/cards; two deferred toggles.
+    await expect(loading.locator("table")).toHaveCount(0);
+    await expect(
+      loading.locator(
+        'div.px-4.py-3[class*="border-border"][class*="bg-surface"]',
+      ),
     ).toHaveCount(0);
+    await expect(loading.locator("ul.divide-y")).toHaveCount(0);
+    await expect(loading.locator(".h-12.w-40")).toHaveCount(2);
+
+    releaseLists();
+    await nav;
+    await expect(
+      page.getByRole("heading", { name: /insights|thống kê/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("status", { name: /loading insights/i }),
+    ).toHaveCount(0);
+  });
+
+  test("insights Activity log expand shows selectable list skeleton while loading", async ({
+    page,
+  }) => {
+    let releaseLists!: () => void;
+    const listsGate = new Promise<void>((resolve) => {
+      releaseLists = resolve;
+    });
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/BabySyncConfig|babySyncConfig/.test(body)) {
+        await fulfillBabySyncConfig(route);
+        return;
+      }
+      if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyInsightsSeries: emptyBabyInsightsSeries() },
+          }),
+        });
+        return;
+      }
+      if (
+        /BabyTimeline|babyTimeline|BabyGrowth|babyGrowthEntries/.test(body)
+      ) {
+        await listsGate;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: /BabyTimeline|babyTimeline/.test(body)
+              ? { babyTimeline: { items: [], nextCursor: null } }
+              : { babyGrowthEntries: { items: [], nextCursor: null } },
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/baby/insights");
+    await expect(page.getByTestId("baby-activity-log")).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByTestId("baby-activity-log").click();
+    const panel = page.getByTestId("baby-activity-log-panel");
+    await expect(panel).toBeVisible();
+
+    const loading = panel.getByRole("status", { name: /loading|đang tải/i });
+    await expect(loading).toBeVisible();
+    // Selectable chrome: table + checkbox-sized placeholders (CLS cover).
+    await expect(loading.locator("table")).toHaveCount(1);
+    await expect(loading.locator(".size-4").first()).toBeVisible();
+
+    releaseLists();
+    await expect(loading).toHaveCount(0);
+    await expect(
+      panel.getByText(
+        /no care or measurements|không có chăm sóc hoặc cân đo/i,
+      ),
+    ).toBeVisible();
+  });
+
+  test("insights Activity log error UI stays clear", async ({ page }) => {
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/BabySyncConfig|babySyncConfig/.test(body)) {
+        await fulfillBabySyncConfig(route);
+        return;
+      }
+      if (/BabyTimeline|babyTimeline/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            errors: [{ message: "e2e forced timeline error" }],
+          }),
+        });
+        return;
+      }
+      if (/BabyGrowth|babyGrowthEntries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            errors: [{ message: "e2e forced growth error" }],
+          }),
+        });
+        return;
+      }
+      if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyInsightsSeries: emptyBabyInsightsSeries() },
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/baby/insights");
+    const panel = await openActivityLog(page);
+
+    // Single unified error string (timeline.loadError), not dual Growth/Timeline copy.
+    const loadError = panel.getByText(
+      /could not load timeline|không tải được dòng thời gian/i,
+    );
+    await expect(loadError).toBeVisible();
+    await expect(loadError).toHaveCount(1);
+    await expect(loadError).toHaveClass(/text-destructive/);
+    // Error path is not the muted empty Activity log copy.
+    await expect(
+      panel.getByText(
+        /no care or measurements in this range|không có chăm sóc hoặc cân đo/i,
+      ),
+    ).toHaveCount(0);
+    await expect(
+      panel.getByText(/could not load growth|không tải được cân đo/i),
+    ).toHaveCount(0);
+    await expect(panel.getByRole("table")).toHaveCount(0);
+  });
+
+  test("insights Activity log stays usable in light and dark", async ({
+    page,
+  }) => {
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/BabySyncConfig|babySyncConfig/.test(body)) {
+        await fulfillBabySyncConfig(route);
+        return;
+      }
+      if (/BabyTimeline|babyTimeline/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: {
+              babyTimeline: {
+                items: [
+                  {
+                    id: "e2e-theme-feed",
+                    kind: "care",
+                    type: "feed",
+                    at: "2026-09-14T10:00:00.000Z",
+                    endedAt: null,
+                    summary: "E2E theme feed",
+                    source: "web",
+                    cursor: "c1",
+                  },
+                ],
+                nextCursor: null,
+              },
+            },
+          }),
+        });
+        return;
+      }
+      if (/BabyGrowth|babyGrowthEntries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: {
+              babyGrowthEntries: {
+                items: [growthEntryFixture("e2e-theme-weight", 4.2)],
+                nextCursor: null,
+              },
+            },
+          }),
+        });
+        return;
+      }
+      if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyInsightsSeries: emptyBabyInsightsSeries() },
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    const html = page.locator("html");
+
+    await page.goto("/baby/insights");
+    await page.evaluate(() => {
+      localStorage.setItem("workspace_theme", "light");
+    });
+    await page.reload();
+    await expect(html).not.toHaveClass(/dark/);
+    const lightPanel = await openActivityLog(page);
+    const lightTable = lightPanel.getByRole("table");
+    await expect(lightTable).toHaveCount(1);
+    await expect(lightTable.getByText("E2E theme feed")).toBeVisible();
+    await expect(lightTable.getByText(/Weight:\s*4\.2 kg/i)).toBeVisible();
+
+    await page.evaluate(() => {
+      localStorage.setItem("workspace_theme", "dark");
+    });
+    await page.reload();
+    await expect(html).toHaveClass(/dark/);
+    const darkPanel = await openActivityLog(page);
+    const darkTable = darkPanel.getByRole("table");
+    await expect(darkTable).toHaveCount(1);
+    await expect(darkTable.getByText("E2E theme feed")).toBeVisible();
+    await expect(darkTable.getByText(/Weight:\s*4\.2 kg/i)).toBeVisible();
+    // Card chrome still mounts under dark tokens.
+    await expect(darkPanel.locator("ul > li")).toHaveCount(2);
   });
 
   test("old growth and timeline URLs redirect to insights", async ({
@@ -544,21 +1616,589 @@ test.describe("Baby Care capture navigate", () => {
 });
 
 test.describe("Baby Care insights charts", () => {
-  test("Insights shows chart region, care-count, and growth chart cards", async ({
+  test("default Insights shows Hydration + Night Rest; More insights / Activity log deferred", async ({
     page,
   }) => {
-    // Mock like timeline Breast L/R: unauthenticated GraphQL would UNAUTHORIZED
-    // and hide the charts grid (growthSection === "error").
+    let timelineFetches = 0;
+    let growthFetches = 0;
     await page.route("**/api/graphql/baby", async (route) => {
       const body = route.request().postData() ?? "";
-      if (/BabySyncConfig|babySyncConfig/.test(body)) {
+      if (/BabyTimeline|babyTimeline|BabyInsightsTimeline/.test(body)) {
+        timelineFetches += 1;
+      }
+      if (
+        (/BabyGrowth\b|babyGrowthEntries/.test(body) ||
+          /query\s+BabyGrowth\b/.test(body)) &&
+        !/updateBabyGrowth|UpdateBabyGrowth|deleteBabyGrowth|DeleteBabyGrowth/.test(
+          body,
+        )
+      ) {
+        growthFetches += 1;
+      }
+      await fulfillBabyInsightsGraphql(route);
+    });
+
+    await page.goto("/baby/insights");
+    await expect(page.getByTestId("baby-insights-default-charts")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByTestId("baby-hydration-chart")).toBeVisible();
+    await expect(page.getByTestId("baby-night-rest-chart")).toBeVisible();
+    await expect(
+      page.getByText(/night rest|giấc ngủ đêm/i).first(),
+    ).toBeVisible();
+    // Purpose copy may say "not efficiency %"; assert we do not title the chart as efficiency.
+    await expect(
+      page.getByTestId("baby-night-rest-chart").getByText(/^efficiency %$/i),
+    ).toHaveCount(0);
+
+    await expect(page.getByTestId("baby-more-insights")).toBeVisible();
+    await expect(page.getByTestId("baby-activity-log")).toBeVisible();
+    await expect(page.getByTestId("baby-more-insights-panel")).toHaveCount(0);
+    await expect(page.getByTestId("baby-activity-log-panel")).toHaveCount(0);
+    await expect(page.getByTestId("baby-count-kpis")).toHaveCount(0);
+
+    await page.getByTestId("baby-more-insights").click();
+    await expect(page.getByTestId("baby-more-insights-panel")).toBeVisible();
+    await expect(page.getByTestId("baby-count-kpis")).toBeVisible();
+    await expect(page.getByTestId("baby-insights-charts")).toBeVisible();
+    await expect(page.getByTestId("baby-pattern-finder-chart")).toBeVisible();
+    await expect(page.getByTestId("baby-awake-trend-chart")).toBeVisible();
+    await expect(page.getByTestId("baby-diaper-output-chart")).toBeVisible();
+    await expect(page.getByTestId("baby-care-count-chart")).toBeVisible();
+    // More insights uses series only — no payload timeline/growth waterfall.
+    expect(timelineFetches).toBe(0);
+    expect(growthFetches).toBe(0);
+
+    await page.getByTestId("baby-activity-log").click();
+    await expect(page.getByTestId("baby-activity-log-panel")).toBeVisible();
+    await expect
+      .poll(() => timelineFetches + growthFetches)
+      .toBeGreaterThan(0);
+  });
+
+  test("More insights shows insight KPI strip with Sleep Efficiency soft-empty", async ({
+    page,
+  }) => {
+    await page.route("**/api/graphql/baby", async (route) => {
+      await fulfillBabyInsightsGraphql(route);
+    });
+
+    await page.goto("/baby/insights");
+    await expect(page.getByTestId("baby-insights-default-charts")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.getByRole("region", { name: /insight metrics/i }),
+    ).toHaveCount(0);
+
+    await page.getByTestId("baby-more-insights").click();
+    const insightKpis = page.getByRole("region", {
+      name: /insight metrics/i,
+    });
+    await expect(insightKpis).toBeVisible();
+    await expect(
+      insightKpis.getByText(/avg wake window|khoảng tỉnh trung bình/i),
+    ).toBeVisible();
+    await expect(
+      insightKpis.getByText(/milk\s*→\s*diaper lag|độ trễ bú\s*→\s*tã/i),
+    ).toBeVisible();
+    await expect(
+      insightKpis.getByText(/sleep efficiency|hiệu suất ngủ/i),
+    ).toBeVisible();
+    await expect(
+      insightKpis.getByText(
+        /need night-waking logs to measure efficiency|cần nhật ký thức đêm để đo hiệu suất/i,
+      ),
+    ).toBeVisible();
+    await expect(
+      insightKpis.getByText(
+        /widen the date range to at least 3 days|mở rộng khoảng ngày ít nhất 3 ngày/i,
+      ),
+    ).toBeVisible();
+    await expect(
+      insightKpis.getByText(
+        /need more feed and diaper logs|cần thêm nhật ký bú và tã/i,
+      ),
+    ).toBeVisible();
+  });
+
+  test("default charts show purpose / guidance copy", async ({ page }) => {
+    await page.route("**/api/graphql/baby", async (route) => {
+      await fulfillBabyInsightsGraphql(route);
+    });
+
+    await page.goto("/baby/insights");
+    const hydration = page.getByTestId("baby-hydration-chart");
+    const nightRest = page.getByTestId("baby-night-rest-chart");
+    await expect(hydration).toBeVisible({ timeout: 15_000 });
+    await expect(nightRest).toBeVisible();
+
+    await expect(
+      hydration.getByText(
+        /wet diapers vs feeds|tã ướt so với lần bú/i,
+      ),
+    ).toBeVisible();
+    await expect(
+      nightRest.getByText(
+        /night sleep duration|thời lượng ngủ đêm/i,
+      ),
+    ).toBeVisible();
+    await expect(
+      nightRest.getByText(/not efficiency %|không phải % hiệu suất/i),
+    ).toBeVisible();
+
+    await page.getByTestId("baby-more-insights").click();
+    await expect(page.getByTestId("baby-more-insights-panel")).toBeVisible();
+    await expect(
+      page
+        .getByTestId("baby-pattern-finder-chart")
+        .getByText(/sleep blocks and feed\/diaper|khối ngủ và dấu bú\/tã/i),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByTestId("baby-awake-trend-chart")
+        .getByText(/daily mean wake gaps|khoảng tỉnh trung bình mỗi ngày/i),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByTestId("baby-diaper-output-chart")
+        .getByText(/wet vs stool mix|tã ướt và hỗn hợp phân/i),
+    ).toBeVisible();
+  });
+
+  test("hydration low_wet alert shows when series alert fires", async ({
+    page,
+  }) => {
+    const series = {
+      ...emptyBabyInsightsSeries(),
+      hydration: {
+        days: [
+          {
+            date: "2026-09-14",
+            wetCount: 3,
+            feedCount: 6,
+            formulaMl: null,
+          },
+        ],
+        alert: "low_wet",
+        emptyReason: null,
+      },
+    };
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      await fulfillBabyInsightsGraphql(route, { series });
+    });
+
+    await page.goto("/baby/insights");
+    await expect(page.getByTestId("baby-hydration-chart")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.getByRole("status").filter({
+        hasText:
+          /wet diapers look low on a day with feeds|tã ướt thấp trong ngày có bú/i,
+      }),
+    ).toBeVisible();
+  });
+
+  test("More insights diaper watery alert shows when series high_watery", async ({
+    page,
+  }) => {
+    const series = {
+      ...emptyBabyInsightsSeries(),
+      diaperOutput: {
+        buckets: { wet: 2, normal: 3, watery: 4, blowouts: 0 },
+        alert: "high_watery",
+        emptyReason: null,
+      },
+    };
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      await fulfillBabyInsightsGraphql(route, { series });
+    });
+
+    await page.goto("/baby/insights");
+    await expect(page.getByTestId("baby-insights-default-charts")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.getByRole("status").filter({
+        hasText:
+          /loose-watery stools look high|phân loãng cao/i,
+      }),
+    ).toHaveCount(0);
+
+    await page.getByTestId("baby-more-insights").click();
+    await expect(page.getByTestId("baby-more-insights-panel")).toBeVisible();
+    await expect(page.getByTestId("baby-diaper-output-chart")).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({
+        hasText:
+          /loose-watery stools look high|phân loãng cao/i,
+      }),
+    ).toBeVisible();
+  });
+
+  test("default charts show soft-empty copy when series is thin", async ({
+    page,
+  }) => {
+    await page.route("**/api/graphql/baby", async (route) => {
+      await fulfillBabyInsightsGraphql(route);
+    });
+
+    await page.goto("/baby/insights");
+    const hydration = page.getByTestId("baby-hydration-chart");
+    const nightRest = page.getByTestId("baby-night-rest-chart");
+    await expect(hydration).toBeVisible({ timeout: 15_000 });
+    await expect(nightRest).toBeVisible();
+
+    await expect(
+      hydration.getByText(
+        /need more feed or diaper logs|cần thêm nhật ký bú hoặc tã/i,
+      ),
+    ).toBeVisible();
+    await expect(
+      nightRest.getByText(
+        /need more completed sleep logs for night rest|cần thêm nhật ký ngủ đã kết thúc cho giấc đêm/i,
+      ),
+    ).toBeVisible();
+  });
+
+  test("Activity log care edit save hits updateBabyEvent and refreshes row", async ({
+    page,
+  }) => {
+    const mutations: string[] = [];
+    let feedSummary = "Bottle · 120 ml";
+    let feedAmountMl = 120;
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/UpdateBabyEvent|updateBabyEvent/.test(body)) {
+        mutations.push("updateBabyEvent");
+        try {
+          const parsed = JSON.parse(body) as {
+            variables?: { input?: { payload?: { amountMl?: number } } };
+          };
+          const ml = parsed.variables?.input?.payload?.amountMl;
+          if (typeof ml === "number") {
+            feedAmountMl = ml;
+            feedSummary = `Bottle · ${ml} ml`;
+          }
+        } catch {
+          /* keep prior */
+        }
         await route.fulfill({
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
-            data: { babySyncConfig: { intervalMinutes: 60 } },
+            data: { updateBabyEvent: { id: "e2e-edit-feed" } },
           }),
         });
+        return;
+      }
+      if (/UpdateBabyGrowth|updateBabyGrowth/.test(body)) {
+        mutations.push("updateBabyGrowth");
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { updateBabyGrowth: { id: "should-not-run" } },
+          }),
+        });
+        return;
+      }
+      await fulfillBabyInsightsGraphql(route, {
+        timeline: {
+          babyTimeline: {
+            items: [
+              {
+                id: "e2e-edit-feed",
+                kind: "care",
+                type: "feed",
+                at: "2026-09-05T10:12:00.000Z",
+                endedAt: null,
+                payload: { method: "bottle", amountMl: feedAmountMl },
+                summary: feedSummary,
+                source: "web",
+                cursor: "c1",
+              },
+            ],
+            nextCursor: null,
+          },
+        },
+      });
+    });
+
+    await page.goto("/baby/insights");
+    await page.getByTestId("baby-activity-log").click();
+    const panel = page.getByTestId("baby-activity-log-panel");
+    await expect(panel).toBeVisible();
+    const activityTable = panel.getByRole("table");
+    await expect(activityTable.getByText(/Bottle · 120 ml/i)).toBeVisible();
+
+    await activityTable.getByRole("row").filter({ hasText: /Feed/i })
+      .getByRole("button", { name: /^edit$|^sửa$/i })
+      .click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel(/amount \(ml\)|lượng \(ml\)/i).fill("150");
+    await dialog.getByRole("button", { name: /^save$|^lưu$/i }).click();
+
+    await expect(dialog).toHaveCount(0);
+    await expect.poll(() => mutations).toEqual(["updateBabyEvent"]);
+    await expect(activityTable.getByText(/Bottle · 150 ml/i)).toBeVisible();
+    await expect(activityTable.getByText(/Bottle · 120 ml/i)).toHaveCount(0);
+  });
+
+  test("Activity log growth edit save hits updateBabyGrowth and refreshes row", async ({
+    page,
+  }) => {
+    const mutations: string[] = [];
+    let weightValue = 4.2;
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/UpdateBabyGrowth|updateBabyGrowth/.test(body)) {
+        mutations.push("updateBabyGrowth");
+        try {
+          const parsed = JSON.parse(body) as {
+            variables?: { input?: { valueNum?: number } };
+          };
+          const v = parsed.variables?.input?.valueNum;
+          if (typeof v === "number") weightValue = v;
+        } catch {
+          /* keep prior */
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { updateBabyGrowth: { id: "e2e-edit-weight" } },
+          }),
+        });
+        return;
+      }
+      if (/UpdateBabyEvent|updateBabyEvent/.test(body)) {
+        mutations.push("updateBabyEvent");
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { updateBabyEvent: { id: "should-not-run" } },
+          }),
+        });
+        return;
+      }
+      await fulfillBabyInsightsGraphql(route, {
+        growth: {
+          babyGrowthEntries: {
+            items: [
+              growthEntryFixture("e2e-edit-weight", weightValue),
+            ],
+            nextCursor: null,
+          },
+        },
+      });
+    });
+
+    await page.goto("/baby/insights");
+    await page.getByTestId("baby-activity-log").click();
+    const panel = page.getByTestId("baby-activity-log-panel");
+    await expect(panel).toBeVisible();
+    const activityTable = panel.getByRole("table");
+    await expect(activityTable.getByText(/4\.2 kg/i)).toBeVisible();
+
+    await activityTable
+      .getByRole("row")
+      .filter({ hasText: /Weight|Cân/i })
+      .getByRole("button", { name: /^edit$|^sửa$/i })
+      .click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    const valueInput = dialog.getByLabel(/^value$|^giá trị$/i);
+    await valueInput.fill("4.5");
+    await valueInput.blur();
+
+    const saveResponse = page.waitForResponse(
+      (res) =>
+        res.url().includes("/api/graphql/baby") &&
+        /updateBabyGrowth/i.test(res.request().postData() ?? ""),
+      { timeout: 15_000 },
+    );
+    await dialog.getByRole("button", { name: /^save$|^lưu$/i }).click();
+    await saveResponse;
+
+    await expect(dialog).toHaveCount(0);
+    await expect.poll(() => mutations).toEqual(["updateBabyGrowth"]);
+    await expect(activityTable.getByText(/4\.5 kg/i)).toBeVisible();
+    await expect(activityTable.getByText(/4\.2 kg/i)).toHaveCount(0);
+  });
+
+  test("Activity log edit validation fail shows inline error and skips mutation", async ({
+    page,
+  }) => {
+    const mutations: string[] = [];
+    const sleepSummary = "Ended sleep · 1h 5m";
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (
+        /UpdateBabyEvent|updateBabyEvent|UpdateBabyGrowth|updateBabyGrowth/.test(
+          body,
+        )
+      ) {
+        mutations.push("mutation");
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { updateBabyEvent: { id: "should-not-run" } },
+          }),
+        });
+        return;
+      }
+      await fulfillBabyInsightsGraphql(route, {
+        timeline: {
+          babyTimeline: {
+            items: [
+              {
+                id: "e2e-edit-sleep",
+                kind: "care",
+                type: "sleep",
+                at: "2026-09-05T08:00:00.000Z",
+                endedAt: "2026-09-05T09:05:00.000Z",
+                payload: {},
+                summary: sleepSummary,
+                source: "web",
+                cursor: "c1",
+              },
+            ],
+            nextCursor: null,
+          },
+        },
+      });
+    });
+
+    await page.goto("/baby/insights");
+    await page.getByTestId("baby-activity-log").click();
+    const panel = page.getByTestId("baby-activity-log-panel");
+    await expect(panel).toBeVisible();
+    const activityTable = panel.getByRole("table");
+    await expect(activityTable.getByText(sleepSummary)).toBeVisible();
+
+    await activityTable
+      .getByRole("row")
+      .filter({ hasText: /Sleep|Ngủ/i })
+      .getByRole("button", { name: /^edit$|^sửa$/i })
+      .click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    // End before start → client validation; mutation must not fire.
+    const occurred = await dialog
+      .getByLabel(/^when$|^thời điểm$/i)
+      .inputValue();
+    await dialog.getByLabel(/^ended$|^kết thúc$/i).fill(
+      occurred.slice(0, 11) + "06:00",
+    );
+    await dialog.getByRole("button", { name: /^save$|^lưu$/i }).click();
+
+    await expect(dialog.getByRole("alert")).toContainText(
+      /end time must be after start/i,
+    );
+    expect(mutations).toEqual([]);
+    await expect(dialog).toBeVisible();
+    await expect(activityTable.getByText(sleepSummary)).toBeVisible();
+  });
+
+  test("Activity log selection bar: checkbox, Edit enabled for 1, disabled visible for 2", async ({
+    page,
+  }) => {
+    await page.route("**/api/graphql/baby", async (route) => {
+      await fulfillBabyInsightsGraphql(route, {
+        timeline: {
+          babyTimeline: {
+            items: [
+              {
+                id: "e2e-sel-feed",
+                kind: "care",
+                type: "feed",
+                at: "2026-09-05T10:12:00.000Z",
+                endedAt: null,
+                payload: { method: "bottle", amountMl: 120 },
+                summary: "Bottle · 120 ml",
+                source: "web",
+                cursor: "c1",
+              },
+            ],
+            nextCursor: null,
+          },
+        },
+        growth: {
+          babyGrowthEntries: {
+            items: [growthEntryFixture("e2e-sel-weight", 4.2)],
+            nextCursor: null,
+          },
+        },
+      });
+    });
+
+    await page.goto("/baby/insights");
+    const panel = await openActivityLog(page);
+    const table = panel.getByRole("table");
+    await expect(table.getByRole("checkbox").first()).toBeVisible();
+
+    const feedRow = table.getByRole("row").filter({ hasText: /Feed|Bú/i });
+    await checkActivityCheckbox(feedRow.getByRole("checkbox"));
+
+    const bar = page.getByTestId("baby-activity-selection-bar");
+    await expect(bar).toBeVisible();
+    await expect(bar).toContainText(/activity selected|hoạt động/i);
+    const editBtn = bar.getByRole("button", { name: /^edit$|^sửa$/i });
+    const deleteBtn = bar.getByRole("button", { name: /^delete$|^xóa$/i });
+    const clearBtn = bar.getByRole("button", { name: /^clear$|^bỏ chọn$/i });
+    await expect(editBtn).toBeEnabled();
+    await expect(deleteBtn).toBeEnabled();
+    await expect(clearBtn).toBeEnabled();
+
+    await editBtn.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("button", { name: /^cancel$|^hủy$/i }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    const weightRow = table.getByRole("row").filter({ hasText: /Weight|Cân/i });
+    await checkActivityCheckbox(weightRow.getByRole("checkbox"));
+    await expect(editBtn).toBeVisible();
+    await expect(editBtn).toBeDisabled();
+    await expect(deleteBtn).toBeEnabled();
+
+    // Whole-row click must not open edit.
+    await feedRow.click({ position: { x: 120, y: 10 } });
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    await feedRow.getByRole("button", { name: /^edit$|^sửa$/i }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+  });
+
+  test("Activity log keeps selection on show more; clears on panel close", async ({
+    page,
+  }) => {
+    const pageOneCount = BABY_INSIGHTS_LIST_VISIBLE_CAP + 1;
+    const pageOneItems = Array.from({ length: pageOneCount }, (_, i) =>
+      growthEntryFixture(
+        `e2e-keep-${i}`,
+        i === 0 ? 7.77 : 4.2,
+        i === 0
+          ? "2026-09-15T09:00:00.000Z"
+          : "2026-09-14T09:00:00.000Z",
+      ),
+    );
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/BabySyncConfig|babySyncConfig/.test(body)) {
+        await fulfillBabySyncConfig(route);
         return;
       }
       if (/BabyTimeline|babyTimeline/.test(body)) {
@@ -566,9 +2206,7 @@ test.describe("Baby Care insights charts", () => {
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
-            data: {
-              babyTimeline: { items: [], nextCursor: null },
-            },
+            data: { babyTimeline: { items: [], nextCursor: null } },
           }),
         });
         return;
@@ -578,7 +2216,22 @@ test.describe("Baby Care insights charts", () => {
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
-            data: { babyGrowthEntries: { items: [], nextCursor: null } },
+            data: {
+              babyGrowthEntries: {
+                items: pageOneItems,
+                nextCursor: null,
+              },
+            },
+          }),
+        });
+        return;
+      }
+      if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyInsightsSeries: emptyBabyInsightsSeries() },
           }),
         });
         return;
@@ -587,29 +2240,636 @@ test.describe("Baby Care insights charts", () => {
     });
 
     await page.goto("/baby/insights");
-    await expect(page.getByTestId("baby-insights-charts")).toBeVisible({
-      timeout: 15_000,
-    });
-    // Care-count card always mounts (empty or with series legend).
-    await expect(page.getByTestId("baby-care-count-chart")).toBeVisible();
-    // Empty growth chips → all kinds; cards mount even with no points.
-    await expect(page.getByTestId("baby-growth-chart-card").first()).toBeVisible();
+    const panel = await openActivityLog(page);
+    const table = panel.getByRole("table");
+    const firstDataRow = table.getByRole("row").nth(1);
+    await checkActivityCheckbox(firstDataRow.getByRole("checkbox"));
+    const bar = page.getByTestId("baby-activity-selection-bar");
+    await expect(bar).toBeVisible();
+
+    await panel
+      .getByRole("button", { name: /show more rows|hiện thêm/i })
+      .click();
+    await expect(bar).toBeVisible();
+    await expect(firstDataRow.getByRole("checkbox")).toBeChecked();
+
+    await page.getByTestId("baby-activity-log").click();
+    await expect(panel).toHaveCount(0);
+    await expect(bar).toHaveCount(0);
+
+    await openActivityLog(page);
+    await expect(page.getByTestId("baby-activity-selection-bar")).toHaveCount(0);
   });
 
-  test("insights timeline shows Breast L/R, stop time, and compact duration", async ({
-    page,
-  }) => {
-    // Mock care rows so labels/duration/stop clock are deterministic.
+  test("Activity log keeps selection on load more", async ({ page }) => {
+    // nextCursor unlocks Load more; older page-two row appends so selected row stays identifiable.
+    const pageOneItems = [
+      growthEntryFixture(
+        "e2e-load-keep-0",
+        7.77,
+        "2026-09-15T09:00:00.000Z",
+      ),
+      growthEntryFixture(
+        "e2e-load-keep-1",
+        4.2,
+        "2026-09-14T09:00:00.000Z",
+      ),
+    ];
+    const pageTwoItem = growthEntryFixture(
+      "e2e-load-keep-more",
+      8.88,
+      "2026-09-13T09:00:00.000Z",
+    );
+    let loadMoreCalls = 0;
+
     await page.route("**/api/graphql/baby", async (route) => {
       const body = route.request().postData() ?? "";
       if (/BabySyncConfig|babySyncConfig/.test(body)) {
+        await fulfillBabySyncConfig(route);
+        return;
+      }
+      if (/BabyTimeline|babyTimeline/.test(body)) {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
-            data: { babySyncConfig: { intervalMinutes: 60 } },
+            data: { babyTimeline: { items: [], nextCursor: null } },
           }),
         });
+        return;
+      }
+      if (/BabyGrowth|babyGrowthEntries/.test(body)) {
+        const variables = parseGraphqlVariables(body);
+        const cursor =
+          typeof variables?.cursor === "string" ? variables.cursor : null;
+        if (cursor === "g2") {
+          loadMoreCalls += 1;
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              data: {
+                babyGrowthEntries: {
+                  items: [pageTwoItem],
+                  nextCursor: null,
+                },
+              },
+            }),
+          });
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: {
+              babyGrowthEntries: {
+                items: pageOneItems,
+                nextCursor: "g2",
+              },
+            },
+          }),
+        });
+        return;
+      }
+      if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyInsightsSeries: emptyBabyInsightsSeries() },
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/baby/insights");
+    const panel = await openActivityLog(page);
+    const table = panel.getByRole("table");
+    const selectedRow = table.getByRole("row").filter({ hasText: /7\.77 kg/i });
+    await checkActivityCheckbox(selectedRow.getByRole("checkbox"));
+    const bar = page.getByTestId("baby-activity-selection-bar");
+    await expect(bar).toBeVisible();
+
+    const loadMore = panel.getByRole("button", {
+      name: /load more|tải thêm/i,
+    });
+    await expect(loadMore).toBeVisible();
+    await loadMore.click();
+    await expect.poll(() => loadMoreCalls).toBeGreaterThan(0);
+    await expect(table.getByText(/8\.88 kg/i)).toBeVisible();
+    await expect(bar).toBeVisible();
+    await expect(selectedRow.getByRole("checkbox")).toBeChecked();
+  });
+
+  test("Activity log multi-delete: cancel confirm, mixed mutations, partial fail Alert", async ({
+    page,
+  }) => {
+    const deletes: string[] = [];
+    let feedGone = false;
+    let growthGone = false;
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/DeleteBabyEvent|deleteBabyEvent/.test(body)) {
+        deletes.push("deleteBabyEvent");
+        feedGone = true;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { deleteBabyEvent: { id: "e2e-del-feed" } },
+          }),
+        });
+        return;
+      }
+      if (/DeleteBabyGrowth|deleteBabyGrowth/.test(body)) {
+        deletes.push("deleteBabyGrowth");
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            errors: [{ message: "NOT_FOUND" }],
+            data: null,
+          }),
+        });
+        return;
+      }
+      await fulfillBabyInsightsGraphql(route, {
+        timeline: {
+          babyTimeline: {
+            items: feedGone
+              ? []
+              : [
+                  {
+                    id: "e2e-del-feed",
+                    kind: "care",
+                    type: "feed",
+                    at: "2026-09-05T10:12:00.000Z",
+                    endedAt: null,
+                    payload: { method: "bottle", amountMl: 90 },
+                    summary: "Bottle · 90 ml",
+                    source: "web",
+                    cursor: "c1",
+                  },
+                ],
+            nextCursor: null,
+          },
+        },
+        growth: {
+          babyGrowthEntries: {
+            items: growthGone
+              ? []
+              : [growthEntryFixture("e2e-del-weight", 5.5)],
+            nextCursor: null,
+          },
+        },
+      });
+    });
+
+    await page.goto("/baby/insights");
+    const panel = await openActivityLog(page);
+    const table = panel.getByRole("table");
+
+    const feedCheckbox = table
+      .getByRole("row")
+      .filter({ hasText: /Feed|Bú/i })
+      .getByRole("checkbox");
+    const weightCheckbox = table
+      .getByRole("row")
+      .filter({ hasText: /Weight|Cân/i })
+      .getByRole("checkbox");
+    await checkActivityCheckbox(feedCheckbox);
+    await checkActivityCheckbox(weightCheckbox);
+
+    const bar = page.getByTestId("baby-activity-selection-bar");
+    await expect(bar).toContainText(/2 activities selected|2 hoạt động/i);
+
+    page.once("dialog", (dialog) => dialog.dismiss());
+    await bar.getByRole("button", { name: /^delete$|^xóa$/i }).click();
+    await expect.poll(() => deletes.length).toBe(0);
+    // Cancel = no-op: selection count + both checkboxes unchanged (not only deletes===0).
+    await expect(bar).toBeVisible();
+    await expect(bar).toContainText(/2 activities selected|2 hoạt động/i);
+    await expect(feedCheckbox).toBeChecked();
+    await expect(weightCheckbox).toBeChecked();
+
+    page.once("dialog", (dialog) => dialog.accept());
+    await bar.getByRole("button", { name: /^delete$|^xóa$/i }).click();
+    await expect.poll(() => [...deletes].sort()).toEqual([
+      "deleteBabyEvent",
+      "deleteBabyGrowth",
+    ]);
+
+    await expect(panel.getByRole("alert")).toBeVisible();
+    await expect(panel.getByRole("alert")).toContainText(
+      /couldn.?t delete some activities|không xóa được một số/i,
+    );
+    await expect(table.getByText(/Bottle · 90 ml/i)).toHaveCount(0);
+    await expect(table.getByText(/5\.5 kg/i)).toBeVisible();
+    await expect(
+      table.getByRole("row").filter({ hasText: /Weight|Cân/i }).getByRole("checkbox"),
+    ).toBeChecked();
+  });
+
+  test("Activity log multi-delete: full success clears selection and bar", async ({
+    page,
+  }) => {
+    const deletes: string[] = [];
+    let feedGone = false;
+    let growthGone = false;
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/DeleteBabyEvent|deleteBabyEvent/.test(body)) {
+        deletes.push("deleteBabyEvent");
+        feedGone = true;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { deleteBabyEvent: { id: "e2e-ok-feed" } },
+          }),
+        });
+        return;
+      }
+      if (/DeleteBabyGrowth|deleteBabyGrowth/.test(body)) {
+        deletes.push("deleteBabyGrowth");
+        growthGone = true;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { deleteBabyGrowth: { id: "e2e-ok-weight" } },
+          }),
+        });
+        return;
+      }
+      await fulfillBabyInsightsGraphql(route, {
+        timeline: {
+          babyTimeline: {
+            items: feedGone
+              ? []
+              : [
+                  {
+                    id: "e2e-ok-feed",
+                    kind: "care",
+                    type: "feed",
+                    at: "2026-09-05T10:12:00.000Z",
+                    endedAt: null,
+                    payload: { method: "bottle", amountMl: 80 },
+                    summary: "Bottle · 80 ml",
+                    source: "web",
+                    cursor: "c1",
+                  },
+                ],
+            nextCursor: null,
+          },
+        },
+        growth: {
+          babyGrowthEntries: {
+            items: growthGone
+              ? []
+              : [growthEntryFixture("e2e-ok-weight", 6.1)],
+            nextCursor: null,
+          },
+        },
+      });
+    });
+
+    await page.goto("/baby/insights");
+    const panel = await openActivityLog(page);
+    const table = panel.getByRole("table");
+    await checkActivityCheckbox(
+      table.getByRole("row").filter({ hasText: /Feed|Bú/i }).getByRole("checkbox"),
+    );
+    await checkActivityCheckbox(
+      table.getByRole("row").filter({ hasText: /Weight|Cân/i }).getByRole("checkbox"),
+    );
+
+    const bar = page.getByTestId("baby-activity-selection-bar");
+    page.once("dialog", (dialog) => dialog.accept());
+    await bar.getByRole("button", { name: /^delete$|^xóa$/i }).click();
+
+    await expect.poll(() => [...deletes].sort()).toEqual([
+      "deleteBabyEvent",
+      "deleteBabyGrowth",
+    ]);
+    await expect(page.getByTestId("baby-activity-selection-bar")).toHaveCount(0);
+    await expect(panel.getByRole("alert")).toHaveCount(0);
+    await expect(table.getByText(/Bottle · 80 ml/i)).toHaveCount(0);
+    await expect(table.getByText(/6\.1 kg/i)).toHaveCount(0);
+  });
+
+  test("Activity log multi-delete: failed key pruned when row leaves list", async ({
+    page,
+  }) => {
+    const deletes: string[] = [];
+    let feedGone = false;
+    let growthGone = false;
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/DeleteBabyEvent|deleteBabyEvent/.test(body)) {
+        deletes.push("deleteBabyEvent");
+        feedGone = true;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { deleteBabyEvent: { id: "e2e-gone-feed" } },
+          }),
+        });
+        return;
+      }
+      if (/DeleteBabyGrowth|deleteBabyGrowth/.test(body)) {
+        deletes.push("deleteBabyGrowth");
+        // Mutation rejects, but refetch also omits the row (already gone server-side).
+        growthGone = true;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            errors: [{ message: "NOT_FOUND" }],
+            data: null,
+          }),
+        });
+        return;
+      }
+      await fulfillBabyInsightsGraphql(route, {
+        timeline: {
+          babyTimeline: {
+            items: feedGone
+              ? []
+              : [
+                  {
+                    id: "e2e-gone-feed",
+                    kind: "care",
+                    type: "feed",
+                    at: "2026-09-05T10:12:00.000Z",
+                    endedAt: null,
+                    payload: { method: "bottle", amountMl: 70 },
+                    summary: "Bottle · 70 ml",
+                    source: "web",
+                    cursor: "c1",
+                  },
+                ],
+            nextCursor: null,
+          },
+        },
+        growth: {
+          babyGrowthEntries: {
+            items: growthGone
+              ? []
+              : [growthEntryFixture("e2e-gone-weight", 5.2)],
+            nextCursor: null,
+          },
+        },
+      });
+    });
+
+    await page.goto("/baby/insights");
+    const panel = await openActivityLog(page);
+    const table = panel.getByRole("table");
+    await checkActivityCheckbox(
+      table.getByRole("row").filter({ hasText: /Feed|Bú/i }).getByRole("checkbox"),
+    );
+    await checkActivityCheckbox(
+      table.getByRole("row").filter({ hasText: /Weight|Cân/i }).getByRole("checkbox"),
+    );
+
+    const bar = page.getByTestId("baby-activity-selection-bar");
+    page.once("dialog", (dialog) => dialog.accept());
+    await bar.getByRole("button", { name: /^delete$|^xóa$/i }).click();
+
+    await expect.poll(() => [...deletes].sort()).toEqual([
+      "deleteBabyEvent",
+      "deleteBabyGrowth",
+    ]);
+    // Failed growth key must prune when post-invalidate list omits it (stillVisible wiring).
+    await expect(page.getByTestId("baby-activity-selection-bar")).toHaveCount(0);
+    await expect(panel.getByRole("alert")).toBeVisible();
+    await expect(panel.getByRole("alert")).toContainText(
+      /couldn.?t delete some activities|không xóa được một số/i,
+    );
+    await expect(table.getByText(/Bottle · 70 ml/i)).toHaveCount(0);
+    await expect(table.getByText(/5\.2 kg/i)).toHaveCount(0);
+  });
+
+  test("Activity log multi-delete: all-fail Alert keeps selection", async ({
+    page,
+  }) => {
+    const deletes: string[] = [];
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/DeleteBabyEvent|deleteBabyEvent/.test(body)) {
+        deletes.push("deleteBabyEvent");
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            errors: [{ message: "NOT_FOUND" }],
+            data: null,
+          }),
+        });
+        return;
+      }
+      if (/DeleteBabyGrowth|deleteBabyGrowth/.test(body)) {
+        deletes.push("deleteBabyGrowth");
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            errors: [{ message: "NOT_FOUND" }],
+            data: null,
+          }),
+        });
+        return;
+      }
+      await fulfillBabyInsightsGraphql(route, {
+        timeline: {
+          babyTimeline: {
+            items: [
+              {
+                id: "e2e-allfail-feed",
+                kind: "care",
+                type: "feed",
+                at: "2026-09-05T10:12:00.000Z",
+                endedAt: null,
+                payload: { method: "bottle", amountMl: 60 },
+                summary: "Bottle · 60 ml",
+                source: "web",
+                cursor: "c1",
+              },
+            ],
+            nextCursor: null,
+          },
+        },
+        growth: {
+          babyGrowthEntries: {
+            items: [growthEntryFixture("e2e-allfail-weight", 4.8)],
+            nextCursor: null,
+          },
+        },
+      });
+    });
+
+    await page.goto("/baby/insights");
+    const panel = await openActivityLog(page);
+    const table = panel.getByRole("table");
+    await checkActivityCheckbox(
+      table.getByRole("row").filter({ hasText: /Feed|Bú/i }).getByRole("checkbox"),
+    );
+    await checkActivityCheckbox(
+      table.getByRole("row").filter({ hasText: /Weight|Cân/i }).getByRole("checkbox"),
+    );
+
+    const bar = page.getByTestId("baby-activity-selection-bar");
+    page.once("dialog", (dialog) => dialog.accept());
+    await bar.getByRole("button", { name: /^delete$|^xóa$/i }).click();
+
+    await expect.poll(() => [...deletes].sort()).toEqual([
+      "deleteBabyEvent",
+      "deleteBabyGrowth",
+    ]);
+    await expect(panel.getByRole("alert")).toBeVisible();
+    await expect(panel.getByRole("alert")).toContainText(
+      /couldn.?t delete activities|không xóa được hoạt động/i,
+    );
+    await expect(bar).toBeVisible();
+    await expect(bar).toContainText(/2 activities selected|2 hoạt động/i);
+    await expect(
+      table.getByRole("row").filter({ hasText: /Feed|Bú/i }).getByRole("checkbox"),
+    ).toBeChecked();
+    await expect(
+      table.getByRole("row").filter({ hasText: /Weight|Cân/i }).getByRole("checkbox"),
+    ).toBeChecked();
+  });
+
+  test("Activity log delete: busy disables Delete mid-flight; re-enables after fail settle; confirmOne", async ({
+    page,
+  }) => {
+    const deletes: string[] = [];
+    let releaseDelete!: () => void;
+    const deleteGate = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/DeleteBabyEvent|deleteBabyEvent/.test(body)) {
+        deletes.push("deleteBabyEvent");
+        await deleteGate;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            errors: [{ message: "NOT_FOUND" }],
+            data: null,
+          }),
+        });
+        return;
+      }
+      await fulfillBabyInsightsGraphql(route, {
+        timeline: {
+          babyTimeline: {
+            items: [
+              {
+                id: "e2e-busy-feed",
+                kind: "care",
+                type: "feed",
+                at: "2026-09-05T10:12:00.000Z",
+                endedAt: null,
+                payload: { method: "bottle", amountMl: 55 },
+                summary: "Bottle · 55 ml",
+                source: "web",
+                cursor: "c1",
+              },
+            ],
+            nextCursor: null,
+          },
+        },
+        growth: {
+          babyGrowthEntries: {
+            items: [],
+            nextCursor: null,
+          },
+        },
+      });
+    });
+
+    await page.goto("/baby/insights");
+    const panel = await openActivityLog(page);
+    const table = panel.getByRole("table");
+    await checkActivityCheckbox(
+      table.getByRole("row").filter({ hasText: /Feed|Bú/i }).getByRole("checkbox"),
+    );
+
+    const bar = page.getByTestId("baby-activity-selection-bar");
+    const deleteBtn = bar.getByRole("button", { name: /^delete$|^xóa$/i });
+    const clearBtn = bar.getByRole("button", { name: /^clear$|^bỏ chọn$/i });
+    await expect(deleteBtn).toBeEnabled();
+
+    page.once("dialog", (dialog) => {
+      // Nit: single-row bar Delete uses confirmOne copy (not many).
+      expect(dialog.message()).toMatch(
+        /Delete 1 activity\?|Xóa 1 hoạt động\?/i,
+      );
+      void dialog.accept();
+    });
+    await deleteBtn.click();
+
+    // Mutation arrived but fulfill is gated — busy must disable Delete/Clear
+    // and row select/Edit (not only the bar).
+    await expect.poll(() => deletes.length).toBe(1);
+    await expect(deleteBtn).toBeDisabled();
+    await expect(clearBtn).toBeDisabled();
+    const rowCheckbox = table
+      .getByRole("row")
+      .filter({ hasText: /Feed|Bú/i })
+      .getByRole("checkbox");
+    const rowEdit = table
+      .getByRole("row")
+      .filter({ hasText: /Feed|Bú/i })
+      .getByRole("button", { name: /^edit$|^sửa$/i });
+    await expect(rowCheckbox).toBeDisabled();
+    await expect(rowEdit).toBeDisabled();
+
+    releaseDelete();
+    await expect(panel.getByRole("alert")).toBeVisible();
+    await expect(panel.getByRole("alert")).toContainText(
+      /couldn.?t delete activities|không xóa được hoạt động/i,
+    );
+    // Bar stays after fail settle; busy cleared so Delete is usable again.
+    await expect(bar).toBeVisible();
+    await expect(bar).toContainText(/activity selected|hoạt động/i);
+    await expect(deleteBtn).toBeEnabled();
+    await expect(clearBtn).toBeEnabled();
+    await expect(rowCheckbox).toBeEnabled();
+    await expect(rowEdit).toBeEnabled();
+  });
+
+  test("Activity log clears selection on filter apply, bar Clear, and select-all is visible window only", async ({
+    page,
+  }) => {
+    const pageOneCount = BABY_INSIGHTS_LIST_VISIBLE_CAP + 2;
+    const pageOneItems = Array.from({ length: pageOneCount }, (_, i) =>
+      growthEntryFixture(
+        `e2e-selall-${i}`,
+        i === 0 ? 8.8 : 4.2,
+        i === 0
+          ? "2026-09-15T09:00:00.000Z"
+          : "2026-09-14T09:00:00.000Z",
+      ),
+    );
+
+    await page.route("**/api/graphql/baby", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (/BabySyncConfig|babySyncConfig/.test(body)) {
+        await fulfillBabySyncConfig(route);
         return;
       }
       if (/BabyTimeline|babyTimeline/.test(body)) {
@@ -621,34 +2881,15 @@ test.describe("Baby Care insights charts", () => {
               babyTimeline: {
                 items: [
                   {
-                    id: "e2e-breast-l",
+                    id: "e2e-selall-feed",
                     kind: "care",
                     type: "feed",
-                    at: "2026-09-05T10:12:00.000Z",
+                    at: "2026-09-16T10:00:00.000Z",
                     endedAt: null,
-                    summary: "Feed (Breast L) · 12m",
+                    payload: { method: "bottle", amountMl: 50 },
+                    summary: "Bottle · 50 ml",
                     source: "web",
                     cursor: "c1",
-                  },
-                  {
-                    id: "e2e-breast-r",
-                    kind: "care",
-                    type: "feed",
-                    at: "2026-09-05T12:05:00.000Z",
-                    endedAt: null,
-                    summary: "Feed (Breast R) · 1h 5m",
-                    source: "web",
-                    cursor: "c2",
-                  },
-                  {
-                    id: "e2e-sleep-closed",
-                    kind: "care",
-                    type: "sleep",
-                    at: "2026-09-05T08:00:00.000Z",
-                    endedAt: "2026-09-05T09:05:00.000Z",
-                    summary: "Ended sleep · 1h 5m",
-                    source: "web",
-                    cursor: "c3",
                   },
                 ],
                 nextCursor: null,
@@ -663,7 +2904,22 @@ test.describe("Baby Care insights charts", () => {
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
-            data: { babyGrowthEntries: { items: [], nextCursor: null } },
+            data: {
+              babyGrowthEntries: {
+                items: pageOneItems,
+                nextCursor: null,
+              },
+            },
+          }),
+        });
+        return;
+      }
+      if (/BabyInsightsSeries|babyInsightsSeries/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyInsightsSeries: emptyBabyInsightsSeries() },
           }),
         });
         return;
@@ -672,25 +2928,147 @@ test.describe("Baby Care insights charts", () => {
     });
 
     await page.goto("/baby/insights");
-    await expect(
-      page.getByRole("heading", { name: /timeline|dòng thời gian/i }),
-    ).toBeVisible();
+    const panel = await openActivityLog(page);
+    const table = panel.getByRole("table");
 
-    // Label strips trailing duration; duration + stop clock sit beside it.
-    await expect(page.getByText("Feed (Breast L)", { exact: true })).toBeVisible();
-    await expect(page.getByText("Feed (Breast R)", { exact: true })).toBeVisible();
-    await expect(page.getByText("12m", { exact: true })).toBeVisible();
-    await expect(page.getByText("1h 5m", { exact: true }).first()).toBeVisible();
-    // Use dateTime so locale clock text does not flake.
+    // Select-all = visible window only (not unloaded / beyond-cap rows).
+    const headerSelectAll = table.getByRole("checkbox", {
+      name: /select all visible activities|chọn mọi hoạt động/i,
+    });
+    await checkActivityCheckbox(headerSelectAll);
+    const bar = page.getByTestId("baby-activity-selection-bar");
+    await expect(bar).toBeVisible();
+    await expect(bar).toContainText(
+      new RegExp(
+        `${BABY_INSIGHTS_LIST_VISIBLE_CAP} activities selected|${BABY_INSIGHTS_LIST_VISIBLE_CAP} hoạt động`,
+        "i",
+      ),
+    );
+    // Header + visible rows; beyond-cap rows are not in the table yet.
+    await expect(table.getByRole("row")).toHaveCount(
+      BABY_INSIGHTS_LIST_VISIBLE_CAP + 1,
+    );
+
+    // Bar Clear empties selection without mutations.
+    await bar.getByRole("button", { name: /^clear$|^bỏ chọn$/i }).click();
+    await expect(page.getByTestId("baby-activity-selection-bar")).toHaveCount(0);
+
+    // Filter-apply clears selection (design lock #12).
+    await checkActivityCheckbox(table.getByRole("row").nth(1).getByRole("checkbox"));
+    await expect(page.getByTestId("baby-activity-selection-bar")).toBeVisible();
+
+    const careOrFilter = page.getByRole("button", {
+      name: /^(care types|loại chăm sóc|filter)\b/i,
+    });
+    await expect(careOrFilter.first()).toBeVisible({ timeout: 15_000 });
+    const chromeLabel = (await careOrFilter.first().innerText()).toLowerCase();
+    if (chromeLabel.startsWith("filter")) {
+      await careOrFilter.first().click();
+      await page.getByRole("button", { name: /^feed$|^bú$/i }).click();
+      await page
+        .getByRole("button", { name: /apply filters|áp dụng bộ lọc/i })
+        .click();
+    } else {
+      await careOrFilter.first().click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByRole("button", { name: /^feed$|^bú$/i }).click();
+      await page
+        .getByLabel("Insights filters")
+        .getByRole("button", { name: /^apply$|^áp dụng$/i })
+        .click();
+    }
+
+    await expect(page.getByTestId("baby-activity-selection-bar")).toHaveCount(0);
+  });
+
+  test("Insights shows chart region, care-count, and growth chart cards", async ({
+    page,
+  }) => {
+    // Mock like timeline Breast L/R: unauthenticated GraphQL would UNAUTHORIZED
+    // and hide the charts grid (growthSection === "error").
+    await page.route("**/api/graphql/baby", async (route) => {
+      await fulfillBabyInsightsGraphql(route);
+    });
+
+    await page.goto("/baby/insights");
+    await page.getByTestId("baby-more-insights").click();
+    await expect(page.getByTestId("baby-insights-charts")).toBeVisible({
+      timeout: 15_000,
+    });
+    // Care-count card always mounts (empty or with series legend).
+    await expect(page.getByTestId("baby-care-count-chart")).toBeVisible();
+    // Empty measures filter → all kinds; cards mount even with no points.
+    await expect(page.getByTestId("baby-growth-chart-card").first()).toBeVisible();
+  });
+
+  test("insights timeline shows Breast L/R, stop time, and compact duration", async ({
+    page,
+  }) => {
+    // Mock care rows so labels/duration/stop clock are deterministic.
+    await page.route("**/api/graphql/baby", async (route) => {
+      await fulfillBabyInsightsGraphql(route, {
+        timeline: {
+          babyTimeline: {
+            items: [
+              {
+                id: "e2e-breast-l",
+                kind: "care",
+                type: "feed",
+                at: "2026-09-05T10:12:00.000Z",
+                endedAt: null,
+                payload: { method: "breast_l", durationSec: 720 },
+                summary: "Feed (Breast L) · 12m",
+                source: "web",
+                cursor: "c1",
+              },
+              {
+                id: "e2e-breast-r",
+                kind: "care",
+                type: "feed",
+                at: "2026-09-05T12:05:00.000Z",
+                endedAt: null,
+                payload: { method: "breast_r", durationSec: 3900 },
+                summary: "Feed (Breast R) · 1h 5m",
+                source: "web",
+                cursor: "c2",
+              },
+              {
+                id: "e2e-sleep-closed",
+                kind: "care",
+                type: "sleep",
+                at: "2026-09-05T08:00:00.000Z",
+                endedAt: "2026-09-05T09:05:00.000Z",
+                payload: {},
+                summary: "Ended sleep · 1h 5m",
+                source: "web",
+                cursor: "c3",
+              },
+            ],
+            nextCursor: null,
+          },
+        },
+      });
+    });
+
+    await page.goto("/baby/insights");
+    await page.getByTestId("baby-activity-log").click();
+    await expect(page.getByTestId("baby-activity-log-panel")).toBeVisible();
+
+    const activityTable = page.getByRole("table");
     await expect(
-      page.locator('time[datetime="2026-09-05T10:12:00.000Z"]'),
+      activityTable.getByText(/Feed \(Breast L\)/i).first(),
     ).toBeVisible();
     await expect(
-      page.locator('time[datetime="2026-09-05T12:05:00.000Z"]'),
+      activityTable.getByText(/Feed \(Breast R\)/i).first(),
     ).toBeVisible();
-    // Closed sleep stop = endedAt.
     await expect(
-      page.locator('time[datetime="2026-09-05T09:05:00.000Z"]'),
+      activityTable.getByText(/12m/i).first(),
+    ).toBeVisible();
+    await expect(
+      activityTable.locator('time[datetime="2026-09-05T10:12:00.000Z"]'),
+    ).toBeVisible();
+    await expect(
+      activityTable.locator('time[datetime="2026-09-05T12:05:00.000Z"]'),
     ).toBeVisible();
   });
 

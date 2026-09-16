@@ -441,3 +441,22 @@ export const babyQuickCareSchema = z
       );
     }
   });
+
+/** Insights chart/KPI series — required from/to; absurd spans rejected in service. */
+export const babyInsightsSeriesInputSchema = z
+  .object({
+    from: z.string().datetime({ offset: true }),
+    to: z.string().datetime({ offset: true }),
+  })
+  .superRefine((val, ctx) => {
+    const fromMs = Date.parse(val.from);
+    const toMs = Date.parse(val.to);
+    if (!Number.isFinite(fromMs) || !Number.isFinite(toMs)) return;
+    if (fromMs > toMs) {
+      ctx.addIssue({
+        code: "custom",
+        message: "from must be before to",
+        path: ["from"],
+      });
+    }
+  });

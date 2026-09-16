@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { deriveBabyInsightsKpis } from "@/lib/baby-insights-kpis";
+import {
+  deriveBabyInsightsKpis,
+  preferSeriesInsightCountKpis,
+} from "@/lib/baby-insights-kpis";
 
 describe("deriveBabyInsightsKpis", () => {
   it("counts care types and latest weight", () => {
@@ -86,5 +89,48 @@ describe("deriveBabyInsightsKpis", () => {
       diapers: 0,
       latestWeight: null,
     });
+  });
+});
+
+describe("preferSeriesInsightCountKpis", () => {
+  it("uses series totals over capped timeline pages", () => {
+    const kpis = preferSeriesInsightCountKpis({
+      seriesCounts: { feeds: 12, sleep: 4, diapers: 9 },
+      timelineFallback: [
+        { kind: "care", type: "feed" },
+        { kind: "care", type: "feed" },
+      ],
+      growth: [],
+    });
+    assert.equal(kpis.feeds, 12);
+    assert.equal(kpis.sleep, 4);
+    assert.equal(kpis.diapers, 9);
+  });
+
+  it("applies care chips to series totals; weight from growth when present", () => {
+    const kpis = preferSeriesInsightCountKpis({
+      seriesCounts: { feeds: 5, sleep: 2, diapers: 3 },
+      careTypes: ["feed"],
+      growth: [{ kind: "weight", valueNum: 4.1, unit: "kg" }],
+    });
+    assert.deepEqual(kpis, {
+      feeds: 5,
+      sleep: 0,
+      diapers: 0,
+      latestWeight: { valueNum: 4.1, unit: "kg" },
+    });
+  });
+
+  it("falls back to timeline when series counts missing", () => {
+    const kpis = preferSeriesInsightCountKpis({
+      seriesCounts: undefined,
+      timelineFallback: [
+        { kind: "care", type: "feed" },
+        { kind: "care", type: "diaper" },
+      ],
+      growth: [],
+    });
+    assert.equal(kpis.feeds, 1);
+    assert.equal(kpis.diapers, 1);
   });
 });

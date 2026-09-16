@@ -19,6 +19,33 @@ const pinned: UsageRankedItem[] = [
   { id: "__new__", label: "Create new symbol" },
 ];
 
+describe("topUsageItems", () => {
+  it("keeps input order when usage ties (Baby care+growth chips)", () => {
+    // Equal usage must not re-sort by label — Weight stays in the quick row.
+    const tied: UsageRankedItem[] = [
+      { id: "feed", label: "Feed", usageCount: 0 },
+      { id: "sleep", label: "Sleep", usageCount: 0 },
+      { id: "diaper", label: "Diaper", usageCount: 0 },
+      { id: "weight", label: "Weight", usageCount: 0 },
+      { id: "height", label: "Height", usageCount: 0 },
+      { id: "head", label: "Head", usageCount: 0 },
+      { id: "temperature", label: "Temperature", usageCount: 0 },
+      { id: "medication", label: "Medication", usageCount: 0 },
+    ];
+    assert.deepEqual(
+      topUsageItems(tied, 5).map((i) => i.id),
+      ["feed", "sleep", "diaper", "weight", "height"],
+    );
+  });
+
+  it("still ranks higher usage before lower usage", () => {
+    assert.deepEqual(
+      topUsageItems(items, 2).map((i) => i.id),
+      ["a", "b"],
+    );
+  });
+});
+
 describe("shouldShowOtherChip", () => {
   it("hides Other when there are at most 5 items and nothing is pinned", () => {
     assert.equal(shouldShowOtherChip({ itemCount: 3 }), false);
