@@ -7,13 +7,23 @@
  *
  * startBreast writes no row — it is client-local only (localAfter).
  */
-import type { BabyBreastSide } from "@/lib/baby-breast-timer-store";
+import type {
+  BabyBreastCareSide,
+  BabyCareTimerSide,
+  BabyPumpCareSide,
+} from "@/lib/baby-breast-timer-store";
 
-export type BabyQuickActionKind = "BREAST" | "FORMULA" | "SLEEP" | "DIAPER";
+export type BabyQuickActionKind =
+  | "BREAST"
+  | "FORMULA"
+  | "PUMP_AMOUNT"
+  | "SLEEP"
+  | "DIAPER";
 
 export type BabyQuickAction =
-  | { kind: "BREAST"; side: BabyBreastSide }
+  | { kind: "BREAST"; side: BabyCareTimerSide }
   | { kind: "FORMULA"; amountMl: number }
+  | { kind: "PUMP_AMOUNT"; amountMl: number }
   | { kind: "SLEEP" }
   | {
       kind: "DIAPER";
@@ -28,24 +38,48 @@ export type BabyQuickCareStepName =
   | "endNap"
   | "startNap"
   | "createFormula"
+  | "createPumpAmount"
   | "createDiaper";
+
+export type AutoFinalizeLocalAfter = {
+  clearBreastTimer: boolean;
+  startBreastSide: BabyBreastCareSide | null;
+  stopBreastSession: boolean;
+  clearPumpTimer: boolean;
+  startPumpSide: BabyPumpCareSide | null;
+  stopPumpSession: boolean;
+};
+
+function la(
+  partial: Partial<AutoFinalizeLocalAfter> &
+    Pick<
+      AutoFinalizeLocalAfter,
+      "clearBreastTimer" | "startBreastSide" | "stopBreastSession"
+    >,
+): AutoFinalizeLocalAfter {
+  return {
+    clearPumpTimer: false,
+    startPumpSide: null,
+    stopPumpSession: false,
+    ...partial,
+  };
+}
 
 export type AutoFinalizeTableRow = {
   id: string;
   /** What the caregiver pressed. */
   action: BabyQuickAction;
-  /** Running breast timer on the device, or null. */
-  breast: { side: BabyBreastSide; startedAt: number } | null;
+  /** Running care timer on the device, or null. */
+  breast: { side: BabyCareTimerSide; startedAt: number } | null;
   /** What the SERVER sees inside the lock (for server tests only). */
   napOpen: boolean;
   /** Client request.breastRunning expectation. */
-  expectBreastRunning: { side: BabyBreastSide; durationSec: number } | null;
+  expectBreastRunning: {
+    side: BabyCareTimerSide;
+    durationSec: number;
+  } | null;
   /** Client localAfter after server confirms. */
-  expectLocalAfter: {
-    clearBreastTimer: boolean;
-    startBreastSide: BabyBreastSide | null;
-    stopBreastSession: boolean;
-  };
+  expectLocalAfter: AutoFinalizeLocalAfter;
   /** Ordered server write step names (empty = idle breast, no nap). */
   expectServerSteps: BabyQuickCareStepName[];
 };
@@ -61,7 +95,11 @@ export const BABY_AUTO_FINALIZE_TABLE: AutoFinalizeTableRow[] = [
     breast: null,
     napOpen: false,
     expectBreastRunning: null,
-    expectLocalAfter: { clearBreastTimer: false, startBreastSide: "breast_l", stopBreastSession: false },
+    expectLocalAfter: la({
+      clearBreastTimer: false,
+      startBreastSide: "breast_l",
+      stopBreastSession: false,
+    }),
     expectServerSteps: [],
   },
   {
@@ -70,7 +108,11 @@ export const BABY_AUTO_FINALIZE_TABLE: AutoFinalizeTableRow[] = [
     breast: null,
     napOpen: true,
     expectBreastRunning: null,
-    expectLocalAfter: { clearBreastTimer: false, startBreastSide: "breast_l", stopBreastSession: false },
+    expectLocalAfter: la({
+      clearBreastTimer: false,
+      startBreastSide: "breast_l",
+      stopBreastSession: false,
+    }),
     expectServerSteps: ["endNap"],
   },
   {
@@ -79,7 +121,11 @@ export const BABY_AUTO_FINALIZE_TABLE: AutoFinalizeTableRow[] = [
     breast: { side: "breast_l", startedAt: STARTED },
     napOpen: false,
     expectBreastRunning: { side: "breast_l", durationSec: 90 },
-    expectLocalAfter: { clearBreastTimer: true, startBreastSide: null, stopBreastSession: true },
+    expectLocalAfter: la({
+      clearBreastTimer: true,
+      startBreastSide: null,
+      stopBreastSession: true,
+    }),
     expectServerSteps: ["saveBreast"],
   },
   {
@@ -88,7 +134,11 @@ export const BABY_AUTO_FINALIZE_TABLE: AutoFinalizeTableRow[] = [
     breast: { side: "breast_l", startedAt: STARTED },
     napOpen: true,
     expectBreastRunning: { side: "breast_l", durationSec: 90 },
-    expectLocalAfter: { clearBreastTimer: true, startBreastSide: null, stopBreastSession: true },
+    expectLocalAfter: la({
+      clearBreastTimer: true,
+      startBreastSide: null,
+      stopBreastSession: true,
+    }),
     expectServerSteps: ["saveBreast", "endNap"],
   },
   {
@@ -97,11 +147,11 @@ export const BABY_AUTO_FINALIZE_TABLE: AutoFinalizeTableRow[] = [
     breast: { side: "breast_r", startedAt: STARTED },
     napOpen: false,
     expectBreastRunning: { side: "breast_r", durationSec: 90 },
-    expectLocalAfter: {
+    expectLocalAfter: la({
       clearBreastTimer: true,
       startBreastSide: "breast_l",
       stopBreastSession: false,
-    },
+    }),
     expectServerSteps: ["saveBreast"],
   },
   {
@@ -110,12 +160,28 @@ export const BABY_AUTO_FINALIZE_TABLE: AutoFinalizeTableRow[] = [
     breast: { side: "breast_r", startedAt: STARTED },
     napOpen: true,
     expectBreastRunning: { side: "breast_r", durationSec: 90 },
-    expectLocalAfter: {
+    expectLocalAfter: la({
       clearBreastTimer: true,
       startBreastSide: "breast_l",
       stopBreastSession: false,
-    },
+    }),
     expectServerSteps: ["saveBreast", "endNap"],
+  },
+  {
+    id: "pump-l-stop-no-nap",
+    action: { kind: "BREAST", side: "pump_l" },
+    breast: { side: "pump_l", startedAt: STARTED },
+    napOpen: false,
+    expectBreastRunning: { side: "pump_l", durationSec: 90 },
+    expectLocalAfter: la({
+      clearBreastTimer: false,
+      startBreastSide: null,
+      stopBreastSession: false,
+      clearPumpTimer: true,
+      startPumpSide: null,
+      stopPumpSession: true,
+    }),
+    expectServerSteps: ["saveBreast"],
   },
   {
     id: "bottle-with-breast-and-nap",
@@ -123,8 +189,52 @@ export const BABY_AUTO_FINALIZE_TABLE: AutoFinalizeTableRow[] = [
     breast: { side: "breast_r", startedAt: STARTED },
     napOpen: true,
     expectBreastRunning: { side: "breast_r", durationSec: 90 },
-    expectLocalAfter: { clearBreastTimer: true, startBreastSide: null, stopBreastSession: true },
+    expectLocalAfter: la({
+      clearBreastTimer: true,
+      startBreastSide: null,
+      stopBreastSession: true,
+    }),
     expectServerSteps: ["saveBreast", "endNap", "createFormula"],
+  },
+  {
+    id: "pump-amount-idle",
+    action: { kind: "PUMP_AMOUNT", amountMl: 90 },
+    breast: null,
+    napOpen: false,
+    expectBreastRunning: null,
+    expectLocalAfter: la({
+      clearBreastTimer: false,
+      startBreastSide: null,
+      stopBreastSession: false,
+    }),
+    expectServerSteps: ["createPumpAmount"],
+  },
+  {
+    id: "pump-amount-with-pump-r-running",
+    action: { kind: "PUMP_AMOUNT", amountMl: 90 },
+    breast: { side: "pump_r", startedAt: STARTED },
+    napOpen: false,
+    expectBreastRunning: null,
+    expectLocalAfter: la({
+      clearBreastTimer: false,
+      startBreastSide: null,
+      stopBreastSession: false,
+    }),
+    expectServerSteps: ["createPumpAmount"],
+  },
+  {
+    id: "pump-amount-with-breast-and-nap",
+    action: { kind: "PUMP_AMOUNT", amountMl: 90 },
+    breast: { side: "breast_r", startedAt: STARTED },
+    napOpen: true,
+    expectBreastRunning: null,
+    expectLocalAfter: la({
+      clearBreastTimer: false,
+      startBreastSide: null,
+      stopBreastSession: false,
+    }),
+    // Pump family does not end nap or stop breast
+    expectServerSteps: ["createPumpAmount"],
   },
   {
     id: "sleep-start-with-breast",
@@ -132,7 +242,11 @@ export const BABY_AUTO_FINALIZE_TABLE: AutoFinalizeTableRow[] = [
     breast: { side: "breast_r", startedAt: STARTED },
     napOpen: false,
     expectBreastRunning: { side: "breast_r", durationSec: 90 },
-    expectLocalAfter: { clearBreastTimer: true, startBreastSide: null, stopBreastSession: true },
+    expectLocalAfter: la({
+      clearBreastTimer: true,
+      startBreastSide: null,
+      stopBreastSession: true,
+    }),
     expectServerSteps: ["saveBreast", "startNap"],
   },
   {
@@ -141,7 +255,11 @@ export const BABY_AUTO_FINALIZE_TABLE: AutoFinalizeTableRow[] = [
     breast: { side: "breast_r", startedAt: STARTED },
     napOpen: true,
     expectBreastRunning: { side: "breast_r", durationSec: 90 },
-    expectLocalAfter: { clearBreastTimer: true, startBreastSide: null, stopBreastSession: true },
+    expectLocalAfter: la({
+      clearBreastTimer: true,
+      startBreastSide: null,
+      stopBreastSession: true,
+    }),
     expectServerSteps: ["saveBreast", "endNap"],
   },
   {
@@ -150,7 +268,11 @@ export const BABY_AUTO_FINALIZE_TABLE: AutoFinalizeTableRow[] = [
     breast: { side: "breast_r", startedAt: STARTED },
     napOpen: true,
     expectBreastRunning: { side: "breast_r", durationSec: 90 },
-    expectLocalAfter: { clearBreastTimer: true, startBreastSide: null, stopBreastSession: true },
+    expectLocalAfter: la({
+      clearBreastTimer: true,
+      startBreastSide: null,
+      stopBreastSession: true,
+    }),
     expectServerSteps: ["saveBreast", "endNap", "createDiaper"],
   },
 ];

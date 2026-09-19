@@ -40,6 +40,13 @@ describe("babyHomeBreastDoneSide", () => {
     );
     assert.equal(
       babyHomeBreastDoneSide({
+        stopBreastSession: true,
+        side: "pump_l",
+      }),
+      "pump_l",
+    );
+    assert.equal(
+      babyHomeBreastDoneSide({
         stopBreastSession: false,
         side: "breast_l",
       }),
@@ -49,9 +56,15 @@ describe("babyHomeBreastDoneSide", () => {
 });
 
 describe("babyHomeSleepDoneFlash", () => {
-  it("flashes after any confirmed SLEEP press", () => {
-    assert.equal(babyHomeSleepDoneFlash(true), true);
-    assert.equal(babyHomeSleepDoneFlash(false), false);
+  it("flashes only after End/stop — never after Start while session runs", () => {
+    assert.equal(
+      babyHomeSleepDoneFlash({ endedSleepSession: true }),
+      true,
+    );
+    assert.equal(
+      babyHomeSleepDoneFlash({ endedSleepSession: false }),
+      false,
+    );
   });
 });
 

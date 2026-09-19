@@ -7,6 +7,7 @@ import {
   filterGrowthByMergedChips,
   filterTimelineByCareChips,
   filterTimelineByMergedChips,
+  filterVaccinesByMergedChips,
   growthKindVisibleInMergedChips,
   mergeBabyInsightsFilterChips,
   splitBabyInsightsFilterChips,
@@ -90,6 +91,7 @@ describe("filterTimelineByMergedChips / filterGrowthByMergedChips", () => {
     const chips = emptyBabyInsightsChips();
     assert.equal(filterTimelineByMergedChips(timeline, chips).length, 3);
     assert.equal(filterGrowthByMergedChips(growth, chips).length, 2);
+    assert.equal(filterVaccinesByMergedChips([{ id: "v1" }], chips).length, 1);
   });
 
   it("Diaper alone drops Head and other care types", () => {
@@ -100,6 +102,7 @@ describe("filterTimelineByMergedChips / filterGrowthByMergedChips", () => {
     );
     assert.deepEqual(filterGrowthByMergedChips(growth, chips).map((r) => r.id), []);
     assert.equal(growthKindVisibleInMergedChips("head", chips), false);
+    assert.equal(filterVaccinesByMergedChips([{ id: "v1" }], chips).length, 0);
   });
 
   it("Diaper + Head keeps both", () => {

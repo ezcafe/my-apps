@@ -572,16 +572,19 @@ export function buildBabyInsightsQueryFns(
   deps: {
     fetchTimeline?: FetchBabyTimelinePageFn;
     fetchGrowth?: FetchBabyGrowthPageFn;
+    fetchVaccines?: typeof fetchBabyVaccinesPage;
     fetchSeries?: FetchBabyInsightsSeriesFn;
   } = {},
 ) {
   const fetchTimeline = deps.fetchTimeline ?? fetchBabyInsightsTimelinePage;
   const fetchGrowth = deps.fetchGrowth ?? fetchBabyGrowthPage;
+  const fetchVaccines = deps.fetchVaccines ?? fetchBabyVaccinesPage;
   const fetchSeries = deps.fetchSeries ?? fetchBabyInsightsSeries;
 
   return {
     timelineQueryKey: babyKeys.timeline(bounds.from, bounds.to),
     growthQueryKey: babyKeys.growth(undefined, bounds.from, bounds.to),
+    vaccinesQueryKey: babyKeys.vaccines(bounds.from, bounds.to),
     seriesQueryKey: babyKeys.insightsSeries(bounds.from, bounds.to),
     seriesQueryFn: () =>
       fetchSeries({ from: bounds.from, to: bounds.to }),
@@ -594,6 +597,13 @@ export function buildBabyInsightsQueryFns(
       }),
     growthQueryFn: ({ pageParam }: { pageParam: string | null }) =>
       fetchGrowth({
+        from: bounds.from,
+        to: bounds.to,
+        cursor: pageParam,
+        limit: 50,
+      }),
+    vaccinesQueryFn: ({ pageParam }: { pageParam: string | null }) =>
+      fetchVaccines({
         from: bounds.from,
         to: bounds.to,
         cursor: pageParam,
@@ -718,7 +728,7 @@ export function babyVaccinesNextPageParam(
   return lastPage.babyVaccines.nextCursor ?? undefined;
 }
 
-/** Single-page query (tests / simple callers). Prefer infinite on Vaccines UI. */
+/** Single-page query (tests / simple callers). Prefer infinite on Activities. */
 export function babyVaccinesQueryOptions(from?: string, to?: string) {
   return queryOptions({
     queryKey: babyKeys.vaccines(from, to),
@@ -867,6 +877,17 @@ export const BABY_HOME_QUICK_STATUS_QUERY = /* GraphQL */ `
         source
         cursor
       }
+      lastPump {
+        id
+        kind
+        type
+        at
+        endedAt
+        payload
+        summary
+        source
+        cursor
+      }
       openSleep {
         id
         type
@@ -925,6 +946,13 @@ export type BabyHomeQuickStatusData = {
       summary: string;
     } | null;
     lastDiaper: {
+      id: string;
+      at: string;
+      endedAt: string | null;
+      payload: unknown;
+      summary: string;
+    } | null;
+    lastPump: {
       id: string;
       at: string;
       endedAt: string | null;

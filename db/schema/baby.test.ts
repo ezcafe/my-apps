@@ -70,11 +70,23 @@ describe("baby_quick_care_request schema", () => {
             payload: { kind: "wet" },
           },
         },
+        {
+          step: "createPumpAmount",
+          wrote: "insert",
+          event: {
+            id: "e2",
+            type: "feed",
+            occurredAt: "2026-07-04T12:01:00.000Z",
+            endedAt: null,
+            payload: { method: "pump", amountMl: 90 },
+          },
+        },
       ],
       openSleep: null,
     };
     assert.equal(sample.v, 1);
     assert.equal(sample.steps[0]?.step, "createDiaper");
+    assert.equal(sample.steps[1]?.step, "createPumpAmount");
   });
 
   it("migration SQL enables RLS, FORCE, and workspace policy", () => {

@@ -35,6 +35,8 @@ export const babyGrowthKindEnum = pgEnum("baby_growth_kind", [
   "head",
   "temperature",
   "medication",
+  "vitamin",
+  "pump",
 ]);
 
 export type BabyFeedPayload = {
@@ -190,6 +192,7 @@ export type BabyQuickCareStoredResult = {
       | "endNap"
       | "startNap"
       | "createFormula"
+      | "createPumpAmount"
       | "createDiaper";
     /** insert = first physical write; update = in-session merge. */
     wrote?: "insert" | "update";

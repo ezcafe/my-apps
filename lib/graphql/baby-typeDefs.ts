@@ -204,6 +204,7 @@ export const babyTypeDefs = /* GraphQL */ `
     lastFeed: BabyTimelineItem
     lastSleep: BabyTimelineItem
     lastDiaper: BabyTimelineItem
+    lastPump: BabyTimelineItem
     openSleep: BabyCareEvent
     feedsToday: Int!
     birthDate: String

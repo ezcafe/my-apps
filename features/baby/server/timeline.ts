@@ -100,11 +100,10 @@ export function careSummary(
     if (Array.isArray(legsRaw) && legsRaw.length > 0) {
       const parts = feedSessionSummaryParts(legsRaw as BabyFeedLeg[]).map(
         (leg) => {
-          if (leg.method === "formula") {
-            return t("feed.formulaMl", locale).replace(
-              "{ml}",
-              String(leg.amountMl),
-            );
+          if (leg.method === "formula" || leg.method === "pump") {
+            const key =
+              leg.method === "formula" ? "feed.formulaMl" : "feed.pumpMl";
+            return t(key, locale).replace("{ml}", String(leg.amountMl));
           }
           return friendlyFeedMethod(leg.method, locale);
         },
@@ -153,6 +152,8 @@ function friendlyFeedMethod(method: string, locale: BabyLocale): string {
     return t("feed.breastR", locale);
   }
   if (method === "formula") return t("feed.formula", locale);
+  if (method === "pump_l") return t("feed.pumpL", locale);
+  if (method === "pump_r") return t("feed.pumpR", locale);
   if (method === "pump") return t("feed.pump", locale);
   return method || "—";
 }

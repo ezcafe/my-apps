@@ -13,6 +13,8 @@ export const BABY_CARE_AFTER_SAVE = {
   sleepEnd: "home",
   diaper: "home",
   homeQuick: "stay",
+  /** Growth + vaccine on Growth: stay, toast, reset to Weight. */
+  growth: "stay",
 } as const satisfies Record<string, BabyCareAfterSave>;
 
 type PushRouter = { push: (href: string) => void };
@@ -32,7 +34,20 @@ type RunBabyCareSaveThenNavigateArgs = {
   router: PushRouter;
   /** Start → stay; End / complete session / diaper → home (default). */
   afterSave?: BabyCareAfterSave;
+  /**
+   * Optional pause before home navigate so Done flash can paint.
+   * Ignored when afterSave is stay.
+   */
+  homeNavigateDelayMs?: number;
+  /** Injectable delay for unit tests (defaults to globalThis.setTimeout). */
+  delayFn?: (ms: number) => Promise<void>;
 };
+
+function defaultDelay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    globalThis.setTimeout(resolve, ms);
+  });
+}
 
 /**
  * Run a care mutation, then optionally navigate home on full success.
@@ -44,11 +59,19 @@ export async function runBabyCareSaveThenNavigate({
   onError,
   router,
   afterSave = "home",
+  homeNavigateDelayMs,
+  delayFn = defaultDelay,
 }: RunBabyCareSaveThenNavigateArgs): Promise<void> {
   try {
     await mutate();
     await onSuccess();
     if (afterSave === "home") {
+      if (
+        typeof homeNavigateDelayMs === "number" &&
+        homeNavigateDelayMs > 0
+      ) {
+        await delayFn(homeNavigateDelayMs);
+      }
       navigateAfterBabyCareSave(router);
     }
   } catch (error) {

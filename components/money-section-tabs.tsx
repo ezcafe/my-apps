@@ -40,11 +40,13 @@ import {
 import { useMoneyMenuPageActions } from "@/lib/money-menu-page-actions";
 import { IconBaby } from "@/components/icons/icon-baby";
 import {
+  IconBabyActivities,
   IconBabyDiaper,
   IconBabyFeed,
   IconBabyHome,
   IconBabyInsights,
   IconBabyMeasure,
+  IconBabyPump,
   IconBabySettings,
   IconBabySleep,
   IconBabyVaccine,
@@ -360,7 +362,9 @@ const moneySectionTabIcons: Record<
   baby: IconBaby,
   babyHome: IconBabyHome,
   babyInsights: IconBabyInsights,
+  babyActivities: IconBabyActivities,
   babyFeed: IconBabyFeed,
+  babyPump: IconBabyPump,
   babySleep: IconBabySleep,
   babyDiaper: IconBabyDiaper,
   babyMeasure: IconBabyMeasure,

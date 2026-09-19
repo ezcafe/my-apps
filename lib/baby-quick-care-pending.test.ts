@@ -7,6 +7,8 @@ import {
   BABY_QUICK_PENDING_STORAGE_KEY_LEGACY,
   babyQuickCareRetryPayload,
   babyQuickPendingMatches,
+  babyQuickPendingOwner,
+  babyQuickPendingRecoveryVisible,
   babyQuickPendingView,
   babyQuickShouldAutoRetryOnMount,
   clearBabyQuickPending,
@@ -218,5 +220,116 @@ describe("baby quick pending store", () => {
 
   it("never auto-retries on mount", () => {
     assert.equal(babyQuickShouldAutoRetryOnMount(), false);
+  });
+});
+
+describe("babyQuickPendingOwner", () => {
+  it("maps each action kind / side / group to an owner id", () => {
+    assert.equal(
+      babyQuickPendingOwner({ kind: "BREAST", side: "breast_l" }),
+      "breast_l",
+    );
+    assert.equal(
+      babyQuickPendingOwner({ kind: "BREAST", side: "breast_r" }),
+      "breast_r",
+    );
+    assert.equal(
+      babyQuickPendingOwner({ kind: "BREAST", side: "pump_l" }),
+      "pump_l",
+    );
+    assert.equal(
+      babyQuickPendingOwner({ kind: "BREAST", side: "pump_r" }),
+      "pump_r",
+    );
+    assert.equal(babyQuickPendingOwner({ kind: "SLEEP" }), "nap");
+    assert.equal(
+      babyQuickPendingOwner({ kind: "FORMULA", amountMl: 120 }),
+      "bottle",
+    );
+    assert.equal(
+      babyQuickPendingOwner({ kind: "PUMP_AMOUNT", amountMl: 90 }),
+      "pump_amount",
+    );
+    assert.equal(
+      babyQuickPendingOwner({ kind: "DIAPER", diaperKind: "wet" }),
+      "diaper",
+    );
+  });
+});
+
+describe("babyQuickPendingRecoveryVisible", () => {
+  const young = pending({
+    action: { kind: "FORMULA", amountMl: 120 },
+    breastRunning: null,
+  });
+
+  it("is false while saving for sending and for unknown (Retry mid-flight)", () => {
+    const sendingView = babyQuickPendingView(young, young.startedAt + 1_000);
+    assert.equal(sendingView.kind, "retryable");
+    assert.equal(
+      babyQuickPendingRecoveryVisible({
+        saving: true,
+        view: sendingView,
+      }),
+      false,
+    );
+
+    const unknown: BabyQuickPending = { ...young, state: "unknown" };
+    const unknownView = babyQuickPendingView(unknown, unknown.startedAt + 1_000);
+    assert.equal(unknownView.kind, "retryable");
+    assert.equal(
+      babyQuickPendingRecoveryVisible({
+        saving: true,
+        view: unknownView,
+      }),
+      false,
+    );
+  });
+
+  it("is true for orphaned sending when saving is false", () => {
+    assert.equal(young.state, "sending");
+    const view = babyQuickPendingView(young, young.startedAt + 1_000);
+    assert.equal(
+      babyQuickPendingRecoveryVisible({ saving: false, view }),
+      true,
+    );
+  });
+
+  it("is true for unknown and tooOld when saving is false", () => {
+    const unknown: BabyQuickPending = { ...young, state: "unknown" };
+    const unknownView = babyQuickPendingView(
+      unknown,
+      unknown.startedAt + 1_000,
+    );
+    assert.equal(
+      babyQuickPendingRecoveryVisible({
+        saving: false,
+        view: unknownView,
+      }),
+      true,
+    );
+
+    const tooOldView = babyQuickPendingView(
+      unknown,
+      unknown.startedAt + BABY_QUICK_PENDING_RETRY_MAX_AGE_MS,
+    );
+    assert.equal(tooOldView.kind, "tooOld");
+    assert.equal(
+      babyQuickPendingRecoveryVisible({
+        saving: false,
+        view: tooOldView,
+      }),
+      true,
+    );
+  });
+
+  it("is false when view is none", () => {
+    assert.equal(
+      babyQuickPendingRecoveryVisible({
+        saving: false,
+        view: { kind: "none" },
+      }),
+      false,
+    );
   });
 });

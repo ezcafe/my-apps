@@ -8,13 +8,34 @@ export const BABY_FEED_POST_STOP_GRACE_SKEW_MS = 6 * 60 * 1000;
 
 export const BABY_FEED_LEGS_MAX = 8;
 
-export type BabyFeedMethod = "breast_l" | "breast_r" | "formula" | "pump";
+export type BabyFeedMethod =
+  | "breast_l"
+  | "breast_r"
+  | "formula"
+  | "pump"
+  | "pump_l"
+  | "pump_r";
 
 export type BabyFeedLeg = {
   method: BabyFeedMethod;
   durationSec?: number;
   amountMl?: number;
 };
+
+/** Amount-bearing feed methods (ml), not timed sides. */
+function isAmountFeedMethod(method: BabyFeedMethod): boolean {
+  return method === "formula" || method === "pump";
+}
+
+/** Timed breast / pump sides (duration). */
+function isDurationFeedMethod(method: BabyFeedMethod): boolean {
+  return (
+    method === "breast_l" ||
+    method === "breast_r" ||
+    method === "pump_l" ||
+    method === "pump_r"
+  );
+}
 
 export function graceEndsAt(
   stoppedAt: number,
@@ -97,10 +118,10 @@ export function mergeFeedLegs(
     .filter(Boolean);
 }
 
-/** Non-empty legs for combined summary (skip zero duration / missing formula ml). */
+/** Non-empty legs for combined summary (skip zero duration / missing amount ml). */
 export function feedSessionSummaryParts(legs: BabyFeedLeg[]): BabyFeedLeg[] {
   return legs.filter((leg) => {
-    if (leg.method === "formula") {
+    if (isAmountFeedMethod(leg.method)) {
       return typeof leg.amountMl === "number" && leg.amountMl > 0;
     }
     return typeof leg.durationSec === "number" && leg.durationSec > 0;
@@ -108,7 +129,8 @@ export function feedSessionSummaryParts(legs: BabyFeedLeg[]): BabyFeedLeg[] {
 }
 
 /**
- * Primary method = last non-pump leg; durationSec = sum breast/pump; amountMl from formula.
+ * Primary method = last duration side when present, else last amount method.
+ * durationSec = sum timed sides; amountMl from formula + pump.
  */
 export function rollUpFeedPayload(legs: BabyFeedLeg[]): {
   method: BabyFeedMethod;
@@ -119,19 +141,26 @@ export function rollUpFeedPayload(legs: BabyFeedLeg[]): {
   const merged = mergeFeedLegs(legs);
   let durationSec = 0;
   let amountMl: number | undefined;
-  let method: BabyFeedMethod = "breast_l";
+  let lastDuration: BabyFeedMethod | null = null;
+  let lastAmount: BabyFeedMethod | null = null;
 
   for (const leg of merged) {
-    if (leg.method !== "pump") {
-      method = leg.method;
-    }
-    if (typeof leg.durationSec === "number") {
+    if (isDurationFeedMethod(leg.method)) {
+      lastDuration = leg.method;
+      if (typeof leg.durationSec === "number") {
+        durationSec += leg.durationSec;
+      }
+    } else if (isAmountFeedMethod(leg.method)) {
+      lastAmount = leg.method;
+      if (typeof leg.amountMl === "number") {
+        amountMl = (amountMl ?? 0) + leg.amountMl;
+      }
+    } else if (typeof leg.durationSec === "number") {
       durationSec += leg.durationSec;
     }
-    if (leg.method === "formula" && typeof leg.amountMl === "number") {
-      amountMl = (amountMl ?? 0) + leg.amountMl;
-    }
   }
+
+  const method = lastDuration ?? lastAmount ?? "breast_l";
 
   const out: {
     method: BabyFeedMethod;

@@ -58,3 +58,18 @@ export async function softInvalidateAfterQuickCare(
     // Leave Done/Logged + success message; status query shows its own error.
   }
 }
+
+/**
+ * role=status copy for home quick-care. Confirmation beats "Saving…" so the
+ * success flash paints before soft-invalidate finishes (and stays visible if
+ * refetch is slow).
+ */
+export function babyHomeSaveAnnouncement(input: {
+  saving: boolean;
+  message: string | null;
+  savingLabel: string;
+}): string | null {
+  if (input.message) return input.message;
+  if (input.saving) return input.savingLabel;
+  return null;
+}

@@ -135,6 +135,18 @@ export function filterGrowthByMergedChips<T extends { kind: string }>(
   return items.filter((item) => allowed.has(item.kind));
 }
 
+/**
+ * Vaccines are not in the Activities chip catalog. Empty chips → show all;
+ * any chip selected → hide vaccines (same exclusivity as unlisted growth kinds).
+ */
+export function filterVaccinesByMergedChips<T>(
+  items: T[],
+  chips: BabyInsightsChipSelection,
+): T[] {
+  if (!babyInsightsMergedChipsActive(chips)) return items;
+  return [];
+}
+
 /** Growth chart card visible under merged Care-types selection. */
 export function growthKindVisibleInMergedChips(
   kind: BabyInsightsGrowthChip,

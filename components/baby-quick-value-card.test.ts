@@ -86,6 +86,7 @@ describe("BabyQuickSimpleCard Done flash", () => {
         valueText: "Tap to start",
         subtitle: "next in 5min",
         doneText: "Done",
+        icon: createElement("span", { className: "size-6", "data-icon": "x" }),
         onPress: () => {},
       }),
     );
@@ -95,6 +96,38 @@ describe("BabyQuickSimpleCard Done flash", () => {
     assert.match(html, />Done</);
     assert.doesNotMatch(html, /Tap to start/);
     assert.doesNotMatch(html, /next in 5min/);
+    // Icon slot stays mounted (invisible) so Done height matches idle.
+    assert.match(html, /data-face-slot="icon"/);
+    assert.match(html, /data-icon-collapsed="true"/);
+    assert.match(html, /invisible/);
+    assert.match(html, /min-h-6/);
+    assert.match(html, /data-icon="x"/);
+  });
+
+  it("idle and Done faces both reserve icon/value/subtitle slots", () => {
+    const idle = renderToStaticMarkup(
+      createElement(BabyQuickSimpleCard, {
+        labelId: "nap-idle",
+        label: "Start nap",
+        valueText: "Tap to start",
+        icon: createElement("span", { className: "size-6" }),
+        onPress: () => {},
+      }),
+    );
+    const done = renderToStaticMarkup(
+      createElement(BabyQuickSimpleCard, {
+        labelId: "nap-done",
+        label: "Start nap",
+        valueText: "Tap to start",
+        doneText: "Done",
+        icon: createElement("span", { className: "size-6" }),
+        onPress: () => {},
+      }),
+    );
+    for (const slot of ["icon", "value", "subtitle"] as const) {
+      assert.match(idle, new RegExp(`data-face-slot="${slot}"`));
+      assert.match(done, new RegExp(`data-face-slot="${slot}"`));
+    }
   });
 
   it("idle card has surface hover affordance", () => {

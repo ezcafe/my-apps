@@ -324,6 +324,34 @@ describe("careSummary", () => {
     );
   });
 
+  it("labels timed pump_l/pump_r like breast duration; pump+ml like formula", () => {
+    assert.equal(
+      careSummary("feed", { method: "pump_l", durationSec: 7 * 60 }, "en", null),
+      "Feed (Pump L) · 7m",
+    );
+    assert.equal(
+      careSummary("feed", { method: "pump_r", durationSec: 90 }, "en", null),
+      "Feed (Pump R) · 1m",
+    );
+    assert.equal(
+      careSummary(
+        "feed",
+        {
+          method: "pump",
+          amountMl: 90,
+          legs: [{ method: "pump", amountMl: 90 }],
+        },
+        "en",
+        null,
+      ),
+      "Feed (Pump 90 ml)",
+    );
+    assert.equal(
+      careSummary("feed", { method: "pump_l", durationSec: 120 }, "vi", null),
+      "Bú (Hút trái) · 2m",
+    );
+  });
+
   it("uses started/ended sleep copy; closed sleep appends duration from endedAt", () => {
     assert.equal(careSummary("sleep", {}, "en", null), "Started sleep");
     assert.equal(

@@ -6,6 +6,7 @@ export type BabyHomeQuickStatusPayload = {
   lastFeed?: Record<string, unknown> | null;
   lastSleep?: Record<string, unknown> | null;
   lastDiaper?: Record<string, unknown> | null;
+  lastPump?: Record<string, unknown> | null;
   openSleep?: Record<string, unknown> | null;
   feedsToday?: number;
   birthDate?: string | null;
@@ -113,6 +114,7 @@ export function defaultStatus(
 ): BabyHomeQuickStatusPayload {
   return {
     lastFeed: null,
+      lastPump: null,
     lastSleep: null,
     lastDiaper: null,
     openSleep: null,
@@ -321,8 +323,26 @@ export function breastR(page: Page) {
   return page.locator('button[aria-labelledby="baby-breast-breast_r"]');
 }
 
+export function pumpL(page: Page) {
+  return page.locator('button[aria-labelledby="baby-pump-pump_l"]');
+}
+
+export function pumpR(page: Page) {
+  return page.locator('button[aria-labelledby="baby-pump-pump_r"]');
+}
+
+export function pumpAmountGroup(page: Page) {
+  return page.locator('[data-section="pump-amount"] [data-layout="bottle-ml-chips"]');
+}
+
+export function pumpAmountMlChip(page: Page, ml: number) {
+  return page.locator(
+    `[data-section="pump-amount"] [data-bottle-ml="${ml}"]`,
+  );
+}
+
 export function bottleGroup(page: Page) {
-  return page.locator('[data-layout="bottle-ml-chips"]');
+  return page.locator('[data-section="bottle"] [data-layout="bottle-ml-chips"]');
 }
 
 /** First ml chip in the Kind-like row (replaces old face save). */
@@ -331,7 +351,7 @@ export function bottleSave(page: Page) {
 }
 
 export function bottleMlChip(page: Page, ml: number) {
-  return page.locator(`[data-bottle-ml="${ml}"]`);
+  return bottleGroup(page).locator(`[data-bottle-ml="${ml}"]`);
 }
 
 /** @deprecated Face ± removed — chips only. Kept so old imports fail loudly at call sites. */
@@ -345,7 +365,9 @@ export function bottleLess(page: Page) {
 }
 
 export function customMlButton(page: Page) {
-  return page.locator('[data-bottle-ml="custom"]');
+  return page.locator(
+    '[data-section="bottle"] [data-bottle-ml="custom"]',
+  );
 }
 
 export function bottleHeader(page: Page) {

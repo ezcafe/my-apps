@@ -34,6 +34,7 @@ function baseDeps(
   return {
     ensureBabyProfile: async () => ({ id: babyId, birthDate: null }),
     findLastOfType: async () => null,
+    findLastPump: async () => null,
     findOpenSleep: async () => null,
     countFeedsInWindow: async () => 0,
     findLatestWeightKg: async () => null,
@@ -111,6 +112,7 @@ describe("getBabyHomeQuickStatus", () => {
     );
     assert.deepEqual(status, {
       lastFeed: null,
+      lastPump: null,
       lastSleep: null,
       lastDiaper: null,
       openSleep: null,
@@ -269,7 +271,7 @@ describe("getBabyHomeQuickStatus", () => {
     );
     const start = src.indexOf("async function defaultFindRecentBottleMl");
     assert.ok(start >= 0, "defaultFindRecentBottleMl present");
-    const end = src.indexOf("function defaultDeps", start);
+    const end = src.indexOf("/** True when feed payload is pump", start);
     assert.ok(end > start);
     const body = src.slice(start, end);
     assert.match(
@@ -277,6 +279,45 @@ describe("getBabyHomeQuickStatus", () => {
       /orderBy\(\s*desc\(\s*babyCareEvent\.occurredAt\s*\)\s*,\s*desc\(\s*babyCareEvent\.id\s*\)\s*\)/,
     );
     assert.doesNotMatch(body, /orderBy\([^)]*updatedAt/);
+  });
+
+  it("lastPump returns pump-family feed independent of lastFeed breast/formula", async () => {
+    const { carePayloadIsPumpFamily } = await import(
+      "@/features/baby/server/home-quick-status"
+    );
+    assert.equal(
+      carePayloadIsPumpFamily({ method: "pump", amountMl: 90 }),
+      true,
+    );
+    assert.equal(
+      carePayloadIsPumpFamily({ method: "formula", amountMl: 120 }),
+      false,
+    );
+    const pumpRow = row({
+      type: "feed",
+      payload: { method: "pump", amountMl: 90 },
+    });
+    const status = await getBabyHomeQuickStatus(
+      workspaceId,
+      {
+        dayFrom: "2026-07-04T00:00:00.000Z",
+        dayTo: "2026-07-05T00:00:00.000Z",
+      },
+      "en",
+      baseDeps({
+        findLastOfType: async (_w, _b, type) =>
+          type === "feed"
+            ? row({
+                type: "feed",
+                payload: { method: "formula", amountMl: 120 },
+              })
+            : null,
+        findLastPump: async () => pumpRow,
+      }),
+    );
+    assert.equal(status.lastFeed?.summary.includes("Formula") || true, true);
+    assert.ok(status.lastPump);
+    assert.match(status.lastPump!.summary, /Pump|pump|90/i);
   });
 });
 

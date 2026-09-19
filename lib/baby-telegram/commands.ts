@@ -12,7 +12,10 @@ import { confirmBabyTelegramChatByMessage } from "@/features/baby/server/telegra
 import { sendTelegramMessage } from "@/lib/telegram/send";
 
 export type ParsedBabyCommand =
-  | { kind: "feed"; method: "breast_l" | "breast_r" | "formula" | "pump" }
+  | {
+      kind: "feed";
+      method: "breast_l" | "breast_r" | "formula" | "pump" | "pump_l" | "pump_r";
+    }
   | { kind: "diaper"; diaperKind: "wet" | "dirty" | "mixed" }
   | { kind: "sleep_start" }
   | { kind: "sleep_end" }

@@ -15,6 +15,7 @@ import {
 import {
   activityEditMutationFor,
   buildActivityCareUpdatePayload,
+  buildActivityGrowthUpdateInput,
   validateActivityCareEdit,
 } from "@/lib/baby-insights-activity-edit";
 import { BABY_DIAPER_KINDS } from "@/lib/baby-diaper-detail";
@@ -48,6 +49,22 @@ const UPDATE_GROWTH = /* GraphQL */ `
 const DELETE_GROWTH = /* GraphQL */ `
   mutation DeleteBabyGrowth($id: ID!) {
     deleteBabyGrowth(id: $id) {
+      id
+    }
+  }
+`;
+
+const UPDATE_VACCINE = /* GraphQL */ `
+  mutation UpdateBabyVaccine($input: UpdateBabyVaccineInput!) {
+    updateBabyVaccine(input: $input) {
+      id
+    }
+  }
+`;
+
+const DELETE_VACCINE = /* GraphQL */ `
+  mutation DeleteBabyVaccine($id: ID!) {
+    deleteBabyVaccine(id: $id) {
       id
     }
   }
@@ -158,18 +175,53 @@ export function BabyInsightsEditModal({
       setError(t("insights.editInvalidPayload"));
       return;
     }
+    const existingNotes =
+      typeof payload.notes === "string" ? payload.notes : null;
+    const existingValueText =
+      typeof payload.valueText === "string" ? payload.valueText : null;
     await babyGraphQLRequest(UPDATE_GROWTH, {
-      input: {
+      input: buildActivityGrowthUpdateInput({
         id: row!.id,
+        kind: row!.growthKind,
         valueNum,
         unit: String(form.get("unit") ?? "") || null,
-        notes: String(form.get("notes") ?? "") || null,
+        notesFromForm: String(form.get("notes") ?? "") || null,
         recordedAt: localInputToIso(
           String(form.get("recordedAt") ?? toLocalInputValue(row!.at)),
         ),
-      },
+        existingNotes,
+        existingValueText,
+      }),
     });
     await invalidateBabyQueries(queryClient, "growth");
+    onSaved?.();
+    onClose();
+  }
+
+  async function saveVaccine(form: FormData) {
+    const mutation = activityEditMutationFor(row!.editTarget, "update");
+    if (mutation !== "updateBabyVaccine") {
+      setError(t("insights.editWrongRoute"));
+      return;
+    }
+    const name = String(form.get("name") ?? "").trim();
+    if (!name) {
+      setError(t("vaccine.nameRequired"));
+      return;
+    }
+    const doseRaw = String(form.get("dose") ?? "");
+    const dose = doseRaw === "second" ? "second" : "first";
+    await babyGraphQLRequest(UPDATE_VACCINE, {
+      input: {
+        id: row!.id,
+        name,
+        dose,
+        administeredAt: localInputToIso(
+          String(form.get("administeredAt") ?? toLocalInputValue(row!.at)),
+        ),
+      },
+    });
+    await invalidateBabyQueries(queryClient, "vaccines");
     onSaved?.();
     onClose();
   }
@@ -179,6 +231,9 @@ export function BabyInsightsEditModal({
     if (mutation === "deleteBabyEvent") {
       await babyGraphQLRequest(DELETE_EVENT, { id: row!.id });
       await invalidateBabyQueries(queryClient, "care");
+    } else if (mutation === "deleteBabyVaccine") {
+      await babyGraphQLRequest(DELETE_VACCINE, { id: row!.id });
+      await invalidateBabyQueries(queryClient, "vaccines");
     } else {
       await babyGraphQLRequest(DELETE_GROWTH, { id: row!.id });
       await invalidateBabyQueries(queryClient, "growth");
@@ -203,6 +258,7 @@ export function BabyInsightsEditModal({
           startTransition(async () => {
             try {
               if (row.source === "care") await saveCare(form);
+              else if (row.source === "vaccine") await saveVaccine(form);
               else await saveGrowth(form);
             } catch {
               setError(t("insights.editFailed"));
@@ -272,6 +328,37 @@ export function BabyInsightsEditModal({
               </Field>
             ) : null}
           </>
+        ) : row.source === "vaccine" ? (
+          <>
+            <Field label={t("insights.editRecordedAt")}>
+              <Input
+                name="administeredAt"
+                type="datetime-local"
+                defaultValue={toLocalInputValue(row.at)}
+                required
+              />
+            </Field>
+            <Field label={t("vaccine.name")} required>
+              <Input
+                name="name"
+                defaultValue={
+                  typeof payload.name === "string" ? payload.name : ""
+                }
+                autoComplete="off"
+              />
+            </Field>
+            <Field label={t("vaccine.dose")} required>
+              <Select
+                name="dose"
+                defaultValue={
+                  row.vaccineDose === "second" ? "second" : "first"
+                }
+              >
+                <option value="first">{t("vaccine.doseFirst")}</option>
+                <option value="second">{t("vaccine.doseSecond")}</option>
+              </Select>
+            </Field>
+          </>
         ) : (
           <>
             <Field label={t("insights.editRecordedAt")}>
@@ -303,14 +390,16 @@ export function BabyInsightsEditModal({
                 }
               />
             </Field>
-            <Field label={t("insights.editNotes")}>
-              <Input
-                name="notes"
-                defaultValue={
-                  typeof payload.notes === "string" ? payload.notes : ""
-                }
-              />
-            </Field>
+            {row.growthKind !== "temperature" ? (
+              <Field label={t("insights.editNotes")}>
+                <Input
+                  name="notes"
+                  defaultValue={
+                    typeof payload.notes === "string" ? payload.notes : ""
+                  }
+                />
+              </Field>
+            ) : null}
           </>
         )}
 

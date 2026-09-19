@@ -53,6 +53,15 @@
   --destructive-muted-text: #b91c1c;
   --destructive-icon-bg: color-mix(in oklab, #dc2626 14%, transparent);
 
+  /* Baby Activities type accents (History-style) — not medical. */
+  --baby-act-sleep: #a78bfa;
+  --baby-act-feed: #fdba74;
+  --baby-act-diaper: #86efac;
+  --baby-act-pump: #fcd34d;
+  --baby-act-med: #e9a8d0;
+  --baby-act-growth: #5eead4;
+  --baby-act-other: #a3a3a3;
+
   --alert-error-bg: color-mix(in oklab, #dc2626 8%, var(--surface));
   --alert-error-border: color-mix(in oklab, #dc2626 28%, var(--border));
   --alert-error-accent: #dc2626;
@@ -124,6 +133,14 @@
   --destructive-muted-border: color-mix(in oklab, #f87171 35%, var(--border));
   --destructive-muted-text: #fca5a5;
   --destructive-icon-bg: color-mix(in oklab, #f87171 18%, transparent);
+
+  --baby-act-sleep: #c4b5fd;
+  --baby-act-feed: #fdba74;
+  --baby-act-diaper: #86efac;
+  --baby-act-pump: #fde68a;
+  --baby-act-med: #f0abfc;
+  --baby-act-growth: #5eead4;
+  --baby-act-other: #737373;
 
   --alert-error-bg: color-mix(in oklab, #f87171 14%, var(--surface));
   --alert-error-border: color-mix(in oklab, #f87171 28%, var(--border));

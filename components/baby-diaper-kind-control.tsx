@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { BABY_HOME_SMALL_GRID_MIN_H } from "@/lib/baby-home-control-height";
 import {
   IconBabyDiaperDry,
   IconBabyDiaperMixed,
@@ -76,7 +77,8 @@ export function BabyDiaperKindControl({
       data-layout="diaper-kind-2x2"
       data-done-kind={doneKind ?? undefined}
       className={cn(
-        "grid h-full min-h-20 grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
+        "grid h-full grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
+        BABY_HOME_SMALL_GRID_MIN_H,
         className,
       )}
     >

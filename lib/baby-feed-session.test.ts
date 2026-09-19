@@ -101,7 +101,7 @@ describe("baby feed session helpers", () => {
     );
   });
 
-  it("L then R then formula rolls up with primary method formula", () => {
+  it("L then R then formula rolls up with primary last duration side", () => {
     const legs = mergeFeedLegs([
       { method: "breast_l", durationSec: 300 },
       { method: "breast_r", durationSec: 120 },
@@ -113,7 +113,7 @@ describe("baby feed session helpers", () => {
       { method: "formula", amountMl: 90 },
     ]);
     const rolled = rollUpFeedPayload(legs);
-    assert.equal(rolled.method, "formula");
+    assert.equal(rolled.method, "breast_r");
     assert.equal(rolled.durationSec, 420);
     assert.equal(rolled.amountMl, 90);
     assert.deepEqual(rolled.legs, legs);
@@ -147,5 +147,43 @@ describe("baby feed session helpers", () => {
       { method: "breast_r", durationSec: 120 },
       { method: "formula", amountMl: 90 },
     ]);
+  });
+
+  it("summary keeps pump+ml like formula and pump_l duration like breast", () => {
+    const parts = feedSessionSummaryParts([
+      { method: "pump_l", durationSec: 300 },
+      { method: "pump" },
+      { method: "pump", amountMl: 60 },
+      { method: "pump_r", durationSec: 0 },
+    ]);
+    assert.deepEqual(parts, [
+      { method: "pump_l", durationSec: 300 },
+      { method: "pump", amountMl: 60 },
+    ]);
+  });
+
+  it("rollUp sums pump ml and pump_l/r duration; amount-only primary is pump", () => {
+    const mixed = rollUpFeedPayload([
+      { method: "breast_l", durationSec: 100 },
+      { method: "pump_r", durationSec: 200 },
+      { method: "formula", amountMl: 40 },
+      { method: "pump", amountMl: 50 },
+    ]);
+    assert.equal(mixed.durationSec, 300);
+    assert.equal(mixed.amountMl, 90);
+    assert.equal(mixed.method, "pump_r");
+
+    const amountOnly = rollUpFeedPayload([
+      { method: "pump", amountMl: 90 },
+    ]);
+    assert.equal(amountOnly.method, "pump");
+    assert.equal(amountOnly.amountMl, 90);
+    assert.equal(amountOnly.durationSec, undefined);
+
+    const timedPump = rollUpFeedPayload([
+      { method: "pump_l", durationSec: 420 },
+    ]);
+    assert.equal(timedPump.method, "pump_l");
+    assert.equal(timedPump.durationSec, 420);
   });
 });

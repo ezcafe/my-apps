@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { BabyTimedCareChip } from "@/components/baby-timed-care-chip";
 import { Button } from "@/components/ui/button";
 import { useBabyLocale } from "@/components/baby-locale-provider";
 import { useNotify } from "@/components/notification-provider";
+import { IconBabySleep } from "@/components/icons/icon-baby-nav";
 import { babyGraphQLRequest } from "@/lib/baby-gql-client";
 import {
   BABY_CARE_AFTER_SAVE,
@@ -16,6 +18,11 @@ import {
   isBabySleepStartDisabled,
   openSleepScanFromQuery,
 } from "@/lib/baby-care-session-state";
+import {
+  BABY_CARE_DONE_BEFORE_NAV_MS,
+  babyHomeSleepDoneFlash,
+  createBabyHomeDoneFlashTimer,
+} from "@/lib/baby-home-done-flash";
 import { invalidateBabyQueries } from "@/lib/baby-query-options";
 import { cn } from "@/lib/cn";
 import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
@@ -59,7 +66,14 @@ export function BabySleepForm() {
   const [checkFailed, setCheckFailed] = useState(false);
   const [checkIncomplete, setCheckIncomplete] = useState(false);
   const [checkPending, setCheckPending] = useState(true);
+  const [sleepDone, setSleepDone] = useState(false);
   const checkGen = useRef(0);
+  const doneTimerRef = useRef(createBabyHomeDoneFlashTimer());
+
+  useEffect(() => {
+    const host = doneTimerRef.current;
+    return () => host.dispose();
+  }, []);
 
   const applyOpenSleepUi = useCallback(
     (next: ReturnType<typeof babyOpenSleepCheckState>) => {
@@ -117,6 +131,7 @@ export function BabySleepForm() {
           setOpenChecked(true);
           setCheckFailed(false);
           setCheckIncomplete(false);
+          // Start keeps session running — no Done flash (Gate A / TimedCareChip).
           await invalidateBabyQueries(queryClient, "care");
           notify.success(t("sleep.started"));
         },
@@ -151,6 +166,10 @@ export function BabySleepForm() {
           setOpenChecked(true);
           setCheckFailed(false);
           setCheckIncomplete(false);
+          if (babyHomeSleepDoneFlash({ endedSleepSession: true })) {
+            setSleepDone(true);
+            doneTimerRef.current.arm(() => setSleepDone(false));
+          }
           await invalidateBabyQueries(queryClient, "care");
           notify.success(t("sleep.ended"));
         },
@@ -159,6 +178,7 @@ export function BabySleepForm() {
         },
         router,
         afterSave: BABY_CARE_AFTER_SAVE.sleepEnd,
+        homeNavigateDelayMs: BABY_CARE_DONE_BEFORE_NAV_MS,
       });
     });
   }
@@ -200,31 +220,26 @@ export function BabySleepForm() {
           </Button>
         </div>
       ) : null}
-      <div
-        className="grid gap-3"
-        style={{
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
-        }}
-      >
-        <Button
-          type="button"
-          size="lg"
-          className="min-h-14"
-          disabled={startDisabled}
-          onClick={start}
-        >
-          {t("sleep.start")}
-        </Button>
-        <Button
-          type="button"
-          size="lg"
-          variant="secondary"
-          className="min-h-14"
-          disabled={pending || checkPending || !endEnabled}
-          onClick={end}
-        >
-          {t("sleep.end")}
-        </Button>
+      <div data-testid="baby-sleep-action-chips">
+        <BabyTimedCareChip
+          data-testid={hasOpenSleep ? "baby-sleep-end" : "baby-sleep-start"}
+          labelId="baby-sleep-chip"
+          label={hasOpenSleep ? t("sleep.end") : t("sleep.start")}
+          running={hasOpenSleep}
+          tapToStart={t("home.tapToStart")}
+          tapToStop={t("home.tapToStop")}
+          doneText={sleepDone ? t("home.done") : null}
+          disabled={
+            hasOpenSleep
+              ? pending || checkPending || !endEnabled
+              : startDisabled
+          }
+          onPress={() => {
+            if (hasOpenSleep) end();
+            else start();
+          }}
+          icon={<IconBabySleep className="size-6" />}
+        />
       </div>
     </div>
   );

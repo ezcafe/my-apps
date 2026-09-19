@@ -20,6 +20,8 @@ export type BabyHomeQuickStatusRow = {
   lastFeed: BabyTimelineItem | null;
   lastSleep: BabyTimelineItem | null;
   lastDiaper: BabyTimelineItem | null;
+  /** Newest feed whose method/legs are pump family. */
+  lastPump: BabyTimelineItem | null;
   openSleep: BabyCareEventRow | null;
   feedsToday: number;
   birthDate: string | null;
@@ -36,6 +38,15 @@ export type HomeQuickStatusDeps = {
     workspaceId: string,
     babyId: string,
     type: "feed" | "sleep" | "diaper",
+  ) => Promise<BabyCareEventRow | null>;
+  /** Newest breast/formula feed (skips pump-only). Optional — defaults to findLastOfType feed. */
+  findLastFeed?: (
+    workspaceId: string,
+    babyId: string,
+  ) => Promise<BabyCareEventRow | null>;
+  findLastPump: (
+    workspaceId: string,
+    babyId: string,
   ) => Promise<BabyCareEventRow | null>;
   findOpenSleep: (
     workspaceId: string,
@@ -255,6 +266,88 @@ async function defaultFindRecentBottleMl(
   return collectRecentBottleMlFromRows(rows);
 }
 
+/** True when feed payload is pump / pump_l / pump_r (top-level or legs). */
+export function carePayloadIsPumpFamily(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const p = payload as {
+    method?: unknown;
+    legs?: Array<{ method?: unknown }>;
+  };
+  const methods = [
+    ...(typeof p.method === "string" ? [p.method] : []),
+    ...(p.legs ?? [])
+      .map((l) => l.method)
+      .filter((m): m is string => typeof m === "string"),
+  ];
+  return methods.some(
+    (m) => m === "pump" || m === "pump_l" || m === "pump_r",
+  );
+}
+
+/** True when payload has breast and/or formula (not pump-only). */
+export function carePayloadIsFeedFamily(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const p = payload as {
+    method?: unknown;
+    legs?: Array<{ method?: unknown }>;
+  };
+  const methods = [
+    ...(typeof p.method === "string" ? [p.method] : []),
+    ...(p.legs ?? [])
+      .map((l) => l.method)
+      .filter((m): m is string => typeof m === "string"),
+  ];
+  return methods.some(
+    (m) => m === "breast_l" || m === "breast_r" || m === "formula",
+  );
+}
+
+async function defaultFindLastFeed(
+  workspaceId: string,
+  babyId: string,
+): Promise<BabyCareEventRow | null> {
+  const rows = await db
+    .select()
+    .from(babyCareEvent)
+    .where(
+      and(
+        eq(babyCareEvent.workspaceId, workspaceId),
+        eq(babyCareEvent.babyId, babyId),
+        eq(babyCareEvent.type, "feed"),
+      ),
+    )
+    .orderBy(desc(babyCareEvent.updatedAt), desc(babyCareEvent.id))
+    .limit(40);
+  for (const row of rows) {
+    // Skip pump-only rows — those surface under lastPump.
+    if (carePayloadIsFeedFamily(row.payload)) return row;
+    if (!carePayloadIsPumpFamily(row.payload)) return row;
+  }
+  return null;
+}
+
+async function defaultFindLastPump(
+  workspaceId: string,
+  babyId: string,
+): Promise<BabyCareEventRow | null> {
+  const rows = await db
+    .select()
+    .from(babyCareEvent)
+    .where(
+      and(
+        eq(babyCareEvent.workspaceId, workspaceId),
+        eq(babyCareEvent.babyId, babyId),
+        eq(babyCareEvent.type, "feed"),
+      ),
+    )
+    .orderBy(desc(babyCareEvent.updatedAt), desc(babyCareEvent.id))
+    .limit(40);
+  for (const row of rows) {
+    if (carePayloadIsPumpFamily(row.payload)) return row;
+  }
+  return null;
+}
+
 function defaultDeps(): HomeQuickStatusDeps {
   return {
     ensureBabyProfile: async (workspaceId) => {
@@ -262,6 +355,8 @@ function defaultDeps(): HomeQuickStatusDeps {
       return { id: baby.id, birthDate: baby.birthDate };
     },
     findLastOfType: defaultFindLastOfType,
+    findLastFeed: defaultFindLastFeed,
+    findLastPump: defaultFindLastPump,
     findOpenSleep,
     countFeedsInWindow: defaultCountFeeds,
     findLatestWeightKg: defaultFindLatestWeightKg,
@@ -284,14 +379,18 @@ export async function getBabyHomeQuickStatus(
     lastFeed,
     lastSleep,
     lastDiaper,
+    lastPump,
     openSleep,
     feedsToday,
     latestWeightKg,
     recentBottleMl,
   ] = await Promise.all([
-    deps.findLastOfType(workspaceId, baby.id, "feed"),
+    deps.findLastFeed
+      ? deps.findLastFeed(workspaceId, baby.id)
+      : deps.findLastOfType(workspaceId, baby.id, "feed"),
     deps.findLastOfType(workspaceId, baby.id, "sleep"),
     deps.findLastOfType(workspaceId, baby.id, "diaper"),
+    deps.findLastPump(workspaceId, baby.id),
     deps.findOpenSleep(workspaceId, baby.id),
     deps.countFeedsInWindow(workspaceId, baby.id, dayFrom, dayTo),
     deps.findLatestWeightKg(workspaceId, baby.id),
@@ -302,6 +401,7 @@ export async function getBabyHomeQuickStatus(
     lastFeed: lastFeed ? toTimelineItem(lastFeed, locale) : null,
     lastSleep: lastSleep ? toTimelineItem(lastSleep, locale) : null,
     lastDiaper: lastDiaper ? toTimelineItem(lastDiaper, locale) : null,
+    lastPump: lastPump ? toTimelineItem(lastPump, locale) : null,
     openSleep,
     feedsToday,
     birthDate: baby.birthDate,

@@ -8,17 +8,20 @@ import {
 } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BabyBottleMlChips } from "@/components/baby-bottle-ml-chips";
+import { BabyBreastSidePair } from "@/components/baby-breast-side-pair";
+import { BabyCareGuidelines } from "@/components/baby-care-guidelines";
 import { BabyCustomMlModal } from "@/components/baby-custom-ml-modal";
 import { BabyDiaperDetailSheet } from "@/components/baby-diaper-detail-sheet";
 import { BabyDiaperKindControl } from "@/components/baby-diaper-kind-control";
 import { useBabyLocale } from "@/components/baby-locale-provider";
-import { BabyQuickSimpleCard } from "@/components/baby-quick-value-card";
+import { BabyMlChipSection } from "@/components/baby-ml-chip-section";
+import { BabyPumpSidePair } from "@/components/baby-pump-side-pair";
+import { BabyTimedCareChip } from "@/components/baby-timed-care-chip";
 import {
-  IconBabyBreast,
+  IconBabyBottle,
+  IconBabyDiaper,
   IconBabySleep,
 } from "@/components/icons/icon-baby-nav";
-import { IconSwap } from "@/components/ui/icon-swap";
 import {
   BABY_BOTTLE_CHIPS_NO_BIRTH_SNAPS,
   babyAgeInDays,
@@ -29,11 +32,15 @@ import {
   buildBabyBottleChipMls,
 } from "@/lib/baby-age-guide";
 import {
-  BABY_BREAST_TIMER_STORAGE_KEY,
+  BABY_CARE_TIMER_CLIENT_ID,
   babyBreastElapsedSec,
-  parseBabyBreastTimer,
-  serializeBabyBreastTimer,
-  type BabyBreastTimer,
+  emptyBabyCareTimerSlots,
+  readBabyCareTimerSlots,
+  withCareTimerSide,
+  writeBabyCareTimerSlots,
+  type BabyCareTimer,
+  type BabyCareTimerSide,
+  type BabyCareTimerSlots,
 } from "@/lib/baby-breast-timer-store";
 import {
   isBabyBirthDatePromptVisitDismissed,
@@ -41,8 +48,8 @@ import {
   shouldShowBabyBirthDatePrompt,
 } from "@/lib/baby-birth-date-prompt";
 import {
-  formatBabyDurationCompact,
   formatBabyDurationLocale,
+  formatBabyDurationTimer,
 } from "@/lib/baby-format-duration";
 import {
   attachBabyLocalDayRoll,
@@ -54,6 +61,7 @@ import {
   BABY_HOME_QUIET_CLASS,
   babyHomeDiaperDetailMarked,
   babyHomeFeedDetailMarked,
+  babyHomePumpDetailMarked,
   fillBabyHomeTemplate,
   renderBabyHomeMarkedSentence,
 } from "@/lib/baby-home-marked-sentence";
@@ -66,11 +74,11 @@ import {
   type BabyNextDue,
 } from "@/lib/baby-next-due";
 import {
+  babyHomeSaveAnnouncement,
   classifyBabyQuickCareError,
   softInvalidateAfterQuickCare,
 } from "@/lib/baby-quick-care-outcome";
 import {
-  babyQuickCareStepMessageKey,
   localAfterFromQuickRequest,
   planBabyQuickCare,
 } from "@/lib/baby-quick-care-plan";
@@ -82,11 +90,14 @@ import {
 import type { BabyFeedSessionHandle } from "@/lib/baby-feed-session-store";
 import {
   babyQuickCareRetryPayload,
+  babyQuickPendingOwner,
+  babyQuickPendingRecoveryVisible,
   babyQuickPendingView,
   clearBabyQuickPending,
   readBabyQuickPending,
   writeBabyQuickPending,
   type BabyQuickPending,
+  type BabyQuickPendingOwnerId,
 } from "@/lib/baby-quick-care-pending";
 import { newBabyQuickRequestId } from "@/lib/baby-quick-care-request-id";
 import type { BabyDiaperQuickPlan } from "@/lib/baby-diaper-quick-plan";
@@ -183,7 +194,7 @@ function BabyBreastElapsedText({
       window.removeEventListener("focus", onWake);
     };
   }, [frozenNow]);
-  return formatBabyDurationCompact(babyBreastElapsedSec(startedAt, now));
+  return formatBabyDurationTimer(babyBreastElapsedSec(startedAt, now));
 }
 
 export type BabyHomeContentProps = {
@@ -203,10 +214,12 @@ export type BabyHomeContentProps = {
   onInvalidateCare?: () => Promise<void>;
   /** Injected banner message for markup tests (fail-closed saveBlocked). */
   messageSeed?: string | null;
+  /** Injected saving flag for markup tests (quiet mid-flight recovery). */
+  savingSeed?: boolean;
   /** Injected bottle done-flash ml for markup tests (Task 8 flash wiring). */
   bottleDoneMlSeed?: number | null;
   /** Injected breast Done flash side for markup tests. */
-  breastDoneSideSeed?: "breast_l" | "breast_r" | null;
+  breastDoneSideSeed?: BabyCareTimerSide | null;
   /** Injected nap Done flash for markup tests. */
   sleepDoneSeed?: boolean;
 };
@@ -224,6 +237,7 @@ export function BabyHomeContent({
   pendingSeed = null,
   onInvalidateCare,
   messageSeed = null,
+  savingSeed = false,
   bottleDoneMlSeed = null,
   breastDoneSideSeed = null,
   sleepDoneSeed = false,
@@ -232,33 +246,65 @@ export function BabyHomeContent({
   const bottleDoneTimerRef = useRef(createBabyHomeDoneFlashTimer());
   const diaperDoneTimerRef = useRef(createBabyHomeDoneFlashTimer());
   const breastDoneTimerRef = useRef(createBabyHomeDoneFlashTimer());
+  const pumpDoneTimerRef = useRef(createBabyHomeDoneFlashTimer());
   const sleepDoneTimerRef = useRef(createBabyHomeDoneFlashTimer());
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(() => savingSeed);
+  const [savingOwner, setSavingOwner] =
+    useState<BabyQuickPendingOwnerId | null>(null);
   const [message, setMessage] = useState<string | null>(() => messageSeed);
   const [clock, setClock] = useState(() => nowMs ?? Date.now());
   const dayKey =
     dayKeyProp ??
     babyLocalDayWindow(new Date(nowMs ?? Date.now())).dayKey;
-  const [breast, setBreast] = useState<BabyBreastTimer | null>(() => {
-    if (typeof window === "undefined") return null;
+  const [careSlots, setCareSlots] = useState<BabyCareTimerSlots>(() => {
+    if (typeof window === "undefined") return emptyBabyCareTimerSlots(babyId);
     try {
-      const parsed = parseBabyBreastTimer(
-        localStorage.getItem(BABY_BREAST_TIMER_STORAGE_KEY),
-        { babyId, now: Date.now() },
+      return (
+        readBabyCareTimerSlots(localStorage, {
+          babyId,
+          now: Date.now(),
+        })?.slots ?? emptyBabyCareTimerSlots(babyId)
       );
-      return parsed?.timer ?? null;
     } catch {
-      return null;
+      return emptyBabyCareTimerSlots(babyId);
     }
   });
+  const breast: BabyCareTimer | null = careSlots.breast
+    ? {
+        babyId: careSlots.babyId,
+        side: careSlots.breast.side,
+        startedAt: careSlots.breast.startedAt,
+      }
+    : null;
+  const pumpTimer: BabyCareTimer | null = careSlots.pump
+    ? {
+        babyId: careSlots.babyId,
+        side: careSlots.pump.side,
+        startedAt: careSlots.pump.startedAt,
+      }
+    : null;
   const [breastStale, setBreastStale] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
-      const parsed = parseBabyBreastTimer(
-        localStorage.getItem(BABY_BREAST_TIMER_STORAGE_KEY),
-        { babyId, now: Date.now() },
+      return (
+        readBabyCareTimerSlots(localStorage, {
+          babyId,
+          now: Date.now(),
+        })?.breastStale ?? false
       );
-      return parsed?.stale ?? false;
+    } catch {
+      return false;
+    }
+  });
+  const [pumpStale, setPumpStale] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return (
+        readBabyCareTimerSlots(localStorage, {
+          babyId,
+          now: Date.now(),
+        })?.pumpStale ?? false
+      );
     } catch {
       return false;
     }
@@ -286,8 +332,14 @@ export function BabyHomeContent({
     null,
   );
   const [breastDoneSide, setBreastDoneSide] = useState<
-    "breast_l" | "breast_r" | null
+    BabyCareTimerSide | null
   >(() => breastDoneSideSeed);
+  const [pumpAmountDoneMl, setPumpAmountDoneMl] = useState<number | null>(null);
+  const [pumpAmountOverride, setPumpAmountOverride] = useState<number | null>(
+    null,
+  );
+  const [pumpAmountFromCustom, setPumpAmountFromCustom] = useState(false);
+  const [pumpCustomOpen, setPumpCustomOpen] = useState(false);
   const [sleepDone, setSleepDone] = useState(() => sleepDoneSeed);
   const [openSleepOverride, setOpenSleepOverride] = useState<
     BabyHomeQuickStatusData["babyHomeQuickStatus"]["openSleep"] | undefined
@@ -306,7 +358,6 @@ export function BabyHomeContent({
   const birthDate = status?.birthDate ?? null;
   const ageDays = babyAgeInDays(birthDate, new Date(clock));
   const band = babyFeedGuideForAge(ageDays);
-  const sleepBand = babySleepGuideForAge(ageDays);
   const formulaDefault = babySuggestedBottleMl({
     ageDays,
     weightKg: status?.latestWeightKg ?? null,
@@ -323,7 +374,7 @@ export function BabyHomeContent({
       ? openSleepOverride != null
       : status?.openSleep != null;
 
-  const selectedBottleMl = resolveBabyHomeSelectedBottleMl({
+  const selectedBottleMlBase = resolveBabyHomeSelectedBottleMl({
     bottleDoneMl,
     formulaFromCustom,
     formulaOverride,
@@ -337,14 +388,10 @@ export function BabyHomeContent({
     limit: 3,
   });
   // Pending Custom / flash amount must appear as a tappable chip.
-  const pendingEnsureMl =
+  const bottleEnsureMlBase =
     formulaFromCustom && formulaOverride != null && formulaOverride > 0
       ? formulaOverride
       : bottleDoneMl;
-  const bottleChipMls = ensureMlInBottleChips(
-    bottleChipMlsBase,
-    pendingEnsureMl,
-  );
   const formulaMl = babyHomeCustomInitialMl({
     formulaOverride,
     birthDate,
@@ -364,6 +411,8 @@ export function BabyHomeContent({
         | "breast_r"
         | "formula"
         | "pump"
+        | "pump_l"
+        | "pump_r"
         | null) ?? null,
   });
 
@@ -388,6 +437,8 @@ export function BabyHomeContent({
       : null,
   });
 
+  const sleepBand = babySleepGuideForAge(ageDays);
+
   // Next-due / relative labels: ≥30s; breast elapsed ticks in its own child.
   useEffect(() => {
     if (nowMs != null) return;
@@ -407,11 +458,13 @@ export function BabyHomeContent({
     const bottleTimer = bottleDoneTimerRef.current;
     const diaperTimer = diaperDoneTimerRef.current;
     const breastTimer = breastDoneTimerRef.current;
+    const pumpTimer = pumpDoneTimerRef.current;
     const sleepTimer = sleepDoneTimerRef.current;
     return () => {
       bottleTimer.dispose();
       diaperTimer.dispose();
       breastTimer.dispose();
+      pumpTimer.dispose();
       sleepTimer.dispose();
     };
   }, []);
@@ -425,15 +478,17 @@ export function BabyHomeContent({
       setPending(null);
     }
     try {
-      const parsed = parseBabyBreastTimer(
-        localStorage.getItem(BABY_BREAST_TIMER_STORAGE_KEY),
-        { babyId, now: Date.now() },
-      );
-      setBreast(parsed?.timer ?? null);
-      setBreastStale(parsed?.stale ?? false);
+      const parsed = readBabyCareTimerSlots(localStorage, {
+        babyId,
+        now: Date.now(),
+      });
+      setCareSlots(parsed?.slots ?? emptyBabyCareTimerSlots(babyId));
+      setBreastStale(parsed?.breastStale ?? false);
+      setPumpStale(parsed?.pumpStale ?? false);
     } catch {
-      setBreast(null);
+      setCareSlots(emptyBabyCareTimerSlots(babyId));
       setBreastStale(false);
+      setPumpStale(false);
     }
     setFeedSession(
       readBabyHomeFeedSession(localStorage, {
@@ -453,6 +508,91 @@ export function BabyHomeContent({
   }, []);
 
   const pendingView = babyQuickPendingView(pending, clock);
+  const recoveryVisible = babyQuickPendingRecoveryVisible({
+    saving,
+    view: pendingView,
+  });
+  const pendingOwner: BabyQuickPendingOwnerId | null =
+    pendingView.kind !== "none"
+      ? babyQuickPendingOwner(pendingView.pending.request.action)
+      : null;
+  // Remount / orphaned pending: highlight stored ml under bottle / pump amount.
+  const recoveryAmountMl =
+    recoveryVisible &&
+    pendingView.kind !== "none" &&
+    (pendingView.pending.request.action.kind === "FORMULA" ||
+      pendingView.pending.request.action.kind === "PUMP_AMOUNT")
+      ? pendingView.pending.request.action.amountMl
+      : null;
+  const selectedBottleMl =
+    recoveryVisible && pendingOwner === "bottle" && recoveryAmountMl != null
+      ? recoveryAmountMl
+      : selectedBottleMlBase;
+  const bottleChipMls = ensureMlInBottleChips(
+    bottleChipMlsBase,
+    recoveryVisible && pendingOwner === "bottle"
+      ? (recoveryAmountMl ?? bottleEnsureMlBase)
+      : bottleEnsureMlBase,
+  );
+
+  function renderPendingRecovery(owner: BabyQuickPendingOwnerId): ReactNode {
+    if (!recoveryVisible || pendingOwner !== owner || pendingView.kind === "none") {
+      return null;
+    }
+    const record = pendingView.pending;
+    if (pendingView.kind === "tooOld") {
+      return (
+        <div
+          data-testid="baby-home-pending-recovery"
+          data-pending-owner={owner}
+          className="space-y-2"
+        >
+          <p className="text-sm text-destructive">{t("home.pendingTooOld")}</p>
+          <div className="flex gap-3">
+            <Link
+              href="/baby/activities"
+              className="inline-flex min-h-11 items-center text-sm text-accent"
+            >
+              {t("home.pendingTimelineLink")}
+            </Link>
+            <button
+              type="button"
+              className="min-h-11 rounded-[var(--radius-sm)] px-3 text-sm"
+              onClick={clearPending}
+            >
+              {t("home.pendingDiscard")}
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div
+        data-testid="baby-home-pending-recovery"
+        data-pending-owner={owner}
+        className="space-y-2"
+      >
+        <p className="text-sm text-destructive">{t("home.pendingTitle")}</p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            className="min-h-11 rounded-[var(--radius-sm)] px-3 text-sm text-accent"
+            onClick={() => void runQuick(record.request.action, record)}
+          >
+            {t("home.pendingRetry")}
+          </button>
+          <button
+            type="button"
+            className="min-h-11 rounded-[var(--radius-sm)] px-3 text-sm"
+            onClick={clearPending}
+          >
+            {t("home.pendingDiscard")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const showBirthPrompt = shouldShowBabyBirthDatePrompt({
     birthDate,
     visitDismissed,
@@ -469,18 +609,12 @@ export function BabyHomeContent({
     clearBabyQuickPending(localStorage);
   }
 
-  function writeBreast(next: BabyBreastTimer | null) {
-    setBreast(next);
+  function writeCareSlots(next: BabyCareTimerSlots) {
+    setCareSlots(next);
     setBreastStale(false);
+    setPumpStale(false);
     try {
-      if (next) {
-        localStorage.setItem(
-          BABY_BREAST_TIMER_STORAGE_KEY,
-          serializeBabyBreastTimer(next),
-        );
-      } else {
-        localStorage.removeItem(BABY_BREAST_TIMER_STORAGE_KEY);
-      }
+      writeBabyCareTimerSlots(localStorage, next);
     } catch {
       /* ignore */
     }
@@ -501,6 +635,7 @@ export function BabyHomeContent({
     if (inFlightRef.current) return;
     inFlightRef.current = true;
     setSaving(true);
+    setSavingOwner(babyQuickPendingOwner(action));
     setMessage(null);
 
     const sessionHandle =
@@ -514,7 +649,8 @@ export function BabyHomeContent({
           localAfter: localAfterFromQuickRequest(reuse.request),
         }
       : planBabyQuickCare(action, {
-          breast,
+          breastSlot: careSlots.breast,
+          pumpSlot: careSlots.pump,
           now: clock,
           feedSessionEventId: sessionHandle?.eventId ?? null,
         });
@@ -534,6 +670,7 @@ export function BabyHomeContent({
       setMessage(t("home.saveBlocked"));
       inFlightRef.current = false;
       setSaving(false);
+      setSavingOwner(null);
       return;
     }
     setPending(record);
@@ -547,14 +684,38 @@ export function BabyHomeContent({
       const result = data.babyQuickCare;
       clearPending();
       // First press and Retry both apply localAfter after a confirmed response.
-      if (planned.localAfter.clearBreastTimer) writeBreast(null);
-      if (planned.localAfter.startBreastSide) {
-        writeBreast({
+      let nextSlots = careSlots;
+      if (planned.localAfter.clearBreastTimer) {
+        nextSlots = withCareTimerSide(nextSlots, {
           babyId,
-          side: planned.localAfter.startBreastSide,
-          startedAt: clock,
+          side: null,
+          now: clock,
+          clearFamily: "breast",
         });
       }
+      if (planned.localAfter.startBreastSide) {
+        nextSlots = withCareTimerSide(nextSlots, {
+          babyId,
+          side: planned.localAfter.startBreastSide,
+          now: clock,
+        });
+      }
+      if (planned.localAfter.clearPumpTimer) {
+        nextSlots = withCareTimerSide(nextSlots, {
+          babyId,
+          side: null,
+          now: clock,
+          clearFamily: "pump",
+        });
+      }
+      if (planned.localAfter.startPumpSide) {
+        nextSlots = withCareTimerSide(nextSlots, {
+          babyId,
+          side: planned.localAfter.startPumpSide,
+          now: clock,
+        });
+      }
+      writeCareSlots(nextSlots);
       writeFeedSession(
         adoptBabyHomeFeedSessionAfterQuickCare({
           babyId,
@@ -576,6 +737,15 @@ export function BabyHomeContent({
           bottleDoneTimerRef.current.arm(() => setBottleDoneMl(null));
         }
       }
+      if (record.request.action.kind === "PUMP_AMOUNT") {
+        const doneMl = babyHomeBottleDoneMl(record.request.action.amountMl);
+        setPumpAmountOverride(null);
+        setPumpAmountFromCustom(false);
+        if (doneMl != null) {
+          setPumpAmountDoneMl(doneMl);
+          pumpDoneTimerRef.current.arm(() => setPumpAmountDoneMl(null));
+        }
+      }
       if (record.request.action.kind === "DIAPER") {
         const dk = babyHomeDiaperDoneKind(
           record.request.action.diaperKind,
@@ -588,7 +758,9 @@ export function BabyHomeContent({
       }
       if (record.request.action.kind === "BREAST") {
         const side = babyHomeBreastDoneSide({
-          stopBreastSession: planned.localAfter.stopBreastSession,
+          stopBreastSession:
+            planned.localAfter.stopBreastSession ||
+            planned.localAfter.stopPumpSession,
           side: record.request.action.side,
         });
         if (side) {
@@ -596,51 +768,48 @@ export function BabyHomeContent({
           breastDoneTimerRef.current.arm(() => setBreastDoneSide(null));
         }
       }
-      if (
-        record.request.action.kind === "SLEEP" &&
-        babyHomeSleepDoneFlash(true)
-      ) {
-        setSleepDone(true);
-        sleepDoneTimerRef.current.arm(() => setSleepDone(false));
+      if (record.request.action.kind === "SLEEP") {
+        const endedSleepSession = result.steps.some(
+          (s) => s.step === "endNap",
+        );
+        if (babyHomeSleepDoneFlash({ endedSleepSession })) {
+          setSleepDone(true);
+          sleepDoneTimerRef.current.arm(() => setSleepDone(false));
+        }
       }
-      const stepNames = result.steps
-        .map((s) =>
-          t(
-            babyQuickCareStepMessageKey(
-              s.step as Parameters<typeof babyQuickCareStepMessageKey>[0],
-            ),
-          ),
-        )
-        .filter(Boolean);
-      setMessage(
-        stepNames.length > 0
-          ? stepNames.join(" · ")
-          : t("home.savedFeed"),
-      );
-      // Refetch failures must not undo confirmed success (Done + message).
+      // Quiet success — chip done-flash only; no Saved … banner.
+      // Paint confirmation before soft-invalidate (refetch can be slow).
+      setSaving(false);
+      setSavingOwner(null);
+      // Refetch failures must not undo confirmed success (Done flash).
       await softInvalidateAfterQuickCare(onInvalidateCare);
     } catch (error) {
       const cls = classifyBabyQuickCareError(error);
       if (cls === "definiteNoCommit") {
         clearPending();
+        setMessage(t("home.chainFailed"));
       } else {
         const unknown: BabyQuickPending = { ...record, state: "unknown" };
         setPending(unknown);
         void writeBabyQuickPending(localStorage, unknown);
+        // Under-owner recovery carries the failure copy — skip status shout.
       }
-      setMessage(t("home.chainFailed"));
     } finally {
       inFlightRef.current = false;
       setSaving(false);
+      setSavingOwner(null);
     }
   }
 
   const breastElapsed = breast ? (
     <BabyBreastElapsedText startedAt={breast.startedAt} frozenNow={nowMs} />
   ) : null;
+  const pumpElapsed = pumpTimer ? (
+    <BabyBreastElapsedText startedAt={pumpTimer.startedAt} frozenNow={nowMs} />
+  ) : null;
 
   function statusLine(
-    kind: "feed" | "sleep" | "diaper",
+    kind: "feed" | "sleep" | "diaper" | "pump",
   ): ReactNode {
     if (statusLoading) {
       return <p className="text-sm text-muted">{t("common.loading")}</p>;
@@ -656,7 +825,9 @@ export function BabyHomeContent({
               ? "home.status.feedEmpty"
               : kind === "sleep"
                 ? "home.status.sleepEmpty"
-                : "home.status.diaperEmpty",
+                : kind === "pump"
+                  ? "home.status.pumpEmpty"
+                  : "home.status.diaperEmpty",
           )}
         </p>
       );
@@ -679,6 +850,11 @@ export function BabyHomeContent({
         payload: item.payload,
         t,
       });
+      if (!detail) {
+        return (
+          <p className="text-sm text-muted">{t("home.status.feedEmpty")}</p>
+        );
+      }
       const marked = fillBabyHomeTemplate(t("home.status.feedItem"), {
         detail,
         when,
@@ -692,7 +868,7 @@ export function BabyHomeContent({
     if (kind === "sleep") {
       const open = openSleepOverride ?? status.openSleep;
       if (open) {
-        const elapsed = formatBabyDurationCompact(
+        const elapsed = formatBabyDurationTimer(
           Math.max(
             0,
             Math.floor((clock - Date.parse(open.occurredAt)) / 1000),
@@ -728,10 +904,39 @@ export function BabyHomeContent({
         </p>
       );
     }
-    const item = status.lastDiaper;
+    if (kind === "diaper") {
+      const item = status.lastDiaper;
+      if (!item) {
+        return (
+          <p className="text-sm text-muted">{t("home.status.diaperEmpty")}</p>
+        );
+      }
+      const when = formatBabyHomeWhenInline(
+        item.at,
+        t,
+        new Date(clock),
+        locale,
+      );
+      const detail = babyHomeDiaperDetailMarked({
+        summary: item.summary,
+        payload: item.payload,
+        t,
+      });
+      const marked = fillBabyHomeTemplate(t("home.status.diaperItem"), {
+        detail,
+        when,
+      });
+      return (
+        <p className="text-sm text-foreground">
+          {renderBabyHomeMarkedSentence(marked)}
+        </p>
+      );
+    }
+
+    const item = status.lastPump;
     if (!item) {
       return (
-        <p className="text-sm text-muted">{t("home.status.diaperEmpty")}</p>
+        <p className="text-sm text-muted">{t("home.status.pumpEmpty")}</p>
       );
     }
     const when = formatBabyHomeWhenInline(
@@ -740,12 +945,12 @@ export function BabyHomeContent({
       new Date(clock),
       locale,
     );
-    const detail = babyHomeDiaperDetailMarked({
+    const detail = babyHomePumpDetailMarked({
       summary: item.summary,
       payload: item.payload,
       t,
     });
-    const marked = fillBabyHomeTemplate(t("home.status.diaperItem"), {
+    const marked = fillBabyHomeTemplate(t("home.status.pumpItem"), {
       detail,
       when,
     });
@@ -815,73 +1020,95 @@ export function BabyHomeContent({
       locale,
     ) ?? t("home.header.diaperEmpty");
 
+  const selectedPumpMlBase = resolveBabyHomeSelectedBottleMl({
+    bottleDoneMl: pumpAmountDoneMl,
+    formulaFromCustom: pumpAmountFromCustom,
+    formulaOverride: pumpAmountOverride,
+  });
+  const pumpChipMlsBase = bottleChipMlsBase;
+  const pumpEnsureMlBase =
+    pumpAmountFromCustom &&
+    pumpAmountOverride != null &&
+    pumpAmountOverride > 0
+      ? pumpAmountOverride
+      : pumpAmountDoneMl;
+  const selectedPumpMl =
+    recoveryVisible &&
+    pendingOwner === "pump_amount" &&
+    recoveryAmountMl != null
+      ? recoveryAmountMl
+      : selectedPumpMlBase;
+  const pumpChipMls = ensureMlInBottleChips(
+    pumpChipMlsBase,
+    recoveryVisible && pendingOwner === "pump_amount"
+      ? (recoveryAmountMl ?? pumpEnsureMlBase)
+      : pumpEnsureMlBase,
+  );
+  const pumpCustomMl = babyHomeCustomInitialMl({
+    formulaOverride: pumpAmountOverride,
+    birthDate,
+    suggestedMl: formulaDefault,
+    firstChipMl: pumpChipMlsBase[0] ?? null,
+  });
+
+  const guidelineSections = [
+    {
+      id: "feed" as const,
+      title: t("home.guide.feedTitle"),
+      body: [
+        t("home.guide.feed.1"),
+        t("home.guide.feed.2"),
+        t("home.guide.feed.3"),
+      ],
+    },
+    {
+      id: "sleep" as const,
+      title: t("home.guide.sleepTitle"),
+      body: [
+        t("home.guide.sleep.1"),
+        t("home.guide.sleep.2"),
+        t("home.guide.sleep.3"),
+      ],
+    },
+    {
+      id: "diaper" as const,
+      title: t("home.guide.diaperTitle"),
+      body: [
+        t("home.guide.diaper.1"),
+        t("home.guide.diaper.2"),
+        t("home.guide.diaper.3"),
+      ],
+    },
+    {
+      id: "pump" as const,
+      title: t("home.guide.pumpTitle"),
+      body: [
+        t("home.guide.pump.1"),
+        t("home.guide.pump.2"),
+        t("home.guide.pump.3"),
+        t("home.guide.pump.4"),
+        t("home.guide.pump.5"),
+        t("home.guide.pump.6"),
+      ],
+    },
+  ];
+
+  const saveAnnouncement = babyHomeSaveAnnouncement({
+    saving,
+    message,
+    savingLabel: t("home.saving"),
+  });
+
   return (
     <div
       className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK, "@container")}
       data-testid="baby-home"
       data-day-key={dayKey}
     >
-      {/* Breast on its own row; bottle | nap | diaper share a wide-screen row. */}
-      <section
-        aria-labelledby="baby-home-heading-breast"
-        data-section="breast"
-        className="space-y-2"
-      >
-        <BabyHomeSectionHeading
-          testId="baby-home-header-breast"
-          headingId="baby-home-heading-breast"
-          lead={t("home.header.breast")}
-          bodyMarked={breastBody}
-        />
-        <div
-          className="grid gap-3"
-          style={{
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(min(100%, 8rem), 1fr))",
-          }}
-        >
-          {(["breast_l", "breast_r"] as const).map((side) => {
-            const running = breast?.side === side;
-            const showDone = breastDoneSide === side;
-            return (
-              <BabyQuickSimpleCard
-                key={side}
-                labelId={`baby-breast-${side}`}
-                label={t(side === "breast_l" ? "home.breastL" : "home.breastR")}
-                valueText={
-                  running
-                    ? (breastElapsed ?? t("home.tapToSave"))
-                    : t("home.tapToStart")
-                }
-                subtitle={
-                  running && breastStale
-                    ? fill(t("home.timerStaleNote"), {
-                        time: new Date(breast!.startedAt).toLocaleTimeString(),
-                      })
-                    : undefined
-                }
-                disabled={saving}
-                selected={running}
-                doneText={showDone ? t("home.done") : null}
-                onPress={() => void runQuick({ kind: "BREAST", side })}
-                icon={
-                  <IconSwap
-                    active={running}
-                    activeIcon={
-                      <IconBabyBreast className="size-6 text-accent-foreground" />
-                    }
-                    inactiveIcon={<IconBabyBreast className="size-6" />}
-                  />
-                }
-              />
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Wide: Bottle | Nap | Diaper one row; narrow: stack via auto-fit. */}
+      {/* Row 1: Breast L·R + Bottle */}
       <div
-        data-layout="home-row-bottle-nap-diaper"
+        data-layout="home-row-breast-bottle"
+        data-section="row-feed"
         className="grid gap-3"
         style={{
           gridTemplateColumns:
@@ -889,38 +1116,111 @@ export function BabyHomeContent({
         }}
       >
         <section
+          aria-labelledby="baby-home-heading-breast"
+          data-section="breast"
+          className="flex min-w-0 flex-col space-y-2"
+        >
+          <BabyHomeSectionHeading
+            testId="baby-home-header-breast"
+            headingId="baby-home-heading-breast"
+            lead={t("home.header.breast")}
+            bodyMarked={breastBody}
+          />
+          <BabyBreastSidePair
+            sides={[
+              {
+                side: "breast_l",
+                label: t("home.breastL"),
+                running: breast?.side === "breast_l",
+                elapsedText:
+                  breast?.side === "breast_l" ? breastElapsed : undefined,
+                tapToStart: t("home.tapToStart"),
+                tapToStop: t("home.tapToStop"),
+                subtitle:
+                  breast?.side === "breast_l" && breastStale
+                    ? fill(t("home.timerStaleNote"), {
+                        time: new Date(breast!.startedAt).toLocaleTimeString(),
+                      })
+                    : undefined,
+                helperText: t("home.helper.breast"),
+                recovery: renderPendingRecovery("breast_l"),
+                disabled: savingOwner === "breast_l",
+                doneText:
+                  breastDoneSide === "breast_l" ? t("home.done") : null,
+                onPress: () =>
+                  void runQuick({ kind: "BREAST", side: "breast_l" }),
+              },
+              {
+                side: "breast_r",
+                label: t("home.breastR"),
+                running: breast?.side === "breast_r",
+                elapsedText:
+                  breast?.side === "breast_r" ? breastElapsed : undefined,
+                tapToStart: t("home.tapToStart"),
+                tapToStop: t("home.tapToStop"),
+                subtitle:
+                  breast?.side === "breast_r" && breastStale
+                    ? fill(t("home.timerStaleNote"), {
+                        time: new Date(breast!.startedAt).toLocaleTimeString(),
+                      })
+                    : undefined,
+                helperText: t("home.helper.breast"),
+                recovery: renderPendingRecovery("breast_r"),
+                disabled: savingOwner === "breast_r",
+                doneText:
+                  breastDoneSide === "breast_r" ? t("home.done") : null,
+                onPress: () =>
+                  void runQuick({ kind: "BREAST", side: "breast_r" }),
+              },
+            ]}
+          />
+        </section>
+        <section
           aria-labelledby="baby-home-heading-bottle"
           data-section="bottle"
           className="flex min-w-0 flex-col space-y-2"
         >
-          <BabyHomeSectionHeading
-            testId="baby-home-header-bottle"
-            headingId="baby-home-heading-bottle"
-            lead={t("home.header.bottle")}
-            bodyMarked={bottleBody}
-          />
-          <div className="flex min-h-20 flex-1 flex-col">
-            <BabyBottleMlChips
-              mls={bottleChipMls}
-              selectedMl={selectedBottleMl}
-              doneFlash={bottleDoneMl != null}
-              doneText={t("home.logged")}
-              disabled={saving}
-              customSelected={false}
-              onSelectMl={(ml) => {
-                setFormulaFromCustom(false);
-                setFormulaOverride(ml);
-                void runQuick({ kind: "FORMULA", amountMl: ml });
-              }}
-              onCustom={() => {
-                if (saving) return;
-                setCustomOpen(true);
-              }}
-              t={t}
+          <div className="flex items-start gap-2">
+            <IconBabyBottle className="mt-0.5 size-5 shrink-0" aria-hidden />
+            <BabyHomeSectionHeading
+              testId="baby-home-header-bottle"
+              headingId="baby-home-heading-bottle"
+              lead={t("home.header.bottle")}
+              bodyMarked={bottleBody}
             />
           </div>
+          <BabyMlChipSection
+            mls={bottleChipMls}
+            selectedMl={selectedBottleMl}
+            doneFlash={bottleDoneMl != null}
+            doneText={t("home.logged")}
+            disabled={savingOwner === "bottle"}
+            customSelected={false}
+            onSelectMl={(ml) => {
+              setFormulaFromCustom(false);
+              setFormulaOverride(ml);
+              void runQuick({ kind: "FORMULA", amountMl: ml });
+            }}
+            onCustom={() => {
+              if (savingOwner != null) return;
+              setCustomOpen(true);
+            }}
+            t={t}
+            helperText={t("home.helper.bottle")}
+            recovery={renderPendingRecovery("bottle")}
+          />
         </section>
+      </div>
 
+      {/* Row 2: Nap + Diaper */}
+      <div
+        data-layout="home-row-nap-diaper"
+        className="grid gap-3"
+        style={{
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
+        }}
+      >
         <section
           aria-labelledby="baby-home-heading-nap"
           data-section="nap"
@@ -932,75 +1232,172 @@ export function BabyHomeContent({
             lead={t("home.header.nap")}
             bodyMarked={napBody}
           />
-          <div data-layout="home-nap" className="flex min-h-20 flex-1 flex-col">
-            {sleepFailClosed ? (
-              <div className="h-full rounded-[var(--radius-md)] border border-border p-3">
-                <p className="text-sm text-muted">{t("home.napCheckFailed")}</p>
-                <button
-                  type="button"
-                  className="mt-2 min-h-11 text-sm text-accent"
-                  onClick={onRetryStatus}
-                >
-                  {t("sleep.retryCheck")}
-                </button>
-              </div>
-            ) : (
-              <BabyQuickSimpleCard
-                labelId="baby-quick-sleep-label"
-                label={napOpen ? t("home.sleepEnd") : t("home.sleepStart")}
-                valueText={
-                  napOpen
-                    ? formatBabyDurationCompact(
-                        Math.max(
-                          0,
-                          Math.floor(
-                            (clock -
-                              Date.parse(
-                                (openSleepOverride ?? status?.openSleep)!
-                                  .occurredAt,
-                              )) /
-                              1000,
-                          ),
-                        ),
-                      )
-                    : t("home.tapToStart")
-                }
-                subtitle={napOpen ? undefined : nextSleepLabel ?? undefined}
-                disabled={saving}
-                doneText={sleepDone ? t("home.done") : null}
-                onPress={() => void runQuick({ kind: "SLEEP" })}
-                icon={<IconBabySleep className="size-6" />}
-              />
-            )}
-          </div>
+          {sleepFailClosed ? (
+            <div className="h-full rounded-[var(--radius-md)] border border-border p-3">
+              <p className="text-sm text-muted">{t("home.napCheckFailed")}</p>
+              <button
+                type="button"
+                className="mt-2 min-h-11 text-sm text-accent"
+                onClick={onRetryStatus}
+              >
+                {t("sleep.retryCheck")}
+              </button>
+            </div>
+          ) : (
+            <BabyTimedCareChip
+              data-testid="baby-care-chip-nap"
+              labelId="baby-quick-sleep-label"
+              label={napOpen ? t("home.sleepEnd") : t("home.sleepStart")}
+              running={napOpen}
+              elapsedText={
+                napOpen ? (
+                  <BabyBreastElapsedText
+                    startedAt={Date.parse(
+                      (openSleepOverride ?? status?.openSleep)!.occurredAt,
+                    )}
+                    frozenNow={nowMs}
+                  />
+                ) : undefined
+              }
+              tapToStart={t("home.tapToStart")}
+              tapToStop={t("home.tapToStop")}
+              subtitle={napOpen ? "\u00a0" : nextSleepLabel ?? "\u00a0"}
+              helperText={t("home.helper.nap")}
+              recovery={renderPendingRecovery("nap")}
+              disabled={savingOwner === "nap"}
+              doneText={sleepDone ? t("home.done") : null}
+              onPress={() => void runQuick({ kind: "SLEEP" })}
+              icon={<IconBabySleep className="size-6" />}
+            />
+          )}
         </section>
-
         <section
           aria-labelledby="baby-home-heading-diaper"
           data-section="diaper"
           className="flex min-w-0 flex-col space-y-2"
         >
-          <BabyHomeSectionHeading
-            testId="baby-home-header-diaper"
-            headingId="baby-home-heading-diaper"
-            lead={t("home.header.diaper")}
-            bodyMarked={diaperBody}
-          />
-          <div className="flex min-h-20 flex-1 flex-col">
-            <BabyDiaperKindControl
-              disabled={saving}
-              doneKind={diaperDoneKind}
-              doneText={t("home.done")}
-              onPlan={onDiaperPlan}
-              t={t}
+          <div className="flex items-start gap-2">
+            <IconBabyDiaper className="mt-0.5 size-5 shrink-0" aria-hidden />
+            <BabyHomeSectionHeading
+              testId="baby-home-header-diaper"
+              headingId="baby-home-heading-diaper"
+              lead={t("home.header.diaper")}
+              bodyMarked={diaperBody}
             />
           </div>
+          <BabyDiaperKindControl
+            disabled={savingOwner === "diaper"}
+            doneKind={diaperDoneKind}
+            doneText={t("home.done")}
+            onPlan={onDiaperPlan}
+            t={t}
+          />
+          <p className="text-xs text-muted">{t("home.helper.diaper")}</p>
+          {renderPendingRecovery("diaper")}
         </section>
       </div>
 
-      {birthDate ? (
-        <p className="text-xs text-muted">{t("home.guideCaveat")}</p>
-      ) : null}
+      {/* Row 3: Pump L·R + Pump amount (section header like Breast) */}
+      <section
+        aria-labelledby="baby-home-heading-pump"
+        data-section="pump"
+        data-layout="home-row-pump"
+        className="flex min-w-0 flex-col space-y-2"
+      >
+        <BabyHomeSectionHeading
+          testId="baby-home-header-pump"
+          headingId="baby-home-heading-pump"
+          lead={t("home.header.pump")}
+          bodyMarked={fillBabyHomeTemplate(t("home.header.pumpEmpty"), {
+            left: t("home.pumpL"),
+            right: t("home.pumpR"),
+          })}
+        />
+        <div
+          className="grid items-stretch gap-3"
+          style={{
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(100%, 8rem), 1fr))",
+          }}
+        >
+          <BabyPumpSidePair
+            asContents
+            sides={[
+              {
+                side: "pump_l",
+                label: t("home.pumpL"),
+                running: pumpTimer?.side === "pump_l",
+                elapsedText:
+                  pumpTimer?.side === "pump_l" ? pumpElapsed : undefined,
+                tapToStart: t("home.tapToStart"),
+                tapToStop: t("home.tapToStop"),
+                subtitle:
+                  pumpTimer?.side === "pump_l" && pumpStale
+                    ? fill(t("home.timerStaleNote"), {
+                        time: new Date(
+                          pumpTimer!.startedAt,
+                        ).toLocaleTimeString(),
+                      })
+                    : undefined,
+                helperText: t("home.helper.pump"),
+                recovery: renderPendingRecovery("pump_l"),
+                disabled: savingOwner === "pump_l",
+                doneText:
+                  breastDoneSide === "pump_l" ? t("home.done") : null,
+                onPress: () =>
+                  void runQuick({ kind: "BREAST", side: "pump_l" }),
+              },
+              {
+                side: "pump_r",
+                label: t("home.pumpR"),
+                running: pumpTimer?.side === "pump_r",
+                elapsedText:
+                  pumpTimer?.side === "pump_r" ? pumpElapsed : undefined,
+                tapToStart: t("home.tapToStart"),
+                tapToStop: t("home.tapToStop"),
+                subtitle:
+                  pumpTimer?.side === "pump_r" && pumpStale
+                    ? fill(t("home.timerStaleNote"), {
+                        time: new Date(
+                          pumpTimer!.startedAt,
+                        ).toLocaleTimeString(),
+                      })
+                    : undefined,
+                helperText: t("home.helper.pump"),
+                recovery: renderPendingRecovery("pump_r"),
+                disabled: savingOwner === "pump_r",
+                doneText:
+                  breastDoneSide === "pump_r" ? t("home.done") : null,
+                onPress: () =>
+                  void runQuick({ kind: "BREAST", side: "pump_r" }),
+              },
+            ]}
+          />
+          <BabyMlChipSection
+            data-section="pump-amount"
+            mls={pumpChipMls}
+            selectedMl={selectedPumpMl}
+            doneFlash={pumpAmountDoneMl != null}
+            doneText={t("home.logged")}
+            disabled={savingOwner === "pump_amount"}
+            customSelected={false}
+            className="h-full"
+            groupLabel={t("home.pumpAmount")}
+            onSelectMl={(ml) => {
+              setPumpAmountFromCustom(false);
+              setPumpAmountOverride(ml);
+              void runQuick({ kind: "PUMP_AMOUNT", amountMl: ml });
+            }}
+            onCustom={() => {
+              if (savingOwner != null) return;
+              setPumpCustomOpen(true);
+            }}
+            t={t}
+            helperText={t("home.helper.pumpAmount")}
+            recovery={renderPendingRecovery("pump_amount")}
+          />
+        </div>
+      </section>
 
       {/* Last care status — one sentence per kind */}
       <div className="space-y-3" data-testid="baby-home-status">
@@ -1010,59 +1407,15 @@ export function BabyHomeContent({
         <div className="space-y-1 border-b border-border/70 pb-3">
           {statusLine("sleep")}
         </div>
-        <div className="space-y-1">{statusLine("diaper")}</div>
+        <div className="space-y-1 border-b border-border/70 pb-3">
+          {statusLine("diaper")}
+        </div>
+        <div className="space-y-1">{statusLine("pump")}</div>
       </div>
 
-      {/* Pending bar — below care controls; skeleton draws nothing for it */}
-      {pendingView.kind === "retryable" ? (
-        <div className="rounded-[var(--radius-md)] border border-border p-3">
-          <p className="text-sm">{t("home.pendingTitle")}</p>
-          <div className="mt-2 flex gap-3">
-            <button
-              type="button"
-              className="min-h-11 rounded-[var(--radius-sm)] px-3 text-sm text-accent"
-              onClick={() => void runQuick(pendingView.pending.request.action, pendingView.pending)}
-            >
-              {t("home.pendingRetry")}
-            </button>
-            <button
-              type="button"
-              className="min-h-11 rounded-[var(--radius-sm)] px-3 text-sm"
-              onClick={clearPending}
-            >
-              {t("home.pendingDiscard")}
-            </button>
-          </div>
-        </div>
-      ) : null}
-      {pendingView.kind === "tooOld" ? (
-        <div className="rounded-[var(--radius-md)] border border-border p-3">
-          <p className="text-sm">{t("home.pendingTooOld")}</p>
-          <div className="mt-2 flex gap-3">
-            <Link
-              href="/baby/timeline"
-              className="min-h-11 text-sm text-accent"
-            >
-              {t("home.pendingTimelineLink")}
-            </Link>
-            <button
-              type="button"
-              className="min-h-11 rounded-[var(--radius-sm)] px-3 text-sm"
-              onClick={clearPending}
-            >
-              {t("home.pendingDiscard")}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {message ? (
+      {saveAnnouncement ? (
         <p className="text-sm text-muted" role="status">
-          {saving ? t("home.saving") : message}
-        </p>
-      ) : saving ? (
-        <p className="text-sm text-muted" role="status">
-          {t("home.saving")}
+          {saveAnnouncement}
         </p>
       ) : null}
 
@@ -1093,6 +1446,9 @@ export function BabyHomeContent({
         </div>
       ) : null}
 
+      {/* Guidelines at page bottom — exclusive accordion, collapsed by default */}
+      <BabyCareGuidelines sections={guidelineSections} />
+
       <BabyCustomMlModal
         open={customOpen}
         initialMl={formulaMl}
@@ -1102,6 +1458,18 @@ export function BabyHomeContent({
           setFormulaOverride(ml);
           setFormulaFromCustom(true);
           setCustomOpen(false);
+        }}
+        t={t}
+      />
+
+      <BabyCustomMlModal
+        open={pumpCustomOpen}
+        initialMl={pumpCustomMl}
+        onClose={() => setPumpCustomOpen(false)}
+        onConfirm={(ml) => {
+          setPumpAmountOverride(ml);
+          setPumpAmountFromCustom(true);
+          setPumpCustomOpen(false);
         }}
         t={t}
       />
@@ -1164,7 +1532,7 @@ export function BabyHome() {
       statusLoading={active.isLoading}
       statusError={active.isError}
       onRetryStatus={() => void active.refetch()}
-      babyId="home"
+      babyId={BABY_CARE_TIMER_CLIENT_ID}
       dayKey={day.dayKey}
       t={(key) => t(key as never)}
       locale={locale}

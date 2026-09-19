@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   BABY_QUICK_DEFINITE_NO_COMMIT_CODES,
+  babyHomeSaveAnnouncement,
   classifyBabyQuickCareError,
   softInvalidateAfterQuickCare,
 } from "@/lib/baby-quick-care-outcome";
@@ -85,5 +86,34 @@ describe("softInvalidateAfterQuickCare", () => {
   it("no-ops when invalidate is omitted", async () => {
     await softInvalidateAfterQuickCare();
     await softInvalidateAfterQuickCare(undefined);
+  });
+});
+
+describe("babyHomeSaveAnnouncement", () => {
+  it("prefers confirmation over Saving while soft-invalidate runs", () => {
+    assert.equal(
+      babyHomeSaveAnnouncement({
+        saving: true,
+        message: "Saved diaper",
+        savingLabel: "Saving…",
+      }),
+      "Saved diaper",
+    );
+    assert.equal(
+      babyHomeSaveAnnouncement({
+        saving: true,
+        message: null,
+        savingLabel: "Saving…",
+      }),
+      "Saving…",
+    );
+    assert.equal(
+      babyHomeSaveAnnouncement({
+        saving: false,
+        message: null,
+        savingLabel: "Saving…",
+      }),
+      null,
+    );
   });
 });

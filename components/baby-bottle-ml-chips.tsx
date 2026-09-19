@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { BABY_HOME_SMALL_GRID_MIN_H } from "@/lib/baby-home-control-height";
 
 export type BabyBottleMlChipsProps = {
   mls: number[];
@@ -15,6 +16,8 @@ export type BabyBottleMlChipsProps = {
   customSelected?: boolean;
   t: (key: string) => string;
   className?: string;
+  /** Accessible group name — defaults to Bottle header. */
+  groupLabel?: string;
 };
 
 /** Shared border edges for flush 2×2 (order: ml0, ml1, ml2, custom). */
@@ -44,6 +47,7 @@ export function BabyBottleMlChips({
   customSelected,
   t,
   className,
+  groupLabel,
 }: BabyBottleMlChipsProps) {
   const busy = Boolean(disabled);
   const chips = [...mls, "custom" as const];
@@ -51,11 +55,12 @@ export function BabyBottleMlChips({
   return (
     <div
       role="group"
-      aria-label={t("home.header.bottle")}
+      aria-label={groupLabel ?? t("home.header.bottle")}
       data-layout="bottle-ml-chips"
       data-done-flash={doneFlash || undefined}
       className={cn(
-        "grid h-full min-h-20 grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
+        "grid h-full grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
+        BABY_HOME_SMALL_GRID_MIN_H,
         className,
       )}
     >

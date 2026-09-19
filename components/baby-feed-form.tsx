@@ -1,11 +1,11 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { BabyBreastSidePair } from "@/components/baby-breast-side-pair";
+import { BabyCustomMlModal } from "@/components/baby-custom-ml-modal";
+import { BabyMlChipSection } from "@/components/baby-ml-chip-section";
 import { useBabyLocale } from "@/components/baby-locale-provider";
 import { useNotify } from "@/components/notification-provider";
 import { babyGraphQLRequest } from "@/lib/baby-gql-client";
@@ -13,18 +13,36 @@ import {
   BABY_CARE_AFTER_SAVE,
   runBabyCareSaveThenNavigate,
 } from "@/lib/baby-care-save-navigate";
-import { isBabyFeedStartDisabled } from "@/lib/baby-care-session-state";
-import { formatBabyDurationCompact } from "@/lib/baby-format-duration";
+import {
+  babyBreastElapsedSec,
+  babyCareTimerStopFeedInput,
+  BABY_CARE_TIMER_CLIENT_ID,
+  emptyBabyCareTimerSlots,
+  readBabyCareTimerSlots,
+  withCareTimerSide,
+  writeBabyCareTimerSlots,
+  type BabyBreastCareSide,
+  type BabyCareTimerSlots,
+} from "@/lib/baby-breast-timer-store";
+import { formatBabyDurationTimer } from "@/lib/baby-format-duration";
+import {
+  BABY_CARE_DONE_BEFORE_NAV_MS,
+  babyHomeBottleDoneMl,
+  babyHomeBreastDoneSide,
+  createBabyHomeDoneFlashTimer,
+} from "@/lib/baby-home-done-flash";
+import {
+  BABY_BOTTLE_CHIPS_NO_BIRTH_SNAPS,
+  babySuggestedBottleMl,
+  buildBabyBottleChipMls,
+} from "@/lib/baby-age-guide";
+import {
+  babyHomeCustomInitialMl,
+  resolveBabyHomeSelectedBottleMl,
+} from "@/lib/baby-home-bottle-selection";
 import { invalidateBabyQueries } from "@/lib/baby-query-options";
 import { cn } from "@/lib/cn";
 import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
-
-const METHODS = [
-  { method: "breast_l", key: "feed.breastL" },
-  { method: "breast_r", key: "feed.breastR" },
-  { method: "formula", key: "feed.formula" },
-  { method: "pump", key: "feed.pump" },
-] as const;
 
 const MUTATION = /* GraphQL */ `
   mutation CreateBabyFeed($input: CreateBabyFeedInput!) {
@@ -40,62 +58,102 @@ export function BabyFeedForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [pending, startTransition] = useTransition();
-  const [amountMl, setAmountMl] = useState("");
-  const [durationSec, setDurationSec] = useState("");
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [timerStartedAt, setTimerStartedAt] = useState<number | null>(null);
-  const [elapsedSec, setElapsedSec] = useState(0);
+  const babyId = BABY_CARE_TIMER_CLIENT_ID;
+  const [slots, setSlots] = useState<BabyCareTimerSlots | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [doneSide, setDoneSide] = useState<BabyBreastCareSide | null>(null);
+  const [doneMl, setDoneMl] = useState<number | null>(null);
+  const [formulaOverride, setFormulaOverride] = useState<number | null>(null);
+  const [formulaFromCustom, setFormulaFromCustom] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
+  const doneTimerRef = useRef(createBabyHomeDoneFlashTimer());
+
+  const formulaDefault = babySuggestedBottleMl({ ageDays: null });
+  const bottleChipMls = useMemo(
+    () =>
+      buildBabyBottleChipMls({
+        recentBottleMl: [],
+        snaps: [...BABY_BOTTLE_CHIPS_NO_BIRTH_SNAPS],
+        limit: 3,
+      }),
+    [],
+  );
+  const selectedBottleMl = resolveBabyHomeSelectedBottleMl({
+    bottleDoneMl: doneMl,
+    formulaFromCustom,
+    formulaOverride,
+  });
 
   useEffect(() => {
-    if (!timerRunning || timerStartedAt == null) return;
-    const id = window.setInterval(() => {
-      setElapsedSec(Math.floor((Date.now() - timerStartedAt) / 1000));
-    }, 250);
+    try {
+      const parsed = readBabyCareTimerSlots(localStorage, {
+        babyId,
+        now: Date.now(),
+      });
+      setSlots(parsed?.slots ?? emptyBabyCareTimerSlots(babyId));
+    } catch {
+      setSlots(emptyBabyCareTimerSlots(babyId));
+    }
+  }, [babyId]);
+
+  useEffect(() => {
+    if (!slots?.breast) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [timerRunning, timerStartedAt]);
+  }, [slots?.breast]);
 
-  function startTimer() {
-    if (isBabyFeedStartDisabled(timerRunning)) return;
-    setElapsedSec(0);
-    setDurationSec("");
-    setTimerStartedAt(Date.now());
-    setTimerRunning(true);
+  useEffect(() => {
+    const timerHost = doneTimerRef.current;
+    return () => timerHost.dispose();
+  }, []);
+
+  function writeSlots(next: BabyCareTimerSlots) {
+    setSlots(next);
+    try {
+      writeBabyCareTimerSlots(localStorage, next);
+    } catch {
+      /* ignore */
+    }
   }
 
-  function endTimer() {
-    if (!timerRunning) return;
-    const sec = Math.max(1, elapsedSec);
-    setTimerRunning(false);
-    setDurationSec(String(sec));
-    setTimerStartedAt(null);
-    setElapsedSec(sec);
-  }
-
-  function log(method: (typeof METHODS)[number]["method"]) {
-    const duration =
-      durationSec.trim() !== ""
-        ? Number(durationSec)
-        : timerRunning && elapsedSec > 0
-          ? elapsedSec
-          : undefined;
+  function pressBreastSide(side: BabyBreastCareSide) {
+    if (pending) return;
+    const breast = slots?.breast;
+    const running = breast?.side === side;
+    if (!running) {
+      writeSlots(
+        withCareTimerSide(slots, {
+          babyId,
+          side,
+          now: Date.now(),
+        }),
+      );
+      return;
+    }
+    const startedAt = breast!.startedAt;
+    const input = babyCareTimerStopFeedInput(side, startedAt, Date.now());
     startTransition(async () => {
       await runBabyCareSaveThenNavigate({
         mutate: async () => {
-          await babyGraphQLRequest(MUTATION, {
-            input: {
-              method,
-              ...(amountMl ? { amountMl: Number(amountMl) } : {}),
-              ...(duration != null && Number.isFinite(duration) && duration > 0
-                ? { durationSec: Math.floor(duration) }
-                : {}),
-            },
-          });
+          await babyGraphQLRequest(MUTATION, { input });
         },
         onSuccess: async () => {
-          setTimerRunning(false);
-          setTimerStartedAt(null);
-          setElapsedSec(0);
-          setDurationSec("");
+          writeSlots(
+            withCareTimerSide(slots, {
+              babyId,
+              side: null,
+              now: Date.now(),
+              clearFamily: "breast",
+            }),
+          );
+          const flash = babyHomeBreastDoneSide({
+            stopBreastSession: true,
+            side,
+          });
+          if (flash === "breast_l" || flash === "breast_r") {
+            setDoneSide(flash);
+            doneTimerRef.current.arm(() => setDoneSide(null));
+          }
           await invalidateBabyQueries(queryClient, "care");
           notify.success(t("feed.saved"));
         },
@@ -104,91 +162,131 @@ export function BabyFeedForm() {
         },
         router,
         afterSave: BABY_CARE_AFTER_SAVE.feedMethod,
+        homeNavigateDelayMs: BABY_CARE_DONE_BEFORE_NAV_MS,
       });
     });
   }
 
-  const startDisabled = isBabyFeedStartDisabled(timerRunning, pending);
-  const displaySec = timerRunning ? elapsedSec : Number(durationSec) || 0;
+  function logFormula(ml: number) {
+    if (pending) return;
+    startTransition(async () => {
+      await runBabyCareSaveThenNavigate({
+        mutate: async () => {
+          await babyGraphQLRequest(MUTATION, {
+            input: { method: "formula", amountMl: ml },
+          });
+        },
+        onSuccess: async () => {
+          const flash = babyHomeBottleDoneMl(ml);
+          setFormulaOverride(null);
+          setFormulaFromCustom(false);
+          if (flash != null) {
+            setDoneMl(flash);
+            doneTimerRef.current.arm(() => setDoneMl(null));
+          }
+          await invalidateBabyQueries(queryClient, "care");
+          notify.success(t("feed.saved"));
+        },
+        onError: (e) => {
+          notify.error(e instanceof Error ? e.message : t("common.failed"));
+        },
+        router,
+        afterSave: BABY_CARE_AFTER_SAVE.feedMethod,
+        homeNavigateDelayMs: BABY_CARE_DONE_BEFORE_NAV_MS,
+      });
+    });
+  }
+
+  const breast = slots?.breast ?? null;
+  const breastElapsed = breast
+    ? formatBabyDurationTimer(babyBreastElapsedSec(breast.startedAt, nowMs))
+    : undefined;
+  const formulaCustomMl = babyHomeCustomInitialMl({
+    formulaOverride,
+    birthDate: null,
+    suggestedMl: formulaDefault,
+    firstChipMl: bottleChipMls[0] ?? null,
+  });
 
   return (
     <div
-      className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK, "fx-fade-in")}
+      className={cn(SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN, "fx-fade-in")}
+      data-testid="baby-feed-form"
     >
       <div
-        className="grid gap-3"
+        className="grid items-stretch gap-3"
         style={{
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 10rem), 1fr))",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(min(100%, 8rem), 1fr))",
         }}
+        data-testid="baby-feed-timer-chips"
+        data-skeleton-marker="feed-timer-chips"
       >
-        <Button
-          type="button"
-          size="lg"
-          className="min-h-14"
-          disabled={startDisabled}
-          onClick={startTimer}
-        >
-          {t("feed.timerStart")}
-        </Button>
-        <Button
-          type="button"
-          size="lg"
-          variant="secondary"
-          className="min-h-14"
-          disabled={!timerRunning || pending}
-          onClick={endTimer}
-        >
-          {t("feed.timerStop")}
-        </Button>
+        <BabyBreastSidePair
+          asContents
+          sides={[
+            {
+              side: "breast_l",
+              "data-testid": "baby-feed-method-breast_l",
+              label: t("feed.breastL"),
+              running: breast?.side === "breast_l",
+              elapsedText:
+                breast?.side === "breast_l" ? breastElapsed : undefined,
+              tapToStart: t("home.tapToStart"),
+              tapToStop: t("home.tapToStop"),
+              doneText: doneSide === "breast_l" ? t("home.done") : null,
+              disabled: pending,
+              onPress: () => pressBreastSide("breast_l"),
+            },
+            {
+              side: "breast_r",
+              "data-testid": "baby-feed-method-breast_r",
+              label: t("feed.breastR"),
+              running: breast?.side === "breast_r",
+              elapsedText:
+                breast?.side === "breast_r" ? breastElapsed : undefined,
+              tapToStart: t("home.tapToStart"),
+              tapToStop: t("home.tapToStop"),
+              doneText: doneSide === "breast_r" ? t("home.done") : null,
+              disabled: pending,
+              onPress: () => pressBreastSide("breast_r"),
+            },
+          ]}
+        />
+        <BabyMlChipSection
+          data-section="formula"
+          mls={bottleChipMls}
+          selectedMl={selectedBottleMl}
+          doneFlash={doneMl != null}
+          doneText={t("home.logged")}
+          disabled={pending}
+          customSelected={formulaFromCustom && formulaOverride != null}
+          className="h-full"
+          groupLabel={t("feed.formula")}
+          onSelectMl={(ml) => {
+            setFormulaFromCustom(false);
+            setFormulaOverride(ml);
+            logFormula(ml);
+          }}
+          onCustom={() => {
+            if (pending) return;
+            setCustomOpen(true);
+          }}
+          t={t}
+        />
       </div>
 
-      {(timerRunning || displaySec > 0) && (
-        <p className="text-lg font-medium text-foreground tabular-nums" aria-live="polite">
-          {formatBabyDurationCompact(displaySec)}
-          {timerRunning ? ` · ${t("feed.timerRunning")}` : null}
-        </p>
-      )}
-
-      <div
-        className="grid gap-3"
-        style={{
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 10rem), 1fr))",
+      <BabyCustomMlModal
+        open={customOpen}
+        initialMl={formulaCustomMl}
+        onClose={() => setCustomOpen(false)}
+        onConfirm={(ml) => {
+          setFormulaOverride(ml);
+          setFormulaFromCustom(true);
+          setCustomOpen(false);
         }}
-      >
-        {METHODS.map((m) => (
-          <Button
-            key={m.method}
-            type="button"
-            size="lg"
-            className={cn("min-h-14")}
-            disabled={pending}
-            onClick={() => log(m.method)}
-          >
-            {t(m.key)}
-          </Button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap items-end gap-3">
-        <Field label={t("feed.amountMl")} className="max-w-xs">
-          <Input
-            type="number"
-            inputMode="decimal"
-            value={amountMl}
-            onChange={(e) => setAmountMl(e.target.value)}
-          />
-        </Field>
-        <Field label={t("feed.durationSec")} className="max-w-xs">
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={1}
-            value={timerRunning ? String(elapsedSec) : durationSec}
-            onChange={(e) => setDurationSec(e.target.value)}
-            disabled={timerRunning}
-          />
-        </Field>
-      </div>
+        t={t}
+      />
     </div>
   );
 }

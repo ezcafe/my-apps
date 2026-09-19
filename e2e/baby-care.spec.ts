@@ -72,6 +72,7 @@ async function fulfillBabyInsightsGraphql(
     timeline?: unknown;
     growth?: unknown;
     series?: unknown;
+    vaccines?: unknown;
   } = {},
 ) {
   const body = route.request().postData() ?? "";
@@ -128,6 +129,25 @@ async function fulfillBabyInsightsGraphql(
     });
     return;
   }
+  // Activities ledger also loads vaccines; mock empty so continue() never 401s.
+  if (
+    (/BabyVaccines\b|babyVaccines/.test(body) ||
+      /query\s+BabyVaccines\b/.test(body)) &&
+    !/createBabyVaccine|CreateBabyVaccine|updateBabyVaccine|UpdateBabyVaccine|deleteBabyVaccine|DeleteBabyVaccine/.test(
+      body,
+    )
+  ) {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: handlers.vaccines ?? {
+          babyVaccines: { items: [], nextCursor: null },
+        },
+      }),
+    });
+    return;
+  }
   await route.continue();
 }
 
@@ -150,12 +170,12 @@ function boundsMatch(
   return actual.from === expected.from && actual.to === expected.to;
 }
 
-/** Expand deferred Activity log; returns the open panel locator. */
-async function openActivityLog(page: Page) {
-  await page.getByTestId("baby-activity-log").click();
-  const panel = page.getByTestId("baby-activity-log-panel");
-  await expect(panel).toBeVisible();
-  return panel;
+/** Open Activities ledger (dedicated page — no expand gate). */
+async function openActivitiesLedger(page: Page) {
+  await page.goto("/baby/activities");
+  const ledger = page.getByTestId("baby-activities-ledger");
+  await expect(ledger).toBeVisible({ timeout: 15_000 });
+  return ledger;
 }
 
 /** Custom Checkbox uses sr-only input + visual span; force avoids span interception. */
@@ -265,8 +285,13 @@ test.describe("Baby Care smoke", () => {
     const status = page.getByTestId("baby-home-status");
     await expect(status).toBeVisible();
     await expect(status.getByText(/last feed|lần bú/i).first()).toBeVisible();
-    await expect(status.getByText(/last nap|giấc ngủ/i).first()).toBeVisible();
-    await expect(status.getByText(/last diaper|đổi tã/i).first()).toBeVisible();
+    // Empty nap copy is "No nap logged yet" / "Chưa ghi giấc ngủ" (not "Last nap").
+    await expect(
+      status.getByText(/nap|giấc ngủ/i).first(),
+    ).toBeVisible();
+    await expect(
+      status.getByText(/last diaper|đổi tã|no diaper|chưa ghi lần đổi tã/i).first(),
+    ).toBeVisible();
     // Option B: no link CTAs on home — forms live in the hamburger.
     await expect(
       page.getByRole("main").getByRole("link", { name: /log feed|ghi bú/i }),
@@ -313,8 +338,8 @@ test.describe("Baby Care smoke", () => {
     await expect(bottleSave(page)).toBeVisible();
     await diaperSave(page).click();
     await expect(
-      page.getByRole("status").filter({ hasText: /saved diaper|đã lưu tã/i }),
-    ).toBeVisible();
+      page.locator('[data-diaper-kind="wet"]'),
+    ).toContainText(/Done|Xong/);
     expect(mocks.quickCareCount()).toBe(1);
     mocks.assertNoLegacyEventIdShape();
   });
@@ -353,6 +378,24 @@ test.describe("Baby Care smoke", () => {
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: /mixed|hỗn hợp/i }),
+    ).toBeVisible();
+  });
+
+  test("hamburger Activities opens /baby/activities", async ({ page }) => {
+    await gotoBabyHome(page);
+    await openAppMenu(page);
+    // Scope to the open menu panel so we do not hit a stale/home control.
+    const activitiesLink = page
+      .getByRole("dialog")
+      .getByRole("navigation", { name: /Baby Care sections|mục Chăm bé/i })
+      .getByRole("link", { name: /^activities$|^hoạt động$/i });
+    await expect(activitiesLink).toBeVisible();
+    await Promise.all([
+      page.waitForURL(/\/baby\/activities/),
+      activitiesLink.click(),
+    ]);
+    await expect(
+      page.getByRole("heading", { name: /activities|hoạt động/i }),
     ).toBeVisible();
   });
 
@@ -403,12 +446,18 @@ test.describe("Baby Care smoke", () => {
     await expect(page.getByTestId("baby-hydration-chart")).toBeVisible();
     await expect(page.getByTestId("baby-night-rest-chart")).toBeVisible();
     await expect(page.getByTestId("baby-more-insights")).toBeVisible();
-    await expect(page.getByTestId("baby-activity-log")).toBeVisible();
+    await expect(page.getByTestId("baby-activity-log")).toHaveCount(0);
+    await expect(page.getByTestId("baby-insights-activities-cue")).toBeVisible();
+    await expect(
+      page.getByTestId("baby-insights-activities-cue").getByRole("link", {
+        name: /open activities|mở hoạt động/i,
+      }),
+    ).toHaveAttribute("href", "/baby/activities");
     // KPI strips and legacy charts stay behind More insights.
     await expect(page.getByTestId("baby-count-kpis")).toHaveCount(0);
     await expect(page.getByTestId("baby-insights-charts")).toHaveCount(0);
 
-    // View-only: no Measure editors on Insights (writes live on /baby/measure).
+    // View-only: no Growth editors on Insights (writes live on /baby/growth).
     await expect(
       page.getByRole("button", { name: /add entry|thêm mục/i }),
     ).toHaveCount(0);
@@ -420,7 +469,7 @@ test.describe("Baby Care smoke", () => {
     ).toHaveCount(0);
   });
 
-  test("insights shared chips apply to Activity log", async ({ page }) => {
+  test("activities shared chips apply to ledger", async ({ page }) => {
     // Mock GraphQL so chip Apply effects are deterministic without a write session.
     await page.route("**/api/graphql/baby", async (route) => {
       const body = route.request().postData() ?? "";
@@ -517,14 +566,10 @@ test.describe("Baby Care smoke", () => {
       await route.continue();
     });
 
-    await page.goto("/baby/insights");
+    const panel = await openActivitiesLedger(page);
     await expect(
-      page.getByRole("heading", { name: /insights|thống kê/i }),
+      page.getByRole("heading", { name: /activities|hoạt động/i }),
     ).toBeVisible();
-
-    // Collapsed by default — expand unified Activity log.
-    await expect(page.getByTestId("baby-activity-log-panel")).toHaveCount(0);
-    const panel = await openActivityLog(page);
 
     // Unfiltered: care + growth rows in one table (+ mobile cards).
     const table = panel.getByRole("table");
@@ -606,7 +651,7 @@ test.describe("Baby Care smoke", () => {
     // Diaper row may use summary or chip title — sleep/feed gone is the contract.
   });
 
-  test("insights defaults to last 7 days, empty is non-error, Reset restores default", async ({
+  test("activities defaults to last 7 days, empty is non-error, Reset restores default", async ({
     page,
   }) => {
     const timelineBounds: InsightsQueryBounds[] = [];
@@ -658,12 +703,22 @@ test.describe("Baby Care smoke", () => {
         });
         return;
       }
+      if (/BabyVaccines\b|babyVaccines/.test(body)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyVaccines: { items: [], nextCursor: null } },
+          }),
+        });
+        return;
+      }
       await route.continue();
     });
 
-    await page.goto("/baby/insights");
+    await page.goto("/baby/activities");
     await expect(
-      page.getByRole("heading", { name: /insights|thống kê/i }),
+      page.getByRole("heading", { name: /activities|hoạt động/i }),
     ).toBeVisible();
 
     const filters = page.getByRole("region", { name: /insights filters/i });
@@ -696,9 +751,8 @@ test.describe("Baby Care smoke", () => {
     expect(periodParts[1]?.trim()).toBeTruthy();
     expect(periodParts[0]?.trim()).not.toBe(periodParts[1]?.trim());
 
-    // Lists (timeline/growth) load after Activity log expand — not on Insights open.
-    await page.getByTestId("baby-activity-log").click();
-    const activityPanel = page.getByTestId("baby-activity-log-panel");
+    // Lists load on Activities mount (no expand gate).
+    const activityPanel = page.getByTestId("baby-activities-ledger");
     await expect(activityPanel).toBeVisible();
 
     // GraphQL list loads use default last-7-days inclusive bounds.
@@ -709,7 +763,7 @@ test.describe("Baby Care smoke", () => {
       .poll(() => growthBounds.some((b) => boundsMatch(b, defaultBounds)))
       .toBe(true);
 
-    // Empty range: muted Activity log copy (unified list), not section error.
+    // Empty range: muted Activities empty copy, not section error.
     const activityEmpty = activityPanel.getByText(
       /no care or measurements in this range|không có chăm sóc hoặc cân đo/i,
     );
@@ -717,30 +771,42 @@ test.describe("Baby Care smoke", () => {
     await expect(activityEmpty).toHaveClass(/text-muted/);
     await expect(
       activityPanel.getByText(
-        /could not load timeline|không tải được dòng thời gian|could not load growth|không tải được cân đo/i,
+        /could not load activities|không tải được hoạt động|could not load growth|không tải được cân đo/i,
       ),
     ).toHaveCount(0);
     await expect(activityPanel.getByRole("table")).toHaveCount(0);
 
-    // Re-open filters (Activity log click can dismiss the date menu).
-    if (await applyDesktop.isVisible()) {
-      await filters.locator("button[aria-expanded]").first().click();
-    } else {
-      await filters.getByRole("button", { name: /^filter/i }).click();
+    // Re-open only if the date panel closed (outside click). A second
+    // trigger click toggles it shut and hides Yesterday radios.
+    // Prefer aria-expanded triggers over Apply label — Apply briefly becomes
+    // "Loading…" during transition and would falsely look like mobile chrome.
+    async function ensureDateFiltersOpen() {
+      if (await fromDate.isVisible()) return;
+      const dateTrigger = filters.locator("button[aria-expanded]").first();
+      if (await dateTrigger.isVisible()) {
+        await dateTrigger.click();
+      } else {
+        await filters.getByRole("button", { name: /^filter/i }).click();
+      }
+      await expect(fromDate).toBeVisible();
     }
+    await ensureDateFiltersOpen();
 
-    const desktopChrome = await applyDesktop.isVisible();
+    const desktopChrome = await filters
+      .locator("button[aria-expanded]")
+      .first()
+      .isVisible();
     await fromDate.getByRole("radio", { name: /^yesterday$/i }).click();
     await toDate.getByRole("radio", { name: /^yesterday$/i }).click();
     if (desktopChrome) {
       await applyDesktop.click();
       // Apply closes the date menu — reopen to read radiogroups.
-      await filters.locator("button[aria-expanded]").first().click();
+      await ensureDateFiltersOpen();
     } else {
       await page
         .getByRole("button", { name: /apply filters|áp dụng bộ lọc/i })
         .click();
-      await filters.getByRole("button", { name: /^filter/i }).click();
+      await ensureDateFiltersOpen();
     }
 
     await expect(
@@ -760,12 +826,12 @@ test.describe("Baby Care smoke", () => {
     const growthCountBeforeReset = growthBounds.length;
 
     if (desktopChrome) {
+      // Reset label stays stable; Apply may still say Loading… after prior Apply.
       await filters.getByRole("button", { name: /^reset$|^đặt lại$/i }).click();
-      await filters.locator("button[aria-expanded]").first().click();
     } else {
       await page.getByRole("button", { name: /^reset$|^đặt lại$/i }).click();
-      await filters.getByRole("button", { name: /^filter/i }).click();
     }
+    await ensureDateFiltersOpen();
 
     await expect(fromDate.getByRole("radio", { name: /^today$/i })).not.toBeChecked();
     await expect(
@@ -943,7 +1009,7 @@ test.describe("Baby Care smoke", () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 
-  test("insights Activity log uses table chrome", async ({ page }) => {
+  test("activities ledger uses table chrome", async ({ page }) => {
     await page.route("**/api/graphql/baby", async (route) => {
       const body = route.request().postData() ?? "";
       if (/BabySyncConfig|babySyncConfig/.test(body)) {
@@ -1021,11 +1087,7 @@ test.describe("Baby Care smoke", () => {
       await route.continue();
     });
 
-    await page.goto("/baby/insights");
-    await expect(page.getByTestId("baby-activity-log")).toBeVisible();
-    await expect(page.getByTestId("baby-activity-log-panel")).toHaveCount(0);
-
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
 
     // One merged table (Event / Recorded) + mobile card rows.
     const table = panel.getByRole("table");
@@ -1054,7 +1116,7 @@ test.describe("Baby Care smoke", () => {
     ).toBeVisible();
   });
 
-  test("insights Activity log show more and load more still work", async ({
+  test("activities show more and load more still work", async ({
     page,
   }) => {
     // DOM cap is 100; one extra row unlocks Show more. nextCursor unlocks Load more.
@@ -1139,8 +1201,7 @@ test.describe("Baby Care smoke", () => {
       await route.continue();
     });
 
-    await page.goto("/baby/insights");
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
 
     const activityTable = panel.getByRole("table");
     const activityCards = panel.locator("ul > li");
@@ -1171,7 +1232,7 @@ test.describe("Baby Care smoke", () => {
     await expect(activityTable.getByRole("row")).toHaveCount(pageOneCount + 2);
   });
 
-  test("insights loading skeleton matches collapsed Activity log", async ({
+  test("insights loading skeleton has cue + More insights (no Activity log)", async ({
     page,
   }) => {
     // Hold series (+ lists) so the client loading skeleton stays visible long enough.
@@ -1219,7 +1280,7 @@ test.describe("Baby Care smoke", () => {
     const nav = page.goto("/baby/insights");
     const loading = page.getByRole("status", { name: /loading insights/i });
     await expect(loading).toBeVisible({ timeout: 15_000 });
-    // Collapsed Activity log parity: no list tables/cards; two deferred toggles.
+    // No ledger tables; cue placeholder + one More insights toggle.
     await expect(loading.locator("table")).toHaveCount(0);
     await expect(
       loading.locator(
@@ -1227,7 +1288,7 @@ test.describe("Baby Care smoke", () => {
       ),
     ).toHaveCount(0);
     await expect(loading.locator("ul.divide-y")).toHaveCount(0);
-    await expect(loading.locator(".h-12.w-40")).toHaveCount(2);
+    await expect(loading.locator(".h-12.w-40")).toHaveCount(1);
 
     releaseLists();
     await nav;
@@ -1239,7 +1300,7 @@ test.describe("Baby Care smoke", () => {
     ).toHaveCount(0);
   });
 
-  test("insights Activity log expand shows selectable list skeleton while loading", async ({
+  test("activities page skeleton then empty ledger while loading", async ({
     page,
   }) => {
     let releaseLists!: () => void;
@@ -1278,33 +1339,41 @@ test.describe("Baby Care smoke", () => {
         });
         return;
       }
+      if (/BabyVaccines\b|babyVaccines/.test(body)) {
+        await listsGate;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyVaccines: { items: [], nextCursor: null } },
+          }),
+        });
+        return;
+      }
       await route.continue();
     });
 
-    await page.goto("/baby/insights");
-    await expect(page.getByTestId("baby-activity-log")).toBeVisible({
-      timeout: 15_000,
-    });
-    await page.getByTestId("baby-activity-log").click();
-    const panel = page.getByTestId("baby-activity-log-panel");
-    await expect(panel).toBeVisible();
-
-    const loading = panel.getByRole("status", { name: /loading|đang tải/i });
-    await expect(loading).toBeVisible();
-    // Selectable chrome: table + checkbox-sized placeholders (CLS cover).
+    const nav = page.goto("/baby/activities");
+    const loading = page.getByRole("status", { name: /loading activities/i });
+    await expect(loading).toBeVisible({ timeout: 15_000 });
+    // Filters → period → ledger placeholders
+    await expect(loading.locator('[data-skeleton="activities-filters"]')).toHaveCount(1);
+    await expect(loading.locator('[data-skeleton="activities-period"]')).toHaveCount(1);
+    await expect(loading.locator('[data-skeleton="activities-ledger"]')).toHaveCount(1);
     await expect(loading.locator("table")).toHaveCount(1);
-    await expect(loading.locator(".size-4").first()).toBeVisible();
 
     releaseLists();
+    await nav;
     await expect(loading).toHaveCount(0);
     await expect(
-      panel.getByText(
+      page.getByTestId("baby-activities-ledger").getByText(
         /no care or measurements|không có chăm sóc hoặc cân đo/i,
       ),
     ).toBeVisible();
   });
 
-  test("insights Activity log error UI stays clear", async ({ page }) => {
+  test("activities load error shows alert and retry", async ({ page }) => {
+    let failLists = true;
     await page.route("**/api/graphql/baby", async (route) => {
       const body = route.request().postData() ?? "";
       if (/BabySyncConfig|babySyncConfig/.test(body)) {
@@ -1312,21 +1381,79 @@ test.describe("Baby Care smoke", () => {
         return;
       }
       if (/BabyTimeline|babyTimeline/.test(body)) {
+        if (failLists) {
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              errors: [{ message: "e2e forced timeline error" }],
+            }),
+          });
+          return;
+        }
         await route.fulfill({
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
-            errors: [{ message: "e2e forced timeline error" }],
+            data: {
+              babyTimeline: {
+                items: [
+                  {
+                    id: "e2e-retry-feed",
+                    kind: "care",
+                    type: "feed",
+                    at: "2026-09-14T10:00:00.000Z",
+                    endedAt: null,
+                    summary: "E2E retry bottle",
+                    source: "web",
+                    cursor: "c-retry",
+                  },
+                ],
+                nextCursor: null,
+              },
+            },
           }),
         });
         return;
       }
       if (/BabyGrowth|babyGrowthEntries/.test(body)) {
+        if (failLists) {
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              errors: [{ message: "e2e forced growth error" }],
+            }),
+          });
+          return;
+        }
         await route.fulfill({
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
-            errors: [{ message: "e2e forced growth error" }],
+            data: {
+              babyGrowthEntries: { items: [], nextCursor: null },
+            },
+          }),
+        });
+        return;
+      }
+      if (/BabyVaccines\b|babyVaccines/.test(body)) {
+        if (failLists) {
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              errors: [{ message: "e2e forced vaccines error" }],
+            }),
+          });
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: { babyVaccines: { items: [], nextCursor: null } },
           }),
         });
         return;
@@ -1344,17 +1471,17 @@ test.describe("Baby Care smoke", () => {
       await route.continue();
     });
 
-    await page.goto("/baby/insights");
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
 
-    // Single unified error string (timeline.loadError), not dual Growth/Timeline copy.
-    const loadError = panel.getByText(
-      /could not load timeline|không tải được dòng thời gian/i,
-    );
+    const loadError = panel.getByRole("alert").filter({
+      hasText: /could not load activities|không tải được hoạt động/i,
+    });
     await expect(loadError).toBeVisible();
     await expect(loadError).toHaveCount(1);
-    await expect(loadError).toHaveClass(/text-destructive/);
-    // Error path is not the muted empty Activity log copy.
+    const retryBtn = loadError.getByRole("button", {
+      name: /^retry$|^thử lại$/i,
+    });
+    await expect(retryBtn).toBeVisible();
     await expect(
       panel.getByText(
         /no care or measurements in this range|không có chăm sóc hoặc cân đo/i,
@@ -1364,9 +1491,18 @@ test.describe("Baby Care smoke", () => {
       panel.getByText(/could not load growth|không tải được cân đo/i),
     ).toHaveCount(0);
     await expect(panel.getByRole("table")).toHaveCount(0);
+
+    failLists = false;
+    await retryBtn.click();
+    await expect(loadError).toHaveCount(0);
+    await expect(panel.getByRole("table")).toBeVisible();
+    // Table + card chrome both render the summary — scope to the table cell.
+    await expect(
+      panel.getByRole("table").getByText(/E2E retry bottle/i),
+    ).toBeVisible();
   });
 
-  test("insights Activity log stays usable in light and dark", async ({
+  test("activities ledger stays usable in light and dark", async ({
     page,
   }) => {
     await page.route("**/api/graphql/baby", async (route) => {
@@ -1431,13 +1567,13 @@ test.describe("Baby Care smoke", () => {
 
     const html = page.locator("html");
 
-    await page.goto("/baby/insights");
+    await page.goto("/baby/activities");
     await page.evaluate(() => {
       localStorage.setItem("workspace_theme", "light");
     });
     await page.reload();
     await expect(html).not.toHaveClass(/dark/);
-    const lightPanel = await openActivityLog(page);
+    const lightPanel = await openActivitiesLedger(page);
     const lightTable = lightPanel.getByRole("table");
     await expect(lightTable).toHaveCount(1);
     await expect(lightTable.getByText("E2E theme feed")).toBeVisible();
@@ -1448,7 +1584,7 @@ test.describe("Baby Care smoke", () => {
     });
     await page.reload();
     await expect(html).toHaveClass(/dark/);
-    const darkPanel = await openActivityLog(page);
+    const darkPanel = await openActivitiesLedger(page);
     const darkTable = darkPanel.getByRole("table");
     await expect(darkTable).toHaveCount(1);
     await expect(darkTable.getByText("E2E theme feed")).toBeVisible();
@@ -1457,27 +1593,27 @@ test.describe("Baby Care smoke", () => {
     await expect(darkPanel.locator("ul > li")).toHaveCount(2);
   });
 
-  test("old growth and timeline URLs redirect to insights", async ({
+  test("old measure URL redirects to growth; timeline still goes to insights", async ({
     page,
   }) => {
-    await page.goto("/baby/growth");
-    await expect(page).toHaveURL(/\/baby\/insights/);
+    await page.goto("/baby/measure");
+    await expect(page).toHaveURL(/\/baby\/growth/);
     await page.goto("/baby/timeline");
     await expect(page).toHaveURL(/\/baby\/insights/);
   });
 
-  test("measure page shows title and add form", async ({ page }) => {
+  test("growth page shows title and save form", async ({ page }) => {
     await gotoBabyHome(page);
     await openCareFormFromMenu(
       page,
-      /log measurement|ghi cân đo/i,
-      /\/baby\/measure/,
+      /growth|cân đo/i,
+      /\/baby\/growth/,
     );
     await expect(
-      page.getByRole("heading", { name: /log measurement|ghi cân đo/i }),
+      page.getByRole("heading", { name: /growth|cân đo/i }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /add entry|thêm mục/i }),
+      page.getByTestId("baby-growth-save"),
     ).toBeVisible();
   });
 
@@ -1498,7 +1634,8 @@ test.describe("Baby Care smoke", () => {
     await page.goto("/baby");
     await expect(page.getByRole("heading", { name: "Chăm bé" })).toBeVisible();
     await expect(breastL(page)).toBeVisible();
-    await expect(page.getByText("Trái", { exact: true })).toBeVisible();
+    // Header body also says Trái — scope to the Left breast control.
+    await expect(breastL(page).getByText("Trái", { exact: true })).toBeVisible();
     // Header may include · ~ml · n/N when birth is set.
     await expect(bottleHeader(page)).toContainText("Bình sữa");
 
@@ -1512,7 +1649,7 @@ test.describe("Baby Care smoke", () => {
 
     await page.goto("/baby");
     await expect(page.getByRole("heading", { name: "Baby Care" })).toBeVisible();
-    await expect(page.getByText("Left", { exact: true })).toBeVisible();
+    await expect(breastL(page).getByText("Left", { exact: true })).toBeVisible();
     await expect(bottleHeader(page)).toContainText("Bottle");
   });
 });
@@ -1520,17 +1657,114 @@ test.describe("Baby Care smoke", () => {
 test.describe("Baby Care capture navigate", () => {
   test.skip(!hasAuthStorage, "needs E2E_STORAGE_STATE for GraphQL writes");
 
-  test("feed Start stays; method save lands on home", async ({ page }) => {
+  test("feed timed chip start stays; stop lands on home", async ({ page }) => {
     await page.goto("/baby/feed");
-    await page.getByRole("button", { name: /start timer|bắt đầu đếm/i }).click();
-    await expect(page).toHaveURL(/\/baby\/feed/);
+    const breastL = page.getByTestId("baby-feed-method-breast_l");
     await expect(
-      page.getByRole("button", { name: /start timer|bắt đầu đếm/i }),
-    ).toBeDisabled();
-    await page.getByRole("button", { name: /breast l|ngực trái/i }).click();
+      breastL.getByText(/tap to start|chạm để bắt đầu/i),
+    ).toBeVisible();
+    await breastL.getByRole("button").click();
+    await expect(page).toHaveURL(/\/baby\/feed/);
+    await expect(breastL).toHaveAttribute("data-running", "true");
+    await expect(
+      breastL.getByText(/tap to stop|chạm để dừng/i),
+    ).toBeVisible();
+    await breastL.getByRole("button").click();
     await expect(page).toHaveURL(/\/baby\/?$/);
     await expect(page.getByTestId("baby-home-status")).toBeVisible();
     await expectStatusRowNotEmpty(page, /last feed|lần bú/i);
+  });
+
+  test("pump Pump L stop posts createBabyFeed duration", async ({ page }) => {
+    await page.goto("/baby/pump");
+    const pumpL = page.getByTestId("baby-pump-method-pump_l");
+    await expect(
+      pumpL.getByText(/tap to start|chạm để bắt đầu/i),
+    ).toBeVisible();
+    await pumpL.getByRole("button").click();
+    await expect(page).toHaveURL(/\/baby\/pump/);
+    await expect(pumpL).toHaveAttribute("data-running", "true");
+    await expect(
+      pumpL.getByText(/tap to stop|chạm để dừng/i),
+    ).toBeVisible();
+
+    const createFeed = page.waitForRequest(
+      (req) => {
+        if (!req.url().includes("/api/graphql/baby")) return false;
+        const body = req.postData() ?? "";
+        return /createBabyFeed/i.test(body);
+      },
+      { timeout: 30_000 },
+    );
+    await pumpL.getByRole("button").click();
+    const req = await createFeed;
+    const vars = parseGraphqlVariables(req.postData());
+    const input = vars?.input as
+      | { method?: string; durationSec?: number }
+      | undefined;
+    expect(input?.method).toBe("pump_l");
+    expect(input?.durationSec).toBeGreaterThanOrEqual(1);
+
+    await expect(page).toHaveURL(/\/baby\/?$/);
+    await expect(page.getByTestId("baby-home-status")).toBeVisible();
+  });
+
+  test("pump Pump R stop posts createBabyFeed duration", async ({ page }) => {
+    await page.goto("/baby/pump");
+    const pumpR = page.getByTestId("baby-pump-method-pump_r");
+    await expect(
+      pumpR.getByText(/tap to start|chạm để bắt đầu/i),
+    ).toBeVisible();
+    await pumpR.getByRole("button").click();
+    await expect(page).toHaveURL(/\/baby\/pump/);
+    await expect(pumpR).toHaveAttribute("data-running", "true");
+    await expect(
+      pumpR.getByText(/tap to stop|chạm để dừng/i),
+    ).toBeVisible();
+
+    const createFeed = page.waitForRequest(
+      (req) => {
+        if (!req.url().includes("/api/graphql/baby")) return false;
+        const body = req.postData() ?? "";
+        return /createBabyFeed/i.test(body);
+      },
+      { timeout: 30_000 },
+    );
+    await pumpR.getByRole("button").click();
+    const req = await createFeed;
+    const vars = parseGraphqlVariables(req.postData());
+    const input = vars?.input as
+      | { method?: string; durationSec?: number }
+      | undefined;
+    expect(input?.method).toBe("pump_r");
+    expect(input?.durationSec).toBeGreaterThanOrEqual(1);
+
+    await expect(page).toHaveURL(/\/baby\/?$/);
+    await expect(page.getByTestId("baby-home-status")).toBeVisible();
+  });
+
+  test("pump amount chip posts createBabyFeed pump + ml", async ({ page }) => {
+    await page.goto("/baby/pump");
+    await expect(page.getByTestId("baby-pump-form")).toBeVisible();
+
+    const createFeed = page.waitForRequest(
+      (req) => {
+        if (!req.url().includes("/api/graphql/baby")) return false;
+        const body = req.postData() ?? "";
+        return /createBabyFeed/i.test(body);
+      },
+      { timeout: 30_000 },
+    );
+    await page.locator('[data-bottle-ml="60"], [data-bottle-ml="90"]').first().click();
+    const req = await createFeed;
+    const vars = parseGraphqlVariables(req.postData());
+    const input = vars?.input as
+      | { method?: string; amountMl?: number }
+      | undefined;
+    expect(input?.method).toBe("pump");
+    expect(input?.amountMl).toBeGreaterThan(0);
+
+    await expect(page).toHaveURL(/\/baby\/?$/);
   });
 
   test("diaper save lands on home", async ({ page }) => {
@@ -1541,14 +1775,68 @@ test.describe("Baby Care capture navigate", () => {
     await expectStatusRowNotEmpty(page, /last diaper|đổi tã/i);
   });
 
+  test("diaper dirty opens sheet then save lands on home", async ({ page }) => {
+    await page.goto("/baby/diaper");
+    await expect(page.getByTestId("baby-diaper-form")).toBeVisible();
+    await expect(page.locator('[data-layout="diaper-kind-2x2"]')).toBeVisible();
+
+    await page.locator('[data-diaper-kind="dirty"]').click();
+    const saveDiaper = page.getByRole("button", {
+      name: /save diaper|lưu tã/i,
+    });
+    await expect(saveDiaper).toBeVisible();
+
+    const createDiaper = page.waitForRequest(
+      (req) => {
+        if (!req.url().includes("/api/graphql/baby")) return false;
+        const body = req.postData() ?? "";
+        return /createBabyDiaper/i.test(body);
+      },
+      { timeout: 30_000 },
+    );
+    await saveDiaper.click();
+    const req = await createDiaper;
+    const vars = parseGraphqlVariables(req.postData());
+    const input = vars?.input as { kind?: string } | undefined;
+    expect(input?.kind).toBe("dirty");
+
+    await expect(page).toHaveURL(/\/baby\/?$/);
+    await expect(page.getByTestId("baby-home-status")).toBeVisible();
+  });
+
+  test("feed formula chip posts createBabyFeed formula + ml", async ({
+    page,
+  }) => {
+    await page.goto("/baby/feed");
+    await expect(page.getByTestId("baby-feed-form")).toBeVisible();
+
+    const createFeed = page.waitForRequest(
+      (req) => {
+        if (!req.url().includes("/api/graphql/baby")) return false;
+        const body = req.postData() ?? "";
+        return /createBabyFeed/i.test(body);
+      },
+      { timeout: 30_000 },
+    );
+    await page
+      .locator('[data-bottle-ml="60"], [data-bottle-ml="90"]')
+      .first()
+      .click();
+    const req = await createFeed;
+    const vars = parseGraphqlVariables(req.postData());
+    const input = vars?.input as
+      | { method?: string; amountMl?: number }
+      | undefined;
+    expect(input?.method).toBe("formula");
+    expect(input?.amountMl).toBeGreaterThan(0);
+
+    await expect(page).toHaveURL(/\/baby\/?$/);
+  });
+
   test("sleep Start stays; End lands on home", async ({ page }) => {
-    const startBtn = page.getByRole("button", {
-      name: /start nap|bắt đầu ngủ/i,
-    });
-    const endBtn = page.getByRole("button", {
-      name: /end nap|kết thúc ngủ/i,
-    });
     const sleepForm = page.getByTestId("baby-sleep-form");
+    const startChip = () => page.getByTestId("baby-sleep-start");
+    const endChip = () => page.getByTestId("baby-sleep-end");
 
     async function gotoSleepReady() {
       const openSleepRes = page.waitForResponse(
@@ -1562,7 +1850,7 @@ test.describe("Baby Care capture navigate", () => {
       await page.goto("/baby/sleep");
       await expect(sleepForm).toBeVisible({ timeout: 60_000 });
       await openSleepRes;
-      // Open-check starts pending (both disabled); wait until React clears it.
+      // Open-check starts pending (chip disabled); wait until React clears it.
       await expect(sleepForm).toHaveAttribute("data-check-pending", "false", {
         timeout: 30_000,
       });
@@ -1577,46 +1865,264 @@ test.describe("Baby Care capture navigate", () => {
 
     await gotoSleepReady();
     // Clear leftover open nap from a prior run before asserting Start stay.
-    if (await endBtn.isEnabled()) {
-      await endBtn.click();
+    if (await endChip().isVisible().catch(() => false)) {
+      await endChip().getByRole("button").click();
       await expect(page).toHaveURL(/\/baby\/?$/);
       await gotoSleepReady();
     }
-    await expect(startBtn).toBeEnabled();
+    await expect(startChip()).toBeVisible();
+    await expect(
+      startChip().getByText(/tap to start|chạm để bắt đầu/i),
+    ).toBeVisible();
+    await expect(startChip().getByRole("button")).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
 
-    await startBtn.click();
+    await startChip().getByRole("button").click();
     await expect(page).toHaveURL(/\/baby\/sleep/);
-    await expect(startBtn).toBeDisabled();
-    await expect(endBtn).toBeEnabled();
+    await expect(endChip()).toBeVisible();
+    await expect(
+      endChip().getByText(/tap to stop|chạm để dừng/i),
+    ).toBeVisible();
+    await expect(page.getByTestId("baby-sleep-start")).toHaveCount(0);
 
-    await endBtn.click();
+    await endChip().getByRole("button").click();
+    // Done flash paints before home navigate (BABY_CARE_DONE_BEFORE_NAV_MS).
+    const sleepChip = page.getByTestId(/baby-sleep-(start|end)/);
+    await expect(sleepChip).toHaveAttribute("data-done-flash", "true", {
+      timeout: 10_000,
+    });
+    await expect(sleepChip).toContainText(/Done|Xong/);
     await expect(page).toHaveURL(/\/baby\/?$/);
     await expect(page.getByTestId("baby-home-status")).toBeVisible();
   });
 
-  test("vaccine create shows in list", async ({ page }) => {
-    await page.goto("/baby/vaccines");
-    await expect(page.getByTestId("baby-vaccines-page")).toBeVisible();
-    await page.getByLabel(/vaccine name|tên vắc-xin/i).fill("Hexaxim");
+  test("vaccine create via Growth shows on Activities and stays on Growth", async ({
+    page,
+  }) => {
+    const unique = `Hexa-${Date.now()}`;
+    await page.goto("/baby/growth?kind=vaccine");
+    await expect(page.getByTestId("baby-growth-page")).toBeVisible();
+    await expect(
+      page.getByRole("radio", { name: /^vaccine$|^vắc-xin$/i }),
+    ).toHaveAttribute("aria-checked", "true");
+    await page.getByTestId("baby-vaccine-name").fill(unique);
     await page.getByRole("radio", { name: /first|mũi 1/i }).click();
-    await page.getByRole("button", { name: /log vaccine|ghi vắc-xin/i }).click();
-    await expect(page.getByTestId("baby-vaccine-row").first()).toContainText(
-      /Hexaxim/i,
-    );
+    await page.getByTestId("baby-vaccine-save").click();
+    await expect(page).toHaveURL(/\/baby\/growth/);
+    await expect(
+      page.getByRole("radio", { name: /weight|cân/i }),
+    ).toHaveAttribute("aria-checked", "true");
+
+    await page.goto("/baby/activities");
+    await expect(page.getByTestId("baby-activities-page")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.getByText(new RegExp(unique, "i")).first(),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
-  test("measure chips visible; save lands on home", async ({ page }) => {
-    await page.goto("/baby/measure");
-    await expect(page.getByTestId("baby-measure-kind-chips")).toBeVisible();
+  test("vaccine edit and delete from Activities", async ({ page }) => {
+    const unique = `Hexa-${Date.now()}`;
+    await page.goto("/baby/growth?kind=vaccine");
+    await expect(page.getByTestId("baby-growth-page")).toBeVisible();
+    await page.getByTestId("baby-vaccine-name").fill(unique);
+    await page.getByRole("radio", { name: /first|mũi 1/i }).click();
+    await page.getByTestId("baby-vaccine-save").click();
+    await expect(page).toHaveURL(/\/baby\/growth/);
+
+    await page.goto("/baby/activities");
+    await expect(page.getByTestId("baby-activities-page")).toBeVisible({
+      timeout: 15_000,
+    });
+    const rowText = page.getByText(new RegExp(unique, "i")).first();
+    await expect(rowText).toBeVisible({ timeout: 15_000 });
+    await rowText
+      .locator("xpath=ancestor::tr | ancestor::li")
+      .first()
+      .getByRole("button", { name: /^edit$|^sửa$/i })
+      .click();
+
+    const edited = `${unique}-edited`;
+    await page.locator('input[name="name"]').fill(edited);
+    await page.locator('select[name="dose"]').selectOption("second");
+    await page.getByRole("button", { name: /^save$|^lưu$/i }).click();
+    await expect(page.getByText(new RegExp(edited, "i")).first()).toBeVisible({
+      timeout: 15_000,
+    });
+
+    await page
+      .getByText(new RegExp(edited, "i"))
+      .first()
+      .locator("xpath=ancestor::tr | ancestor::li")
+      .first()
+      .getByRole("button", { name: /^edit$|^sửa$/i })
+      .click();
+    await page.getByRole("button", { name: /^delete$|^xóa$/i }).click();
+    await page
+      .getByRole("button", {
+        name: /confirm delete|xác nhận xóa|delete forever|xóa vĩnh viễn/i,
+      })
+      .click();
+    await expect(page.getByText(new RegExp(edited, "i"))).toHaveCount(0);
+  });
+
+  test("growth chips visible; save stays on Growth and resets to Weight", async ({
+    page,
+  }) => {
+    await page.goto("/baby/growth");
+    await expect(page.getByTestId("baby-growth-kind-chips")).toBeVisible();
+    await expect(page.getByTestId("baby-growth-recent")).toHaveCount(0);
     await page.getByRole("radio", { name: /weight|cân/i }).click();
-    await page.locator('input[type="number"]').fill("4.1");
-    await page.getByRole("button", { name: /add entry|thêm mục/i }).click();
-    await expect(page).toHaveURL(/\/baby\/?$/);
+    await page.getByTestId("baby-growth-value").fill("4.1");
+    await page.getByTestId("baby-growth-save").click();
+    await expect(page).toHaveURL(/\/baby\/growth/);
+    await expect(
+      page.getByRole("radio", { name: /weight|cân/i }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("Growth logs medicine and temperature; no Pump capture chip", async ({
+    page,
+  }) => {
+    await page.goto("/baby/growth");
+    await expect(page.getByTestId("baby-growth-page")).toBeVisible();
+
+    await page.getByRole("radio", { name: /^medicine$|^thuốc$/i }).click();
+    await expect(page.getByTestId("money-amount-field")).toBeVisible();
+    await page.getByTestId("baby-growth-name").fill("Paracetamol");
+    await page.getByTestId("baby-growth-save").click();
+    await expect(page).toHaveURL(/\/baby\/growth/);
+
+    await page.getByRole("radio", { name: /temperature|nhiệt/i }).click();
+    await expect(page.getByTestId("money-amount-field")).toBeVisible();
+    await expect(page.getByTestId("money-category-field")).toBeVisible();
+    await expect(page.getByTestId("money-multi-category-field")).toBeVisible();
+    await page.getByTestId("baby-growth-value").fill("37.4");
+    await page
+      .getByTestId("baby-growth-symptoms")
+      .getByRole("button", { name: /cough|ho/i })
+      .click();
+    await page.getByTestId("baby-growth-save").click();
+    await expect(page).toHaveURL(/\/baby\/growth/);
+
+    await expect(
+      page.getByRole("radio", { name: /pumping|hút sữa/i }),
+    ).toHaveCount(0);
+
+    await page.goto("/baby/activities");
+    await expect(page.getByTestId("baby-activities-page")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/Paracetamol/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
+  });
+
+  test("/baby/vaccines redirects to Growth with Vaccine chip", async ({
+    page,
+  }) => {
+    await page.goto("/baby/vaccines");
+    await expect(page).toHaveURL(/\/baby\/growth\?kind=vaccine/);
+    await expect(page.getByTestId("baby-growth-page")).toBeVisible();
+    await expect(page.getByTestId("baby-vaccine-dose")).toBeVisible();
+    await expect(
+      page.getByRole("radio", { name: /^vaccine$|^vắc-xin$/i }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("Growth logs vitamin, height, and head", async ({ page }) => {
+    const vitaminName = `VitD-${Date.now()}`;
+    await page.goto("/baby/growth");
+    await expect(page.getByTestId("baby-growth-page")).toBeVisible();
+
+    await page.getByRole("radio", { name: /^vitamin$/i }).click();
+    await page.getByTestId("baby-growth-name").fill(vitaminName);
+    await page.getByTestId("baby-growth-save").click();
+    await expect(page).toHaveURL(/\/baby\/growth/);
+
+    await page.getByRole("radio", { name: /^height$|^chiều cao$/i }).click();
+    await page.getByTestId("baby-growth-value").fill("62.5");
+    await page.getByTestId("baby-growth-save").click();
+    await expect(page).toHaveURL(/\/baby\/growth/);
+
+    await page.getByRole("radio", { name: /^head$|^vòng đầu$/i }).click();
+    await page.getByTestId("baby-growth-value").fill("41.2");
+    await page.getByTestId("baby-growth-save").click();
+    await expect(page).toHaveURL(/\/baby\/growth/);
+
+    await page.goto("/baby/activities");
+    await expect(page.getByTestId("baby-activities-page")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(vitaminName).first()).toBeVisible({
+      timeout: 15_000,
+    });
+  });
+
+  test("Activities delete medicine", async ({ page }) => {
+    const unique = `Med-${Date.now()}`;
+    await page.goto("/baby/growth");
+    await expect(page.getByTestId("baby-growth-page")).toBeVisible();
+
+    await page.getByRole("radio", { name: /^medicine$|^thuốc$/i }).click();
+    await page.getByTestId("baby-growth-name").fill(unique);
+    await page.getByTestId("baby-growth-save").click();
+    await expect(page).toHaveURL(/\/baby\/growth/);
+
+    await page.goto("/baby/activities");
+    await expect(page.getByTestId("baby-activities-page")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(new RegExp(unique, "i")).first()).toBeVisible({
+      timeout: 15_000,
+    });
+
+    await page
+      .getByText(new RegExp(unique, "i"))
+      .first()
+      .locator("xpath=ancestor::tr | ancestor::li")
+      .first()
+      .getByRole("button", { name: /^edit$|^sửa$/i })
+      .click();
+    await page.getByRole("button", { name: /^delete$|^xóa$/i }).click();
+    await page
+      .getByRole("button", {
+        name: /confirm delete|xác nhận xóa|delete forever|xóa vĩnh viễn/i,
+      })
+      .click();
+    await expect(page.getByText(new RegExp(unique, "i"))).toHaveCount(0);
+  });
+
+  test("Growth saves symptoms-only temperature without value", async ({
+    page,
+  }) => {
+    await page.goto("/baby/growth");
+    await expect(page.getByTestId("baby-growth-page")).toBeVisible();
+
+    await page.getByRole("radio", { name: /temperature|nhiệt/i }).click();
+    await page.getByTestId("baby-growth-value").fill("");
+    await page
+      .getByTestId("baby-growth-symptoms")
+      .getByRole("button", { name: /rash|phát ban/i })
+      .click();
+    await page.getByTestId("baby-growth-save").click();
+    await expect(page).toHaveURL(/\/baby\/growth/);
+
+    await page.goto("/baby/activities");
+    await expect(page.getByTestId("baby-activities-page")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/rash|phát ban/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });
 
 test.describe("Baby Care insights charts", () => {
-  test("default Insights shows Hydration + Night Rest; More insights / Activity log deferred", async ({
+  test("default Insights shows Hydration + Night Rest; More insights deferred; Activities owns lists", async ({
     page,
   }) => {
     let timelineFetches = 0;
@@ -1652,11 +2158,19 @@ test.describe("Baby Care insights charts", () => {
       page.getByTestId("baby-night-rest-chart").getByText(/^efficiency %$/i),
     ).toHaveCount(0);
 
+    // Date/period only — no care/growth chip filter chrome on Insights.
+    await expect(
+      page.getByRole("button", { name: /^(care types|loại chăm sóc)\b/i }),
+    ).toHaveCount(0);
+
     await expect(page.getByTestId("baby-more-insights")).toBeVisible();
-    await expect(page.getByTestId("baby-activity-log")).toBeVisible();
+    await expect(page.getByTestId("baby-activity-log")).toHaveCount(0);
+    await expect(page.getByTestId("baby-insights-activities-cue")).toBeVisible();
     await expect(page.getByTestId("baby-more-insights-panel")).toHaveCount(0);
-    await expect(page.getByTestId("baby-activity-log-panel")).toHaveCount(0);
+    await expect(page.getByTestId("baby-activities-ledger")).toHaveCount(0);
     await expect(page.getByTestId("baby-count-kpis")).toHaveCount(0);
+    expect(timelineFetches).toBe(0);
+    expect(growthFetches).toBe(0);
 
     await page.getByTestId("baby-more-insights").click();
     await expect(page.getByTestId("baby-more-insights-panel")).toBeVisible();
@@ -1666,15 +2180,13 @@ test.describe("Baby Care insights charts", () => {
     await expect(page.getByTestId("baby-awake-trend-chart")).toBeVisible();
     await expect(page.getByTestId("baby-diaper-output-chart")).toBeVisible();
     await expect(page.getByTestId("baby-care-count-chart")).toBeVisible();
-    // More insights uses series only — no payload timeline/growth waterfall.
+    // Decision 2 Option 2: growth enables with moreOpen; timeline stays off Insights.
     expect(timelineFetches).toBe(0);
-    expect(growthFetches).toBe(0);
+    await expect.poll(() => growthFetches).toBeGreaterThan(0);
 
-    await page.getByTestId("baby-activity-log").click();
-    await expect(page.getByTestId("baby-activity-log-panel")).toBeVisible();
-    await expect
-      .poll(() => timelineFetches + growthFetches)
-      .toBeGreaterThan(0);
+    await page.goto("/baby/activities");
+    await expect(page.getByTestId("baby-activities-ledger")).toBeVisible();
+    await expect.poll(() => timelineFetches).toBeGreaterThan(0);
   });
 
   test("More insights shows insight KPI strip with Sleep Efficiency soft-empty", async ({
@@ -1865,7 +2377,7 @@ test.describe("Baby Care insights charts", () => {
     ).toBeVisible();
   });
 
-  test("Activity log care edit save hits updateBabyEvent and refreshes row", async ({
+  test("Activities care edit save hits updateBabyEvent and refreshes row", async ({
     page,
   }) => {
     const mutations: string[] = [];
@@ -1930,9 +2442,8 @@ test.describe("Baby Care insights charts", () => {
       });
     });
 
-    await page.goto("/baby/insights");
-    await page.getByTestId("baby-activity-log").click();
-    const panel = page.getByTestId("baby-activity-log-panel");
+    await page.goto("/baby/activities");
+    const panel = page.getByTestId("baby-activities-ledger");
     await expect(panel).toBeVisible();
     const activityTable = panel.getByRole("table");
     await expect(activityTable.getByText(/Bottle · 120 ml/i)).toBeVisible();
@@ -1951,7 +2462,7 @@ test.describe("Baby Care insights charts", () => {
     await expect(activityTable.getByText(/Bottle · 120 ml/i)).toHaveCount(0);
   });
 
-  test("Activity log growth edit save hits updateBabyGrowth and refreshes row", async ({
+  test("Activities growth edit save hits updateBabyGrowth and refreshes row", async ({
     page,
   }) => {
     const mutations: string[] = [];
@@ -2002,9 +2513,8 @@ test.describe("Baby Care insights charts", () => {
       });
     });
 
-    await page.goto("/baby/insights");
-    await page.getByTestId("baby-activity-log").click();
-    const panel = page.getByTestId("baby-activity-log-panel");
+    await page.goto("/baby/activities");
+    const panel = page.getByTestId("baby-activities-ledger");
     await expect(panel).toBeVisible();
     const activityTable = panel.getByRole("table");
     await expect(activityTable.getByText(/4\.2 kg/i)).toBeVisible();
@@ -2035,7 +2545,7 @@ test.describe("Baby Care insights charts", () => {
     await expect(activityTable.getByText(/4\.2 kg/i)).toHaveCount(0);
   });
 
-  test("Activity log edit validation fail shows inline error and skips mutation", async ({
+  test("Activities edit validation fail shows inline error and skips mutation", async ({
     page,
   }) => {
     const mutations: string[] = [];
@@ -2080,9 +2590,8 @@ test.describe("Baby Care insights charts", () => {
       });
     });
 
-    await page.goto("/baby/insights");
-    await page.getByTestId("baby-activity-log").click();
-    const panel = page.getByTestId("baby-activity-log-panel");
+    await page.goto("/baby/activities");
+    const panel = page.getByTestId("baby-activities-ledger");
     await expect(panel).toBeVisible();
     const activityTable = panel.getByRole("table");
     await expect(activityTable.getByText(sleepSummary)).toBeVisible();
@@ -2112,7 +2621,7 @@ test.describe("Baby Care insights charts", () => {
     await expect(activityTable.getByText(sleepSummary)).toBeVisible();
   });
 
-  test("Activity log selection bar: checkbox, Edit enabled for 1, disabled visible for 2", async ({
+  test("Activities selection bar: checkbox, Edit enabled for 1, disabled visible for 2", async ({
     page,
   }) => {
     await page.route("**/api/graphql/baby", async (route) => {
@@ -2144,8 +2653,7 @@ test.describe("Baby Care insights charts", () => {
       });
     });
 
-    await page.goto("/baby/insights");
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
     const table = panel.getByRole("table");
     await expect(table.getByRole("checkbox").first()).toBeVisible();
 
@@ -2181,7 +2689,7 @@ test.describe("Baby Care insights charts", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 
-  test("Activity log keeps selection on show more; clears on panel close", async ({
+  test("Activities keeps selection on show more; clears via bar Clear", async ({
     page,
   }) => {
     const pageOneCount = BABY_INSIGHTS_LIST_VISIBLE_CAP + 1;
@@ -2239,8 +2747,7 @@ test.describe("Baby Care insights charts", () => {
       await route.continue();
     });
 
-    await page.goto("/baby/insights");
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
     const table = panel.getByRole("table");
     const firstDataRow = table.getByRole("row").nth(1);
     await checkActivityCheckbox(firstDataRow.getByRole("checkbox"));
@@ -2253,15 +2760,12 @@ test.describe("Baby Care insights charts", () => {
     await expect(bar).toBeVisible();
     await expect(firstDataRow.getByRole("checkbox")).toBeChecked();
 
-    await page.getByTestId("baby-activity-log").click();
-    await expect(panel).toHaveCount(0);
-    await expect(bar).toHaveCount(0);
-
-    await openActivityLog(page);
+    await bar.getByRole("button", { name: /^clear$|^bỏ chọn$/i }).click();
     await expect(page.getByTestId("baby-activity-selection-bar")).toHaveCount(0);
+    await expect(firstDataRow.getByRole("checkbox")).not.toBeChecked();
   });
 
-  test("Activity log keeps selection on load more", async ({ page }) => {
+  test("Activities keeps selection on load more", async ({ page }) => {
     // nextCursor unlocks Load more; older page-two row appends so selected row stays identifiable.
     const pageOneItems = [
       growthEntryFixture(
@@ -2345,8 +2849,7 @@ test.describe("Baby Care insights charts", () => {
       await route.continue();
     });
 
-    await page.goto("/baby/insights");
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
     const table = panel.getByRole("table");
     const selectedRow = table.getByRole("row").filter({ hasText: /7\.77 kg/i });
     await checkActivityCheckbox(selectedRow.getByRole("checkbox"));
@@ -2364,7 +2867,7 @@ test.describe("Baby Care insights charts", () => {
     await expect(selectedRow.getByRole("checkbox")).toBeChecked();
   });
 
-  test("Activity log multi-delete: cancel confirm, mixed mutations, partial fail Alert", async ({
+  test("Activities multi-delete: cancel confirm, mixed mutations, partial fail Alert", async ({
     page,
   }) => {
     const deletes: string[] = [];
@@ -2429,8 +2932,7 @@ test.describe("Baby Care insights charts", () => {
       });
     });
 
-    await page.goto("/baby/insights");
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
     const table = panel.getByRole("table");
 
     const feedCheckbox = table
@@ -2474,7 +2976,7 @@ test.describe("Baby Care insights charts", () => {
     ).toBeChecked();
   });
 
-  test("Activity log multi-delete: full success clears selection and bar", async ({
+  test("Activities multi-delete: full success clears selection and bar", async ({
     page,
   }) => {
     const deletes: string[] = [];
@@ -2539,8 +3041,7 @@ test.describe("Baby Care insights charts", () => {
       });
     });
 
-    await page.goto("/baby/insights");
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
     const table = panel.getByRole("table");
     await checkActivityCheckbox(
       table.getByRole("row").filter({ hasText: /Feed|Bú/i }).getByRole("checkbox"),
@@ -2563,7 +3064,7 @@ test.describe("Baby Care insights charts", () => {
     await expect(table.getByText(/6\.1 kg/i)).toHaveCount(0);
   });
 
-  test("Activity log multi-delete: failed key pruned when row leaves list", async ({
+  test("Activities multi-delete: failed key pruned when row leaves list", async ({
     page,
   }) => {
     const deletes: string[] = [];
@@ -2630,8 +3131,7 @@ test.describe("Baby Care insights charts", () => {
       });
     });
 
-    await page.goto("/baby/insights");
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
     const table = panel.getByRole("table");
     await checkActivityCheckbox(
       table.getByRole("row").filter({ hasText: /Feed|Bú/i }).getByRole("checkbox"),
@@ -2658,7 +3158,7 @@ test.describe("Baby Care insights charts", () => {
     await expect(table.getByText(/5\.2 kg/i)).toHaveCount(0);
   });
 
-  test("Activity log multi-delete: all-fail Alert keeps selection", async ({
+  test("Activities multi-delete: all-fail Alert keeps selection", async ({
     page,
   }) => {
     const deletes: string[] = [];
@@ -2717,8 +3217,7 @@ test.describe("Baby Care insights charts", () => {
       });
     });
 
-    await page.goto("/baby/insights");
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
     const table = panel.getByRole("table");
     await checkActivityCheckbox(
       table.getByRole("row").filter({ hasText: /Feed|Bú/i }).getByRole("checkbox"),
@@ -2749,7 +3248,7 @@ test.describe("Baby Care insights charts", () => {
     ).toBeChecked();
   });
 
-  test("Activity log delete: busy disables Delete mid-flight; re-enables after fail settle; confirmOne", async ({
+  test("Activities delete: busy disables Delete mid-flight; re-enables after fail settle; confirmOne", async ({
     page,
   }) => {
     const deletes: string[] = [];
@@ -2801,8 +3300,7 @@ test.describe("Baby Care insights charts", () => {
       });
     });
 
-    await page.goto("/baby/insights");
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
     const table = panel.getByRole("table");
     await checkActivityCheckbox(
       table.getByRole("row").filter({ hasText: /Feed|Bú/i }).getByRole("checkbox"),
@@ -2852,7 +3350,7 @@ test.describe("Baby Care insights charts", () => {
     await expect(rowEdit).toBeEnabled();
   });
 
-  test("Activity log clears selection on filter apply, bar Clear, and select-all is visible window only", async ({
+  test("Activities clears selection on filter apply, bar Clear, and select-all is visible window only", async ({
     page,
   }) => {
     const pageOneCount = BABY_INSIGHTS_LIST_VISIBLE_CAP + 2;
@@ -2927,8 +3425,7 @@ test.describe("Baby Care insights charts", () => {
       await route.continue();
     });
 
-    await page.goto("/baby/insights");
-    const panel = await openActivityLog(page);
+    const panel = await openActivitiesLedger(page);
     const table = panel.getByRole("table");
 
     // Select-all = visible window only (not unloaded / beyond-cap rows).
@@ -3001,7 +3498,36 @@ test.describe("Baby Care insights charts", () => {
     await expect(page.getByTestId("baby-growth-chart-card").first()).toBeVisible();
   });
 
-  test("insights timeline shows Breast L/R, stop time, and compact duration", async ({
+  test("Insights empty growth chart copy is date-range only", async ({
+    page,
+  }) => {
+    await page.route("**/api/graphql/baby", async (route) => {
+      await fulfillBabyInsightsGraphql(route);
+    });
+
+    await page.goto("/baby/insights");
+    await page.getByTestId("baby-more-insights").click();
+    const charts = page.getByTestId("baby-insights-charts");
+    await expect(charts).toBeVisible({ timeout: 15_000 });
+
+    const emptyCopy = charts
+      .getByTestId("baby-growth-chart-card")
+      .first()
+      .getByText(
+        /no measurements in this range to chart|không có cân đo trong khoảng này để vẽ biểu đồ/i,
+      );
+    await expect(emptyCopy).toBeVisible();
+    await expect(emptyCopy).toHaveClass(/text-muted/);
+
+    // Date-range recovery only — never care/kind filter advice.
+    await expect(
+      charts.getByText(
+        /care types|growth kinds|in the filters|loại chăm sóc|loại cân đo|bộ lọc/i,
+      ),
+    ).toHaveCount(0);
+  });
+
+  test("activities ledger shows Breast L/R, stop time, and compact duration", async ({
     page,
   }) => {
     // Mock care rows so labels/duration/stop clock are deterministic.
@@ -3050,9 +3576,8 @@ test.describe("Baby Care insights charts", () => {
       });
     });
 
-    await page.goto("/baby/insights");
-    await page.getByTestId("baby-activity-log").click();
-    await expect(page.getByTestId("baby-activity-log-panel")).toBeVisible();
+    await page.goto("/baby/activities");
+    await expect(page.getByTestId("baby-activities-ledger")).toBeVisible();
 
     const activityTable = page.getByRole("table");
     await expect(
@@ -3072,11 +3597,14 @@ test.describe("Baby Care insights charts", () => {
     ).toBeVisible();
   });
 
-  test("hamburger includes Vaccines", async ({ page }) => {
+  test("hamburger excludes Log vaccines; keeps Log growth", async ({ page }) => {
     await page.goto("/baby/settings");
     await openAppMenu(page);
     await expect(
-      page.getByRole("link", { name: /vaccines|vắc-xin/i }),
+      page.getByRole("link", { name: /log vaccines|ghi vắc-xin/i }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: /log growth|ghi cân đo/i }),
     ).toBeVisible();
   });
 
@@ -3089,9 +3617,9 @@ test.describe("Baby Care insights charts", () => {
     const feed = page.getByRole("link", { name: /log feed|ghi bú/i });
     const sleep = page.getByRole("link", { name: /log nap|ghi ngủ/i });
     const diaper = page.getByRole("link", { name: /log diaper|ghi tã/i });
-    const vaccine = page.getByRole("link", { name: /vaccines|vắc-xin/i });
+    const growth = page.getByRole("link", { name: /log growth|ghi cân đo/i });
 
-    // Dedicated path shapes (bottle / moon / diaper / syringe).
+    // Dedicated path shapes (bottle / moon / diaper / growth).
     await expect(feed.locator("svg path").first()).toHaveAttribute(
       "d",
       /8 4h5a3/,
@@ -3104,13 +3632,10 @@ test.describe("Baby Care insights charts", () => {
       "d",
       /5 7h14v4/,
     );
-    await expect(vaccine.locator("svg path").first()).toHaveAttribute(
-      "d",
-      /m9 3 2 2/,
-    );
+    await expect(growth.locator("svg path").first()).toBeVisible();
 
     // Must not reuse Money bills / import / spending glyphs.
-    for (const link of [feed, sleep, diaper, vaccine]) {
+    for (const link of [feed, sleep, diaper, growth]) {
       const dJoined = await link.locator("svg path").evaluateAll((els) =>
         els.map((el) => el.getAttribute("d") ?? "").join("|"),
       );
@@ -3122,50 +3647,81 @@ test.describe("Baby Care insights charts", () => {
 });
 
 test.describe("Baby Care 3AM eye flow", () => {
-  test("feed page: timer + methods above optional amount/duration", async ({
+  test("feed page: breast L/R + formula ml share Pump-style grid", async ({
     page,
   }) => {
     await page.goto("/baby/feed");
-    const start = page.getByRole("button", { name: /start timer|bắt đầu đếm/i });
-    const breastL = page.getByRole("button", { name: /breast l|ngực trái/i });
-    const amount = page.getByLabel(/amount \(ml|lượng/i);
+    const breastL = page.getByTestId("baby-feed-method-breast_l");
+    const breastR = page.getByTestId("baby-feed-method-breast_r");
+    const formulaGrid = page.locator('[data-layout="bottle-ml-chips"]').first();
+    const row = page.getByTestId("baby-feed-timer-chips");
 
-    await expect(start).toBeVisible();
-    const startBox = await start.boundingBox();
-    const methodBox = await breastL.boundingBox();
-    const amountBox = await amount.boundingBox();
-    expect(startBox).toBeTruthy();
-    expect(methodBox).toBeTruthy();
-    expect(amountBox).toBeTruthy();
+    await expect(
+      breastL.getByText(/tap to start|chạm để bắt đầu/i),
+    ).toBeVisible();
+    await expect(page.getByTestId("baby-feed-method-pump_l")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /start timer|bắt đầu đếm/i }),
+    ).toHaveCount(0);
+    await expect(page.getByLabel(/amount \(ml|lượng/i)).toHaveCount(0);
+    await expect(row).toBeVisible();
+    await expect(breastR).toBeVisible();
+    await expect(formulaGrid).toBeVisible();
 
-    // Top → bottom: Start, then method chips, then optional fields.
-    expect(startBox!.y).toBeLessThan(methodBox!.y);
-    expect(methodBox!.y).toBeLessThan(amountBox!.y);
-    // Large night targets (min-h-14 ≈ 56px).
-    expect(startBox!.height).toBeGreaterThanOrEqual(56);
-    expect(methodBox!.height).toBeGreaterThanOrEqual(56);
+    const chipBox = await breastL.boundingBox();
+    const formulaBox = await formulaGrid.boundingBox();
+    expect(chipBox).toBeTruthy();
+    expect(formulaBox).toBeTruthy();
+    expect(chipBox!.height).toBeGreaterThanOrEqual(56);
+    // Same parent row as Pump: L left of (or above) formula chips.
+    expect(
+      chipBox!.x < formulaBox!.x || chipBox!.y < formulaBox!.y,
+    ).toBeTruthy();
   });
 
-  test("sleep page: Start/End primary row first and large", async ({ page }) => {
+  test("feed shows Home breast timer when already running", async ({
+    page,
+  }) => {
+    const startedAt = Date.now() - 90_000;
+    await page.addInitScript(
+      ({ key, value }) => {
+        window.localStorage.setItem(key, value);
+      },
+      {
+        key: "baby.careTimer.v1",
+        value: JSON.stringify({
+          babyId: "home",
+          breast: { side: "breast_l", startedAt },
+          pump: null,
+        }),
+      },
+    );
+    await page.goto("/baby/feed");
+    const breastL = page.getByTestId("baby-feed-method-breast_l");
+    await expect(breastL).toHaveAttribute("data-running", "true");
+    await expect(breastL.getByText(/1:\d{2}|2:\d{2}/)).toBeVisible();
+    await expect(
+      breastL.getByText(/tap to stop|chạm để dừng/i),
+    ).toBeVisible();
+  });
+
+  test("sleep page: single TimedCareChip primary and large", async ({
+    page,
+  }) => {
     await page.goto("/baby/sleep");
-    const start = page.getByRole("button", { name: /start nap|bắt đầu ngủ/i });
-    const end = page.getByRole("button", { name: /end nap|kết thúc ngủ/i });
+    const chip = page.getByTestId(/baby-sleep-(start|end)/);
+    await expect(chip).toBeVisible();
+    await expect(
+      chip.getByText(/tap to start|tap to stop|chạm để/i),
+    ).toBeVisible();
+    // One chip only — not dual Start+End buttons at once.
+    await expect(page.getByTestId(/baby-sleep-(start|end)/)).toHaveCount(1);
 
-    await expect(start).toBeVisible();
-    const startBox = await start.boundingBox();
-    const endBox = await end.boundingBox();
-    expect(startBox).toBeTruthy();
-    expect(endBox).toBeTruthy();
+    const box = await chip.boundingBox();
+    expect(box).toBeTruthy();
+    expect(box!.height).toBeGreaterThanOrEqual(56);
 
-    // Same primary row (side-by-side or stacked); Start is first in reading order.
-    expect(startBox!.y).toBeLessThanOrEqual(endBox!.y + 8);
-    if (Math.abs(startBox!.y - endBox!.y) < 8) {
-      expect(startBox!.x).toBeLessThan(endBox!.x);
-    }
-    expect(startBox!.height).toBeGreaterThanOrEqual(56);
-    expect(endBox!.height).toBeGreaterThanOrEqual(56);
-
-    // No optional field block below Start/End on sleep (primary-only surface).
+    // No optional field block below the chip (primary-only surface).
     await expect(page.getByLabel(/amount|duration|notes/i)).toHaveCount(0);
   });
 });

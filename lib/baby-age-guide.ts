@@ -205,6 +205,9 @@ export type BabySleepGuideBand = {
   labelKey: string;
   /** i18n key for one-line nap header blend (EN + VI). */
   blendKey: string;
+  /** Soft nap duration window (minutes) for Activities border cues — not medical. */
+  napMinMin: number;
+  napMaxMin: number;
 };
 
 /**
@@ -217,6 +220,8 @@ const SLEEP_GUIDE_BANDS: Array<{ maxDay: number; band: BabySleepGuideBand }> = [
     band: {
       labelKey: "guide.sleep0to1Mo",
       blendKey: "home.header.nap.blend0to1Mo",
+      napMinMin: 20,
+      napMaxMin: 120,
     },
   },
   {
@@ -224,6 +229,8 @@ const SLEEP_GUIDE_BANDS: Array<{ maxDay: number; band: BabySleepGuideBand }> = [
     band: {
       labelKey: "guide.sleep1to2Mo",
       blendKey: "home.header.nap.blend1to2Mo",
+      napMinMin: 20,
+      napMaxMin: 120,
     },
   },
   {
@@ -231,6 +238,8 @@ const SLEEP_GUIDE_BANDS: Array<{ maxDay: number; band: BabySleepGuideBand }> = [
     band: {
       labelKey: "guide.sleep3to4Mo",
       blendKey: "home.header.nap.blend3to4Mo",
+      napMinMin: 30,
+      napMaxMin: 120,
     },
   },
   {
@@ -238,6 +247,8 @@ const SLEEP_GUIDE_BANDS: Array<{ maxDay: number; band: BabySleepGuideBand }> = [
     band: {
       labelKey: "guide.sleep5to6Mo",
       blendKey: "home.header.nap.blend5to6Mo",
+      napMinMin: 30,
+      napMaxMin: 120,
     },
   },
   {
@@ -245,6 +256,8 @@ const SLEEP_GUIDE_BANDS: Array<{ maxDay: number; band: BabySleepGuideBand }> = [
     band: {
       labelKey: "guide.sleep7to12Mo",
       blendKey: "home.header.nap.blend7to12Mo",
+      napMinMin: 45,
+      napMaxMin: 120,
     },
   },
   {
@@ -252,6 +265,8 @@ const SLEEP_GUIDE_BANDS: Array<{ maxDay: number; band: BabySleepGuideBand }> = [
     band: {
       labelKey: "guide.sleep1to3Y",
       blendKey: "home.header.nap.blend1to3Y",
+      napMinMin: 60,
+      napMaxMin: 180,
     },
   },
 ];

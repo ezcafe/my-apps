@@ -25,6 +25,16 @@ export function resolveBabyAppHeader(pathname: string): BabyAppHeaderResolved {
     };
   }
 
+  if (pathname === "/baby/pump" || pathname.startsWith("/baby/pump/")) {
+    return {
+      titleKey: "pump.title",
+      breadcrumbs: [
+        { labelKey: "home.title", href: "/baby" },
+        { labelKey: "pump.title" },
+      ],
+    };
+  }
+
   if (pathname === "/baby/sleep" || pathname.startsWith("/baby/sleep/")) {
     return {
       titleKey: "sleep.title",
@@ -55,22 +65,36 @@ export function resolveBabyAppHeader(pathname: string): BabyAppHeaderResolved {
     };
   }
 
-  if (pathname === "/baby/measure" || pathname.startsWith("/baby/measure/")) {
+  if (
+    pathname === "/baby/activities" ||
+    pathname.startsWith("/baby/activities/")
+  ) {
     return {
-      titleKey: "measure.title",
+      titleKey: "activities.title",
+      breadcrumbs: [],
+    };
+  }
+
+  if (pathname === "/baby/growth" || pathname.startsWith("/baby/growth/")) {
+    return {
+      titleKey: "growth.title",
       breadcrumbs: [
         { labelKey: "home.title", href: "/baby" },
-        { labelKey: "measure.title" },
+        { labelKey: "growth.title" },
       ],
     };
   }
 
-  if (pathname === "/baby/vaccines" || pathname.startsWith("/baby/vaccines/")) {
+  // Bookmarks to /baby/vaccines redirect to Growth; treat as Growth title.
+  if (
+    pathname === "/baby/vaccines" ||
+    pathname.startsWith("/baby/vaccines/")
+  ) {
     return {
-      titleKey: "vaccine.title",
+      titleKey: "growth.title",
       breadcrumbs: [
         { labelKey: "home.title", href: "/baby" },
-        { labelKey: "vaccine.title" },
+        { labelKey: "growth.title" },
       ],
     };
   }

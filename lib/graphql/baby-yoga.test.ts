@@ -231,6 +231,7 @@ describe("baby home redesign wiring (stubbed services)", () => {
     const original = babyHomeQuickStatusQuery.load;
     babyHomeQuickStatusQuery.load = async () => ({
       lastFeed: null,
+      lastPump: null,
       lastSleep: null,
       lastDiaper: null,
       openSleep: null,
@@ -531,6 +532,7 @@ describe("baby home redesign wiring (stubbed services)", () => {
     };
     babyHomeQuickStatusQuery.load = async () => ({
       lastFeed: null,
+      lastPump: null,
       lastSleep: null,
       lastDiaper: null,
       openSleep: null,

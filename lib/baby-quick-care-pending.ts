@@ -1,3 +1,4 @@
+import type { BabyQuickAction } from "@/lib/baby-quick-care-order-fixture";
 import type { BabyQuickCareRequest } from "@/lib/baby-quick-care-plan";
 
 /** Design contract key (03-design.md). */
@@ -171,4 +172,41 @@ export function clearBabyQuickPending(storage: PendingStorage): void {
 /** Home never auto-retries a pending press on mount. */
 export function babyQuickShouldAutoRetryOnMount(): false {
   return false;
+}
+
+/**
+ * Owning trigger for under-chip / under-group recovery chrome.
+ * Bottle / pump amount / diaper are group owners (recovery under the row).
+ */
+export type BabyQuickPendingOwnerId =
+  | "breast_l"
+  | "breast_r"
+  | "pump_l"
+  | "pump_r"
+  | "nap"
+  | "bottle"
+  | "pump_amount"
+  | "diaper";
+
+export function babyQuickPendingOwner(
+  action: BabyQuickAction,
+): BabyQuickPendingOwnerId {
+  if (action.kind === "BREAST") return action.side;
+  if (action.kind === "SLEEP") return "nap";
+  if (action.kind === "FORMULA") return "bottle";
+  if (action.kind === "PUMP_AMOUNT") return "pump_amount";
+  return "diaper";
+}
+
+/**
+ * Show under-owner recovery when not currently saving and pending is
+ * recoverable: tooOld, unknown, or orphaned sending after remount.
+ * Quiet live mutate / Retry mid-flight via `!saving` — not "never for sending".
+ */
+export function babyQuickPendingRecoveryVisible(input: {
+  saving: boolean;
+  view: BabyQuickPendingView;
+}): boolean {
+  if (input.saving) return false;
+  return input.view.kind === "retryable" || input.view.kind === "tooOld";
 }

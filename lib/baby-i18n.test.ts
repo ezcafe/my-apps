@@ -109,17 +109,39 @@ describe("baby i18n t()", () => {
     assert.equal(t("home.saving", "en"), "Saving…");
     assert.ok(t("home.statusFeed", "vi").length > 0);
     assert.ok(t("home.pendingTitle", "vi").length > 0);
+    assert.ok(t("home.pendingRetry", "en").length > 0);
+    assert.ok(t("home.pendingRetry", "vi").length > 0);
+    assert.ok(t("home.pendingDiscard", "en").length > 0);
+    assert.ok(t("home.pendingDiscard", "vi").length > 0);
+    assert.ok(t("home.pendingTooOld", "en").length > 0);
+    assert.ok(t("home.pendingTooOld", "vi").length > 0);
+    assert.ok(t("home.pendingTimelineLink", "en").length > 0);
+    assert.ok(t("home.pendingTimelineLink", "vi").length > 0);
     assert.ok(t("settings.birthDate", "en").length > 0);
     assert.ok(t("settings.birthDateInvalid", "vi").length > 0);
   });
 
-  it("insights and measure keys exist in EN and VI", () => {
+  it("insights and growth keys exist in EN and VI", () => {
     assert.equal(t("insights.title", "en"), "Insights");
-    assert.equal(t("measure.title", "en"), "Log measurement");
+    assert.equal(t("growth.title", "en"), "Log growth");
+    assert.equal(t("vaccine.title", "en"), "Vaccine");
+    assert.doesNotMatch(t("vaccine.title", "en"), /Log vaccines/i);
+    assert.equal(t("growth.vaccine", "en"), "Vaccine");
+    assert.ok(!("vaccine.logOnGrowth" in babyEn));
+    assert.ok(!("vaccine.readOnlyHint" in babyEn));
+    assert.ok(!("vaccine.logOnGrowth" in babyVi));
+    assert.ok(!("vaccine.readOnlyHint" in babyVi));
     assert.ok(t("insights.about", "en").length > 0);
+    assert.doesNotMatch(t("insights.about", "en"), /timeline/i);
+    assert.doesNotMatch(t("insights.about", "en"), /\bMeasure\b/);
+    assert.doesNotMatch(t("insights.about", "vi"), /dòng thời gian/i);
+    assert.equal(t("activities.loadError", "en"), "Could not load activities.");
+    assert.equal(t("activities.loadError", "vi"), "Không tải được hoạt động.");
     assert.ok(t("insights.emptyGrowth", "vi").length > 0);
     assert.equal(t("insights.title", "vi"), "Thống kê");
-    assert.equal(t("measure.title", "vi"), "Ghi cân đo");
+    assert.equal(t("growth.title", "vi"), "Ghi cân đo");
+    assert.equal(t("vaccine.title", "vi"), "Vắc-xin");
+    assert.doesNotMatch(t("vaccine.title", "vi"), /Ghi vắc-xin/i);
     assert.notEqual(t("insights.kpiFeeds", "vi"), "insights.kpiFeeds");
     assert.equal(t("insights.filterCare", "en"), "Care types");
     assert.notEqual(t("insights.filterCare", "vi"), "insights.filterCare");
@@ -219,5 +241,62 @@ describe("baby i18n t()", () => {
     assert.equal(t("insights.sourceWeb", "en"), "Web");
     assert.notEqual(t("insights.sourceWeb", "vi"), "Web");
     assert.notEqual(t("insights.sourceWeb", "vi"), "insights.sourceWeb");
+  });
+
+  it("pump timer + Tap to stop + guideline keys exist in EN and VI", () => {
+    assert.equal(t("home.tapToStop", "en"), "Tap to stop");
+    assert.equal(t("home.tapToStop", "vi"), "Chạm để dừng");
+    assert.equal(t("home.header.pump", "en"), "Pump");
+    assert.ok(t("home.header.pump", "vi").length > 0);
+    assert.match(t("home.header.pumpEmpty", "en"), /amount/i);
+    assert.ok(t("home.header.pumpEmpty", "vi").length > 0);
+    assert.equal(t("home.pumpL", "en"), "Pump L");
+    assert.ok(t("home.pumpL", "vi").length > 0);
+    assert.notEqual(t("home.pumpL", "vi"), "home.pumpL");
+    assert.equal(t("home.pumpR", "en"), "Pump R");
+    assert.notEqual(t("home.pumpR", "vi"), "home.pumpR");
+    assert.equal(t("home.pumpAmount", "en"), "Pump amount");
+    assert.notEqual(t("home.pumpAmount", "vi"), "home.pumpAmount");
+    assert.equal(t("feed.pumpL", "en"), "Pump L");
+    assert.equal(t("feed.pumpR", "en"), "Pump R");
+    assert.equal(t("feed.pump", "en"), "Pump");
+    assert.match(t("feed.pumpMl", "en"), /\{ml\}/);
+    assert.equal(t("home.stepCreatePumpAmount", "en"), "Saved pump amount");
+    assert.notEqual(
+      t("home.stepCreatePumpAmount", "vi"),
+      "home.stepCreatePumpAmount",
+    );
+
+    const guideKeys = [
+      "home.guide.feedTitle",
+      "home.guide.sleepTitle",
+      "home.guide.diaperTitle",
+      "home.guide.pumpTitle",
+      "home.guide.feed.1",
+      "home.guide.feed.2",
+      "home.guide.feed.3",
+      "home.guide.sleep.1",
+      "home.guide.sleep.2",
+      "home.guide.sleep.3",
+      "home.guide.diaper.1",
+      "home.guide.diaper.2",
+      "home.guide.diaper.3",
+      "home.guide.pump.1",
+      "home.guide.pump.2",
+      "home.guide.pump.3",
+      "home.guide.pump.4",
+      "home.guide.pump.5",
+      "home.guide.pump.6",
+    ] as const;
+    for (const key of guideKeys) {
+      assert.ok(t(key, "en").length > 0, `missing en ${key}`);
+      assert.ok(t(key, "vi").length > 0, `missing vi ${key}`);
+      assert.notEqual(t(key, "vi"), key, `vi fallback for ${key}`);
+      assert.ok(key in babyEn, `en table missing ${key}`);
+      assert.ok(key in babyVi, `vi table missing ${key}`);
+    }
+    // Locked Pump table row 1 keeps day/week volume bands.
+    assert.match(t("home.guide.pump.1", "en"), /1–15 mL|Days 1–3/i);
+    assert.match(t("home.guide.pump.1", "vi"), /1–15 mL|Ngày 1–3/i);
   });
 });

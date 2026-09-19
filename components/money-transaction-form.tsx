@@ -22,6 +22,8 @@ import {
   budgetFillTitle,
   MoneyUsageQuickPick,
 } from "@/components/money-usage-quick-pick";
+import { MoneyAmountField } from "@/components/money-amount-field";
+import { MoneyCategoryField } from "@/components/money-category-field";
 import { useNotify } from "@/components/notification-provider";
 import { useWorkspaceCurrency } from "@/components/money-workspace-provider";
 import { Alert } from "@/components/ui/alert";
@@ -1167,58 +1169,52 @@ export function MoneyTransactionForm({
           </fieldset>
 
           {kind !== "investment" ? (
-          <Field label="Amount" required>
-            <InputGroup>
-              <InputGroupAddon side="leading" aria-hidden>
-                {getCurrencySymbol(defaultCurrency)}
-              </InputGroupAddon>
-              <InputGroupInput
-                value={amountMajor}
-                onChange={(e) => setAmountMajor(e.target.value)}
-                inputMode="decimal"
-                placeholder={defaultCurrency === "VND" ? "25" : "24.99"}
-                autoFocus={kind !== "loan"}
-                required
-                aria-label="Amount"
-              />
-              <InputGroupAddon side="trailing" aria-hidden>
-                {defaultCurrency}
-              </InputGroupAddon>
-            </InputGroup>
-            {topAmounts.length > 0 && kind !== "loan" ? (
-              <>
-                <p className="text-sm text-muted">
-                  Tap a recent amount to fill · last 90 days
-                </p>
-                <div
-                  role="group"
-                  aria-label="Recent amounts"
-                  className="flex min-w-0 flex-wrap gap-1.5"
-                >
-                  {topAmounts.map((a) => {
-                    const major = minorToMajorInput(
-                      a.amountMinor,
-                      defaultCurrency,
-                    );
-                    const formatted = formatMinor(a.amountMinor, defaultCurrency);
-                    return (
-                      <button
-                        key={a.amountMinor}
-                        type="button"
-                        onClick={() => setAmountMajor(major)}
-                        title={`Use ${formatted}`}
-                        className={cn(
-                          "cursor-pointer rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-sm font-medium tabular-nums text-foreground underline decoration-transparent underline-offset-2 transition-[background-color,border-color,color,text-decoration-color] duration-200 hover:border-foreground/25 hover:bg-muted-surface hover:decoration-foreground/40 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
-                        )}
-                      >
-                        {formatted}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            ) : null}
-          </Field>
+          <MoneyAmountField
+            label="Amount"
+            required
+            value={amountMajor}
+            onChange={setAmountMajor}
+            leadingAddon={getCurrencySymbol(defaultCurrency)}
+            trailingAddon={defaultCurrency}
+            placeholder={defaultCurrency === "VND" ? "25" : "24.99"}
+            autoFocus={kind !== "loan"}
+            aria-label="Amount"
+            recentSlot={
+              topAmounts.length > 0 && kind !== "loan" ? (
+                <>
+                  <p className="text-sm text-muted">
+                    Tap a recent amount to fill · last 90 days
+                  </p>
+                  <div
+                    role="group"
+                    aria-label="Recent amounts"
+                    className="flex min-w-0 flex-wrap gap-1.5"
+                  >
+                    {topAmounts.map((a) => {
+                      const major = minorToMajorInput(
+                        a.amountMinor,
+                        defaultCurrency,
+                      );
+                      const formatted = formatMinor(a.amountMinor, defaultCurrency);
+                      return (
+                        <button
+                          key={a.amountMinor}
+                          type="button"
+                          onClick={() => setAmountMajor(major)}
+                          title={`Use ${formatted}`}
+                          className={cn(
+                            "cursor-pointer rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-sm font-medium tabular-nums text-foreground underline decoration-transparent underline-offset-2 transition-[background-color,border-color,color,text-decoration-color] duration-200 hover:border-foreground/25 hover:bg-muted-surface hover:decoration-foreground/40 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
+                          )}
+                        >
+                          {formatted}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : null
+            }
+          />
           ) : null}
 
           {kind !== "transfer" && !isInvestmentKind ? (
@@ -1229,7 +1225,7 @@ export function MoneyTransactionForm({
                 className="[grid-column:1/-1]"
               />
             ) : (
-              <MoneyUsageQuickPick
+              <MoneyCategoryField
                 legend="Category"
                 ariaLabel="Category"
                 className="[grid-column:1/-1]"
@@ -1377,7 +1373,7 @@ export function MoneyTransactionForm({
                 className="[grid-column:1/-1]"
               />
             ) : (
-              <MoneyUsageQuickPick
+              <MoneyCategoryField
                 legend="Category"
                 ariaLabel="Category"
                 className="[grid-column:1/-1]"

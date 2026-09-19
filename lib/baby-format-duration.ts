@@ -12,6 +12,22 @@ export function formatBabyDurationCompact(totalSec: number): string {
   return `${hours}h ${minutes}m`;
 }
 
+/**
+ * Live timer face: minutes and seconds (m:ss), or h:mm:ss when ≥ 1 hour.
+ * Examples: 0:05, 1:30, 12:05, 1:05:07.
+ */
+export function formatBabyDurationTimer(totalSec: number): string {
+  const sec = Math.max(0, Math.floor(totalSec));
+  const hours = Math.floor(sec / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
+  const seconds = sec % 60;
+  const ss = String(seconds).padStart(2, "0");
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${ss}`;
+  }
+  return `${minutes}:${ss}`;
+}
+
 export type BabyDurationLocale = "en" | "vi";
 
 /**

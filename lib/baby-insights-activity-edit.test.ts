@@ -3,8 +3,10 @@ import { describe, it } from "node:test";
 import {
   activityEditMutationFor,
   buildActivityCareUpdatePayload,
+  buildActivityGrowthUpdateInput,
   validateActivityCareEdit,
 } from "@/lib/baby-insights-activity-edit";
+import { updateBabyGrowthSchema } from "@/lib/validators/baby";
 
 describe("activityEditMutationFor", () => {
   it("care editTarget save hits updateBabyEvent", () => {
@@ -18,6 +20,17 @@ describe("activityEditMutationFor", () => {
     assert.equal(
       activityEditMutationFor({ source: "growth", id: "g1" }, "update"),
       "updateBabyGrowth",
+    );
+  });
+
+  it("vaccine editTarget save hits updateBabyVaccine", () => {
+    assert.equal(
+      activityEditMutationFor({ source: "vaccine", id: "v1" }, "update"),
+      "updateBabyVaccine",
+    );
+    assert.equal(
+      activityEditMutationFor({ source: "vaccine", id: "v1" }, "delete"),
+      "deleteBabyVaccine",
     );
   });
 
@@ -95,5 +108,66 @@ describe("buildActivityCareUpdatePayload", () => {
       }),
       { kind: "wet" },
     );
+  });
+});
+
+describe("buildActivityGrowthUpdateInput", () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  const recordedAt = "2026-01-01T12:00:00.000Z";
+
+  it("includes kind from row so weight edit passes update schema", () => {
+    const input = buildActivityGrowthUpdateInput({
+      id,
+      kind: "weight",
+      valueNum: 4.5,
+      unit: "kg",
+      notesFromForm: null,
+      recordedAt,
+    });
+    assert.equal(input.kind, "weight");
+    assert.equal(updateBabyGrowthSchema.safeParse(input).success, true);
+  });
+
+  it("rejects the old Activities shape without kind", () => {
+    assert.equal(
+      updateBabyGrowthSchema.safeParse({
+        id,
+        valueNum: 4.5,
+        unit: "kg",
+        notes: null,
+        recordedAt,
+      }).success,
+      false,
+    );
+  });
+
+  it("preserves temperature notes JSON and omits free-text form notes", () => {
+    const symptomsJson = JSON.stringify({ v: 1, symptoms: ["cough"] });
+    const input = buildActivityGrowthUpdateInput({
+      id,
+      kind: "temperature",
+      valueNum: null,
+      unit: null,
+      notesFromForm: "felt warm free text",
+      recordedAt,
+      existingNotes: symptomsJson,
+    });
+    assert.equal(input.notes, symptomsJson);
+    assert.notEqual(input.notes, "felt warm free text");
+    assert.equal(updateBabyGrowthSchema.safeParse(input).success, true);
+  });
+
+  it("preserves medication valueText when Activities has no name field", () => {
+    const input = buildActivityGrowthUpdateInput({
+      id,
+      kind: "medication",
+      valueNum: 5,
+      unit: "ml",
+      notesFromForm: null,
+      recordedAt,
+      existingValueText: "Paracetamol",
+    });
+    assert.equal(input.valueText, "Paracetamol");
+    assert.equal(updateBabyGrowthSchema.safeParse(input).success, true);
   });
 });

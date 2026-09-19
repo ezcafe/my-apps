@@ -104,15 +104,21 @@ function makeDeps(opts: {
       );
     },
     insertCareEvent: async (values) => {
+      const feedMethod = (values.payload as { method?: string }).method;
       const stepGuess =
         values.type === "feed" &&
-        (values.payload as { method?: string }).method?.startsWith("breast")
+        (feedMethod === "breast_l" ||
+          feedMethod === "breast_r" ||
+          feedMethod === "pump_l" ||
+          feedMethod === "pump_r")
           ? "saveBreast"
-          : values.type === "feed"
-            ? "createFormula"
-            : values.type === "diaper"
-              ? "createDiaper"
-              : "startNap";
+          : values.type === "feed" && feedMethod === "pump"
+            ? "createPumpAmount"
+            : values.type === "feed"
+              ? "createFormula"
+              : values.type === "diaper"
+                ? "createDiaper"
+                : "startNap";
       if (opts.failOnStep === stepGuess) {
         throw new Error(`mid-chain fail at ${stepGuess}`);
       }
@@ -155,6 +161,8 @@ function makeDeps(opts: {
         ];
         if (methods.includes("formula")) {
           writes.push("createFormula");
+        } else if (methods.includes("pump")) {
+          writes.push("createPumpAmount");
         } else {
           writes.push("saveBreast");
         }
@@ -656,7 +664,7 @@ describe("babyQuickCare DIAPER payload", () => {
       amountMl: number;
       durationSec: number;
     };
-    assert.equal(payload.method, "formula");
+    assert.equal(payload.method, "breast_r");
     assert.equal(payload.amountMl, 90);
     assert.equal(payload.durationSec, 420);
     assert.equal(payload.legs.length, 3);

@@ -152,7 +152,7 @@ export function babyNextFeedDue(input: {
   now: number;
   ageDays: number | null;
   lastFeedAt: number | null;
-  lastFeedMethod: "breast_l" | "breast_r" | "formula" | "pump" | null | string;
+  lastFeedMethod: "breast_l" | "breast_r" | "formula" | "pump" | "pump_l" | "pump_r" | null | string;
 }): BabyNextDue {
   const guide = babyCareIntervalGuideForAge(input.ageDays);
   if (!guide || input.lastFeedAt == null || input.ageDays == null) {

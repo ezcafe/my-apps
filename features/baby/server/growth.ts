@@ -150,7 +150,9 @@ export async function listBabyGrowthEntries(
           | "height"
           | "head"
           | "temperature"
-          | "medication",
+          | "medication"
+          | "vitamin"
+          | "pump",
       ),
     );
   }

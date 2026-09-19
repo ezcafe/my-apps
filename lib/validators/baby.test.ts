@@ -12,6 +12,7 @@ import {
   linkBabyTelegramSchema,
   updateBabyEventFeedPayloadSchema,
   updateBabyEventSchema,
+  updateBabyGrowthSchema,
 } from "@/lib/validators/baby";
 
 describe("createBabyFeedSchema", () => {
@@ -92,6 +93,48 @@ describe("createBabyFeedSchema", () => {
         method: "breast_l",
         legs: [{ method: "bottle", durationSec: 1 }],
       }).success,
+      false,
+    );
+  });
+
+  it("accepts pump_l / pump_r with durationSec", () => {
+    assert.equal(
+      createBabyFeedSchema.safeParse({
+        method: "pump_l",
+        durationSec: 420,
+      }).success,
+      true,
+    );
+    assert.equal(
+      createBabyFeedSchema.safeParse({
+        method: "pump_r",
+        durationSec: 90,
+      }).success,
+      true,
+    );
+  });
+
+  it("rejects pump_l / pump_r without durationSec", () => {
+    assert.equal(
+      createBabyFeedSchema.safeParse({ method: "pump_l" }).success,
+      false,
+    );
+    assert.equal(
+      createBabyFeedSchema.safeParse({ method: "pump_r" }).success,
+      false,
+    );
+  });
+
+  it("accepts pump with amountMl; rejects pump without amountMl", () => {
+    assert.equal(
+      createBabyFeedSchema.safeParse({
+        method: "pump",
+        amountMl: 90,
+      }).success,
+      true,
+    );
+    assert.equal(
+      createBabyFeedSchema.safeParse({ method: "pump" }).success,
       false,
     );
   });
@@ -317,6 +360,222 @@ describe("createBabyGrowthSchema", () => {
     assert.equal(
       createBabyGrowthSchema.safeParse({ kind: "bmi" }).success,
       false,
+    );
+  });
+
+  it("rejects forged kind vaccine (UI sentinel, not a growth DB kind)", () => {
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "vaccine",
+        valueNum: 3.4,
+        unit: "kg",
+      }).success,
+      false,
+    );
+  });
+
+  it("requires medication and vitamin name after trim", () => {
+    assert.equal(
+      createBabyGrowthSchema.safeParse({ kind: "medication" }).success,
+      false,
+    );
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "medication",
+        valueText: "   ",
+      }).success,
+      false,
+    );
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "vitamin",
+        valueText: "   ",
+      }).success,
+      false,
+    );
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "vitamin",
+        valueText: "D3",
+      }).success,
+      true,
+    );
+  });
+
+  it("requires pump amount and unit", () => {
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "pump",
+        valueNum: 80,
+      }).success,
+      false,
+    );
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "pump",
+        valueNum: 80,
+        unit: "",
+      }).success,
+      false,
+    );
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "pump",
+        valueNum: 80,
+        unit: "ml",
+      }).success,
+      true,
+    );
+  });
+
+  it("rejects empty temperature; accepts temp-only, symptoms-only, both", () => {
+    assert.equal(
+      createBabyGrowthSchema.safeParse({ kind: "temperature" }).success,
+      false,
+    );
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "temperature",
+        valueNum: 37.5,
+        unit: "°C",
+      }).success,
+      true,
+    );
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "temperature",
+        notes: JSON.stringify({ v: 1, symptoms: ["cough"] }),
+      }).success,
+      true,
+    );
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "temperature",
+        valueNum: 38,
+        notes: JSON.stringify({ v: 1, symptoms: ["rash"] }),
+      }).success,
+      true,
+    );
+  });
+
+  it("rejects unknown symptom ids in temperature notes", () => {
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "temperature",
+        notes: JSON.stringify({ v: 1, symptoms: ["fever"] }),
+      }).success,
+      false,
+    );
+  });
+
+  it("rejects free-text and invalid JSON temperature notes", () => {
+    const freeText = createBabyGrowthSchema.safeParse({
+      kind: "temperature",
+      valueNum: 37.5,
+      notes: "felt warm…",
+    });
+    assert.equal(freeText.success, false);
+    if (!freeText.success) {
+      assert.ok(
+        freeText.error.issues.some((i) => i.message === "invalid symptoms notes"),
+      );
+    }
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "temperature",
+        valueNum: 37.5,
+        notes: "{not-json",
+      }).success,
+      false,
+    );
+    assert.equal(
+      createBabyGrowthSchema.safeParse({
+        kind: "temperature",
+        valueNum: 37.5,
+        notes: JSON.stringify({ v: 2, symptoms: ["cough"] }),
+      }).success,
+      false,
+    );
+  });
+});
+
+describe("updateBabyGrowthSchema", () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+
+  it("requires medication and vitamin name when kind is present", () => {
+    assert.equal(
+      updateBabyGrowthSchema.safeParse({
+        id,
+        kind: "medication",
+        valueText: "   ",
+      }).success,
+      false,
+    );
+    assert.equal(
+      updateBabyGrowthSchema.safeParse({
+        id,
+        kind: "vitamin",
+      }).success,
+      false,
+    );
+    assert.equal(
+      updateBabyGrowthSchema.safeParse({
+        id,
+        kind: "vitamin",
+        valueText: "D3",
+      }).success,
+      true,
+    );
+  });
+
+  it("rejects empty temperature and invalid notes when kind is present", () => {
+    assert.equal(
+      updateBabyGrowthSchema.safeParse({
+        id,
+        kind: "temperature",
+      }).success,
+      false,
+    );
+    assert.equal(
+      updateBabyGrowthSchema.safeParse({
+        id,
+        kind: "temperature",
+        notes: "felt warm…",
+      }).success,
+      false,
+    );
+    assert.equal(
+      updateBabyGrowthSchema.safeParse({
+        id,
+        kind: "temperature",
+        valueNum: 37.2,
+        unit: "°C",
+      }).success,
+      true,
+    );
+  });
+
+  it("requires kind when health fields are patched", () => {
+    assert.equal(
+      updateBabyGrowthSchema.safeParse({
+        id,
+        valueText: "",
+      }).success,
+      false,
+    );
+    assert.equal(
+      updateBabyGrowthSchema.safeParse({
+        id,
+        notes: JSON.stringify({ v: 1, symptoms: ["cough"] }),
+      }).success,
+      false,
+    );
+    assert.equal(
+      updateBabyGrowthSchema.safeParse({
+        id,
+        recordedAt: "2026-01-01T00:00:00.000Z",
+      }).success,
+      true,
     );
   });
 });
@@ -589,6 +848,27 @@ describe("babyQuickCareSchema", () => {
       babyQuickCareSchema.safeParse({
         ...base,
         action: { kind: "FORMULA", amountMl: 120 },
+      }).success,
+      true,
+    );
+    assert.equal(
+      babyQuickCareSchema.safeParse({
+        ...base,
+        action: { kind: "PUMP_AMOUNT" },
+      }).success,
+      false,
+    );
+    assert.equal(
+      babyQuickCareSchema.safeParse({
+        ...base,
+        action: { kind: "PUMP_AMOUNT", amountMl: 90 },
+      }).success,
+      true,
+    );
+    assert.equal(
+      babyQuickCareSchema.safeParse({
+        ...base,
+        action: { kind: "BREAST", side: "pump_l" },
       }).success,
       true,
     );

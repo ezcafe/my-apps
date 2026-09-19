@@ -20,7 +20,9 @@ export type AppSectionTabIconId =
   | "baby"
   | "babyHome"
   | "babyInsights"
+  | "babyActivities"
   | "babyFeed"
+  | "babyPump"
   | "babySleep"
   | "babyDiaper"
   | "babyMeasure"
@@ -229,9 +231,23 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
         group: "review",
       },
       {
+        href: "/baby/activities",
+        label: "Activities",
+        icon: "babyActivities",
+        exact: false,
+        group: "review",
+      },
+      {
         href: "/baby/feed",
         label: "Log feed",
         icon: "babyFeed",
+        exact: false,
+        group: "capture",
+      },
+      {
+        href: "/baby/pump",
+        label: "Log pump",
+        icon: "babyPump",
         exact: false,
         group: "capture",
       },
@@ -250,16 +266,9 @@ export const APP_SECTION_NAV: Record<AppSectionKey, AppSectionNavConfig> = {
         group: "capture",
       },
       {
-        href: "/baby/measure",
-        label: "Log measurement",
+        href: "/baby/growth",
+        label: "Log growth",
         icon: "babyMeasure",
-        exact: false,
-        group: "capture",
-      },
-      {
-        href: "/baby/vaccines",
-        label: "Vaccines",
-        icon: "babyVaccine",
         exact: false,
         group: "capture",
       },

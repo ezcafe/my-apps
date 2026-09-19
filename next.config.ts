@@ -31,11 +31,22 @@ const nextConfig: NextConfig = {
         destination: "/money/insights/:path*",
         permanent: true,
       },
-      // Baby: Growth + Timeline merged into Insights
-      { source: "/baby/growth", destination: "/baby/insights", permanent: true },
+      // Baby: reclaim Growth capture; old Measure URL → Growth; Timeline stays Insights
+      { source: "/baby/measure", destination: "/baby/growth", permanent: true },
       {
-        source: "/baby/growth/:path*",
-        destination: "/baby/insights",
+        source: "/baby/measure/:path*",
+        destination: "/baby/growth",
+        permanent: true,
+      },
+      // Vaccines capture merged into Growth (Vaccine chip)
+      {
+        source: "/baby/vaccines",
+        destination: "/baby/growth?kind=vaccine",
+        permanent: true,
+      },
+      {
+        source: "/baby/vaccines/:path*",
+        destination: "/baby/growth?kind=vaccine",
         permanent: true,
       },
       { source: "/baby/timeline", destination: "/baby/insights", permanent: true },

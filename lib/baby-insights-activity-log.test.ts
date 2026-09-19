@@ -4,6 +4,7 @@ import {
   ACTIVITY_LOG_DELETE_CONCURRENCY,
   activityLogDeleteInvalidateScope,
   activityLogDeleteSettleAlert,
+  activityLogDisplaySummary,
   activityLogRowTitleKey,
   activityLogSelectionKey,
   activitySelectionBarEditEnabled,
@@ -50,6 +51,113 @@ describe("mergeActivityLogRows", () => {
     assert.equal(rows[1]!.careType, "feed");
     assert.equal(activityLogRowTitleKey(rows[0]!), "growth.weight");
     assert.equal(activityLogRowTitleKey(rows[1]!), "insights.chipFeed");
+  });
+
+  it("merges vaccine rows with care and growth", () => {
+    const rows = mergeActivityLogRows(
+      [],
+      [
+        {
+          id: "g1",
+          kind: "weight",
+          recordedAt: "2026-09-14T10:00:00.000Z",
+          valueNum: 4,
+          valueText: null,
+          unit: "kg",
+          notes: null,
+        },
+      ],
+      [
+        {
+          id: "v1",
+          name: "Hexaxim",
+          dose: "first",
+          administeredAt: "2026-09-14T12:00:00.000Z",
+        },
+      ],
+      { vaccineDoseLabel: (d) => (d === "first" ? "First" : "Second") },
+    );
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0]!.source, "vaccine");
+    assert.equal(rows[0]!.summary, "Hexaxim · First");
+    assert.equal(activityLogRowTitleKey(rows[0]!), "growth.vaccine");
+    assert.equal(rows[0]!.editTarget.source, "vaccine");
+  });
+
+  it("maps vitamin and pump growth kinds to i18n title keys", () => {
+    assert.equal(
+      activityLogRowTitleKey({
+        source: "growth",
+        growthKind: "vitamin",
+      }),
+      "growth.vitamin",
+    );
+    assert.equal(
+      activityLogRowTitleKey({
+        source: "growth",
+        growthKind: "pump",
+      }),
+      "growth.pump",
+    );
+  });
+
+  it("summarizes temperature symptoms without raw JSON notes", () => {
+    const rows = mergeActivityLogRows(
+      [],
+      [
+        {
+          id: "t1",
+          kind: "temperature",
+          recordedAt: "2026-09-14T12:00:00.000Z",
+          valueNum: null,
+          valueText: null,
+          unit: null,
+          notes: JSON.stringify({ v: 1, symptoms: ["rash"] }),
+        },
+      ],
+    );
+    assert.equal(rows[0]!.summary, "Rash");
+    assert.doesNotMatch(rows[0]!.summary, /\{|"v":/);
+  });
+
+  it("summarizes vitamin by name, not notes", () => {
+    const rows = mergeActivityLogRows(
+      [],
+      [
+        {
+          id: "v1",
+          kind: "vitamin",
+          recordedAt: "2026-09-14T12:00:00.000Z",
+          valueNum: null,
+          valueText: "Vitamin D",
+          unit: null,
+          notes: null,
+        },
+      ],
+    );
+    assert.equal(rows[0]!.summary, "Vitamin D");
+  });
+
+  it("localizes temperature symptoms in activityLogDisplaySummary", () => {
+    const rows = mergeActivityLogRows(
+      [],
+      [
+        {
+          id: "t1",
+          kind: "temperature",
+          recordedAt: "2026-09-14T12:00:00.000Z",
+          valueNum: null,
+          valueText: null,
+          unit: null,
+          notes: JSON.stringify({ v: 1, symptoms: ["rash"] }),
+        },
+      ],
+    );
+    const display = activityLogDisplaySummary(rows[0]!, (key) =>
+      key === "growth.symptom.rash" ? "Phát ban" : key,
+    );
+    assert.equal(display, "Phát ban");
+    assert.doesNotMatch(display, /\{|"v":/);
   });
 });
 
@@ -295,6 +403,23 @@ describe("activityLogDeleteInvalidateScope", () => {
         { source: "growth", id: "g1" },
       ]),
       "growth",
+    );
+  });
+
+  it("returns vaccines for vaccine-only deletes", () => {
+    assert.equal(
+      activityLogDeleteInvalidateScope([{ source: "vaccine", id: "v1" }]),
+      "vaccines",
+    );
+  });
+
+  it("returns all when vaccine mixes with other sources", () => {
+    assert.equal(
+      activityLogDeleteInvalidateScope([
+        { source: "growth", id: "g1" },
+        { source: "vaccine", id: "v1" },
+      ]),
+      "all",
     );
   });
 });

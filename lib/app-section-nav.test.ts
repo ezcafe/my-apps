@@ -23,23 +23,40 @@ describe("resolveAppSectionFromPath", () => {
 });
 
 describe("baby app section", () => {
-  it("lists capture and browse items plus settings", () => {
+  it("lists capture and browse items plus settings (no Log vaccines)", () => {
     const items = visibleAppSectionItems("baby", () => true);
     assert.deepEqual(
       items.map((item) => item.href),
       [
         "/baby",
         "/baby/insights",
+        "/baby/activities",
         "/baby/feed",
+        "/baby/pump",
         "/baby/sleep",
         "/baby/diaper",
-        "/baby/measure",
-        "/baby/vaccines",
+        "/baby/growth",
         "/baby/settings",
       ],
     );
-    assert.ok(!items.some((item) => item.href === "/baby/growth"));
+    assert.ok(!items.some((item) => item.href === "/baby/measure"));
     assert.ok(!items.some((item) => item.href === "/baby/timeline"));
+    assert.ok(!items.some((item) => item.href === "/baby/vaccines"));
+    assert.ok(!items.some((item) => item.label === "Log vaccines"));
+    assert.equal(
+      items.find((item) => item.href === "/baby/growth")?.label,
+      "Log growth",
+    );
+  });
+
+  it("places Activities in review group next to Insights", () => {
+    const review = APP_SECTION_NAV.baby.items.filter(
+      (item) => item.group === "review",
+    );
+    assert.deepEqual(
+      review.map((item) => item.href),
+      ["/baby/insights", "/baby/activities"],
+    );
   });
 
   it("uses dedicated Baby icon ids (not Money bills/import/spending)", () => {
@@ -47,12 +64,14 @@ describe("baby app section", () => {
     const icons = Object.fromEntries(items.map((i) => [i.href, i.icon]));
     assert.equal(icons["/baby"], "babyHome");
     assert.equal(icons["/baby/insights"], "babyInsights");
+    assert.equal(icons["/baby/activities"], "babyActivities");
     assert.equal(icons["/baby/feed"], "babyFeed");
+    assert.equal(icons["/baby/pump"], "babyPump");
     assert.equal(icons["/baby/sleep"], "babySleep");
     assert.equal(icons["/baby/diaper"], "babyDiaper");
-    assert.equal(icons["/baby/measure"], "babyMeasure");
-    assert.equal(icons["/baby/vaccines"], "babyVaccine");
+    assert.equal(icons["/baby/growth"], "babyMeasure");
     assert.equal(icons["/baby/settings"], "babySettings");
+    assert.equal(icons["/baby/vaccines"], undefined);
     assert.ok(!Object.values(icons).includes("bills"));
     assert.ok(!Object.values(icons).includes("import"));
     assert.ok(!Object.values(icons).includes("spending"));

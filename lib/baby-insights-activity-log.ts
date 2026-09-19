@@ -1,5 +1,7 @@
 import type { BabyMessageKey } from "@/messages/baby/en";
 import type { ActivityEditTarget } from "@/lib/baby-insights-activity-edit";
+import { formatGrowthSummary } from "@/lib/baby-growth-recent";
+import type { BabyTempSymptomId } from "@/lib/baby-growth-symptoms";
 
 export type ActivityLogCareItem = {
   id: string;
@@ -21,8 +23,16 @@ export type ActivityLogGrowthItem = {
   notes: string | null;
 };
 
+export type ActivityLogVaccineItem = {
+  id: string;
+  name: string;
+  dose: "first" | "second";
+  administeredAt: string;
+  notes?: string | null;
+};
+
 export type ActivityLogRow = {
-  source: "care" | "growth";
+  source: "care" | "growth" | "vaccine";
   id: string;
   at: string;
   sortKey: string;
@@ -31,12 +41,13 @@ export type ActivityLogRow = {
   summary: string;
   careType?: "feed" | "diaper" | "sleep";
   growthKind?: string;
+  vaccineDose?: "first" | "second";
   endedAt?: string | null;
   payload?: unknown;
   editTarget: ActivityEditTarget;
 };
 
-/** Stable Set key — care and growth UUID spaces can collide if bare id is used. */
+/** Stable Set key — care / growth / vaccine UUID spaces can collide if bare id is used. */
 export function activityLogSelectionKey(
   target: Pick<ActivityEditTarget, "source" | "id">,
 ): string {
@@ -51,7 +62,9 @@ export function parseActivityLogSelectionKey(
   if (sep <= 0 || sep === key.length - 1) return null;
   const source = key.slice(0, sep);
   const id = key.slice(sep + 1);
-  if (source !== "care" && source !== "growth") return null;
+  if (source !== "care" && source !== "growth" && source !== "vaccine") {
+    return null;
+  }
   if (!id) return null;
   return { source, id };
 }
@@ -177,15 +190,24 @@ export async function mapAllSettledWithConcurrency<T, R>(
 }
 
 /**
- * Post-delete invalidate scope: care-only → `"care"`; growth-only or mixed
- * → `"growth"` (growth scope already refreshes timeline + series).
+ * Post-delete invalidate scope: care-only → `"care"`; vaccine-only →
+ * `"vaccines"`; growth (alone or with care) → `"growth"`; any mix that
+ * includes vaccine with another source → `"all"`.
  */
 export function activityLogDeleteInvalidateScope(
   targets: ReadonlyArray<Pick<ActivityEditTarget, "source">>,
-): "care" | "growth" {
+): "care" | "growth" | "vaccines" | "all" {
+  let hasCare = false;
+  let hasGrowth = false;
+  let hasVaccine = false;
   for (const t of targets) {
-    if (t.source === "growth") return "growth";
+    if (t.source === "care") hasCare = true;
+    else if (t.source === "growth") hasGrowth = true;
+    else if (t.source === "vaccine") hasVaccine = true;
   }
+  if (hasVaccine && (hasCare || hasGrowth)) return "all";
+  if (hasVaccine) return "vaccines";
+  if (hasGrowth) return "growth";
   return "care";
 }
 
@@ -199,6 +221,7 @@ export function activityLogRowTitleKey(
     if (row.careType === "diaper") return "insights.chipDiaper";
     return null;
   }
+  if (row.source === "vaccine") return "growth.vaccine";
   switch (row.growthKind) {
     case "weight":
       return "growth.weight";
@@ -210,25 +233,77 @@ export function activityLogRowTitleKey(
       return "growth.temperature";
     case "medication":
       return "growth.medication";
+    case "vitamin":
+      return "growth.vitamin";
+    case "pump":
+      return "growth.pump";
     default:
       return null;
   }
 }
 
 function growthSummary(g: ActivityLogGrowthItem): string {
-  if (g.valueNum != null) {
-    return `${g.valueNum}${g.unit ? ` ${g.unit}` : ""}`;
-  }
-  if (g.valueText) return g.valueText;
-  return g.notes ?? "—";
+  return formatGrowthSummary({
+    kind: g.kind,
+    valueNum: g.valueNum,
+    valueText: g.valueText,
+    unit: g.unit,
+    notes: g.notes,
+  });
 }
 
-/** Merge care + growth into newest-first Activity log rows. */
+/** Locale-aware Activities list summary (symptoms use i18n labels). */
+export function activityLogDisplaySummary(
+  row: Pick<ActivityLogRow, "source" | "growthKind" | "summary" | "payload">,
+  t: (key: BabyMessageKey) => string,
+): string {
+  if (row.source === "vaccine") return row.summary;
+  if (row.source !== "growth" || !row.growthKind) return row.summary;
+  const payload = row.payload as
+    | {
+        valueNum?: number | null;
+        valueText?: string | null;
+        unit?: string | null;
+        notes?: string | null;
+      }
+    | undefined;
+  return formatGrowthSummary(
+    {
+      kind: row.growthKind,
+      valueNum: payload?.valueNum ?? null,
+      valueText: payload?.valueText ?? null,
+      unit: payload?.unit ?? null,
+      notes: payload?.notes ?? null,
+    },
+    {
+      symptomLabel: (id: BabyTempSymptomId) => {
+        const key = `growth.symptom.${id}` as BabyMessageKey;
+        return t(key);
+      },
+    },
+  );
+}
+
+function vaccineSummary(
+  v: ActivityLogVaccineItem,
+  doseLabel: (dose: "first" | "second") => string,
+): string {
+  return `${v.name} · ${doseLabel(v.dose)}`;
+}
+
+/** Merge care + growth + vaccine into newest-first Activity log rows. */
 export function mergeActivityLogRows(
   careItems: readonly ActivityLogCareItem[],
   growthItems: readonly ActivityLogGrowthItem[],
+  vaccineItems: readonly ActivityLogVaccineItem[] = [],
+  opts?: {
+    vaccineDoseLabel?: (dose: "first" | "second") => string;
+  },
 ): ActivityLogRow[] {
   const rows: ActivityLogRow[] = [];
+  const doseLabel =
+    opts?.vaccineDoseLabel ??
+    ((dose: "first" | "second") => (dose === "first" ? "First" : "Second"));
 
   for (const c of careItems) {
     if (c.kind !== "care") continue;
@@ -266,6 +341,24 @@ export function mergeActivityLogRows(
         notes: g.notes,
       },
       editTarget: { source: "growth", id: g.id },
+    });
+  }
+
+  for (const v of vaccineItems) {
+    rows.push({
+      source: "vaccine",
+      id: v.id,
+      at: v.administeredAt,
+      sortKey: `${v.administeredAt}\0vaccine\0${v.id}`,
+      title: "vaccine",
+      summary: vaccineSummary(v, doseLabel),
+      vaccineDose: v.dose,
+      payload: {
+        name: v.name,
+        dose: v.dose,
+        notes: v.notes ?? null,
+      },
+      editTarget: { source: "vaccine", id: v.id },
     });
   }
 

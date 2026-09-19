@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   formatBabyDurationCompact,
   formatBabyDurationLocale,
+  formatBabyDurationTimer,
 } from "@/lib/baby-format-duration";
 
 describe("formatBabyDurationCompact", () => {
@@ -25,6 +26,20 @@ describe("formatBabyDurationCompact", () => {
 
   it("floors fractional seconds to whole minutes", () => {
     assert.equal(formatBabyDurationCompact(90), "1m");
+  });
+});
+
+describe("formatBabyDurationTimer", () => {
+  it("shows minutes and seconds as m:ss", () => {
+    assert.equal(formatBabyDurationTimer(0), "0:00");
+    assert.equal(formatBabyDurationTimer(5), "0:05");
+    assert.equal(formatBabyDurationTimer(65), "1:05");
+    assert.equal(formatBabyDurationTimer(12 * 60 + 30), "12:30");
+  });
+
+  it("includes hours as h:mm:ss when ≥ 1 hour", () => {
+    assert.equal(formatBabyDurationTimer(60 * 60), "1:00:00");
+    assert.equal(formatBabyDurationTimer(65 * 60 + 7), "1:05:07");
   });
 });
 

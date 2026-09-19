@@ -93,13 +93,9 @@ describe("deriveBabyInsightsKpis", () => {
 });
 
 describe("preferSeriesInsightCountKpis", () => {
-  it("uses series totals over capped timeline pages", () => {
+  it("uses series totals (no timeline list needed)", () => {
     const kpis = preferSeriesInsightCountKpis({
       seriesCounts: { feeds: 12, sleep: 4, diapers: 9 },
-      timelineFallback: [
-        { kind: "care", type: "feed" },
-        { kind: "care", type: "feed" },
-      ],
       growth: [],
     });
     assert.equal(kpis.feeds, 12);
@@ -121,16 +117,13 @@ describe("preferSeriesInsightCountKpis", () => {
     });
   });
 
-  it("falls back to timeline when series counts missing", () => {
+  it("does not use timeline fallback when series counts missing", () => {
     const kpis = preferSeriesInsightCountKpis({
       seriesCounts: undefined,
-      timelineFallback: [
-        { kind: "care", type: "feed" },
-        { kind: "care", type: "diaper" },
-      ],
-      growth: [],
+      growth: [{ kind: "weight", valueNum: 4.0, unit: "kg" }],
     });
-    assert.equal(kpis.feeds, 1);
-    assert.equal(kpis.diapers, 1);
+    assert.equal(kpis.feeds, 0);
+    assert.equal(kpis.diapers, 0);
+    assert.deepEqual(kpis.latestWeight, { valueNum: 4.0, unit: "kg" });
   });
 });

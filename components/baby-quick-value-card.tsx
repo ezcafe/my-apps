@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/cn";
+import { BABY_HOME_BIG_CONTROL_MIN_H } from "@/lib/baby-home-control-height";
 
 type BabyQuickValueCardProps = {
   labelId: string;
@@ -178,7 +179,7 @@ export type BabyQuickSimpleCardProps = {
   className?: string;
 } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onClick" | "children">;
 
-/** Single large care card (breast / sleep) — min-h-20 centre target. */
+/** Single large care card (breast / sleep) — matches two stacked small tiles. */
 export function BabyQuickSimpleCard({
   labelId,
   label,
@@ -208,7 +209,8 @@ export function BabyQuickSimpleCard({
       }}
       aria-labelledby={labelId}
       className={cn(
-        "flex h-full min-h-20 w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border px-3 py-4 fx-press fx-ripple transition-colors",
+        "flex h-full w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border px-3 py-4 fx-press fx-ripple transition-colors",
+        BABY_HOME_BIG_CONTROL_MIN_H,
         primary
           ? "border-transparent bg-accent text-accent-foreground hover:bg-accent-hover"
           : "border-border bg-surface text-foreground hover:bg-secondary-hover",
@@ -217,23 +219,45 @@ export function BabyQuickSimpleCard({
       )}
       {...rest}
     >
-      {!showDone ? icon : null}
+      {/* Reserve icon height on Done (invisible) so the card does not shrink. */}
+      <span
+        data-face-slot="icon"
+        data-icon-collapsed={showDone ? "true" : undefined}
+        className={cn(
+          "flex min-h-6 items-center justify-center",
+          showDone && "invisible",
+        )}
+        aria-hidden={showDone || undefined}
+      >
+        {icon}
+      </span>
       <span id={labelId} className="text-sm font-medium">
         {showDone ? doneText : label}
       </span>
       {!showDone ? (
-        <span className="text-base font-semibold tabular-nums">{valueText}</span>
-      ) : null}
-      {!showDone && subtitle ? (
         <span
+          data-face-slot="value"
+          className="min-h-6 text-base font-semibold tabular-nums"
+        >
+          {valueText}
+        </span>
+      ) : (
+        <span data-face-slot="value" className="min-h-6" aria-hidden />
+      )}
+      {!showDone ? (
+        <span
+          data-face-slot="subtitle"
           className={cn(
-            "text-xs",
+            "min-h-4 text-xs",
             primary ? "text-accent-foreground/80" : "text-muted",
+            !subtitle && "invisible",
           )}
         >
-          {subtitle}
+          {subtitle ?? "\u00a0"}
         </span>
-      ) : null}
+      ) : (
+        <span data-face-slot="subtitle" className="min-h-4" aria-hidden />
+      )}
     </button>
   );
 }

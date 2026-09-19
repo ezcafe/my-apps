@@ -1,9 +1,10 @@
 "use client";
 
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
+import { BabyDiaperDetailSheet } from "@/components/baby-diaper-detail-sheet";
+import { BabyDiaperKindControl } from "@/components/baby-diaper-kind-control";
 import { useBabyLocale } from "@/components/baby-locale-provider";
 import { useNotify } from "@/components/notification-provider";
 import { babyGraphQLRequest } from "@/lib/baby-gql-client";
@@ -11,15 +12,16 @@ import {
   BABY_CARE_AFTER_SAVE,
   runBabyCareSaveThenNavigate,
 } from "@/lib/baby-care-save-navigate";
+import type { BabyDiaperKind } from "@/lib/baby-diaper-detail";
+import type { BabyDiaperQuickPlan } from "@/lib/baby-diaper-quick-plan";
+import {
+  BABY_CARE_DONE_BEFORE_NAV_MS,
+  babyHomeDiaperDoneKind,
+  createBabyHomeDoneFlashTimer,
+} from "@/lib/baby-home-done-flash";
 import { invalidateBabyQueries } from "@/lib/baby-query-options";
 import { cn } from "@/lib/cn";
 import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
-
-const KINDS = [
-  { kind: "wet", key: "diaper.wet" },
-  { kind: "dirty", key: "diaper.dirty" },
-  { kind: "mixed", key: "diaper.mixed" },
-] as const;
 
 const MUTATION = /* GraphQL */ `
   mutation CreateBabyDiaper($input: CreateBabyDiaperInput!) {
@@ -35,14 +37,42 @@ export function BabyDiaperForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [pending, startTransition] = useTransition();
+  const [doneKind, setDoneKind] = useState<BabyDiaperKind | null>(null);
+  const [diaperSheet, setDiaperSheet] = useState<{
+    diaperKind: "dirty" | "mixed";
+  } | null>(null);
+  const doneTimerRef = useRef(createBabyHomeDoneFlashTimer());
 
-  function log(kind: (typeof KINDS)[number]["kind"]) {
+  useEffect(() => {
+    const host = doneTimerRef.current;
+    return () => host.dispose();
+  }, []);
+
+  function saveDiaper(input: {
+    kind: BabyDiaperKind;
+    diaperColor?: string | null;
+    diaperTexture?: string | null;
+    diaperAmount?: string | null;
+  }) {
     startTransition(async () => {
       await runBabyCareSaveThenNavigate({
         mutate: async () => {
-          await babyGraphQLRequest(MUTATION, { input: { kind } });
+          await babyGraphQLRequest(MUTATION, {
+            input: {
+              kind: input.kind,
+              ...(input.diaperColor ? { color: input.diaperColor } : {}),
+              ...(input.diaperTexture ? { texture: input.diaperTexture } : {}),
+              ...(input.diaperAmount ? { amount: input.diaperAmount } : {}),
+            },
+          });
         },
         onSuccess: async () => {
+          setDiaperSheet(null);
+          const dk = babyHomeDiaperDoneKind(input.kind);
+          if (dk) {
+            setDoneKind(dk);
+            doneTimerRef.current.arm(() => setDoneKind(null));
+          }
           await invalidateBabyQueries(queryClient, "care");
           notify.success(t("diaper.saved"));
         },
@@ -51,33 +81,51 @@ export function BabyDiaperForm() {
         },
         router,
         afterSave: BABY_CARE_AFTER_SAVE.diaper,
+        homeNavigateDelayMs: BABY_CARE_DONE_BEFORE_NAV_MS,
       });
     });
+  }
+
+  function onPlan(plan: BabyDiaperQuickPlan) {
+    if (pending) return;
+    if (plan.kind === "instantSave") {
+      saveDiaper({ kind: plan.diaperKind });
+      return;
+    }
+    setDiaperSheet({ diaperKind: plan.diaperKind });
   }
 
   return (
     <div
       className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK, "fx-fade-in")}
+      data-testid="baby-diaper-form"
     >
-      <div
-        className="grid gap-3"
-        style={{
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 10rem), 1fr))",
-        }}
-      >
-        {KINDS.map((k) => (
-          <Button
-            key={k.kind}
-            type="button"
-            size="lg"
-            className="min-h-14"
-            disabled={pending}
-            onClick={() => log(k.kind)}
-          >
-            {t(k.key)}
-          </Button>
-        ))}
-      </div>
+      <BabyDiaperKindControl
+        disabled={pending}
+        doneKind={doneKind}
+        doneText={t("home.done")}
+        onPlan={onPlan}
+        t={t}
+      />
+
+      {diaperSheet ? (
+        <BabyDiaperDetailSheet
+          key={diaperSheet.diaperKind}
+          open
+          diaperKind={diaperSheet.diaperKind}
+          saving={pending}
+          onClose={() => setDiaperSheet(null)}
+          onSave={(mutation) => {
+            saveDiaper({
+              kind: mutation.diaperKind,
+              diaperColor: mutation.diaperColor,
+              diaperTexture: mutation.diaperTexture,
+              diaperAmount: mutation.diaperAmount,
+            });
+          }}
+          t={t}
+        />
+      ) : null}
     </div>
   );
 }

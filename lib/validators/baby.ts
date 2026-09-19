@@ -10,12 +10,18 @@ import {
   BABY_DIAPER_TEXTURES,
   babyDiaperDetailAllowed,
 } from "@/lib/baby-diaper-detail";
+import {
+  babyTemperatureHasContent,
+  decodeBabyTempSymptoms,
+} from "@/lib/baby-growth-symptoms";
 
 export const babyFeedMethodSchema = z.enum([
   "breast_l",
   "breast_r",
   "formula",
   "pump",
+  "pump_l",
+  "pump_r",
 ]);
 
 export const babyDiaperKindSchema = z.enum(BABY_DIAPER_KINDS);
@@ -64,6 +70,8 @@ export const babyGrowthKindSchema = z.enum([
   "head",
   "temperature",
   "medication",
+  "vitamin",
+  "pump",
 ]);
 
 export const babyCareSourceSchema = z.enum(["web", "telegram"]).optional().default("web");
@@ -81,15 +89,35 @@ export const babyFeedLegSchema = z.object({
 /** Cap matches mergeFeedLegs after same-method collapse. */
 export const BABY_FEED_LEGS_ZOD_MAX = 8;
 
-export const createBabyFeedSchema = z.object({
-  method: babyFeedMethodSchema,
-  durationSec: z.number().int().positive().optional(),
-  amountMl: z.number().positive().optional(),
-  legs: z.array(babyFeedLegSchema).max(BABY_FEED_LEGS_ZOD_MAX).optional(),
-  notes: z.string().max(2000).optional(),
-  occurredAt: z.string().datetime({ offset: true }).optional(),
-  source: babyCareSourceSchema,
-});
+export const createBabyFeedSchema = z
+  .object({
+    method: babyFeedMethodSchema,
+    durationSec: z.number().int().positive().optional(),
+    amountMl: z.number().positive().optional(),
+    legs: z.array(babyFeedLegSchema).max(BABY_FEED_LEGS_ZOD_MAX).optional(),
+    notes: z.string().max(2000).optional(),
+    occurredAt: z.string().datetime({ offset: true }).optional(),
+    source: babyCareSourceSchema,
+  })
+  .superRefine((val, ctx) => {
+    if (
+      (val.method === "pump_l" || val.method === "pump_r") &&
+      val.durationSec == null
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "duration is required",
+        path: ["durationSec"],
+      });
+    }
+    if (val.method === "pump" && val.amountMl == null) {
+      ctx.addIssue({
+        code: "custom",
+        message: "amount is required",
+        path: ["amountMl"],
+      });
+    }
+  });
 
 export const createBabyDiaperSchema = z
   .object({
@@ -121,25 +149,148 @@ export const endBabySleepSchema = z.object({
   source: babyCareSourceSchema,
 });
 
-export const createBabyGrowthSchema = z.object({
-  kind: babyGrowthKindSchema,
-  recordedAt: z.string().datetime({ offset: true }).optional(),
-  valueNum: z.number().optional(),
-  valueText: z.string().max(500).optional(),
-  unit: z.string().max(32).optional(),
-  notes: z.string().max(2000).optional(),
-  source: babyCareSourceSchema,
-});
+type GrowthKindFields = {
+  kind?: z.infer<typeof babyGrowthKindSchema>;
+  valueNum?: number | null;
+  valueText?: string | null;
+  unit?: string | null;
+  notes?: string | null;
+};
 
-export const updateBabyGrowthSchema = z.object({
-  id: z.string().uuid(),
-  kind: babyGrowthKindSchema.optional(),
-  recordedAt: z.string().datetime({ offset: true }).optional(),
-  valueNum: z.number().nullable().optional(),
-  valueText: z.string().max(500).nullable().optional(),
-  unit: z.string().max(32).nullable().optional(),
-  notes: z.string().max(2000).nullable().optional(),
-});
+/** Shared field rules for create + update growth rows. */
+function refineBabyGrowthKindFields(
+  val: GrowthKindFields,
+  ctx: z.RefinementCtx,
+  opts?: { kindRequired: boolean },
+) {
+  const kind = val.kind;
+  if (!kind) {
+    if (opts?.kindRequired) {
+      ctx.addIssue({
+        code: "custom",
+        message: "kind is required",
+        path: ["kind"],
+      });
+    }
+    return;
+  }
+
+  if (kind === "medication" || kind === "vitamin") {
+    const name = val.valueText?.trim() ?? "";
+    if (name.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "name is required",
+        path: ["valueText"],
+      });
+    }
+  }
+
+  if (kind === "pump") {
+    if (val.valueNum == null || !Number.isFinite(val.valueNum)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "amount is required",
+        path: ["valueNum"],
+      });
+    }
+    if (!val.unit?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "unit is required",
+        path: ["unit"],
+      });
+    }
+  }
+
+  if (kind === "weight" || kind === "height" || kind === "head") {
+    if (val.valueNum == null || !Number.isFinite(val.valueNum)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "value is required",
+        path: ["valueNum"],
+      });
+    }
+    if (!val.unit?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "unit is required",
+        path: ["unit"],
+      });
+    }
+  }
+
+  if (kind === "temperature") {
+    if (val.notes != null && val.notes !== "") {
+      const decoded = decodeBabyTempSymptoms(val.notes);
+      if (decoded.error) {
+        ctx.addIssue({
+          code: "custom",
+          message: "invalid symptoms notes",
+          path: ["notes"],
+        });
+        return;
+      }
+    }
+    if (
+      !babyTemperatureHasContent({
+        valueNum: val.valueNum,
+        notes: val.notes,
+      })
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "temperature or symptoms required",
+        path: ["valueNum"],
+      });
+    }
+  }
+}
+
+export const createBabyGrowthSchema = z
+  .object({
+    kind: babyGrowthKindSchema,
+    recordedAt: z.string().datetime({ offset: true }).optional(),
+    valueNum: z.number().optional(),
+    valueText: z.string().max(500).optional(),
+    unit: z.string().max(32).optional(),
+    notes: z.string().max(2000).optional(),
+    source: babyCareSourceSchema,
+  })
+  .superRefine((val, ctx) => {
+    refineBabyGrowthKindFields(val, ctx, { kindRequired: true });
+  });
+
+export const updateBabyGrowthSchema = z
+  .object({
+    id: z.string().uuid(),
+    kind: babyGrowthKindSchema.optional(),
+    recordedAt: z.string().datetime({ offset: true }).optional(),
+    valueNum: z.number().nullable().optional(),
+    valueText: z.string().max(500).nullable().optional(),
+    unit: z.string().max(32).nullable().optional(),
+    notes: z.string().max(2000).nullable().optional(),
+  })
+  .superRefine((val, ctx) => {
+    // Health field patches need kind so med/vitamin/pump/temp rules apply.
+    // recordedAt-only updates may omit kind.
+    const patchesHealthFields =
+      val.valueNum !== undefined ||
+      val.valueText !== undefined ||
+      val.unit !== undefined ||
+      val.notes !== undefined;
+    if (!val.kind) {
+      if (patchesHealthFields) {
+        ctx.addIssue({
+          code: "custom",
+          message: "kind is required",
+          path: ["kind"],
+        });
+      }
+      return;
+    }
+    refineBabyGrowthKindFields(val, ctx);
+  });
 
 /** Strict per-type payload patches for updateBabyEvent. */
 export const updateBabyEventFeedPayloadSchema = z
@@ -324,7 +475,15 @@ export const babyVaccineListInputSchema = z
 
 export type CreateBabyVaccineInput = z.input<typeof createBabyVaccineSchema>;
 
-export const babyBreastSideSchema = z.enum(["breast_l", "breast_r"]);
+export const babyCareTimerSideSchema = z.enum([
+  "breast_l",
+  "breast_r",
+  "pump_l",
+  "pump_r",
+]);
+
+/** @deprecated Prefer babyCareTimerSideSchema — kept after widen. */
+export const babyBreastSideSchema = babyCareTimerSideSchema;
 
 export const babyHomeQuickStatusInputSchema = z
   .object({
@@ -384,8 +543,8 @@ export const updateBabyProfileSchema = z
 export const babyQuickCareSchema = z
   .object({
     action: z.object({
-      kind: z.enum(["BREAST", "FORMULA", "SLEEP", "DIAPER"]),
-      side: babyBreastSideSchema.optional(),
+      kind: z.enum(["BREAST", "FORMULA", "PUMP_AMOUNT", "SLEEP", "DIAPER"]),
+      side: babyCareTimerSideSchema.optional(),
       amountMl: z.number().positive().optional(),
       diaperKind: babyDiaperKindSchema.optional(),
       diaperColor: babyDiaperColorSchema.optional(),
@@ -394,7 +553,7 @@ export const babyQuickCareSchema = z
     }),
     breastRunning: z
       .object({
-        side: babyBreastSideSchema,
+        side: babyCareTimerSideSchema,
         durationSec: z.number().int().positive(),
       })
       .nullable()
@@ -416,7 +575,7 @@ export const babyQuickCareSchema = z
     if (v.action.kind === "BREAST") {
       need(!!v.action.side, "BABY_QUICK_SIDE_REQUIRED", "side");
     }
-    if (v.action.kind === "FORMULA") {
+    if (v.action.kind === "FORMULA" || v.action.kind === "PUMP_AMOUNT") {
       need(
         v.action.amountMl != null,
         "BABY_QUICK_AMOUNT_REQUIRED",

@@ -24,6 +24,7 @@ import {
 import { isPgUniqueViolation } from "@/lib/pg-unique";
 import { parseOrThrow } from "@/lib/parse-or-throw";
 import { babyQuickCareSchema } from "@/lib/validators/baby";
+import { isPumpFamilyQuickAction } from "@/lib/baby-quick-care-plan";
 
 export type BabyQuickCareWrote = "insert" | "update";
 
@@ -260,7 +261,11 @@ function requestWritesFeed(input: {
   breastRunning?: { side: string; durationSec: number } | null;
   action: { kind: string };
 }): boolean {
-  return Boolean(input.breastRunning) || input.action.kind === "FORMULA";
+  return (
+    Boolean(input.breastRunning) ||
+    input.action.kind === "FORMULA" ||
+    input.action.kind === "PUMP_AMOUNT"
+  );
 }
 
 function legsFromExistingPayload(payload: unknown): BabyFeedLeg[] {
@@ -325,7 +330,7 @@ export async function runBabyQuickCare(
           : undefined;
 
       async function writeFeedLegs(
-        step: "saveBreast" | "createFormula",
+        step: "saveBreast" | "createFormula" | "createPumpAmount",
         incoming: BabyFeedLeg[],
         opts: { breastRunningForMerge: boolean },
       ): Promise<BabyQuickCareStep> {
@@ -416,9 +421,11 @@ export async function runBabyQuickCare(
         steps.push(step);
       }
 
+      const pumpFamily = isPumpFamilyQuickAction(input.action);
       const openBefore = await deps.findOpenSleep(workspaceId, baby.id);
       let endedNap = false;
-      if (openBefore) {
+      // Pump is unrelated to nap — do not auto-end open sleep.
+      if (openBefore && !pumpFamily) {
         const payload = {
           ...((openBefore.payload as object) ?? {}),
           ...trace,
@@ -445,6 +452,20 @@ export async function runBabyQuickCare(
           ],
           // Open continuation only when breastRunning is in this request;
           // post-stop bottle uses grace on the target row.
+          {
+            breastRunningForMerge: Boolean(input.breastRunning),
+          },
+        );
+        steps.push(step);
+      } else if (kind === "PUMP_AMOUNT") {
+        const step = await writeFeedLegs(
+          "createPumpAmount",
+          [
+            {
+              method: "pump",
+              amountMl: input.action.amountMl,
+            },
+          ],
           {
             breastRunningForMerge: Boolean(input.breastRunning),
           },

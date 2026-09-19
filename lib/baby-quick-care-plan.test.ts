@@ -41,6 +41,9 @@ describe("localAfterFromQuickRequest", () => {
         clearBreastTimer: true,
         startBreastSide: null,
         stopBreastSession: true,
+        clearPumpTimer: false,
+        startPumpSide: null,
+        stopPumpSession: false,
       },
     );
     assert.deepEqual(
@@ -52,6 +55,9 @@ describe("localAfterFromQuickRequest", () => {
         clearBreastTimer: true,
         startBreastSide: "breast_r",
         stopBreastSession: false,
+        clearPumpTimer: false,
+        startPumpSide: null,
+        stopPumpSession: false,
       },
     );
     assert.deepEqual(
@@ -63,6 +69,9 @@ describe("localAfterFromQuickRequest", () => {
         clearBreastTimer: true,
         startBreastSide: null,
         stopBreastSession: true,
+        clearPumpTimer: false,
+        startPumpSide: null,
+        stopPumpSession: false,
       },
     );
   });
@@ -77,8 +86,41 @@ describe("localAfterFromQuickRequest", () => {
         clearBreastTimer: false,
         startBreastSide: "breast_l",
         stopBreastSession: false,
+        clearPumpTimer: false,
+        startPumpSide: null,
+        stopPumpSession: false,
       },
     );
+  });
+
+  it("pump start keeps breast independent; pump L→R preempts pump only", () => {
+    const pumpStart = planBabyQuickCare(
+      { kind: "BREAST", side: "pump_l" },
+      {
+        breastSlot: { side: "breast_l", startedAt: BABY_AUTO_FINALIZE_NOW - 90_000 },
+        pumpSlot: null,
+        now: BABY_AUTO_FINALIZE_NOW,
+      },
+    );
+    assert.equal(pumpStart.request.breastRunning, null);
+    assert.equal(pumpStart.localAfter.startPumpSide, "pump_l");
+    assert.equal(pumpStart.localAfter.clearBreastTimer, false);
+
+    const pumpSwitch = planBabyQuickCare(
+      { kind: "BREAST", side: "pump_r" },
+      {
+        breastSlot: { side: "breast_l", startedAt: BABY_AUTO_FINALIZE_NOW - 90_000 },
+        pumpSlot: { side: "pump_l", startedAt: BABY_AUTO_FINALIZE_NOW - 90_000 },
+        now: BABY_AUTO_FINALIZE_NOW,
+      },
+    );
+    assert.deepEqual(pumpSwitch.request.breastRunning, {
+      side: "pump_l",
+      durationSec: 90,
+    });
+    assert.equal(pumpSwitch.localAfter.clearPumpTimer, true);
+    assert.equal(pumpSwitch.localAfter.startPumpSide, "pump_r");
+    assert.equal(pumpSwitch.localAfter.clearBreastTimer, false);
   });
 });
 
@@ -173,11 +215,37 @@ describe("planBabyQuickCare", () => {
     );
     assert.equal(breastSave.request.feedSessionEventId, sid);
 
+    // writesFeed includes PUMP_AMOUNT like FORMULA (idle amount still merges).
+    const pumpAmount = planBabyQuickCare(
+      { kind: "PUMP_AMOUNT", amountMl: 90 },
+      { breast: null, now: 0, feedSessionEventId: sid },
+    );
+    assert.equal(pumpAmount.request.feedSessionEventId, sid);
+    assert.equal(pumpAmount.request.breastRunning, null);
+    assert.equal(pumpAmount.localAfter.clearBreastTimer, false);
+
     const diaper = planBabyQuickCare(
       { kind: "DIAPER", diaperKind: "wet" },
       { breast: null, now: 0, feedSessionEventId: sid },
     );
     assert.equal(diaper.request.feedSessionEventId, undefined);
+  });
+
+  it("PUMP_AMOUNT while pump_r running → does not stop pump (independence)", () => {
+    const now = 1_700_000_100_000;
+    const planned = planBabyQuickCare(
+      { kind: "PUMP_AMOUNT", amountMl: 90 },
+      {
+        breast: { side: "pump_r", startedAt: now - 90_000 },
+        now,
+      },
+    );
+    assert.equal(planned.request.action.kind, "PUMP_AMOUNT");
+    assert.equal(planned.request.breastRunning, null);
+    assert.equal(planned.localAfter.clearBreastTimer, false);
+    assert.equal(planned.localAfter.stopBreastSession, false);
+    assert.equal(planned.localAfter.clearPumpTimer, false);
+    assert.equal(planned.localAfter.stopPumpSession, false);
   });
 
   it("omits feedSessionEventId when store has none", () => {
@@ -259,6 +327,62 @@ describe("adoptFeedSessionAfterQuickCare", () => {
     assert.equal(next?.eventId, id);
     assert.equal(next?.graceEndsAtMs, null);
   });
+
+  it("adopts createPumpAmount feed step like createFormula", () => {
+    const id = "66666666-6666-4666-8666-666666666666";
+    const next = adoptFeedSessionAfterQuickCare({
+      babyId: "baby-1",
+      now: 1_700_000_000_000,
+      previous: { babyId: "baby-1", eventId: id, graceEndsAtMs: null },
+      localAfter: {
+        clearBreastTimer: false,
+        startBreastSide: null,
+        stopBreastSession: false,
+      },
+      steps: [
+        {
+          step: "createPumpAmount",
+          wrote: "update",
+          event: { id, type: "feed" },
+        },
+      ],
+    });
+    assert.equal(next?.eventId, id);
+    assert.equal(next?.graceEndsAtMs, null);
+  });
+
+  it("adopts new id from createPumpAmount insert after saveBreast", () => {
+    const oldId = "77777777-7777-4777-8777-777777777777";
+    const newId = "88888888-8888-4888-8888-888888888888";
+    const next = adoptFeedSessionAfterQuickCare({
+      babyId: "baby-1",
+      now: 1_700_000_000_000,
+      previous: {
+        babyId: "baby-1",
+        eventId: oldId,
+        graceEndsAtMs: 1_700_000_100_000,
+      },
+      localAfter: {
+        clearBreastTimer: true,
+        startBreastSide: null,
+        stopBreastSession: true,
+      },
+      steps: [
+        {
+          step: "saveBreast",
+          wrote: "update",
+          event: { id: oldId, type: "feed" },
+        },
+        {
+          step: "createPumpAmount",
+          wrote: "insert",
+          event: { id: newId, type: "feed" },
+        },
+      ],
+    });
+    assert.equal(next?.eventId, newId);
+    assert.equal(next?.graceEndsAtMs, 1_700_000_000_000 + 5 * 60 * 1000);
+  });
 });
 
 describe("babyQuickCareStepMessageKey", () => {
@@ -268,10 +392,15 @@ describe("babyQuickCareStepMessageKey", () => {
       "endNap",
       "startNap",
       "createFormula",
+      "createPumpAmount",
       "createDiaper",
     ].map((s) =>
       babyQuickCareStepMessageKey(s as Parameters<typeof babyQuickCareStepMessageKey>[0]),
     );
     assert.equal(new Set(keys).size, keys.length);
+    assert.equal(
+      babyQuickCareStepMessageKey("createPumpAmount"),
+      "home.stepCreatePumpAmount",
+    );
   });
 });

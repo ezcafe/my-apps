@@ -23,20 +23,35 @@ export function babyHomeBottleDoneMl(
   return amountMl;
 }
 
-/** Second click that fully stops breast → Done on that side. */
+/** Second click that fully stops a timed care side → Done on that side. */
 export function babyHomeBreastDoneSide(input: {
   stopBreastSession: boolean;
-  side: "breast_l" | "breast_r" | undefined | null;
-}): "breast_l" | "breast_r" | null {
+  side: "breast_l" | "breast_r" | "pump_l" | "pump_r" | undefined | null;
+}): "breast_l" | "breast_r" | "pump_l" | "pump_r" | null {
   if (!input.stopBreastSession) return null;
-  if (input.side === "breast_l" || input.side === "breast_r") return input.side;
+  if (
+    input.side === "breast_l" ||
+    input.side === "breast_r" ||
+    input.side === "pump_l" ||
+    input.side === "pump_r"
+  ) {
+    return input.side;
+  }
   return null;
 }
 
-/** Confirmed SLEEP press → Done flash on the nap card. */
-export function babyHomeSleepDoneFlash(confirmedSleep: boolean): boolean {
-  return confirmedSleep;
+/**
+ * Nap/Sleep Done flash only after End/stop — never after Start while the
+ * session is still running (same gate as breast/pump stopBreastSession).
+ */
+export function babyHomeSleepDoneFlash(input: {
+  endedSleepSession: boolean;
+}): boolean {
+  return input.endedSleepSession;
 }
+
+/** Brief pause so Done can paint before forms navigate home. */
+export const BABY_CARE_DONE_BEFORE_NAV_MS = 450;
 
 export type BabyHomeDoneFlashTimerHost = {
   setTimeout: typeof setTimeout;

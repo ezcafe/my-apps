@@ -281,6 +281,13 @@
       "when": 1779835700000,
       "tag": "0039_baby_quick_care_request",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1779835800000,
+      "tag": "0040_baby_growth_kind_vitamin_pump",
+      "breakpoints": true
     }
   ]
 }

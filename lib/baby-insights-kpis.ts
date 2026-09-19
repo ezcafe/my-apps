@@ -16,6 +16,8 @@ export type BabyInsightsKpis = {
 /**
  * Honest counts from already-fetched range data.
  * Care counts use care events only; latest weight from growth rows.
+ * Kept for unit tests of timeline-derived KPI math; Insights production
+ * uses preferSeriesInsightCountKpis (series-only after Activities move).
  */
 export function deriveBabyInsightsKpis(
   source: BabyInsightsKpiSource,
@@ -61,37 +63,39 @@ export type SeriesCountTotals = {
 /**
  * Prefer full-range series totals for More insights count KPIs.
  * Apply care chips; latest weight still comes from growth lists when loaded.
+ * Series-only: missing series does **not** count from a timeline list fallback.
  */
 export function preferSeriesInsightCountKpis(opts: {
   seriesCounts: SeriesCountTotals | null | undefined;
   careTypes?: readonly BabyInsightsCareChip[];
-  /** Growth pages (Activity log) — null/empty → no weight yet. */
+  /** Growth pages when More insights (or Activities) has loaded them. */
   growth?: BabyInsightsKpiSource["growth"];
-  /** Fallback when series is unavailable (legacy list path). */
-  timelineFallback?: BabyInsightsKpiSource["timeline"];
 }): BabyInsightsKpis {
   const careTypes = opts.careTypes ?? [];
   const growth = opts.growth ?? [];
+  const set =
+    careTypes.length === 0 ? null : new Set<string>(careTypes);
+  const weight = growth.find(
+    (g) => g.kind === "weight" && g.valueNum != null,
+  );
+  const latestWeight =
+    weight && weight.valueNum != null
+      ? { valueNum: weight.valueNum, unit: weight.unit }
+      : null;
 
   if (opts.seriesCounts) {
-    const set =
-      careTypes.length === 0 ? null : new Set<string>(careTypes);
-    const weight = growth.find(
-      (g) => g.kind === "weight" && g.valueNum != null,
-    );
     return {
       feeds: !set || set.has("feed") ? opts.seriesCounts.feeds : 0,
       sleep: !set || set.has("sleep") ? opts.seriesCounts.sleep : 0,
       diapers: !set || set.has("diaper") ? opts.seriesCounts.diapers : 0,
-      latestWeight:
-        weight && weight.valueNum != null
-          ? { valueNum: weight.valueNum, unit: weight.unit }
-          : null,
+      latestWeight,
     };
   }
 
-  return deriveBabyInsightsKpis(
-    { timeline: opts.timelineFallback ?? [], growth },
-    careTypes,
-  );
+  return {
+    feeds: 0,
+    sleep: 0,
+    diapers: 0,
+    latestWeight,
+  };
 }

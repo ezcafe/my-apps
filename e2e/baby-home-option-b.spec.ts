@@ -3,6 +3,7 @@ import {
   bottleGroup,
   bottleHeader,
   bottleLess,
+  bottleMlChip,
   bottleMore,
   bottleSave,
   breastL,
@@ -15,6 +16,10 @@ import {
   gotoBabyHomeReady,
   homeStatus,
   installBabyHomeMocks,
+  pumpAmountGroup,
+  pumpAmountMlChip,
+  pumpL,
+  pumpR,
   quickStep,
   sleepCard,
 } from "./helpers/baby-home-graphql";
@@ -23,6 +28,7 @@ import { openAppMenu, appMenuPanel, clickSoftNav } from "./helpers/shell";
 /** Mirror lib/baby-quick-care-pending + breast timer keys (avoid @/ in e2e). */
 const BABY_QUICK_PENDING_STORAGE_KEY = "baby.quickCare.pending.v1";
 const BABY_BREAST_TIMER_STORAGE_KEY = "baby.breastTimer.v1";
+const BABY_CARE_TIMER_STORAGE_KEY = "baby.careTimer.v1";
 /** Post-stop bottle grace — mirrors BABY_FEED_POST_STOP_GRACE_MS. */
 const FEED_POST_STOP_GRACE_MS = 5 * 60 * 1000;
 
@@ -111,20 +117,58 @@ function pendingRecord(
   };
 }
 
-/** Pending bar title only — page-wide getByText also hits unrelated nodes (strict mode). */
+/**
+ * Under-owner recovery title (unknown / orphaned sending).
+ * Scoped to `[data-testid=baby-home-pending-recovery]` — page-level strip is gone.
+ */
 function pendingTitle(page: Page) {
   return page
-    .getByTestId("baby-home")
+    .getByTestId("baby-home-pending-recovery")
     .locator("p")
     .filter({ hasText: /could not confirm|chưa xác nhận/i });
 }
 
-/** Too-old pending copy — toast/truncation spans also match page-wide /too long/. */
+/**
+ * Under-owner too-old copy. Same recovery region; no page strip.
+ */
 function pendingTooOldTitle(page: Page) {
   return page
-    .getByTestId("baby-home")
+    .getByTestId("baby-home-pending-recovery")
     .locator("p")
     .filter({ hasText: /too long|đã quá lâu/i });
+}
+
+/** Recovery region under a specific owner section / chip. */
+function pendingRecoveryUnder(
+  page: Page,
+  owner:
+    | "bottle"
+    | "diaper"
+    | "nap"
+    | "breast_l"
+    | "breast_r"
+    | "pump_l"
+    | "pump_r"
+    | "pump_amount",
+) {
+  if (
+    owner === "breast_l" ||
+    owner === "breast_r" ||
+    owner === "pump_l" ||
+    owner === "pump_r" ||
+    owner === "nap"
+  ) {
+    const chip =
+      owner === "nap"
+        ? page.getByTestId("baby-care-chip-nap")
+        : page.getByTestId(`baby-care-chip-${owner}`);
+    return chip.getByTestId("baby-home-pending-recovery");
+  }
+  const section =
+    owner === "pump_amount"
+      ? page.locator('[data-section="pump-amount"]')
+      : page.locator(`[data-section="${owner}"]`);
+  return section.getByTestId("baby-home-pending-recovery");
 }
 
 test.describe("Baby Care home Option B", () => {
@@ -167,19 +211,15 @@ test.describe("Baby Care home Option B", () => {
 
     await gotoBabyHomeReady(page);
     await breastL(page).click();
-    await expect(breastL(page).getByText(/\d+m|\d+s|0m/)).toBeVisible({
+    await expect(breastL(page).getByText(/\d+:\d{2}/)).toBeVisible({
       timeout: 5_000,
     });
-    await expect(
-      page.getByRole("status").filter({ hasText: /feed saved|đã lưu bú/i }),
-    ).toBeVisible();
 
     // Let at least 1s elapse so durationSec >= 1.
     await page.waitForTimeout(1_100);
     await breastL(page).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: /saved breast|đã lưu bú ngực/i }),
-    ).toBeVisible();
+    await expect(breastL(page)).toHaveAttribute("data-done-flash", "true");
+    await expect(breastL(page)).toContainText(/Done|Xong/);
     expect(mocks.quickCareCount()).toBe(2);
     const saveBody = mocks.quickCareBodies[1] as {
       action: { kind: string; side: string };
@@ -190,6 +230,200 @@ test.describe("Baby Care home Option B", () => {
     expect(saveBody.breastRunning.side).toBe("breast_l");
     expect(saveBody.breastRunning.durationSec).toBeGreaterThanOrEqual(1);
     await expect(breastL(page).getByText(/tap to start|chạm để bắt đầu/i)).toBeVisible();
+    mocks.assertNoLegacyEventIdShape();
+  });
+
+  test("Pump L start → Tap to stop → Done → idle", async ({ page }) => {
+    const mocks = await installBabyHomeMocks(page, {
+      status: defaultStatus(),
+      quickCare: (_body, i) => {
+        if (i === 0) {
+          return { replayed: false, openSleep: null, steps: [] };
+        }
+        return {
+          replayed: false,
+          openSleep: null,
+          steps: [
+            quickStep("saveBreast", {
+              id: "fp1",
+              type: "feed",
+              payload: { method: "pump_l", durationSec: 5 },
+            }),
+          ],
+        };
+      },
+    });
+
+    await page.clock.install();
+    await gotoBabyHomeReady(page);
+    await pumpL(page).click();
+    await expect(pumpL(page)).toHaveAttribute("data-selected", "true");
+    await expect(
+      page.getByTestId("baby-care-chip-pump_l").getByText(/tap to stop|chạm để dừng/i),
+    ).toBeVisible();
+
+    await page.clock.fastForward(1100);
+    await pumpL(page).click();
+    await expect(pumpL(page)).toHaveAttribute("data-done-flash", "true");
+    await expect(pumpL(page)).toContainText(/Done|Xong/);
+    expect(mocks.quickCareCount()).toBe(2);
+    const saveBody = mocks.quickCareBodies[1] as {
+      action: { kind: string; side: string };
+      breastRunning: { side: string; durationSec: number };
+    };
+    expect(saveBody.action).toEqual({ kind: "BREAST", side: "pump_l" });
+    expect(saveBody.breastRunning.side).toBe("pump_l");
+    expect(saveBody.breastRunning.durationSec).toBeGreaterThanOrEqual(1);
+
+    await page.clock.fastForward(2100);
+    await expect(pumpL(page)).not.toHaveAttribute("data-done-flash");
+    await expect(
+      pumpL(page).getByText(/tap to start|chạm để bắt đầu/i),
+    ).toBeVisible();
+    mocks.assertNoLegacyEventIdShape();
+  });
+
+  test("Pump R start → Tap to stop → Done → idle", async ({ page }) => {
+    const mocks = await installBabyHomeMocks(page, {
+      status: defaultStatus(),
+      quickCare: (_body, i) => {
+        if (i === 0) {
+          return { replayed: false, openSleep: null, steps: [] };
+        }
+        return {
+          replayed: false,
+          openSleep: null,
+          steps: [
+            quickStep("saveBreast", {
+              id: "fp2",
+              type: "feed",
+              payload: { method: "pump_r", durationSec: 5 },
+            }),
+          ],
+        };
+      },
+    });
+
+    await page.clock.install();
+    await gotoBabyHomeReady(page);
+    await pumpR(page).click();
+    await expect(pumpR(page)).toHaveAttribute("data-selected", "true");
+    await expect(
+      page.getByTestId("baby-care-chip-pump_r").getByText(/tap to stop|chạm để dừng/i),
+    ).toBeVisible();
+
+    await page.clock.fastForward(1100);
+    await pumpR(page).click();
+    await expect(pumpR(page)).toHaveAttribute("data-done-flash", "true");
+    await expect(pumpR(page)).toContainText(/Done|Xong/);
+    expect(mocks.quickCareCount()).toBe(2);
+    const saveBody = mocks.quickCareBodies[1] as {
+      action: { kind: string; side: string };
+      breastRunning: { side: string; durationSec: number };
+    };
+    expect(saveBody.action).toEqual({ kind: "BREAST", side: "pump_r" });
+    expect(saveBody.breastRunning.side).toBe("pump_r");
+    expect(saveBody.breastRunning.durationSec).toBeGreaterThanOrEqual(1);
+
+    await page.clock.fastForward(2100);
+    await expect(pumpR(page)).not.toHaveAttribute("data-done-flash");
+    await expect(
+      pumpR(page).getByText(/tap to start|chạm để bắt đầu/i),
+    ).toBeVisible();
+    mocks.assertNoLegacyEventIdShape();
+  });
+
+  test("Row 4 guidelines collapsed by default; exclusive Feed/Pump open", async ({
+    page,
+  }) => {
+    await installBabyHomeMocks(page, { status: defaultStatus() });
+    await gotoBabyHomeReady(page);
+
+    await expect(page.getByTestId("baby-care-guidelines")).toBeVisible();
+    await expect(page.getByTestId("baby-home-header-pump")).toBeVisible();
+    await expect(page.locator('[data-section="pump"]')).toBeVisible();
+    const pumpBox = await page.locator('[data-section="pump"]').boundingBox();
+    const statusBox = await page.getByTestId("baby-home-status").boundingBox();
+    const guideBox = await page.getByTestId("baby-care-guidelines").boundingBox();
+    expect(pumpBox && statusBox && guideBox).toBeTruthy();
+    expect(statusBox!.y).toBeGreaterThan(pumpBox!.y);
+    expect(guideBox!.y).toBeGreaterThan(statusBox!.y);
+    await expect(pumpL(page)).toBeVisible();
+    await expect(pumpR(page)).toBeVisible();
+    await expect(page.locator('[data-section="pump-amount"]')).toBeVisible();
+
+    for (const id of ["feed", "sleep", "diaper", "pump"] as const) {
+      await expect(page.getByTestId(`baby-guideline-${id}`)).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+      await expect(
+        page.locator(`[data-guideline="${id}"] [role="region"]`),
+      ).toHaveCount(0);
+    }
+
+    await page.getByTestId("baby-guideline-feed").click();
+    await expect(page.getByTestId("baby-guideline-feed")).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    await expect(
+      page.locator('[data-guideline="feed"] [role="region"]'),
+    ).toBeVisible();
+    await expect(page.getByTestId("baby-guideline-pump")).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+
+    await page.getByTestId("baby-guideline-pump").click();
+    await expect(page.getByTestId("baby-guideline-pump")).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    await expect(
+      page.locator('[data-guideline="pump"] [role="region"]'),
+    ).toBeVisible();
+    await expect(page.getByTestId("baby-guideline-feed")).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    await expect(
+      page.locator('[data-guideline="feed"] [role="region"]'),
+    ).toHaveCount(0);
+  });
+
+  test("Pump amount chip posts PUMP_AMOUNT with ml", async ({ page }) => {
+    const mocks = await installBabyHomeMocks(page, {
+      status: defaultStatus({
+        birthDate: BIRTH,
+        recentBottleMl: [90, 120, 150],
+      }),
+      quickCare: {
+        replayed: false,
+        openSleep: null,
+        steps: [
+          quickStep("createPumpAmount", {
+            id: "pa1",
+            type: "feed",
+            payload: { method: "pump", amountMl: 90 },
+          }),
+        ],
+      },
+    });
+
+    await gotoBabyHomeReady(page);
+    await expect(pumpAmountMlChip(page, 90)).toBeVisible();
+    await pumpAmountMlChip(page, 90).click();
+    await expect(
+      pumpAmountGroup(page).locator('[data-bottle-flash="done"]').first(),
+    ).toBeVisible();
+    expect(mocks.quickCareCount()).toBe(1);
+    const body = mocks.quickCareBodies[0] as {
+      action: { kind: string; amountMl: number };
+      breastRunning: null;
+    };
+    expect(body.action).toEqual({ kind: "PUMP_AMOUNT", amountMl: 90 });
+    expect(body.breastRunning).toBeNull();
     mocks.assertNoLegacyEventIdShape();
   });
 
@@ -216,13 +450,10 @@ test.describe("Baby Care home Option B", () => {
 
     await gotoBabyHomeReady(page);
     await breastL(page).click();
-    await expect(breastL(page).getByText(/\d+m|0m/)).toBeVisible();
+    await expect(breastL(page).getByText(/\d+:\d{2}/)).toBeVisible();
     await page.waitForTimeout(1_100);
     await breastR(page).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: /saved breast|đã lưu bú ngực/i }),
-    ).toBeVisible();
-    await expect(breastR(page).getByText(/\d+m|0m/)).toBeVisible();
+    await expect(breastR(page).getByText(/\d+:\d{2}/)).toBeVisible();
     await expect(breastL(page).getByText(/tap to start|chạm để bắt đầu/i)).toBeVisible();
     const switchBody = mocks.quickCareBodies[1] as {
       action: { side: string };
@@ -342,39 +573,35 @@ test.describe("Baby Care home Option B", () => {
 
     await gotoBabyHomeReady(page);
     await breastL(page).click();
-    await expect(breastL(page).getByText(/\d+m|\d+s|0m/)).toBeVisible({
+    await expect(breastL(page).getByText(/\d+:\d{2}/)).toBeVisible({
       timeout: 5_000,
     });
     // Duration must be ≥1s before stop (same contract as other breast e2e).
     await page.waitForTimeout(1_100);
     await breastL(page).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: /saved breast|đã lưu bú ngực/i }),
-    ).toBeVisible();
-    await expect(bottleHeader(page)).toContainText(/1\//);
+    await expect(breastL(page)).toHaveAttribute("data-done-flash", "true");
+    await expect(breastL(page)).toContainText(/Done|Xong/);
+    await expect(bottleHeader(page)).toContainText(/Today\s+1\s+of\s+\d+\s+feeds/i);
     expect(feedsToday).toBe(1);
 
     await breastR(page).click();
-    await expect(breastR(page).getByText(/\d+m|\d+s|0m/)).toBeVisible({
+    await expect(breastR(page).getByText(/\d+:\d{2}/)).toBeVisible({
       timeout: 5_000,
     });
     await page.waitForTimeout(1_100);
     await breastR(page).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: /saved breast|đã lưu bú ngực/i }),
-    ).toBeVisible();
+    await expect(breastR(page)).toHaveAttribute("data-done-flash", "true");
+    await expect(breastR(page)).toContainText(/Done|Xong/);
     const switchBody = mocks.quickCareBodies[3] as {
       feedSessionEventId?: string;
     };
     expect(switchBody.feedSessionEventId).toBe(sessionId);
     expect(feedsToday).toBe(1);
-    await expect(bottleHeader(page)).toContainText(/1\//);
+    await expect(bottleHeader(page)).toContainText(/Today\s+1\s+of\s+\d+\s+feeds/i);
 
     await bottleSave(page).click();
     await expect(
-      page.getByRole("status").filter({
-        hasText: /saved bottle|đã lưu bình|feed saved|đã lưu bú/i,
-      }),
+      bottleGroup(page).locator('[data-bottle-flash="done"]').first(),
     ).toBeVisible();
     const bottleBody = mocks.quickCareBodies[4] as {
       feedSessionEventId?: string;
@@ -383,10 +610,11 @@ test.describe("Baby Care home Option B", () => {
     expect(bottleBody.action.kind).toBe("FORMULA");
     expect(bottleBody.feedSessionEventId).toBe(sessionId);
     expect(feedsToday).toBe(1);
-    await expect(bottleHeader(page)).toContainText(/1\//);
+    await expect(bottleHeader(page)).toContainText(/Today\s+1\s+of\s+\d+\s+feeds/i);
     await expect(
-      homeStatus(page).getByText(/Breast L \+ Breast R \+ Formula 90 ml/i),
+      homeStatus(page).getByText(/breast on the .*left.*breast on the .*right|left.*right.*bottle of.*90/i),
     ).toBeVisible();
+    await expect(homeStatus(page).getByText(/90 ml/i)).toBeVisible();
   });
 
   test("mid-breast bottle while timer runs (2A): one insert, both legs", async ({
@@ -448,7 +676,7 @@ test.describe("Baby Care home Option B", () => {
 
     await gotoBabyHomeReady(page);
     await breastL(page).click();
-    await expect(breastL(page).getByText(/\d+m|\d+s|0m/)).toBeVisible({
+    await expect(breastL(page).getByText(/\d+:\d{2}/)).toBeVisible({
       timeout: 5_000,
     });
     // Need ≥1s elapsed so breastRunning.durationSec is honest.
@@ -456,9 +684,7 @@ test.describe("Baby Care home Option B", () => {
 
     await bottleSave(page).click();
     await expect(
-      page
-        .getByRole("status")
-        .filter({ hasText: /saved bottle|đã lưu bình|feed saved|đã lưu bú/i }),
+      bottleGroup(page).locator('[data-bottle-flash="done"]').first(),
     ).toBeVisible();
 
     expect(mocks.quickCareCount()).toBe(2);
@@ -473,10 +699,11 @@ test.describe("Baby Care home Option B", () => {
     // First write — no session id yet (2A omit-id path).
     expect(bottleBody.feedSessionEventId).toBeUndefined();
     expect(feedsToday).toBe(1);
-    await expect(bottleHeader(page)).toContainText(/1\//);
+    await expect(bottleHeader(page)).toContainText(/Today\s+1\s+of\s+\d+\s+feeds/i);
     await expect(
-      homeStatus(page).getByText(/Breast L \+ Formula 90 ml/i),
+      homeStatus(page).getByText(/breast on the .*left|bottle of.*90/i),
     ).toBeVisible();
+    await expect(homeStatus(page).getByText(/90 ml/i)).toBeVisible();
     // Bottle while running stops the timer.
     await expect(
       breastL(page).getByText(/tap to start|chạm để bắt đầu/i),
@@ -571,25 +798,22 @@ test.describe("Baby Care home Option B", () => {
     await gotoBabyHomeReady(page);
 
     await breastL(page).click();
-    await expect(breastL(page).getByText(/\d+m|\d+s|0m/)).toBeVisible({
+    await expect(breastL(page).getByText(/\d+:\d{2}/)).toBeVisible({
       timeout: 5_000,
     });
     await page.clock.fastForward(1_100);
     await breastL(page).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: /saved breast|đã lưu bú ngực/i }),
-    ).toBeVisible();
+    await expect(breastL(page)).toHaveAttribute("data-done-flash", "true");
+    await expect(breastL(page)).toContainText(/Done|Xong/);
     expect(feedsToday).toBe(1);
-    await expect(bottleHeader(page)).toContainText(/1\//);
+    await expect(bottleHeader(page)).toContainText(/Today\s+1\s+of\s+\d+\s+feeds/i);
 
     // Past grace (+ buffer so the 30s home clock tick refreshes).
     await page.clock.fastForward(FEED_POST_STOP_GRACE_MS + 35_000);
 
     await bottleSave(page).click();
     await expect(
-      page
-        .getByRole("status")
-        .filter({ hasText: /saved bottle|đã lưu bình|feed saved|đã lưu bú/i }),
+      bottleGroup(page).locator('[data-bottle-flash="done"]').first(),
     ).toBeVisible();
 
     const bottleBody = mocks.quickCareBodies[2] as {
@@ -602,7 +826,7 @@ test.describe("Baby Care home Option B", () => {
     // Grace expired → omit merge handle → new feed (3A).
     expect(bottleBody.feedSessionEventId).toBeUndefined();
     expect(feedsToday).toBe(2);
-    await expect(bottleHeader(page)).toContainText(/2\//);
+    await expect(bottleHeader(page)).toContainText(/Today\s+2\s+of\s+\d+\s+feeds/i);
   });
 
   test("breast timer survives reload on same device", async ({ page }) => {
@@ -616,13 +840,13 @@ test.describe("Baby Care home Option B", () => {
     });
     await installBabyHomeMocks(page, { status: defaultStatus() });
     await gotoBabyHomeReady(page);
-    await expect(breastL(page).getByText(/1m|2m/)).toBeVisible();
+    await expect(breastL(page).getByText(/1:\d{2}|2:\d{2}/)).toBeVisible();
     await page.reload();
     await expect(page.getByTestId("baby-home")).toBeVisible();
-    await expect(breastL(page).getByText(/1m|2m/)).toBeVisible();
+    await expect(breastL(page).getByText(/1:\d{2}|2:\d{2}/)).toBeVisible();
   });
 
-  test("section order breast above; bottle | nap | diaper one wide row", async ({
+  test("section order: row1 breast+bottle; row2 nap+diaper", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -632,18 +856,21 @@ test.describe("Baby Care home Option B", () => {
     const bottle = page.locator('[data-section="bottle"]');
     const nap = page.locator('[data-section="nap"]');
     const diaper = page.locator('[data-section="diaper"]');
-    const chips = page.locator('[data-layout="bottle-ml-chips"]');
+    const chips = page.locator(
+      '[data-section="bottle"] [data-layout="bottle-ml-chips"]',
+    );
     const breastBox = await breast.boundingBox();
     const bottleBox = await bottle.boundingBox();
     const napBox = await nap.boundingBox();
     const diaperBox = await diaper.boundingBox();
     expect(breastBox && bottleBox && napBox && diaperBox).toBeTruthy();
-    expect(breastBox!.y).toBeLessThan(bottleBox!.y);
-    // Wide viewport: bottle, nap, diaper share one row.
-    expect(Math.abs(bottleBox!.y - napBox!.y)).toBeLessThan(48);
+    // Wide viewport: Row 1 Breast | Bottle; Row 2 Nap | Diaper (Pump design lock).
+    expect(Math.abs(breastBox!.y - bottleBox!.y)).toBeLessThan(48);
+    expect(breastBox!.x).toBeLessThan(bottleBox!.x);
     expect(Math.abs(napBox!.y - diaperBox!.y)).toBeLessThan(48);
-    expect(bottleBox!.x).toBeLessThan(napBox!.x);
     expect(napBox!.x).toBeLessThan(diaperBox!.x);
+    expect(breastBox!.y).toBeLessThan(napBox!.y - 24);
+    expect(bottleBox!.y).toBeLessThan(diaperBox!.y - 24);
     await expect(chips).toHaveClass(/grid-cols-2/);
   });
 
@@ -713,9 +940,9 @@ test.describe("Baby Care home Option B", () => {
       status: defaultStatus({ birthDate: null, recentBottleMl: [] }),
     });
     await gotoBabyHomeReady(page);
-    await expect(page.locator('[data-bottle-ml="60"]')).toBeVisible();
-    await expect(page.locator('[data-bottle-ml="90"]')).toBeVisible();
-    await expect(page.locator('[data-bottle-ml="120"]')).toBeVisible();
+    await expect(bottleMlChip(page, 60)).toBeVisible();
+    await expect(bottleMlChip(page, 90)).toBeVisible();
+    await expect(bottleMlChip(page, 120)).toBeVisible();
     await expect(page.getByTestId("baby-home-header-bottle")).toHaveText(
       /Bottle|Bình sữa/,
     );
@@ -747,12 +974,12 @@ test.describe("Baby Care home Option B", () => {
       },
     });
     await gotoBabyHomeReady(page);
-    await expect(page.locator('[data-bottle-ml="90"]')).toBeVisible();
-    await expect(page.locator('[data-bottle-ml="120"]')).toBeVisible();
-    await expect(page.locator('[data-bottle-ml="150"]')).toBeVisible();
-    await page.locator('[data-bottle-ml="90"]').click();
+    await expect(bottleMlChip(page, 90)).toBeVisible();
+    await expect(bottleMlChip(page, 120)).toBeVisible();
+    await expect(bottleMlChip(page, 150)).toBeVisible();
+    await bottleMlChip(page, 90).click();
     await expect(
-      page.getByRole("status").filter({ hasText: /saved bottle|đã lưu bình/i }),
+      bottleGroup(page).locator('[data-bottle-ml="90"][data-bottle-flash="done"]'),
     ).toBeVisible();
     const body = mocks.quickCareBodies[0] as {
       action: { kind: string; amountMl: number };
@@ -808,16 +1035,21 @@ test.describe("Baby Care home Option B", () => {
     await expect(page.getByTestId("baby-birth-date-prompt")).toHaveCount(0);
   });
 
-  test("row 2 order: formula, sleep, diaper", async ({ page }) => {
+  test("row 2 order: nap, diaper (bottle stays on row 1)", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
     await installBabyHomeMocks(page, { status: defaultStatus() });
     await gotoBabyHomeReady(page);
-    const bottleBox = await bottleGroup(page).boundingBox();
-    const sleepBox = await sleepCard(page).boundingBox();
-    const diaperBox = await diaperGroup(page).boundingBox();
+    const bottle = page.locator('[data-section="bottle"]');
+    const nap = page.locator('[data-section="nap"]');
+    const diaper = page.locator('[data-section="diaper"]');
+    const bottleBox = await bottle.boundingBox();
+    const sleepBox = await nap.boundingBox();
+    const diaperBox = await diaper.boundingBox();
     expect(bottleBox && sleepBox && diaperBox).toBeTruthy();
-    // Stacked sections: bottle above nap above diaper.
-    expect(bottleBox!.y).toBeLessThan(sleepBox!.y);
-    expect(sleepBox!.y).toBeLessThan(diaperBox!.y);
+    // Desktop: Nap | Diaper share Row 2; Bottle is on Row 1 above.
+    expect(Math.abs(sleepBox!.y - diaperBox!.y)).toBeLessThan(48);
+    expect(sleepBox!.x).toBeLessThan(diaperBox!.x);
+    expect(bottleBox!.y).toBeLessThan(sleepBox!.y - 24);
   });
 
   test("formula defaults to age-band mid; no birth date → 120 ml hero (B1)", async ({
@@ -828,7 +1060,7 @@ test.describe("Baby Care home Option B", () => {
     });
     await gotoBabyHomeReady(page);
     // No-birth chips are fixed 60/90/120 — 120 is the last snap chip.
-    await expect(page.locator('[data-bottle-ml="120"]')).toBeVisible();
+    await expect(bottleMlChip(page, 120)).toBeVisible();
     await expect(page.getByTestId("baby-home-header-bottle")).not.toContainText(
       /60–150/,
     );
@@ -854,9 +1086,9 @@ test.describe("Baby Care home Option B", () => {
     });
 
     await gotoBabyHomeReady(page);
-    await page.locator('[data-bottle-ml="120"]').click();
+    await bottleMlChip(page, 120).click();
     await expect(
-      page.getByRole("status").filter({ hasText: /saved bottle|đã lưu bình/i }),
+      bottleGroup(page).locator('[data-bottle-ml="120"][data-bottle-flash="done"]'),
     ).toBeVisible();
     const body = mocks.quickCareBodies[0] as {
       action: { kind: string; amountMl: number };
@@ -889,9 +1121,9 @@ test.describe("Baby Care home Option B", () => {
     await expect(customMlButton(page)).toBeVisible();
     await expect(bottleMore(page)).toHaveCount(0);
     await expect(bottleLess(page)).toHaveCount(0);
-    await page.locator('[data-bottle-ml="120"]').click();
+    await bottleMlChip(page, 120).click();
     await expect(
-      page.locator('[data-bottle-ml="120"][data-bottle-flash="done"]'),
+      bottleGroup(page).locator('[data-bottle-ml="120"][data-bottle-flash="done"]'),
     ).toBeVisible();
   });
 
@@ -947,18 +1179,21 @@ test.describe("Baby Care home Option B", () => {
     await expect(diaperKindTile(page, "wet")).toContainText(/Done|Xong/);
   });
 
-  test("row 2 Kind outer height matches bottle and nap", async ({ page }) => {
-    // Sections are stacked — chips no longer share equal outer height with Kind.
+  test("row 2 Kind outer height matches nap", async ({ page }) => {
+    // Desktop: Nap | Diaper share Row 2 — heights should align.
+    await page.setViewportSize({ width: 1280, height: 800 });
     await installBabyHomeMocks(page, { status: defaultStatus() });
     await gotoBabyHomeReady(page);
-    await expect(bottleGroup(page)).toBeVisible();
+    const nap = page.locator('[data-section="nap"]');
+    const diaper = page.locator('[data-section="diaper"]');
     await expect(sleepCard(page)).toBeVisible();
     await expect(diaperGroup(page)).toBeVisible();
-    const bottleY = (await bottleGroup(page).boundingBox())!.y;
-    const napY = (await sleepCard(page).boundingBox())!.y;
-    const kindY = (await diaperGroup(page).boundingBox())!.y;
-    expect(bottleY).toBeLessThan(napY);
-    expect(napY).toBeLessThan(kindY);
+    const napBox = await nap.boundingBox();
+    const kindBox = await diaper.boundingBox();
+    expect(napBox && kindBox).toBeTruthy();
+    expect(Math.abs(napBox!.y - kindBox!.y)).toBeLessThan(48);
+    expect(napBox!.x).toBeLessThan(kindBox!.x);
+    expect(Math.abs(napBox!.height - kindBox!.height)).toBeLessThan(48);
   });
 
   test("custom ml modal: confirm, cancel paths, backdrop, validation, focus", async ({
@@ -987,11 +1222,11 @@ test.describe("Baby Care home Option B", () => {
     await dialog.getByRole("button", { name: /use this amount|dùng lượng này/i }).click();
     await expect(dialog).toHaveCount(0);
     // Confirm sets ml only — custom amount appears as a tappable chip.
-    await expect(page.locator('[data-bottle-ml="95"]')).toBeVisible();
+    await expect(bottleMlChip(page, 95)).toBeVisible();
     await expect(customMlButton(page)).toBeVisible();
     await expect(bottleGroup(page).locator("[data-under-card]")).toHaveCount(0);
 
-    await page.locator('[data-bottle-ml="95"]').click();
+    await bottleMlChip(page, 95).click();
     const body = mocks.quickCareBodies[0] as {
       action: { amountMl: number };
     };
@@ -1010,7 +1245,7 @@ test.describe("Baby Care home Option B", () => {
         await page.getByRole("dialog").getByRole("button", { name: /cancel|hủy/i }).click();
       }
       await expect(page.getByRole("dialog")).toHaveCount(0);
-      await expect(page.locator('[data-bottle-ml="120"]')).toBeVisible();
+      await expect(bottleMlChip(page, 120)).toBeVisible();
     }
 
     // Backdrop: dimmed area must not close (design: no backdrop handler).
@@ -1139,7 +1374,7 @@ test.describe("Baby Care home Option B", () => {
     await expect(page.getByTestId("baby-home-header-bottle")).toContainText(
       /120 ml/,
     );
-    await expect(page.locator('[data-bottle-ml="90"]')).toBeVisible();
+    await expect(bottleMlChip(page, 90)).toBeVisible();
     // Task 10: set birth → nap blend visible (1–2 mo sleep band).
     await expect(page.getByTestId("baby-home-header-nap")).toContainText(
       /At this age|Ở tuổi này/i,
@@ -1410,32 +1645,56 @@ test.describe("Baby Care home Option B", () => {
     await expect(breastL(page).getByText(/tap to start|chạm để bắt đầu/i)).toBeVisible();
   });
 
-  test("nap click shows Done ~2s then normal label", async ({ page }) => {
+  test("nap Start stays running (no Done); End shows Done then idle", async ({
+    page,
+  }) => {
+    let quickCalls = 0;
     await installBabyHomeMocks(page, {
       status: defaultStatus({ openSleep: null }),
-      quickCare: {
-        replayed: false,
-        openSleep: {
-          id: "s-done",
-          occurredAt: new Date().toISOString(),
-        },
-        steps: [
-          quickStep("startNap", {
-            id: "s-done",
-            type: "sleep",
-            payload: {},
-          }),
-        ],
+      quickCare: () => {
+        quickCalls += 1;
+        if (quickCalls === 1) {
+          return {
+            replayed: false,
+            openSleep: {
+              id: "s-done",
+              occurredAt: new Date().toISOString(),
+            },
+            steps: [
+              quickStep("startNap", {
+                id: "s-done",
+                type: "sleep",
+                payload: {},
+              }),
+            ],
+          };
+        }
+        return {
+          replayed: false,
+          openSleep: null,
+          steps: [
+            quickStep("endNap", {
+              id: "s-done",
+              type: "sleep",
+              payload: {},
+            }),
+          ],
+        };
       },
     });
     await page.clock.install();
     await gotoBabyHomeReady(page);
     await sleepCard(page).click();
+    await expect(sleepCard(page)).toHaveAttribute("data-running", "true");
+    await expect(sleepCard(page)).toContainText(/Tap to stop|Chạm để dừng/);
+    await expect(sleepCard(page)).not.toHaveAttribute("data-done-flash");
+    await expect(sleepCard(page).getByText(/end nap|kết thúc ngủ/i)).toBeVisible();
+
+    await sleepCard(page).click();
     await expect(sleepCard(page)).toHaveAttribute("data-done-flash", "true");
     await expect(sleepCard(page)).toContainText(/Done|Xong/);
     await page.clock.fastForward(2100);
     await expect(sleepCard(page)).not.toHaveAttribute("data-done-flash");
-    await expect(sleepCard(page).getByText(/end nap|kết thúc ngủ/i)).toBeVisible();
   });
 
   test("diaper Step 2: red-flag warn, texture caution, cancel discards (W1)", async ({
@@ -1526,11 +1785,7 @@ test.describe("Baby Care home Option B", () => {
         /* race: response may be too fast */
       });
     await savePromise;
-    await expect(
-      page.getByRole("status").filter({
-        hasText: /saved breast.*ended nap.*saved diaper|đã lưu bú ngực.*đã kết thúc ngủ.*đã lưu tã/i,
-      }),
-    ).toBeVisible();
+    await expect(diaperKindTile(page, "wet")).toContainText(/Done|Xong/);
     expect(mocks.quickCareCount()).toBe(1);
     const body = mocks.quickCareBodies[0] as {
       action: { kind: string };
@@ -1570,14 +1825,29 @@ test.describe("Baby Care home Option B", () => {
 
     await gotoBabyHomeReady(page);
     await diaperSave(page).click();
+    // Ambiguous INTERNAL_SERVER_ERROR → under-owner recovery (no page chainFailed).
+    await expect(pendingTitle(page)).toBeVisible();
+    await expect(pendingRecoveryUnder(page, "diaper")).toBeVisible();
+    await expect(
+      pendingRecoveryUnder(page, "diaper").getByRole("button", {
+        name: /try again|thử lại/i,
+      }),
+    ).toBeVisible();
+    await expect(
+      pendingRecoveryUnder(page, "diaper").getByRole("button", {
+        name: /discard|bỏ/i,
+      }),
+    ).toBeVisible();
     await expect(
       page.getByText(/nothing was saved|không lưu được gì/i),
-    ).toBeVisible();
-    await expect(breastL(page).getByText(/\d+m|0m/)).toBeVisible();
+    ).toHaveCount(0);
+    await expect(breastL(page).getByText(/\d+:\d{2}/)).toBeVisible();
     await expect(diaperSave(page).getByText(/^wet$|^ướt$/i)).toBeVisible();
     await expect(page.getByText(/undo/i)).toHaveCount(0);
 
-    // Double tap → exactly one request (inFlight guard).
+    // Double tap in one turn → exactly one request (inFlight guard).
+    // Sync DOM clicks (not Promise.all Playwright clicks) so the second
+    // tap hits while inFlight is still true before the mock resolves.
     await page.unroute("**/api/graphql/baby");
     const mocks2 = await installBabyHomeMocks(page, {
       status: defaultStatus(),
@@ -1591,10 +1861,14 @@ test.describe("Baby Care home Option B", () => {
     });
     await page.reload();
     await expect(page.getByTestId("baby-home")).toBeVisible();
-    await Promise.all([diaperSave(page).click(), diaperSave(page).click()]);
-    await expect(
-      page.getByRole("status").filter({ hasText: /saved diaper|đã lưu tã/i }),
-    ).toBeVisible();
+    // Breast timer is still seeded — wait for client hydrate (SSR idle → running)
+    // so the double-tap hits a live handler, not a pre-hydrate button.
+    await expect(breastL(page)).toHaveAttribute("data-running", "true");
+    await diaperSave(page).evaluate((el) => {
+      (el as HTMLButtonElement).click();
+      (el as HTMLButtonElement).click();
+    });
+    await expect(diaperKindTile(page, "wet")).toContainText(/Done|Xong/);
     expect(mocks2.quickCareCount()).toBe(1);
 
     // Replay: second identical id answered replayed: true → one confirmation.
@@ -1616,9 +1890,7 @@ test.describe("Baby Care home Option B", () => {
     await page.reload();
     await expect(page.getByTestId("baby-home")).toBeVisible();
     await diaperSave(page).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: /saved diaper|đã lưu tã/i }),
-    ).toBeVisible();
+    await expect(diaperKindTile(page, "wet")).toContainText(/Done|Xong/);
     // Force a retry path with same id via pending Try again after abort.
     await page.unroute("**/api/graphql/baby");
     let phase: "abort" | "replay" = "abort";
@@ -1639,25 +1911,30 @@ test.describe("Baby Care home Option B", () => {
     await expect(page.getByTestId("baby-home")).toBeVisible();
     await diaperSave(page).click();
     await expect(pendingTitle(page)).toBeVisible();
+    await expect(pendingRecoveryUnder(page, "diaper")).toBeVisible();
     phase = "replay";
-    await pendingTitle(page)
-      .locator("..")
+    await pendingRecoveryUnder(page, "diaper")
       .getByRole("button", { name: /try again|thử lại/i })
       .click();
-    await expect(
-      page.getByRole("status").filter({ hasText: /saved diaper|đã lưu tã/i }),
-    ).toBeVisible();
+    await expect(diaperKindTile(page, "wet")).toContainText(/Done|Xong/);
     expect(mocks4.quickCareCount()).toBe(2);
     void mocks;
     void mocks3;
   });
 
-  test("reload mid-save shows pending for bottle, diaper, sleep, breast", async ({
+  test("reload mid-save shows under-owner recovery for bottle, diaper, sleep, breast, pump", async ({
     page,
   }) => {
     async function caseFor(
       label: string,
       press: (p: Page) => Promise<void>,
+      owner:
+        | "bottle"
+        | "diaper"
+        | "nap"
+        | "breast_l"
+        | "pump_l"
+        | "pump_amount",
     ) {
       await page.unroute("**/api/graphql/baby").catch(() => {});
       await installBabyHomeMocks(page, {
@@ -1676,30 +1953,82 @@ test.describe("Baby Care home Option B", () => {
           ),
         )
         .toBeTruthy();
+      // In-flight: no under-owner recovery and no page-wide false failure title.
+      await expect(pendingRecoveryUnder(page, owner)).toHaveCount(0);
+      await expect(
+        page.getByText(/could not confirm|chưa xác nhận/i),
+      ).toHaveCount(0);
       await page.reload();
       await expect(page.getByTestId("baby-home")).toBeVisible();
-      // Prefer the pending paragraph — a live status may echo the same copy.
+      // Orphaned sending after remount → under-owner recovery (not silent).
       await expect(
-        page
-          .getByTestId("baby-home")
-          .locator("p")
-          .filter({ hasText: /could not confirm|chưa xác nhận/i }),
-        `pending bar missing after ${label}`,
+        pendingRecoveryUnder(page, owner),
+        `under-owner recovery missing after ${label}`,
+      ).toBeVisible();
+      await expect(pendingTitle(page)).toBeVisible();
+      await expect(
+        pendingRecoveryUnder(page, owner).getByRole("button", {
+          name: /try again|thử lại/i,
+        }),
       ).toBeVisible();
     }
 
     await caseFor("bottle", async (p) => {
       await bottleSave(p).click();
-    });
+    }, "bottle");
     await caseFor("diaper", async (p) => {
       await diaperSave(p).click();
-    });
+    }, "diaper");
     await caseFor("sleep", async (p) => {
       await sleepCard(p).click();
-    });
+    }, "nap");
     await caseFor("breast", async (p) => {
       await breastL(p).click();
+    }, "breast_l");
+    await caseFor("pump L", async (p) => {
+      await pumpL(p).click();
+    }, "pump_l");
+    await caseFor("pump amount", async (p) => {
+      await pumpAmountMlChip(p, 90).click();
+    }, "pump_amount");
+  });
+
+  test("retry mid-flight quiets under-owner recovery until remount", async ({
+    page,
+  }) => {
+    const pending = pendingRecord({
+      requestId: "retry-mid-flight",
+      request: {
+        action: { kind: "FORMULA", amountMl: 120 },
+        breastRunning: null,
+      },
+      state: "unknown",
+      startedAt: Date.now() - 10_000,
     });
+    await seedLocalStorage(page, {
+      [BABY_QUICK_PENDING_STORAGE_KEY]: JSON.stringify(pending),
+    });
+    await installBabyHomeMocks(page, {
+      status: defaultStatus(),
+      quickCare: () => "hang",
+    });
+    await gotoBabyHomeReady(page);
+    await expect(pendingRecoveryUnder(page, "bottle")).toBeVisible();
+    await expect(pendingTitle(page)).toBeVisible();
+
+    await pendingRecoveryUnder(page, "bottle")
+      .getByRole("button", { name: /try again|thử lại/i })
+      .click();
+    // Retry mid-flight: chrome quiet while hung (storage may stay unknown).
+    await expect(pendingRecoveryUnder(page, "bottle")).toHaveCount(0);
+    await expect(
+      page.getByText(/could not confirm|chưa xác nhận/i),
+    ).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.getByTestId("baby-home")).toBeVisible();
+    await expect(pendingRecoveryUnder(page, "bottle")).toBeVisible();
+    await expect(pendingTitle(page)).toBeVisible();
   });
 
   test("retry same press body; changed bottle value cannot reuse id", async ({
@@ -1734,9 +2063,9 @@ test.describe("Baby Care home Option B", () => {
 
     await gotoBabyHomeReady(page);
     await expect(pendingTitle(page)).toBeVisible();
+    await expect(pendingRecoveryUnder(page, "bottle")).toBeVisible();
     // Retry posts the stored pending amount (120), not the current chip UI.
-    await pendingTitle(page)
-      .locator("..")
+    await pendingRecoveryUnder(page, "bottle")
       .getByRole("button", { name: /try again|thử lại/i })
       .click();
     const retryBody = mocks.quickCareBodies[0] as {
@@ -1747,7 +2076,7 @@ test.describe("Baby Care home Option B", () => {
     expect(retryBody.action.amountMl).toBe(120);
 
     // After success, a fresh chip tap posts a new request.
-    await page.locator('[data-bottle-ml="90"]').click();
+    await bottleMlChip(page, 90).click();
     const fresh = mocks.quickCareBodies[1] as {
       action: { amountMl: number };
       clientRequestId: string;
@@ -1792,13 +2121,12 @@ test.describe("Baby Care home Option B", () => {
     await page.reload();
     await expect(page.getByTestId("baby-home")).toBeVisible();
     expect(mocks.quickCareCount()).toBe(0);
-    await pendingTitle(page)
-      .locator("..")
+    await pendingRecoveryUnder(page, "diaper")
       .getByRole("button", { name: /try again|thử lại/i })
       .click();
     expect(mocks.quickCareCount()).toBe(1);
 
-    // Too old → timeline + Discard only.
+    // Too old → Open Activities + Discard only under owner (no Try again; no page strip).
     await page.unroute("**/api/graphql/baby");
     await page.evaluate(
       ({ key, value }) => {
@@ -1820,15 +2148,20 @@ test.describe("Baby Care home Option B", () => {
     await installBabyHomeMocks(page, { status: defaultStatus() });
     await page.reload();
     await expect(page.getByTestId("baby-home")).toBeVisible();
+    await expect(pendingRecoveryUnder(page, "diaper")).toBeVisible();
     await expect(pendingTooOldTitle(page)).toBeVisible();
     await expect(
-      page.getByRole("link", { name: /open the timeline|mở dòng thời gian/i }),
-    ).toBeVisible();
+      pendingRecoveryUnder(page, "diaper").getByRole("link", {
+        name: /open activities|mở hoạt động/i,
+      }),
+    ).toHaveAttribute("href", "/baby/activities");
     await expect(
-      pendingTooOldTitle(page)
-        .locator("..")
-        .getByRole("button", { name: /try again|thử lại/i }),
+      pendingRecoveryUnder(page, "diaper").getByRole("button", {
+        name: /try again|thử lại/i,
+      }),
     ).toHaveCount(0);
+    // Old page-level bordered strip is gone — only under-owner recovery.
+    await expect(page.getByTestId("baby-home-pending-recovery")).toHaveCount(1);
 
     // Definite clear vs keep-unknown (assert UI contract).
     for (const code of ["NOT_FOUND", "UNAUTHORIZED", "FORBIDDEN"] as const) {
@@ -1877,6 +2210,7 @@ test.describe("Baby Care home Option B", () => {
       await expect(page.getByTestId("baby-home")).toBeVisible();
       await diaperSave(page).click();
       await expect(pendingTitle(page)).toBeVisible();
+      await expect(pendingRecoveryUnder(page, "diaper")).toBeVisible();
       expect(m.quickCareCount()).toBe(1);
     }
 
@@ -1909,12 +2243,51 @@ test.describe("Baby Care home Option B", () => {
     await installBabyHomeMocks(page, { status: defaultStatus() });
     await page.reload();
     await expect(page.getByTestId("baby-home")).toBeVisible();
-    await pendingTitle(page)
-      .locator("..")
+    await pendingRecoveryUnder(page, "diaper")
       .getByRole("button", { name: /discard|bỏ/i })
       .click();
     await expect(pendingTitle(page)).toHaveCount(0);
-    await expect(breastL(page).getByText(/\d+m|0m/)).toBeVisible();
+    await expect(breastL(page).getByText(/\d+:\d{2}/)).toBeVisible();
+  });
+
+  test("home pending too-old Open Activities goes to /baby/activities", async ({
+    page,
+  }) => {
+    await installBabyHomeMocks(page, { status: defaultStatus() });
+    await gotoBabyHomeReady(page);
+    await page.evaluate(
+      ({ key, value }) => {
+        window.localStorage.setItem(key, value);
+      },
+      {
+        key: BABY_QUICK_PENDING_STORAGE_KEY,
+        value: JSON.stringify(
+          pendingRecord({
+            request: {
+              action: { kind: "DIAPER", diaperKind: "wet" },
+              breastRunning: null,
+            },
+            startedAt: Date.now() - 31 * 60 * 1000,
+          }),
+        ),
+      },
+    );
+    await page.reload();
+    await expect(page.getByTestId("baby-home")).toBeVisible();
+    await expect(pendingRecoveryUnder(page, "diaper")).toBeVisible();
+    await expect(pendingTooOldTitle(page)).toBeVisible();
+
+    const link = pendingRecoveryUnder(page, "diaper").getByRole("link", {
+      name: /open activities|mở hoạt động/i,
+    });
+    await expect(link).toHaveAttribute("href", "/baby/activities");
+    await Promise.all([
+      page.waitForURL(/\/baby\/activities/),
+      link.click(),
+    ]);
+    await expect(
+      page.getByRole("heading", { name: /activities|hoạt động/i }),
+    ).toBeVisible();
   });
 
   test("fail-closed localStorage blocks BabyQuickCare", async ({ page }) => {
@@ -1991,10 +2364,7 @@ test.describe("Baby Care home Option B", () => {
 
     await gotoBabyHomeReady(page);
     await breastL(page).click();
-    await expect(breastL(page).getByText(/\d+m|0m/)).toBeVisible();
-    await expect(
-      page.getByRole("status").filter({ hasText: /feed saved|đã lưu bú/i }),
-    ).toBeVisible();
+    await expect(breastL(page).getByText(/\d+:\d{2}/)).toBeVisible();
 
     // Seed pending for same idle start and Try again → replayed.
     const pending = pendingRecord({
@@ -2018,13 +2388,13 @@ test.describe("Baby Care home Option B", () => {
     await page.reload();
     // Timer already running from first success; pending may show if still stored.
     // Press Try again if visible — must not start a second timer / duplicate toast.
-    const retry = pendingTitle(page)
-      .locator("..")
-      .getByRole("button", { name: /try again|thử lại/i });
+    const retry = pendingRecoveryUnder(page, "breast_l").getByRole("button", {
+      name: /try again|thử lại/i,
+    });
     if (await retry.isVisible().catch(() => false)) {
       const before = await breastL(page).innerText();
       await retry.click();
-      await expect(breastL(page)).toContainText(/0m|1m|\d+m/);
+      await expect(breastL(page)).toContainText(/\d+:\d{2}/);
       const statuses = page.getByRole("status");
       await expect(statuses).toHaveCount(1);
       void before;
@@ -2163,13 +2533,21 @@ test.describe("Baby Care home Option B", () => {
     await expect(diaperHeader()).toContainText(
       /Next change is in about|Lần đổi tã tiếp theo còn khoảng|overdue|quá hạn/i,
     );
-    await expect(breastL(page).locator(".text-xs")).toHaveCount(0);
-    await expect(breastR(page).locator(".text-xs")).toHaveCount(0);
-    await expect(bottleSave(page).locator(".text-xs")).toHaveCount(0);
+    await expect(breastL(page)).not.toContainText(
+      /Next feed|Lần bú tiếp theo|overdue|quá hạn/i,
+    );
+    await expect(breastR(page)).not.toContainText(
+      /Next feed|Lần bú tiếp theo|overdue|quá hạn/i,
+    );
+    await expect(bottleSave(page)).not.toContainText(
+      /Next feed|Lần bú tiếp theo|overdue|quá hạn/i,
+    );
 
     await expect(sleepCard(page).locator(".text-xs")).toBeVisible();
     // Kind tiles do not show next-due on the face (B1/D-A).
-    await expect(diaperGroup(page).locator(".text-xs")).toHaveCount(0);
+    await expect(diaperGroup(page)).not.toContainText(
+      /Next change|Lần đổi tã tiếp theo|overdue|quá hạn/i,
+    );
 
     // While napping: elapsed only (no next line on sleep card).
     await page.unroute("**/api/graphql/baby");
@@ -2191,8 +2569,11 @@ test.describe("Baby Care home Option B", () => {
     await page.reload();
     await expect(page.getByTestId("baby-home")).toBeVisible();
     await expect(sleepCard(page).getByText(/end nap|kết thúc ngủ/i)).toBeVisible();
-    // Sleep subtitle (next-due) hidden while napping.
-    await expect(sleepCard(page).locator(".text-xs")).toHaveCount(0);
+    // TimedCareChip: Tap to stop subtitle while running; next-due stays hidden.
+    await expect(sleepCard(page)).toContainText(/Tap to stop|Chạm để dừng/);
+    await expect(sleepCard(page)).not.toContainText(
+      /Next nap|Lần ngủ|overdue|quá hạn|home\.nextIn/i,
+    );
 
     // Hide next-due without birth date (empty tip only on headers).
     await page.unroute("**/api/graphql/baby");
@@ -2218,8 +2599,12 @@ test.describe("Baby Care home Option B", () => {
     await expect(diaperHeader()).not.toContainText(
       /Next change is in about|Lần đổi tã tiếp theo còn khoảng|overdue|quá hạn/i,
     );
-    await expect(breastL(page).locator(".text-xs")).toHaveCount(0);
-    await expect(bottleSave(page).locator(".text-xs")).toHaveCount(0);
+    await expect(breastL(page)).not.toContainText(
+      /Next feed|Lần bú tiếp theo|overdue|quá hạn/i,
+    );
+    await expect(bottleSave(page)).not.toContainText(
+      /Next feed|Lần bú tiếp theo|overdue|quá hạn/i,
+    );
   });
 
   test("last ml on row 3 when last feed has amountMl", async ({ page }) => {
@@ -2233,10 +2618,14 @@ test.describe("Baby Care home Option B", () => {
       }),
     });
     await gotoBabyHomeReady(page);
-    // Status shows summary · when — ml may appear inside summary, not as leading prefix.
-    await expect(homeStatus(page).getByText(/Feed \(Formula 120 ml\)/i)).toBeVisible();
+    // Status uses marked prose ("a bottle of 120 ml"), not raw GraphQL summary.
+    await expect(
+      homeStatus(page).getByText(/Last feed was a bottle of/i),
+    ).toBeVisible();
+    await expect(homeStatus(page).getByText(/120 ml/i)).toBeVisible();
     const text = await homeStatus(page).innerText();
     expect(text).not.toMatch(/^120 ml ·/m);
+    expect(text).not.toMatch(/Feed \(Formula 120 ml\)/);
   });
 
   test("3AM geometry: care controls ≥ 56 px; Custom chip excluded", async ({
@@ -2248,7 +2637,7 @@ test.describe("Baby Care home Option B", () => {
     const care = [
       breastL(page),
       breastR(page),
-      page.locator('[data-bottle-ml="60"], [data-bottle-ml="90"], [data-bottle-ml="120"]').first(),
+      bottleGroup(page).locator('[data-bottle-ml="60"], [data-bottle-ml="90"], [data-bottle-ml="120"]').first(),
       sleepCard(page),
       diaperKindTile(page, "wet"),
       diaperKindTile(page, "dirty"),
@@ -2338,8 +2727,8 @@ test.describe("Baby Care home Option B", () => {
 
     await page.goto("/baby");
     await expect(page.getByTestId("baby-home")).toBeVisible();
-    await expect(page.getByText("Trái", { exact: true })).toBeVisible();
-    await expect(page.getByText("Phải", { exact: true })).toBeVisible();
+    await expect(breastL(page).getByText("Trái", { exact: true })).toBeVisible();
+    await expect(breastR(page).getByText("Phải", { exact: true })).toBeVisible();
 
     // All four section headers + nap blend (not just control copy).
     await expect(page.getByTestId("baby-home-header-breast")).toContainText(
@@ -2395,9 +2784,7 @@ test("BabyQuickCare mock contract uses steps not eventId", async ({ page }) => {
   });
   await gotoBabyHomeReady(page);
   await diaperSave(page).click();
-  await expect(
-    page.getByRole("status").filter({ hasText: /saved diaper|đã lưu tã/i }),
-  ).toBeVisible();
+  await expect(diaperKindTile(page, "wet")).toContainText(/Done|Xong/);
   const raw = JSON.stringify(mocks.quickCareBodies);
   expect(raw).not.toMatch(/"eventId"/);
   mocks.assertNoLegacyEventIdShape();

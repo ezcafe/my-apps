@@ -6,6 +6,7 @@ import {
   BABY_HOME_EMPHASIS_CLASS,
   babyHomeDiaperDetailMarked,
   babyHomeFeedDetailMarked,
+  babyHomePumpDetailMarked,
   fillBabyHomeTemplate,
   renderBabyHomeMarkedSentence,
 } from "@/lib/baby-home-marked-sentence";
@@ -66,6 +67,23 @@ describe("babyHomeFeedDetailMarked", () => {
     );
   });
 
+  it("marks merged feed legs without pump", () => {
+    assert.equal(
+      babyHomeFeedDetailMarked({
+        summary: "Feed (…)",
+        payload: {
+          legs: [
+            { method: "breast_l" },
+            { method: "formula", amountMl: 90 },
+            { method: "pump_r" },
+          ],
+        },
+        t: tEn,
+      }),
+      "breast on the «left» and a bottle of «90 ml»",
+    );
+  });
+
   it("marks merged legs", () => {
     assert.equal(
       babyHomeFeedDetailMarked({
@@ -79,6 +97,36 @@ describe("babyHomeFeedDetailMarked", () => {
         t: tEn,
       }),
       "breast on the «left» and a bottle of «90 ml»",
+    );
+  });
+});
+
+describe("babyHomePumpDetailMarked", () => {
+  const tEn = (key: string) => {
+    const map: Record<string, string> = {
+      "home.status.detail.pump": "a «pump» session",
+      "home.status.detail.pumpL": "pump on the «left»",
+      "home.status.detail.pumpR": "pump on the «right»",
+      "home.status.detail.pumpAmount": "pumped «{ml} ml»",
+      "home.status.detail.and": "and",
+    };
+    return map[key] ?? key;
+  };
+
+  it("lists pump legs only", () => {
+    assert.equal(
+      babyHomePumpDetailMarked({
+        summary: "Feed (…)",
+        payload: {
+          legs: [
+            { method: "breast_l" },
+            { method: "pump_r" },
+            { method: "pump_l" },
+          ],
+        },
+        t: tEn,
+      }),
+      "pump on the «right» and pump on the «left»",
     );
   });
 });

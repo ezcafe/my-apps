@@ -8,12 +8,14 @@ import {
 } from "@/lib/baby-care-save-navigate";
 
 describe("BABY_CARE_AFTER_SAVE caller contracts", () => {
-  it("locks feed method + sleep End + diaper to home; sleep Start and homeQuick to stay", () => {
+  it("locks feed method + sleep End + diaper to home; sleep Start, homeQuick, growth to stay", () => {
     assert.equal(BABY_CARE_AFTER_SAVE.feedMethod, "home");
     assert.equal(BABY_CARE_AFTER_SAVE.sleepStart, "stay");
     assert.equal(BABY_CARE_AFTER_SAVE.sleepEnd, "home");
     assert.equal(BABY_CARE_AFTER_SAVE.diaper, "home");
     assert.equal(BABY_CARE_AFTER_SAVE.homeQuick, "stay");
+    assert.equal(BABY_CARE_AFTER_SAVE.growth, "stay");
+    assert.notEqual(BABY_CARE_AFTER_SAVE.growth, BABY_CARE_AFTER_SAVE.diaper);
   });
 });
 
@@ -75,6 +77,19 @@ describe("runBabyCareSaveThenNavigate", () => {
     assert.deepEqual(pushed, []);
   });
 
+  it("Growth afterSave stay contract does not push /baby", async () => {
+    const pushed: string[] = [];
+    await runBabyCareSaveThenNavigate({
+      mutate: async () => {},
+      onSuccess: async () => {},
+      onError: () => {},
+      router: { push: (href) => pushed.push(href) },
+      afterSave: BABY_CARE_AFTER_SAVE.growth,
+    });
+    assert.equal(BABY_CARE_AFTER_SAVE.growth, "stay");
+    assert.deepEqual(pushed, []);
+  });
+
   it("sleep End contract navigates home", async () => {
     const pushed: string[] = [];
     await runBabyCareSaveThenNavigate({
@@ -85,6 +100,46 @@ describe("runBabyCareSaveThenNavigate", () => {
       afterSave: BABY_CARE_AFTER_SAVE.sleepEnd,
     });
     assert.deepEqual(pushed, ["/baby"]);
+  });
+
+  it("delays home navigate when homeNavigateDelayMs is set (Done flash paint)", async () => {
+    const pushed: string[] = [];
+    const delays: number[] = [];
+    let success = false;
+    await runBabyCareSaveThenNavigate({
+      mutate: async () => {},
+      onSuccess: async () => {
+        success = true;
+      },
+      onError: () => {},
+      router: { push: (href) => pushed.push(href) },
+      afterSave: BABY_CARE_AFTER_SAVE.feedMethod,
+      homeNavigateDelayMs: 450,
+      delayFn: async (ms) => {
+        delays.push(ms);
+      },
+    });
+    assert.equal(success, true);
+    assert.deepEqual(delays, [450]);
+    assert.deepEqual(pushed, ["/baby"]);
+  });
+
+  it("does not delay when afterSave is stay", async () => {
+    const pushed: string[] = [];
+    const delays: number[] = [];
+    await runBabyCareSaveThenNavigate({
+      mutate: async () => {},
+      onSuccess: async () => {},
+      onError: () => {},
+      router: { push: (href) => pushed.push(href) },
+      afterSave: BABY_CARE_AFTER_SAVE.sleepStart,
+      homeNavigateDelayMs: 450,
+      delayFn: async (ms) => {
+        delays.push(ms);
+      },
+    });
+    assert.deepEqual(delays, []);
+    assert.deepEqual(pushed, []);
   });
 
   it("stays on form with no router.push when mutate rejects", async () => {

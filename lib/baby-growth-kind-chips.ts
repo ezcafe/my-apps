@@ -4,7 +4,7 @@ import { BABY_INSIGHTS_GROWTH_CHIPS } from "@/lib/baby-insights-filters";
 export { BABY_INSIGHTS_GROWTH_CHIPS as BABY_GROWTH_KIND_CHIPS };
 export type BabyGrowthKindChip = BabyInsightsGrowthChip;
 
-/** Measure page: chips pick one kind (radio). Clicking the same kind keeps it. */
+/** Growth page: chips pick one kind (radio). Clicking the same kind keeps it. */
 export function selectBabyGrowthKindChip(
   current: BabyGrowthKindChip,
   next: BabyGrowthKindChip,

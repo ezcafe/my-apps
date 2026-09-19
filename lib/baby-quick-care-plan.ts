@@ -1,5 +1,11 @@
-import { babyBreastElapsedSec } from "@/lib/baby-breast-timer-store";
-import type { BabyBreastSide } from "@/lib/baby-breast-timer-store";
+import {
+  babyBreastElapsedSec,
+  isBabyBreastCareSide,
+  isBabyPumpCareSide,
+  type BabyCareTimerSide,
+  type BabyBreastCareSide,
+  type BabyPumpCareSide,
+} from "@/lib/baby-breast-timer-store";
 import { graceEndsAt } from "@/lib/baby-feed-session";
 import type { BabyFeedSessionHandle } from "@/lib/baby-feed-session-store";
 import type {
@@ -12,7 +18,7 @@ export type { BabyQuickAction, BabyQuickCareStepName };
 /** What goes on the wire. The server decides the order and re-reads the nap. */
 export type BabyQuickCareRequest = {
   action: BabyQuickAction;
-  breastRunning: { side: BabyBreastSide; durationSec: number } | null;
+  breastRunning: { side: BabyCareTimerSide; durationSec: number } | null;
   /** Merge target when client still has an open/grace feed session. */
   feedSessionEventId?: string;
 };
@@ -20,55 +26,94 @@ export type BabyQuickCareRequest = {
 /** What the client changes locally, only after the server confirms. */
 export type BabyQuickLocalAfter = {
   clearBreastTimer: boolean;
-  startBreastSide: BabyBreastSide | null;
+  startBreastSide: BabyBreastCareSide | null;
   /** true when this press fully stops breast (no new side start). */
   stopBreastSession: boolean;
+  clearPumpTimer: boolean;
+  startPumpSide: BabyPumpCareSide | null;
+  stopPumpSession: boolean;
 };
+
+export function isPumpFamilyQuickAction(action: {
+  kind: string;
+  side?: string;
+}): boolean {
+  if (action.kind === "PUMP_AMOUNT") return true;
+  return (
+    action.kind === "BREAST" &&
+    (action.side === "pump_l" || action.side === "pump_r")
+  );
+}
+
+function emptyLocalAfter(): BabyQuickLocalAfter {
+  return {
+    clearBreastTimer: false,
+    startBreastSide: null,
+    stopBreastSession: false,
+    clearPumpTimer: false,
+    startPumpSide: null,
+    stopPumpSession: false,
+  };
+}
 
 /**
  * Derive local follow-up from a wire request. Used on first success and on
- * Retry so a confirmed response always clears/starts the breast timer even
- * when steps is non-empty (idle breast + endNap) or breastRunning was set.
+ * Retry so a confirmed response always clears/starts the timers even when
+ * steps is non-empty (idle breast + endNap) or breastRunning was set.
  */
 export function localAfterFromQuickRequest(
   request: BabyQuickCareRequest,
 ): BabyQuickLocalAfter {
   const { action, breastRunning } = request;
+  const out = emptyLocalAfter();
 
-  if (action.kind === "BREAST") {
+  if (action.kind === "BREAST" && isBabyPumpCareSide(action.side)) {
+    // Pump family — only touch pump slot; breastRunning on wire is pump side.
     if (!breastRunning) {
-      return {
-        clearBreastTimer: false,
-        startBreastSide: action.side,
-        stopBreastSession: false,
-      };
+      out.startPumpSide = action.side;
+      return out;
     }
     if (breastRunning.side === action.side) {
-      return {
-        clearBreastTimer: true,
-        startBreastSide: null,
-        stopBreastSession: true,
-      };
+      out.clearPumpTimer = true;
+      out.stopPumpSession = true;
+      return out;
     }
-    return {
-      clearBreastTimer: true,
-      startBreastSide: action.side,
-      stopBreastSession: false,
-    };
+    // Switch pump L↔R
+    out.clearPumpTimer = true;
+    out.startPumpSide = action.side;
+    return out;
   }
 
-  if (breastRunning) {
-    return {
-      clearBreastTimer: true,
-      startBreastSide: null,
-      stopBreastSession: true,
-    };
+  if (action.kind === "BREAST" && isBabyBreastCareSide(action.side)) {
+    if (!breastRunning) {
+      out.startBreastSide = action.side;
+      return out;
+    }
+    if (breastRunning.side === action.side) {
+      out.clearBreastTimer = true;
+      out.stopBreastSession = true;
+      return out;
+    }
+    out.clearBreastTimer = true;
+    out.startBreastSide = action.side;
+    return out;
   }
-  return {
-    clearBreastTimer: false,
-    startBreastSide: null,
-    stopBreastSession: false,
-  };
+
+  // PUMP_AMOUNT — never stop breast or pump timers
+  if (action.kind === "PUMP_AMOUNT") {
+    return out;
+  }
+
+  // FORMULA / SLEEP / DIAPER — stop breast slot if wire carried breastRunning
+  if (breastRunning && isBabyBreastCareSide(breastRunning.side)) {
+    out.clearBreastTimer = true;
+    out.stopBreastSession = true;
+  } else if (breastRunning && isBabyPumpCareSide(breastRunning.side)) {
+    // Should not happen for non-pump actions after plan fix; clear pump if sent
+    out.clearPumpTimer = true;
+    out.stopPumpSession = true;
+  }
+  return out;
 }
 
 /**
@@ -78,7 +123,10 @@ export function localAfterFromQuickRequest(
 export function planBabyQuickCare(
   action: BabyQuickAction,
   state: {
-    breast: { side: BabyBreastSide; startedAt: number } | null;
+    /** @deprecated Prefer breastSlot / pumpSlot — single active side. */
+    breast?: { side: BabyCareTimerSide; startedAt: number } | null;
+    breastSlot?: { side: BabyBreastCareSide; startedAt: number } | null;
+    pumpSlot?: { side: BabyPumpCareSide; startedAt: number } | null;
     now: number;
     /** Mergeable session handle from client store (omit when expired/cleared). */
     feedSessionEventId?: string | null;
@@ -87,18 +135,65 @@ export function planBabyQuickCare(
   request: BabyQuickCareRequest;
   localAfter: BabyQuickLocalAfter;
 } {
-  const breastRunning = state.breast
-    ? {
-        side: state.breast.side,
+  const breastSlot =
+    state.breastSlot !== undefined
+      ? state.breastSlot
+      : state.breast && isBabyBreastCareSide(state.breast.side)
+        ? { side: state.breast.side, startedAt: state.breast.startedAt }
+        : null;
+  const pumpSlot =
+    state.pumpSlot !== undefined
+      ? state.pumpSlot
+      : state.breast && isBabyPumpCareSide(state.breast.side)
+        ? { side: state.breast.side, startedAt: state.breast.startedAt }
+        : null;
+
+  let wireRunning: {
+    side: BabyCareTimerSide;
+    durationSec: number;
+  } | null = null;
+
+  if (action.kind === "BREAST" && isBabyPumpCareSide(action.side)) {
+    if (pumpSlot) {
+      wireRunning = {
+        side: pumpSlot.side,
         durationSec: Math.max(
           1,
-          babyBreastElapsedSec(state.breast.startedAt, state.now),
+          babyBreastElapsedSec(pumpSlot.startedAt, state.now),
         ),
-      }
-    : null;
+      };
+    }
+  } else if (action.kind === "BREAST" && isBabyBreastCareSide(action.side)) {
+    if (breastSlot) {
+      wireRunning = {
+        side: breastSlot.side,
+        durationSec: Math.max(
+          1,
+          babyBreastElapsedSec(breastSlot.startedAt, state.now),
+        ),
+      };
+    }
+  } else if (action.kind === "PUMP_AMOUNT") {
+    // Independence: never attach breast or pump running to stop them.
+    wireRunning = null;
+  } else {
+    // FORMULA / SLEEP / DIAPER — attach breast slot only (not pump)
+    if (breastSlot) {
+      wireRunning = {
+        side: breastSlot.side,
+        durationSec: Math.max(
+          1,
+          babyBreastElapsedSec(breastSlot.startedAt, state.now),
+        ),
+      };
+    }
+  }
 
   const writesFeed =
-    Boolean(breastRunning) || action.kind === "FORMULA";
+    Boolean(wireRunning) ||
+    action.kind === "FORMULA" ||
+    action.kind === "PUMP_AMOUNT" ||
+    (action.kind === "BREAST" && isBabyPumpCareSide(action.side));
   const feedSessionEventId =
     writesFeed && state.feedSessionEventId
       ? state.feedSessionEventId
@@ -106,7 +201,7 @@ export function planBabyQuickCare(
 
   const request: BabyQuickCareRequest = {
     action,
-    breastRunning,
+    breastRunning: wireRunning,
     ...(feedSessionEventId ? { feedSessionEventId } : {}),
   };
   return {
@@ -133,15 +228,17 @@ export function adoptFeedSessionAfterQuickCare(input: {
 }): BabyFeedSessionHandle | null {
   const feedSteps = input.steps.filter(
     (s) =>
-      (s.step === "saveBreast" || s.step === "createFormula") &&
+      (s.step === "saveBreast" ||
+        s.step === "createFormula" ||
+        s.step === "createPumpAmount") &&
       s.event.type === "feed",
   );
 
-  // Timer-only breast start (no feed write): keep session id, clear grace so
-  // open continuation stays mergeable past the prior stop deadline.
+  // Timer-only breast/pump start (no feed write): keep session id, clear grace.
   if (feedSteps.length === 0) {
     if (
-      input.localAfter.startBreastSide != null &&
+      (input.localAfter.startBreastSide != null ||
+        input.localAfter.startPumpSide != null) &&
       input.previous
     ) {
       return { ...input.previous, graceEndsAtMs: null };
@@ -154,9 +251,15 @@ export function adoptFeedSessionAfterQuickCare(input: {
   const eventId = insertStep?.event.id ?? last.event.id;
 
   let graceEndsAtMs: number | null;
-  if (input.localAfter.startBreastSide != null) {
+  if (
+    input.localAfter.startBreastSide != null ||
+    input.localAfter.startPumpSide != null
+  ) {
     graceEndsAtMs = null;
-  } else if (input.localAfter.stopBreastSession) {
+  } else if (
+    input.localAfter.stopBreastSession ||
+    input.localAfter.stopPumpSession
+  ) {
     graceEndsAtMs = graceEndsAt(input.now);
   } else {
     graceEndsAtMs = input.previous?.graceEndsAtMs ?? null;
@@ -185,6 +288,8 @@ export function babyQuickCareStepMessageKey(
       return "home.stepStartNap";
     case "createFormula":
       return "home.stepCreateFormula";
+    case "createPumpAmount":
+      return "home.stepCreatePumpAmount";
     case "createDiaper":
       return "home.stepCreateDiaper";
   }
