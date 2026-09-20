@@ -103,8 +103,36 @@ describe("baby i18n t()", () => {
       t("diaper.textureCautionWarn", "vi"),
       "diaper.textureCautionWarn",
     );
-    assert.equal(t("home.formulaCustomUnder", "en"), "Custom ml");
-    assert.equal(t("home.formulaCustomUnder", "vi"), "Nhập ml");
+    assert.equal(t("home.formulaCustomUnder", "en"), "Custom");
+    assert.equal(t("home.formulaCustomUnder", "vi"), "Tùy chọn");
+    assert.equal(t("home.customTime", "en"), "Custom");
+    assert.equal(t("home.customTime", "vi"), "Tùy chọn");
+    assert.equal(t("home.customNap", "en"), "Custom nap");
+    assert.equal(t("home.customNap", "vi"), "Tùy chọn ngủ");
+    assert.equal(t("home.customDiaper", "en"), "Custom diaper");
+    assert.equal(t("home.customDiaper", "vi"), "Tùy chọn tã");
+    assert.equal(t("home.customTimeOpen", "en"), "Custom");
+    assert.equal(t("home.customTimeOpen", "vi"), "Tùy chọn");
+    assert.equal(t("home.pumpBoth", "en"), "Both");
+    assert.equal(t("home.pumpBoth", "vi"), "Cả hai");
+    assert.equal(t("home.formulaCustom", "en"), "Custom");
+    assert.equal(t("home.formulaCustom", "vi"), "Tùy chọn");
+    assert.equal(t("home.formulaCustomOpen", "en"), "Custom");
+    assert.equal(t("home.formulaCustomOpen", "vi"), "Tùy chọn");
+    assert.equal(t("home.customTitle", "en"), "Custom");
+    assert.equal(t("home.customTitle", "vi"), "Tùy chọn");
+    assert.equal(t("home.customDurationLabel", "en"), "Duration (minutes)");
+    assert.equal(t("home.customDurationLabel", "vi"), "Thời lượng (phút)");
+    assert.equal(
+      t("home.customTime", "en"),
+      t("home.formulaCustom", "en"),
+      "Custom face labels match (EN)",
+    );
+    assert.equal(
+      t("home.customTime", "vi"),
+      t("home.formulaCustom", "vi"),
+      "Custom face labels match (VI)",
+    );
     assert.equal(t("home.chainFailed", "en"), "Nothing was saved. Try again.");
     assert.equal(t("home.saving", "en"), "Saving…");
     assert.ok(t("home.statusFeed", "vi").length > 0);
@@ -268,35 +296,31 @@ describe("baby i18n t()", () => {
     );
 
     const guideKeys = [
-      "home.guide.feedTitle",
-      "home.guide.sleepTitle",
-      "home.guide.diaperTitle",
-      "home.guide.pumpTitle",
-      "home.guide.feed.1",
-      "home.guide.feed.2",
-      "home.guide.feed.3",
-      "home.guide.sleep.1",
-      "home.guide.sleep.2",
-      "home.guide.sleep.3",
-      "home.guide.diaper.1",
-      "home.guide.diaper.2",
-      "home.guide.diaper.3",
-      "home.guide.pump.1",
-      "home.guide.pump.2",
-      "home.guide.pump.3",
-      "home.guide.pump.4",
-      "home.guide.pump.5",
-      "home.guide.pump.6",
+      "home.guide.sectionI.title",
+      "home.guide.sectionI.intro",
+      "home.guide.sectionI.roomTemp",
+      "home.guide.sectionI.sids",
+      "home.guide.sectionII.title",
+      "home.guide.stage.newborn.title",
+      "home.guide.stage.newborn.sleep.body",
+      "home.guide.stage.newborn.health.title",
+      "home.guide.stage.m12_24.title",
+      "home.guide.enPlaceholder",
+      "home.guideCaveat",
     ] as const;
     for (const key of guideKeys) {
-      assert.ok(t(key, "en").length > 0, `missing en ${key}`);
-      assert.ok(t(key, "vi").length > 0, `missing vi ${key}`);
-      assert.notEqual(t(key, "vi"), key, `vi fallback for ${key}`);
       assert.ok(key in babyEn, `en table missing ${key}`);
       assert.ok(key in babyVi, `vi table missing ${key}`);
+      assert.ok(t(key, "vi").length > 0, `missing vi ${key}`);
+      assert.notEqual(t(key, "vi"), key, `vi fallback for ${key}`);
     }
-    // Locked Pump table row 1 keeps day/week volume bands.
-    assert.match(t("home.guide.pump.1", "en"), /1–15 mL|Days 1–3/i);
-    assert.match(t("home.guide.pump.1", "vi"), /1–15 mL|Ngày 1–3/i);
+    // VN + EN both ship full stage health (y tế / Preventive Healthcare).
+    assert.match(t("home.guide.stage.newborn.health.title", "vi"), /Y tế dự phòng/i);
+    assert.match(
+      t("home.guide.stage.newborn.health.title", "en"),
+      /Preventive Healthcare/i,
+    );
+    assert.match(t("home.guide.stage.newborn.sleep.body", "en"), /16/);
+    assert.ok(t("home.guide.sectionI.title", "en").length > 10);
   });
 });

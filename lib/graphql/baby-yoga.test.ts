@@ -647,6 +647,101 @@ describe("baby home redesign wiring (stubbed services)", () => {
     }
   });
 
+  it("babyQuickCare PUMP_AMOUNT + amountMl reaches handler", async () => {
+    const { babyQuickCareMutation } = await import(
+      "@/lib/graphql/baby-resolvers"
+    );
+    const originalRun = babyQuickCareMutation.run;
+    let seenInput: unknown;
+    babyQuickCareMutation.run = async (_ws, _user, input) => {
+      seenInput = input;
+      return {
+        replayed: false,
+        openSleep: null,
+        steps: [
+          {
+            step: "createPumpAmount",
+            wrote: "insert",
+            event: {
+              id: "pppppppp-pppp-4ppp-8ppp-pppppppppppp",
+              type: "feed",
+              occurredAt: new Date("2026-07-04T10:00:00.000Z"),
+              endedAt: null,
+              payload: { method: "pump", amountMl: 120 },
+              source: "web",
+              createdByUserSub: "user-1",
+              updatedByUserSub: "user-1",
+              workspaceId: ws,
+              babyId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            },
+          },
+        ],
+      };
+    };
+    try {
+      const result = await executeBabyGraphQLForTest(
+        `mutation {
+          babyQuickCare(input: {
+            clientRequestId: "req-yoga-pump-amount-1"
+            action: { kind: PUMP_AMOUNT, amountMl: 120 }
+            breastRunning: null
+          }) {
+            replayed
+            steps { step wrote }
+          }
+        }`,
+        {
+          userSub: "user-1",
+          workspaceId: ws,
+          workspaceMembershipVerified: true,
+        },
+      );
+      assert.equal(result.errors, undefined);
+      const action = (seenInput as { action: Record<string, unknown> }).action;
+      assert.equal(action.kind, "PUMP_AMOUNT");
+      assert.equal(action.amountMl, 120);
+    } finally {
+      babyQuickCareMutation.run = originalRun;
+    }
+  });
+
+  it("babyQuickCare PUMP_AMOUNT without amountMl still fails Zod", async () => {
+    const { babyQuickCareMutation } = await import(
+      "@/lib/graphql/baby-resolvers"
+    );
+    const { parseOrThrow } = await import("@/lib/parse-or-throw");
+    const { babyQuickCareSchema } = await import("@/lib/validators/baby");
+    const originalRun = babyQuickCareMutation.run;
+    let ranPastParse = false;
+    babyQuickCareMutation.run = async (_ws, _user, input) => {
+      parseOrThrow(babyQuickCareSchema, input);
+      ranPastParse = true;
+      return { replayed: false, openSleep: null, steps: [] };
+    };
+    try {
+      const result = await executeBabyGraphQLForTest(
+        `mutation {
+          babyQuickCare(input: {
+            clientRequestId: "req-yoga-pump-no-amount"
+            action: { kind: PUMP_AMOUNT }
+            breastRunning: null
+          }) {
+            replayed
+          }
+        }`,
+        {
+          userSub: "user-1",
+          workspaceId: ws,
+          workspaceMembershipVerified: true,
+        },
+      );
+      assert.ok(result.errors?.length);
+      assert.equal(ranPastParse, false);
+    } finally {
+      babyQuickCareMutation.run = originalRun;
+    }
+  });
+
   it("babyQuickCare rejects unknown diaperColor at GraphQL enum layer", async () => {
     const { babyQuickCareMutation } = await import(
       "@/lib/graphql/baby-resolvers"
@@ -684,6 +779,120 @@ describe("baby home redesign wiring (stubbed services)", () => {
         /BabyDiaperColor|not_a_color|Enum/i,
       );
       assert.equal(ran, false);
+    } finally {
+      babyQuickCareMutation.run = originalRun;
+    }
+  });
+
+  it("babyQuickCare DIAPER + occurredAt reaches handler", async () => {
+    const { babyQuickCareMutation } = await import(
+      "@/lib/graphql/baby-resolvers"
+    );
+    const originalRun = babyQuickCareMutation.run;
+    let seenInput: unknown;
+    babyQuickCareMutation.run = async (_ws, _user, input) => {
+      seenInput = input;
+      return { replayed: false, openSleep: null, steps: [] };
+    };
+    try {
+      const result = await executeBabyGraphQLForTest(
+        `mutation {
+          babyQuickCare(input: {
+            clientRequestId: "req-yoga-diaper-occurred"
+            action: { kind: DIAPER, diaperKind: wet }
+            breastRunning: null
+            occurredAt: "2026-09-20T06:40:00.000+07:00"
+          }) {
+            replayed
+          }
+        }`,
+        {
+          userSub: "user-1",
+          workspaceId: ws,
+          workspaceMembershipVerified: true,
+        },
+      );
+      assert.equal(result.errors, undefined);
+      assert.equal(
+        (seenInput as { occurredAt?: string }).occurredAt,
+        "2026-09-20T06:40:00.000+07:00",
+      );
+    } finally {
+      babyQuickCareMutation.run = originalRun;
+    }
+  });
+
+  it("babyQuickCare SLEEP end + endedAt reaches handler", async () => {
+    const { babyQuickCareMutation } = await import(
+      "@/lib/graphql/baby-resolvers"
+    );
+    const originalRun = babyQuickCareMutation.run;
+    let seenInput: unknown;
+    babyQuickCareMutation.run = async (_ws, _user, input) => {
+      seenInput = input;
+      return { replayed: false, openSleep: null, steps: [] };
+    };
+    try {
+      const result = await executeBabyGraphQLForTest(
+        `mutation {
+          babyQuickCare(input: {
+            clientRequestId: "req-yoga-sleep-ended"
+            action: { kind: SLEEP }
+            breastRunning: null
+            endedAt: "2026-09-20T06:40:00.000+07:00"
+          }) {
+            replayed
+          }
+        }`,
+        {
+          userSub: "user-1",
+          workspaceId: ws,
+          workspaceMembershipVerified: true,
+        },
+      );
+      assert.equal(result.errors, undefined);
+      assert.equal(
+        (seenInput as { endedAt?: string }).endedAt,
+        "2026-09-20T06:40:00.000+07:00",
+      );
+    } finally {
+      babyQuickCareMutation.run = originalRun;
+    }
+  });
+
+  it("babyQuickCare bad datetime → BAD_REQUEST before handler", async () => {
+    const { babyQuickCareMutation } = await import(
+      "@/lib/graphql/baby-resolvers"
+    );
+    const { parseOrThrow } = await import("@/lib/parse-or-throw");
+    const { babyQuickCareSchema } = await import("@/lib/validators/baby");
+    const originalRun = babyQuickCareMutation.run;
+    let ranPastParse = false;
+    babyQuickCareMutation.run = async (_ws, _user, input) => {
+      parseOrThrow(babyQuickCareSchema, input);
+      ranPastParse = true;
+      return { replayed: false, openSleep: null, steps: [] };
+    };
+    try {
+      const result = await executeBabyGraphQLForTest(
+        `mutation {
+          babyQuickCare(input: {
+            clientRequestId: "req-yoga-bad-time"
+            action: { kind: DIAPER, diaperKind: wet }
+            breastRunning: null
+            occurredAt: "not-a-datetime"
+          }) {
+            replayed
+          }
+        }`,
+        {
+          userSub: "user-1",
+          workspaceId: ws,
+          workspaceMembershipVerified: true,
+        },
+      );
+      assert.ok(result.errors?.length);
+      assert.equal(ranPastParse, false);
     } finally {
       babyQuickCareMutation.run = originalRun;
     }

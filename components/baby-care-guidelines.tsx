@@ -1,106 +1,170 @@
 "use client";
 
-import { useId, useState } from "react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
-
-export type BabyCareGuidelineSectionId =
-  | "feed"
-  | "sleep"
-  | "diaper"
-  | "pump";
-
-export type BabyCareGuidelineSection = {
-  id: BabyCareGuidelineSectionId;
-  title: string;
-  body: string[];
-};
+import type { BabyCareGuidelineModel } from "@/lib/baby-care-guideline-content";
 
 type BabyCareGuidelinesProps = {
-  sections: BabyCareGuidelineSection[];
-  /** Controlled open id (exclusive). Omit for internal state. */
-  openId?: BabyCareGuidelineSectionId | null;
-  onOpenChange?: (id: BabyCareGuidelineSectionId | null) => void;
+  model: BabyCareGuidelineModel;
   className?: string;
 };
 
+function GuideLines({ lines }: { lines: string[] }) {
+  if (lines.length === 0) return null;
+  if (lines.length === 1) {
+    return <p className="text-sm text-muted">{lines[0]}</p>;
+  }
+  return (
+    <ul className="list-disc space-y-1 pl-4 text-sm text-muted">
+      {lines.map((line) => (
+        <li key={line.slice(0, 48)}>{line}</li>
+      ))}
+    </ul>
+  );
+}
+
+function GuideSectionSummary({ children }: { children: ReactNode }) {
+  return (
+    <summary
+      className={cn(
+        "flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 py-2 text-sm font-medium text-foreground/80",
+        "transition-colors hover:text-foreground",
+        "[&::-webkit-details-marker]:hidden",
+      )}
+    >
+      <span>{children}</span>
+      <span
+        aria-hidden
+        data-guide-section-chevron=""
+        className="inline-block text-muted transition-transform group-open:rotate-180"
+      >
+        ▾
+      </span>
+    </summary>
+  );
+}
+
 /**
- * Row 4 exclusive accordion — one open at a time; all collapsed by default.
+ * Quiet care guideline — Section I, Section II, and each developmental stage
+ * are independent collapsibles (`<details>`), all collapsed by default.
  */
 export function BabyCareGuidelines({
-  sections,
-  openId: openIdProp,
-  onOpenChange,
+  model,
   className,
 }: BabyCareGuidelinesProps) {
-  const reactId = useId();
-  const [internalOpen, setInternalOpen] =
-    useState<BabyCareGuidelineSectionId | null>(null);
-  const controlled = openIdProp !== undefined;
-  const openId = controlled ? openIdProp! : internalOpen;
-
-  function setOpen(next: BabyCareGuidelineSectionId | null) {
-    if (!controlled) setInternalOpen(next);
-    onOpenChange?.(next);
-  }
-
   return (
     <div
       data-testid="baby-care-guidelines"
       data-section="guidelines"
+      data-guide-mode={model.mode}
       className={cn(
-        "space-y-2 rounded-[var(--radius-md)] border border-border bg-surface p-2",
+        "space-y-1 rounded-[var(--radius-md)] border border-border/60 bg-surface p-3 text-muted",
         className,
       )}
     >
-      {sections.map((section) => {
-        const expanded = openId === section.id;
-        const panelId = `${reactId}-panel-${section.id}`;
-        const headerId = `${reactId}-header-${section.id}`;
-        return (
-          <div key={section.id} data-guideline={section.id}>
-            <button
-              type="button"
-              id={headerId}
-              aria-expanded={expanded}
-              aria-controls={panelId}
-              data-testid={`baby-guideline-${section.id}`}
-              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm font-medium text-foreground fx-press fx-hit-40 transition-colors hover:bg-secondary-hover"
-              onClick={() => setOpen(expanded ? null : section.id)}
-            >
-              <span>{section.title}</span>
-              <span
-                aria-hidden
-                className={cn(
-                  "text-muted transition-transform",
-                  expanded && "rotate-180",
-                )}
-              >
-                ▾
-              </span>
-            </button>
-            {expanded ? (
-              <div
-                id={panelId}
-                role="region"
-                aria-labelledby={headerId}
-                className="space-y-2 px-3 pb-3 pt-1 text-sm text-muted"
-              >
-                {section.body.map((line, i) => (
-                  <p key={i}>{line}</p>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        );
-      })}
+      {model.mode === "placeholder" ? (
+        <div data-guide-block="placeholder" className="space-y-2">
+          <p className="text-sm font-medium text-foreground/80">
+            {model.sectionI.title}
+          </p>
+          <p className="text-sm">{model.placeholder}</p>
+        </div>
+      ) : (
+        <>
+          <details
+            data-guide-block="section-i"
+            data-guide-section-collapsed=""
+            className="group"
+          >
+            <GuideSectionSummary>{model.sectionI.title}</GuideSectionSummary>
+            <div data-guide-section-body="" className="space-y-2 pb-3">
+              {model.sectionI.intro ? (
+                <p className="text-sm">{model.sectionI.intro}</p>
+              ) : null}
+              {model.sectionI.roomTempTitle ? (
+                <div className="space-y-1">
+                  <h3 className="text-sm font-medium text-foreground/70">
+                    {model.sectionI.roomTempTitle}
+                  </h3>
+                  <p className="text-sm">{model.sectionI.roomTemp}</p>
+                </div>
+              ) : null}
+              {model.sectionI.bodyTempTitle ? (
+                <div className="space-y-1">
+                  <h3 className="text-sm font-medium text-foreground/70">
+                    {model.sectionI.bodyTempTitle}
+                  </h3>
+                  <GuideLines lines={model.sectionI.bodyTempLines} />
+                </div>
+              ) : null}
+              {model.sectionI.sidsTitle ? (
+                <div className="space-y-1">
+                  <h3 className="text-sm font-medium text-foreground/70">
+                    {model.sectionI.sidsTitle}
+                  </h3>
+                  <p className="text-sm">{model.sectionI.sids}</p>
+                </div>
+              ) : null}
+            </div>
+          </details>
+
+          <details
+            data-guide-block="section-ii"
+            data-guide-section-collapsed=""
+            className="group border-t border-border/40"
+          >
+            <GuideSectionSummary>{model.sectionIITitle}</GuideSectionSummary>
+            <div data-guide-section-body="" className="space-y-1 pb-1">
+              {model.stages.map((stage) => (
+                <details
+                  key={stage.id}
+                  data-guide-stage={stage.id}
+                  data-guide-stage-collapsed=""
+                  className="group/stage border-t border-border/40 first:border-t-0"
+                >
+                  <summary
+                    className={cn(
+                      "flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 py-2 text-sm font-medium text-foreground/75",
+                      "transition-colors hover:text-foreground",
+                      "[&::-webkit-details-marker]:hidden",
+                    )}
+                  >
+                    <span>{stage.title}</span>
+                    <span
+                      aria-hidden
+                      data-guide-stage-chevron=""
+                      className="inline-block text-muted transition-transform group-open/stage:rotate-180"
+                    >
+                      ▾
+                    </span>
+                  </summary>
+                  <div
+                    data-guide-stage-body=""
+                    className="space-y-2 pb-3 pl-0.5"
+                  >
+                    {stage.subsections.map((sub) => (
+                      <div
+                        key={sub.id}
+                        data-guide-subsection={sub.id}
+                        className="space-y-1"
+                      >
+                        <h4 className="text-sm font-medium text-foreground/65">
+                          {sub.title}
+                        </h4>
+                        <GuideLines lines={sub.lines} />
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </div>
+          </details>
+        </>
+      )}
+
+      <p data-guide-caveat="" className="border-t border-border/40 pt-3 text-xs text-muted">
+        {model.caveat}
+      </p>
     </div>
   );
-}
-
-/** Exclusive open helper (pure) for tests. */
-export function babyCareGuidelinesNextOpen(
-  current: BabyCareGuidelineSectionId | null,
-  pressed: BabyCareGuidelineSectionId,
-): BabyCareGuidelineSectionId | null {
-  return current === pressed ? null : pressed;
 }

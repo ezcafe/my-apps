@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { BabyTimedCareChip } from "@/components/baby-timed-care-chip";
+import { BabyTimedCareChip, babyTimedCareChipLabel } from "@/components/baby-timed-care-chip";
+import { BabyCustomTimeChip } from "@/components/baby-custom-time-chip";
+import { BabyCustomTimeModal } from "@/components/baby-custom-time-modal";
 import { Button } from "@/components/ui/button";
 import { useBabyLocale } from "@/components/baby-locale-provider";
 import { useNotify } from "@/components/notification-provider";
@@ -23,6 +25,13 @@ import {
   babyHomeSleepDoneFlash,
   createBabyHomeDoneFlashTimer,
 } from "@/lib/baby-home-done-flash";
+import {
+  babyHomeIsoToLocalInput,
+  babyHomeNapEndedAtIso,
+  babyLogSleepEndMutationInput,
+  babyLogSleepStartMutationInput,
+  clearBabyHomeCustomClockPending,
+} from "@/lib/baby-home-custom-time";
 import { invalidateBabyQueries } from "@/lib/baby-query-options";
 import { cn } from "@/lib/cn";
 import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
@@ -67,6 +76,11 @@ export function BabySleepForm() {
   const [checkIncomplete, setCheckIncomplete] = useState(false);
   const [checkPending, setCheckPending] = useState(true);
   const [sleepDone, setSleepDone] = useState(false);
+  const [customTimeIso, setCustomTimeIso] = useState<string | null>(null);
+  const [customDurationMinutes, setCustomDurationMinutes] = useState<
+    number | null
+  >(null);
+  const [customTimeOpen, setCustomTimeOpen] = useState(false);
   const checkGen = useRef(0);
   const doneTimerRef = useRef(createBabyHomeDoneFlashTimer());
 
@@ -121,19 +135,52 @@ export function BabySleepForm() {
 
   function start() {
     startTransition(async () => {
+      const startIso = customTimeIso;
+      const durationMinutes = customDurationMinutes;
       await runBabyCareSaveThenNavigate({
         mutate: async () => {
-          await babyGraphQLRequest(START, { input: {} });
+          await babyGraphQLRequest(START, {
+            input: babyLogSleepStartMutationInput(startIso),
+          });
+          // Pending duration → end immediately at start+duration.
+          if (startIso && durationMinutes != null && durationMinutes > 0) {
+            await babyGraphQLRequest(END, {
+              input: babyLogSleepEndMutationInput(
+                babyHomeNapEndedAtIso({
+                  startIso,
+                  durationMinutes,
+                }),
+              ),
+            });
+          }
         },
         onSuccess: async () => {
-          setHasOpenSleep(true);
-          setEndEnabled(true);
+          const endedWithDuration =
+            startIso != null &&
+            durationMinutes != null &&
+            durationMinutes > 0;
+          if (endedWithDuration) {
+            setHasOpenSleep(false);
+            setEndEnabled(false);
+          } else {
+            setHasOpenSleep(true);
+            setEndEnabled(true);
+          }
           setOpenChecked(true);
           setCheckFailed(false);
           setCheckIncomplete(false);
-          // Start keeps session running — no Done flash (Gate A / TimedCareChip).
+          setCustomTimeIso(clearBabyHomeCustomClockPending());
+          setCustomDurationMinutes(null);
+          if (endedWithDuration) {
+            if (babyHomeSleepDoneFlash({ endedSleepSession: true })) {
+              setSleepDone(true);
+              doneTimerRef.current.arm(() => setSleepDone(false));
+            }
+          }
           await invalidateBabyQueries(queryClient, "care");
-          notify.success(t("sleep.started"));
+          notify.success(
+            endedWithDuration ? t("sleep.ended") : t("sleep.started"),
+          );
         },
         onError: (e) => {
           const msg = e instanceof Error ? e.message : t("common.failed");
@@ -149,7 +196,13 @@ export function BabySleepForm() {
           }
         },
         router,
-        afterSave: BABY_CARE_AFTER_SAVE.sleepStart,
+        afterSave:
+          startIso && durationMinutes != null && durationMinutes > 0
+            ? BABY_CARE_AFTER_SAVE.sleepEnd
+            : BABY_CARE_AFTER_SAVE.sleepStart,
+        ...(startIso && durationMinutes != null && durationMinutes > 0
+          ? { homeNavigateDelayMs: BABY_CARE_DONE_BEFORE_NAV_MS }
+          : {}),
       });
     });
   }
@@ -158,7 +211,9 @@ export function BabySleepForm() {
     startTransition(async () => {
       await runBabyCareSaveThenNavigate({
         mutate: async () => {
-          await babyGraphQLRequest(END, { input: {} });
+          await babyGraphQLRequest(END, {
+            input: babyLogSleepEndMutationInput(customTimeIso),
+          });
         },
         onSuccess: async () => {
           setHasOpenSleep(false);
@@ -166,6 +221,8 @@ export function BabySleepForm() {
           setOpenChecked(true);
           setCheckFailed(false);
           setCheckIncomplete(false);
+          setCustomTimeIso(clearBabyHomeCustomClockPending());
+          setCustomDurationMinutes(null);
           if (babyHomeSleepDoneFlash({ endedSleepSession: true })) {
             setSleepDone(true);
             doneTimerRef.current.arm(() => setSleepDone(false));
@@ -220,11 +277,22 @@ export function BabySleepForm() {
           </Button>
         </div>
       ) : null}
-      <div data-testid="baby-sleep-action-chips">
+      <div
+        className="grid gap-3"
+        style={{
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        }}
+        data-testid="baby-sleep-action-chips"
+      >
         <BabyTimedCareChip
           data-testid={hasOpenSleep ? "baby-sleep-end" : "baby-sleep-start"}
           labelId="baby-sleep-chip"
-          label={hasOpenSleep ? t("sleep.end") : t("sleep.start")}
+          label={babyTimedCareChipLabel({
+            running: hasOpenSleep,
+            idleLabel: t("sleep.start"),
+            endTitle: t("sleep.end"),
+            tapToStop: t("home.tapToStop"),
+          })}
           running={hasOpenSleep}
           tapToStart={t("home.tapToStart")}
           tapToStop={t("home.tapToStop")}
@@ -240,7 +308,42 @@ export function BabySleepForm() {
           }}
           icon={<IconBabySleep className="size-6" />}
         />
+        <BabyCustomTimeChip
+          data-testid="baby-sleep-custom-time"
+          label={t("home.customNap")}
+          valueText={
+            customTimeIso
+              ? customDurationMinutes != null
+                ? `${babyHomeIsoToLocalInput(customTimeIso).slice(11)} · ${customDurationMinutes}m`
+                : babyHomeIsoToLocalInput(customTimeIso).slice(11)
+              : ""
+          }
+          selected={customTimeIso != null}
+          disabled={pending || checkPending}
+          onPress={() => setCustomTimeOpen(true)}
+        />
       </div>
+      <BabyCustomTimeModal
+        open={customTimeOpen}
+        fields="time+duration"
+        initialIso={customTimeIso}
+        initialDurationMinutes={customDurationMinutes}
+        onClose={() => setCustomTimeOpen(false)}
+        onConfirm={({ iso, durationMinutes }) => {
+          setCustomTimeIso(iso);
+          setCustomDurationMinutes(
+            durationMinutes != null && durationMinutes > 0
+              ? durationMinutes
+              : null,
+          );
+          setCustomTimeOpen(false);
+        }}
+        onClear={() => {
+          setCustomTimeIso(clearBabyHomeCustomClockPending());
+          setCustomDurationMinutes(null);
+        }}
+        t={t}
+      />
     </div>
   );
 }

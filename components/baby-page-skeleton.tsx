@@ -9,15 +9,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
-import { BABY_HOME_SMALL_GRID_MIN_H } from "@/lib/baby-home-control-height";
+import {
+  BABY_HOME_BIG_CONTROL_MIN_H,
+  BABY_HOME_SMALL_GRID_MIN_H,
+} from "@/lib/baby-home-control-height";
 import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import {
   AnalyticsPeriodChipSkeleton,
   MoneyAnalyticsFiltersBarSkeleton,
 } from "@/components/money-analytics-skeleton";
 
-/** Matches Baby home: Row1 breast+bottle, Row2 nap+diaper, Row3 pump+amount,
- *  then status, guidelines at page bottom. */
+/** Matches Baby home: Row1 breast+bottle, Row2 nap+custom, Row3 diaper+custom,
+ *  Row4 pump L/R + amount, then status, guidelines at page bottom. */
 export function BabyHomeSkeleton() {
   return (
     <div
@@ -30,7 +33,7 @@ export function BabyHomeSkeleton() {
     >
       <div
         data-skeleton="home-row-breast-bottle"
-        className="grid gap-3"
+        className="grid gap-x-3 gap-y-2 [grid-template-rows:auto_auto_auto]"
         style={{
           gridTemplateColumns:
             "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
@@ -38,7 +41,7 @@ export function BabyHomeSkeleton() {
       >
         <div
           data-skeleton="section-breast"
-          className="flex min-w-0 flex-col space-y-2"
+          className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-2"
         >
           <Skeleton className="h-4 w-40 rounded-[var(--radius-sm)]" />
           <div
@@ -48,26 +51,39 @@ export function BabyHomeSkeleton() {
                 "repeat(auto-fit, minmax(min(100%, 8rem), 1fr))",
             }}
           >
-            <div className="flex min-h-[calc(2*2.75rem+1px)] flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3">
+            <div className={cn(
+              "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3",
+              BABY_HOME_BIG_CONTROL_MIN_H,
+            )}>
               <Skeleton className="size-6 rounded-[var(--radius-sm)]" />
               <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
               <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
             </div>
-            <div className="flex min-h-[calc(2*2.75rem+1px)] flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3">
+            <div className={cn(
+              "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3",
+              BABY_HOME_BIG_CONTROL_MIN_H,
+            )}>
               <Skeleton className="size-6 rounded-[var(--radius-sm)]" />
               <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
               <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
             </div>
           </div>
+          <Skeleton
+            data-skeleton="section-footer"
+            className="h-4 w-48 rounded-[var(--radius-sm)]"
+          />
         </div>
         <div
           data-skeleton="section-bottle"
-          className="flex min-w-0 flex-col space-y-2"
+          className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-2"
         >
           <Skeleton className="h-4 w-40 rounded-[var(--radius-sm)]" />
           <div
             data-skeleton="bottle-ml-chips"
-            className="grid min-h-[calc(2*2.75rem+1px)] grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border"
+            className={cn(
+              "grid grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border",
+              BABY_HOME_SMALL_GRID_MIN_H,
+            )}
           >
             <Skeleton className="min-h-11 w-full rounded-none" />
             <Skeleton className="min-h-11 w-full rounded-none" />
@@ -77,36 +93,71 @@ export function BabyHomeSkeleton() {
               className="min-h-11 w-full rounded-none"
             />
           </div>
+          <Skeleton
+            data-skeleton="section-footer"
+            className="h-4 w-56 rounded-[var(--radius-sm)]"
+          />
         </div>
       </div>
 
       <div
-        data-skeleton="home-row-nap-diaper"
-        className="grid gap-3"
+        data-skeleton="home-row-nap"
+        className="grid gap-x-3 gap-y-2 [grid-template-rows:auto_auto_auto]"
         style={{
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
         }}
       >
         <div
           data-skeleton="section-nap"
-          className="flex min-w-0 flex-col space-y-2"
+          className="row-span-2 grid min-w-0 grid-rows-subgrid gap-y-2"
         >
           <Skeleton className="h-4 w-40 rounded-[var(--radius-sm)]" />
-          <div className="flex min-h-[calc(2*2.75rem+1px)] flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3">
+          <div className={cn(
+              "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3",
+              BABY_HOME_BIG_CONTROL_MIN_H,
+            )}>
             <Skeleton className="size-6 rounded-[var(--radius-sm)]" />
             <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
             <Skeleton className="h-5 w-16 rounded-[var(--radius-sm)]" />
           </div>
         </div>
         <div
+          data-skeleton="section-nap-custom-time"
+          className="row-span-2 grid min-w-0 grid-rows-subgrid gap-y-2"
+        >
+          <div data-skeleton-header="empty" className="h-5" aria-hidden />
+          <div className={cn(
+              "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3",
+              BABY_HOME_BIG_CONTROL_MIN_H,
+            )}>
+            <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
+          </div>
+        </div>
+        <Skeleton
+          data-skeleton="section-footer"
+          className="col-span-full h-4 w-52 rounded-[var(--radius-sm)]"
+        />
+      </div>
+
+      <div
+        data-skeleton="home-row-diaper"
+        className="grid gap-x-3 gap-y-2 [grid-template-rows:auto_auto_auto]"
+        style={{
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        }}
+      >
+        <div
           data-skeleton="section-diaper"
-          className="flex min-w-0 flex-col space-y-2"
+          className="row-span-2 grid min-w-0 grid-rows-subgrid gap-y-2"
         >
           <Skeleton className="h-4 w-40 rounded-[var(--radius-sm)]" />
           <div
             data-skeleton="diaper-kind-2x2"
-            className="grid min-h-[calc(2*2.75rem+1px)] grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border"
+            className={cn(
+              "grid grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border",
+              BABY_HOME_SMALL_GRID_MIN_H,
+            )}
           >
             <Skeleton className="min-h-11 w-full rounded-none" />
             <Skeleton className="min-h-11 w-full rounded-none" />
@@ -114,91 +165,141 @@ export function BabyHomeSkeleton() {
             <Skeleton className="min-h-11 w-full rounded-none" />
           </div>
         </div>
+        <div
+          data-skeleton="section-diaper-custom-time"
+          className="row-span-2 grid min-w-0 grid-rows-subgrid gap-y-2"
+        >
+          <div data-skeleton-header="empty" className="h-5" aria-hidden />
+          <div
+            data-skeleton="diaper-custom-time"
+            className={cn(
+              "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3",
+              BABY_HOME_BIG_CONTROL_MIN_H,
+            )}
+          >
+            <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
+          </div>
+        </div>
+        <Skeleton
+          data-skeleton="section-footer"
+          className="col-span-full h-4 w-44 rounded-[var(--radius-sm)]"
+        />
       </div>
 
       <div
         data-skeleton="home-row-pump"
-        className="flex min-w-0 flex-col space-y-2"
+        className="grid gap-x-3 gap-y-2 [grid-template-rows:auto_auto_auto]"
+        style={{
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
+        }}
       >
-        <Skeleton
-          data-skeleton="section-pump-header"
-          className="h-4 w-40 rounded-[var(--radius-sm)]"
-        />
         <div
-          className="grid items-stretch gap-3"
-          style={{
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(min(100%, 8rem), 1fr))",
-          }}
+          data-skeleton="section-pump"
+          className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-2"
         >
+          <Skeleton
+            data-skeleton="section-pump-header"
+            className="h-4 w-40 rounded-[var(--radius-sm)]"
+          />
           <div
-            data-skeleton="section-pump"
-            className="flex min-h-[calc(2*2.75rem+1px)] flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3"
+            className="grid gap-3"
+            style={{
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(min(100%, 8rem), 1fr))",
+            }}
           >
-            <Skeleton className="size-6 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-3 w-16 rounded-[var(--radius-sm)]" />
-          </div>
-          <div className="flex min-h-[calc(2*2.75rem+1px)] flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3">
-            <Skeleton className="size-6 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-3 w-16 rounded-[var(--radius-sm)]" />
-          </div>
-          <div
-            data-skeleton="section-pump-amount"
-            className="flex h-full min-w-0 flex-col gap-1"
-          >
-            <div
-              data-skeleton="pump-amount-ml-chips"
-              className="grid h-full min-h-[calc(2*2.75rem+1px)] grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border"
-            >
-              <Skeleton className="min-h-11 w-full rounded-none" />
-              <Skeleton className="min-h-11 w-full rounded-none" />
-              <Skeleton className="min-h-11 w-full rounded-none" />
-              <Skeleton className="min-h-11 w-full rounded-none" />
+            <div className={cn(
+              "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3",
+              BABY_HOME_BIG_CONTROL_MIN_H,
+            )}>
+              <Skeleton className="size-6 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
             </div>
-            <Skeleton className="h-3 w-28 rounded-[var(--radius-sm)]" />
+            <div className={cn(
+              "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3",
+              BABY_HOME_BIG_CONTROL_MIN_H,
+            )}>
+              <Skeleton className="size-6 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
+            </div>
           </div>
+          <Skeleton
+            data-skeleton="section-footer"
+            className="h-4 w-48 rounded-[var(--radius-sm)]"
+          />
+        </div>
+        <div
+          data-skeleton="section-pump-amount"
+          className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-2"
+        >
+          <Skeleton className="h-4 w-40 rounded-[var(--radius-sm)]" />
+          <div
+            data-skeleton="pump-amount-ml-chips"
+            className={cn(
+              "grid grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border",
+              BABY_HOME_SMALL_GRID_MIN_H,
+            )}
+          >
+            <Skeleton className="min-h-11 w-full rounded-none" />
+            <Skeleton className="min-h-11 w-full rounded-none" />
+            <Skeleton className="min-h-11 w-full rounded-none" />
+            <Skeleton className="min-h-11 w-full rounded-none" />
+          </div>
+          <div
+            data-skeleton="section-footer"
+            data-skeleton-footer="empty"
+          />
         </div>
       </div>
 
       <div className="space-y-3" data-skeleton="home-status">
-        <div className="space-y-1 border-b border-border/70 pb-3">
+        <div className="flex items-start gap-2 border-b border-border/70 pb-3">
+          <Skeleton className="mt-0.5 size-5 shrink-0 rounded-[var(--radius-sm)]" />
           <Skeleton className="h-5 w-full max-w-sm rounded-[var(--radius-sm)]" />
         </div>
-        <div className="space-y-1 border-b border-border/70 pb-3">
+        <div className="flex items-start gap-2 border-b border-border/70 pb-3">
+          <Skeleton className="mt-0.5 size-5 shrink-0 rounded-[var(--radius-sm)]" />
           <Skeleton className="h-5 w-full max-w-xs rounded-[var(--radius-sm)]" />
         </div>
-        <div className="space-y-1 border-b border-border/70 pb-3">
+        <div className="flex items-start gap-2 border-b border-border/70 pb-3">
+          <Skeleton className="mt-0.5 size-5 shrink-0 rounded-[var(--radius-sm)]" />
           <Skeleton className="h-5 w-full max-w-sm rounded-[var(--radius-sm)]" />
         </div>
-        <div className="space-y-1">
+        <div className="flex items-start gap-2">
+          <Skeleton className="mt-0.5 size-5 shrink-0 rounded-[var(--radius-sm)]" />
           <Skeleton className="h-5 w-full max-w-sm rounded-[var(--radius-sm)]" />
         </div>
       </div>
 
-      <div
-        data-skeleton="home-row-guidelines"
-        className="space-y-2 rounded-[var(--radius-md)] border border-border p-2"
-      >
-        <Skeleton
-          data-skeleton="guideline-header"
-          className="h-11 w-full rounded-[var(--radius-sm)]"
-        />
-        <Skeleton
-          data-skeleton="guideline-header"
-          className="h-11 w-full rounded-[var(--radius-sm)]"
-        />
-        <Skeleton
-          data-skeleton="guideline-header"
-          className="h-11 w-full rounded-[var(--radius-sm)]"
-        />
-        <Skeleton
-          data-skeleton="guideline-header"
-          className="h-11 w-full rounded-[var(--radius-sm)]"
-        />
+      <div data-skeleton="home-row-guidelines">
+        {/* Mirrors live BabyCareGuidelines: Section I/II headers collapsed + caveat. */}
+        <div
+          data-skeleton="guideline-quiet-block"
+          className="space-y-1 rounded-[var(--radius-md)] border border-border/60 bg-surface p-3"
+        >
+          <div
+            data-skeleton="guideline-section-i"
+            className="flex min-h-11 items-center"
+          >
+            <Skeleton className="h-4 w-56 rounded-[var(--radius-sm)]" />
+          </div>
+
+          <div
+            data-skeleton="guideline-section-ii"
+            className="flex min-h-11 items-center border-t border-border/40"
+          >
+            <Skeleton className="h-4 w-64 rounded-[var(--radius-sm)]" />
+          </div>
+
+          <Skeleton
+            data-skeleton="guide-caveat"
+            className="h-3 w-full max-w-lg rounded-[var(--radius-sm)] border-t border-border/40 pt-3"
+          />
+        </div>
       </div>
     </div>
   );
@@ -224,7 +325,7 @@ export function BabyFeedSkeleton() {
         <Skeleton className="min-h-14 rounded-[var(--radius-md)]" />
         <div
           className={cn(
-            "grid h-full grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
+            "grid grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
             BABY_HOME_SMALL_GRID_MIN_H,
           )}
           data-skeleton="feed-formula-ml-chips"
@@ -239,7 +340,7 @@ export function BabyFeedSkeleton() {
   );
 }
 
-/** Pump L/R + pump amount ml chips. */
+/** Pump L/R nested pair (12rem section) + pump amount ml chips. */
 export function BabyPumpSkeleton() {
   return (
     <div
@@ -248,18 +349,26 @@ export function BabyPumpSkeleton() {
       data-testid="baby-pump-page-skeleton"
     >
       <div
-        className="grid items-stretch gap-3"
+        className="grid gap-3"
         style={{
           gridTemplateColumns:
-            "repeat(auto-fit, minmax(min(100%, 8rem), 1fr))",
+            "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
         }}
         data-skeleton="pump-timer-chips"
       >
-        <Skeleton className="min-h-14 rounded-[var(--radius-md)]" />
-        <Skeleton className="min-h-14 rounded-[var(--radius-md)]" />
+        <div
+          className="grid gap-3"
+          style={{
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(100%, 8rem), 1fr))",
+          }}
+        >
+          <Skeleton className="min-h-14 rounded-[var(--radius-md)]" />
+          <Skeleton className="min-h-14 rounded-[var(--radius-md)]" />
+        </div>
         <div
           className={cn(
-            "grid h-full grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
+            "grid grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
             BABY_HOME_SMALL_GRID_MIN_H,
           )}
           data-skeleton="pump-amount-ml-chips"
@@ -274,7 +383,7 @@ export function BabyPumpSkeleton() {
   );
 }
 
-/** Diaper 2×2 kind control (heading in layout). */
+/** Diaper 2×2 kind + Nap-sized Custom time sibling (log form parity). */
 export function BabyDiaperSkeleton() {
   return (
     <div
@@ -283,22 +392,40 @@ export function BabyDiaperSkeleton() {
       data-testid="baby-diaper-page-skeleton"
     >
       <div
-        className={cn(
-          "grid h-full grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
-          BABY_HOME_SMALL_GRID_MIN_H,
-        )}
-        data-skeleton="diaper-kind-2x2"
+        className="grid gap-3"
+        style={{
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        }}
+        data-skeleton="diaper-form-row"
       >
-        <Skeleton className="min-h-11 w-full rounded-none" />
-        <Skeleton className="min-h-11 w-full rounded-none" />
-        <Skeleton className="min-h-11 w-full rounded-none" />
-        <Skeleton className="min-h-11 w-full rounded-none" />
+        <div
+          className={cn(
+            "grid grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
+            BABY_HOME_SMALL_GRID_MIN_H,
+          )}
+          data-skeleton="diaper-kind-2x2"
+        >
+          <Skeleton className="min-h-11 w-full rounded-none" />
+          <Skeleton className="min-h-11 w-full rounded-none" />
+          <Skeleton className="min-h-11 w-full rounded-none" />
+          <Skeleton className="min-h-11 w-full rounded-none" />
+        </div>
+        <div
+          data-skeleton="diaper-custom-time"
+          className={cn(
+            "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3",
+            BABY_HOME_BIG_CONTROL_MIN_H,
+          )}
+        >
+          <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
+        </div>
       </div>
     </div>
   );
 }
 
-/** Open-session hint + one TimedCareChip (Nap clone). */
+/** Open-session hint + Nap TimedCareChip + Nap-sized Custom time sibling. */
 export function BabySleepSkeleton() {
   return (
     <div
@@ -307,8 +434,33 @@ export function BabySleepSkeleton() {
       data-testid="baby-sleep-page-skeleton"
     >
       <Skeleton className="h-5 w-40 rounded-[var(--radius-sm)]" />
-      <div data-skeleton="sleep-action-chips">
-        <Skeleton className="min-h-14 w-full max-w-xs rounded-[var(--radius-md)]" />
+      <div
+        className="grid gap-3"
+        style={{
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        }}
+        data-skeleton="sleep-action-chips"
+      >
+        <div
+          className={cn(
+            "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3",
+            BABY_HOME_BIG_CONTROL_MIN_H,
+          )}
+        >
+          <Skeleton className="size-6 rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-5 w-16 rounded-[var(--radius-sm)]" />
+        </div>
+        <div
+          data-skeleton="sleep-custom-time"
+          className={cn(
+            "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3",
+            BABY_HOME_BIG_CONTROL_MIN_H,
+          )}
+        >
+          <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-5 w-20 rounded-[var(--radius-sm)]" />
+        </div>
       </div>
     </div>
   );

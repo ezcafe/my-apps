@@ -282,6 +282,27 @@ export function babySleepGuideForAge(
   return SLEEP_GUIDE_BANDS[SLEEP_GUIDE_BANDS.length - 1]!.band;
 }
 
+/** Average month length — floor months for home title age. */
+export function babyAgeInMonthsFloor(ageDays: number): number {
+  return Math.floor(ageDays / 30.4375);
+}
+
+/**
+ * Care-guide stage cuts (same as guideline titles):
+ * newborn 0–30 · m1_3 31–90 · m3_6 91–182 · m6_12 183–364 · m12_24 ≥365.
+ * null age → null (no diaper/pump tip).
+ */
+export function babyCareGuideStageForAge(
+  ageDays: number | null,
+): "newborn" | "m1_3" | "m3_6" | "m6_12" | "m12_24" | null {
+  if (ageDays == null || ageDays < 0) return null;
+  if (ageDays <= 30) return "newborn";
+  if (ageDays <= 90) return "m1_3";
+  if (ageDays <= 182) return "m3_6";
+  if (ageDays <= 364) return "m6_12";
+  return "m12_24";
+}
+
 /**
  * Fixed safe snaps when birthday unset — usability only, never “recommended”.
  */

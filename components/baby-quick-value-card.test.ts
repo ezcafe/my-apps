@@ -78,7 +78,7 @@ describe("BabyQuickValueCard markup", () => {
 });
 
 describe("BabyQuickSimpleCard Done flash", () => {
-  it("shows Done with primary fill and hides idle value/subtitle", () => {
+  it("shows absolute-centered Done overlay and keeps reserved idle slots", () => {
     const html = renderToStaticMarkup(
       createElement(BabyQuickSimpleCard, {
         labelId: "breast-l",
@@ -93,18 +93,45 @@ describe("BabyQuickSimpleCard Done flash", () => {
     assert.match(html, /data-done-flash/);
     assert.match(html, /data-selected/);
     assert.match(html, /bg-accent/);
+    assert.match(html, /data-face-slot="done"/);
+    assert.match(html, /absolute inset-0/);
+    assert.match(html, /items-center justify-center/);
     assert.match(html, />Done</);
-    assert.doesNotMatch(html, /Tap to start/);
-    assert.doesNotMatch(html, /next in 5min/);
-    // Icon slot stays mounted (invisible) so Done height matches idle.
-    assert.match(html, /data-face-slot="icon"/);
+    // Idle slots stay mounted (invisible) so card height does not jump.
+    for (const slot of ["icon", "title", "value", "subtitle"] as const) {
+      assert.match(html, new RegExp(`data-face-slot="${slot}"`));
+    }
     assert.match(html, /data-icon-collapsed="true"/);
     assert.match(html, /invisible/);
     assert.match(html, /min-h-6/);
     assert.match(html, /data-icon="x"/);
+    // Idle copy stays in reserved slots (hidden), not removed.
+    assert.match(html, /Tap to start/);
+    assert.match(html, /next in 5min/);
   });
 
-  it("idle and Done faces both reserve icon/value/subtitle slots", () => {
+  it("idle without subtitle centers icon+title+value (no empty subtitle slot)", () => {
+    const html = renderToStaticMarkup(
+      createElement(BabyQuickSimpleCard, {
+        labelId: "breast-l",
+        label: "Left",
+        valueText: "Tap to start",
+        icon: createElement("span", { className: "size-6", "data-icon": "breast" }),
+        onPress: () => {},
+      }),
+    );
+    assert.match(html, /items-center justify-center/);
+    assert.match(html, /text-center/);
+    assert.match(html, /data-face-slot="icon"/);
+    assert.match(html, /data-face-slot="title"/);
+    assert.match(html, /data-face-slot="value"/);
+    assert.match(html, />Left</);
+    assert.match(html, /Tap to start/);
+    // Empty subtitle min-h would push the face stack up — omit when unused.
+    assert.doesNotMatch(html, /data-face-slot="subtitle"/);
+  });
+
+  it("idle and Done without subtitle reserve icon/title/value only", () => {
     const idle = renderToStaticMarkup(
       createElement(BabyQuickSimpleCard, {
         labelId: "nap-idle",
@@ -124,10 +151,17 @@ describe("BabyQuickSimpleCard Done flash", () => {
         onPress: () => {},
       }),
     );
-    for (const slot of ["icon", "value", "subtitle"] as const) {
+    for (const slot of ["icon", "title", "value"] as const) {
       assert.match(idle, new RegExp(`data-face-slot="${slot}"`));
       assert.match(done, new RegExp(`data-face-slot="${slot}"`));
     }
+    assert.doesNotMatch(idle, /data-face-slot="subtitle"/);
+    assert.doesNotMatch(done, /data-face-slot="subtitle"/);
+    assert.match(idle, /items-center justify-center/);
+    assert.match(idle, /text-center/);
+    assert.doesNotMatch(idle, /data-face-slot="done"/);
+    assert.match(done, /data-face-slot="done"/);
+    assert.match(done, /absolute inset-0.*items-center justify-center|absolute inset-0 flex items-center justify-center/);
   });
 
   it("idle card has surface hover affordance", () => {

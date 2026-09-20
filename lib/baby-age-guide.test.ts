@@ -4,6 +4,8 @@ import {
   BABY_BOTTLE_CHIPS_NO_BIRTH_SNAPS,
   BABY_FEED_GUIDE_FALLBACK,
   babyAgeInDays,
+  babyAgeInMonthsFloor,
+  babyCareGuideStageForAge,
   babyFeedGuideForAge,
   babyFormulaDefaultMl,
   babyFormulaSnapList,
@@ -231,5 +233,29 @@ describe("buildBabyBottleChipMls", () => {
       [60, 90, 120],
     );
     assert.deepEqual(BABY_BOTTLE_CHIPS_NO_BIRTH_SNAPS, [60, 90, 120]);
+  });
+});
+
+describe("babyAgeInMonthsFloor", () => {
+  it("floors ageDays / 30.4375", () => {
+    assert.equal(babyAgeInMonthsFloor(0), 0);
+    assert.equal(babyAgeInMonthsFloor(30), 0);
+    assert.equal(babyAgeInMonthsFloor(31), 1);
+    assert.equal(babyAgeInMonthsFloor(91), 2);
+  });
+});
+
+describe("babyCareGuideStageForAge", () => {
+  it("maps design cuts; null age → null", () => {
+    assert.equal(babyCareGuideStageForAge(null), null);
+    assert.equal(babyCareGuideStageForAge(0), "newborn");
+    assert.equal(babyCareGuideStageForAge(30), "newborn");
+    assert.equal(babyCareGuideStageForAge(31), "m1_3");
+    assert.equal(babyCareGuideStageForAge(90), "m1_3");
+    assert.equal(babyCareGuideStageForAge(91), "m3_6");
+    assert.equal(babyCareGuideStageForAge(182), "m3_6");
+    assert.equal(babyCareGuideStageForAge(183), "m6_12");
+    assert.equal(babyCareGuideStageForAge(364), "m6_12");
+    assert.equal(babyCareGuideStageForAge(365), "m12_24");
   });
 });

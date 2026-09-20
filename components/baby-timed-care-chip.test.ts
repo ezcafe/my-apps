@@ -4,7 +4,9 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   BabyTimedCareChip,
+  babyTimedCareChipLabel,
   babyTimedCareChipRunningCopy,
+  babyTimedCareMergedStopTitle,
 } from "@/components/baby-timed-care-chip";
 
 describe("babyTimedCareChipRunningCopy", () => {
@@ -28,22 +30,44 @@ describe("babyTimedCareChipRunningCopy", () => {
   });
 });
 
-describe("BabyTimedCareChip", () => {
-  it("reserves subtitle line so idle and running heights stay stable", () => {
-    const idle = renderToStaticMarkup(
-      createElement(BabyTimedCareChip, {
-        labelId: "idle",
-        label: "Pump L",
-        running: false,
-        tapToStart: "Tap to start",
-        tapToStop: "Tap to stop",
-        onPress: () => {},
-      }),
+describe("babyTimedCareMergedStopTitle", () => {
+  it("composes endTitle - tapToStop", () => {
+    assert.equal(
+      babyTimedCareMergedStopTitle("End nap", "Tap to stop"),
+      "End nap - Tap to stop",
     );
+  });
+});
+
+describe("babyTimedCareChipLabel", () => {
+  it("idle keeps idle label; running merges stop title", () => {
+    assert.equal(
+      babyTimedCareChipLabel({
+        running: false,
+        idleLabel: "Start nap",
+        endTitle: "End nap",
+        tapToStop: "Tap to stop",
+      }),
+      "Start nap",
+    );
+    assert.equal(
+      babyTimedCareChipLabel({
+        running: true,
+        idleLabel: "Start nap",
+        endTitle: "End nap",
+        tapToStop: "Tap to stop",
+      }),
+      "End nap - Tap to stop",
+    );
+  });
+});
+
+describe("BabyTimedCareChip", () => {
+  it("running uses merged title; no separate Tap to stop subtitle", () => {
     const running = renderToStaticMarkup(
       createElement(BabyTimedCareChip, {
         labelId: "run",
-        label: "Pump L",
+        label: babyTimedCareMergedStopTitle("End nap", "Tap to stop"),
         running: true,
         elapsedText: "1:05",
         tapToStart: "Tap to start",
@@ -51,19 +75,57 @@ describe("BabyTimedCareChip", () => {
         onPress: () => {},
       }),
     );
-    assert.match(idle, /data-face-slot="value"/);
-    assert.match(idle, /data-face-slot="subtitle"/);
     assert.match(running, /data-face-slot="value"/);
-    assert.match(running, /data-face-slot="subtitle"/);
     assert.match(running, /1:05/);
-    assert.match(running, /Tap to stop/);
+    assert.match(running, /End nap - Tap to stop/);
+    // Stop lives in title — not a subtitle face slot.
+    assert.doesNotMatch(running, /data-face-slot="subtitle"/);
   });
 
-  it("renders tapToStop while running and Done only via doneText", () => {
+  it("centers idle face and absolute-centers Done on Breast/Pump chips", () => {
+    const idle = renderToStaticMarkup(
+      createElement(BabyTimedCareChip, {
+        labelId: "breast-l",
+        label: "Left",
+        icon: createElement("span", { "data-icon": "breast" }),
+        running: false,
+        tapToStart: "Tap to start",
+        tapToStop: "Tap to stop",
+        onPress: () => {},
+      }),
+    );
+    assert.match(idle, /items-center justify-center/);
+    assert.match(idle, /text-center/);
+    assert.match(idle, /data-face-slot="icon"/);
+    assert.match(idle, /data-face-slot="title"/);
+    assert.match(idle, /data-face-slot="value"/);
+    assert.doesNotMatch(idle, /data-face-slot="subtitle"/);
+    assert.match(idle, />Left</);
+    assert.match(idle, /Tap to start/);
+
+    const done = renderToStaticMarkup(
+      createElement(BabyTimedCareChip, {
+        labelId: "breast-l-done",
+        label: "Left",
+        icon: createElement("span", { "data-icon": "breast" }),
+        running: false,
+        tapToStart: "Tap to start",
+        tapToStop: "Tap to stop",
+        doneText: "Done",
+        onPress: () => {},
+      }),
+    );
+    assert.match(done, /data-face-slot="done"/);
+    assert.match(done, /absolute inset-0/);
+    assert.match(done, /flex items-center justify-center/);
+    assert.match(done, />Done</);
+  });
+
+  it("renders elapsed while running and Done only via doneText", () => {
     const running = renderToStaticMarkup(
       createElement(BabyTimedCareChip, {
         labelId: "chip-run",
-        label: "Pump L",
+        label: babyTimedCareMergedStopTitle("Pump L", "Tap to stop"),
         running: true,
         elapsedText: "1:30",
         tapToStart: "Tap to start",
@@ -71,7 +133,7 @@ describe("BabyTimedCareChip", () => {
         onPress: () => {},
       }),
     );
-    assert.match(running, /Tap to stop/);
+    assert.match(running, /Pump L - Tap to stop/);
     assert.match(running, /1:30/);
     assert.doesNotMatch(running, />Done</);
     assert.doesNotMatch(running, /Tap to save/);
@@ -92,11 +154,11 @@ describe("BabyTimedCareChip", () => {
     assert.match(done, /data-done-flash/);
   });
 
-  it("suppresses doneText while running (never Done over Tap to stop)", () => {
+  it("suppresses doneText while running (never Done over stop title)", () => {
     const html = renderToStaticMarkup(
       createElement(BabyTimedCareChip, {
         labelId: "chip-run-done",
-        label: "Nap",
+        label: babyTimedCareMergedStopTitle("End nap", "Tap to stop"),
         running: true,
         elapsedText: "0:42",
         tapToStart: "Tap to start",
@@ -105,10 +167,9 @@ describe("BabyTimedCareChip", () => {
         onPress: () => {},
       }),
     );
-    assert.match(html, /Tap to stop/);
+    assert.match(html, /End nap - Tap to stop/);
     assert.match(html, /0:42/);
     assert.match(html, /data-running="true"/);
-    // Button + wrapper both expose running for e2e (sleepCard targets the button).
     assert.equal((html.match(/data-running="true"/g) ?? []).length, 2);
     assert.doesNotMatch(html, />Done</);
     assert.doesNotMatch(html, /data-done-flash/);
@@ -134,7 +195,6 @@ describe("BabyTimedCareChip", () => {
     assert.match(withRecovery, /text-xs text-muted/);
     assert.match(withRecovery, />Muted tip</);
     assert.match(withRecovery, /data-testid="baby-home-pending-recovery"/);
-    // Recovery must not live inside the muted helper <p> (sibling, no double wrap).
     assert.match(
       withRecovery,
       /<p class="text-xs text-muted">Muted tip<\/p><div data-testid="baby-home-pending-recovery">/,

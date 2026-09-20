@@ -61,6 +61,17 @@ describe("BabyFeedForm source chrome", () => {
   it("saves formula via createBabyFeed method formula", () => {
     assert.match(src, /method:\s*"formula"/);
   });
+
+  it("Custom Done flash wires keep-from-custom helper into customSelected", () => {
+    assert.match(src, /babyHomeKeepFromCustomAfterAmountSuccess/);
+    assert.match(src, /resolveBabyHomeCustomSelected/);
+    assert.match(src, /customSelected=\{bottleCustomSelected\}/);
+    assert.doesNotMatch(src, /customSelected=\{false\}/);
+    assert.match(
+      src,
+      /setFormulaFromCustom\(keepFromCustom\)/,
+    );
+  });
 });
 
 describe("Feed breast slot write leaves pump intact", () => {

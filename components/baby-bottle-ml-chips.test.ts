@@ -59,4 +59,95 @@ describe("BabyBottleMlChips", () => {
     assert.match(html, /data-bottle-ml="120"[^>]*data-bottle-flash="done"/);
     assert.match(html, /Logged/);
   });
+
+  it("Done flashes on Custom only when customSelected, not on prepended ml", () => {
+    const html = renderToStaticMarkup(
+      createElement(BabyBottleMlChips, {
+        mls: [150, 90, 120],
+        selectedMl: 150,
+        doneFlash: true,
+        doneText: "Logged",
+        customSelected: true,
+        onSelectMl: () => {},
+        onCustom: () => {},
+        t: (key) =>
+          ({
+            "home.header.bottle": "Bottle",
+            "home.chipMl": "{ml} ml",
+            "home.formulaCustom": "Custom",
+            "home.formulaCustomOpen": "Custom ml",
+          })[key] ?? key,
+      }),
+    );
+    assert.match(html, /data-bottle-ml="custom"[^>]*data-bottle-flash="done"/);
+    assert.doesNotMatch(
+      html,
+      /data-bottle-ml="150"[^>]*data-bottle-flash="done"/,
+    );
+    assert.match(html, /data-face-slot="done"[^>]*>Logged</);
+    // Locked Done: absolute overlay + reserved idle value slot (no height jump).
+    assert.match(
+      html,
+      /data-face-slot="done"[^>]*absolute inset-0[^>]*items-center justify-center/,
+    );
+    assert.match(
+      html,
+      /data-bottle-ml="custom"[^]*?data-face-slot="value"[^>]*invisible/,
+    );
+  });
+
+  it("numeric Done keeps absolute overlay and reserved value slot", () => {
+    const html = renderToStaticMarkup(
+      createElement(BabyBottleMlChips, {
+        mls: [120, 90, 60],
+        selectedMl: 120,
+        doneFlash: true,
+        doneText: "Logged",
+        onSelectMl: () => {},
+        onCustom: () => {},
+        t: (key) =>
+          ({
+            "home.header.bottle": "Bottle",
+            "home.chipMl": "{ml} ml",
+            "home.formulaCustom": "Custom",
+            "home.formulaCustomOpen": "Custom ml",
+          })[key] ?? key,
+      }),
+    );
+    assert.match(html, /data-bottle-ml="120"[^>]*data-bottle-flash="done"/);
+    assert.match(
+      html,
+      /data-face-slot="done"[^>]*absolute inset-0[^>]*items-center justify-center/,
+    );
+    assert.match(
+      html,
+      /data-bottle-ml="120"[^]*?data-face-slot="value"[^>]*invisible/,
+    );
+  });
+
+  it("Custom chip showDone is false when custom but not selected", () => {
+    const html = renderToStaticMarkup(
+      createElement(BabyBottleMlChips, {
+        mls: [90, 120, 150],
+        selectedMl: 90,
+        doneFlash: true,
+        doneText: "Logged",
+        customSelected: false,
+        onSelectMl: () => {},
+        onCustom: () => {},
+        t: (key) =>
+          ({
+            "home.header.bottle": "Bottle",
+            "home.chipMl": "{ml} ml",
+            "home.formulaCustom": "Custom",
+            "home.formulaCustomOpen": "Custom ml",
+          })[key] ?? key,
+      }),
+    );
+    assert.doesNotMatch(
+      html,
+      /data-bottle-ml="custom"[^>]*data-bottle-flash="done"/,
+    );
+    assert.match(html, /data-bottle-ml="90"[^>]*data-bottle-flash="done"/);
+  });
 });

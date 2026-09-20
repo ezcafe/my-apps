@@ -216,6 +216,7 @@ export const babyTypeDefs = /* GraphQL */ `
   enum BabyQuickActionKind {
     BREAST
     FORMULA
+    PUMP_AMOUNT
     SLEEP
     DIAPER
   }
@@ -271,6 +272,10 @@ export const babyTypeDefs = /* GraphQL */ `
     breastRunning: BabyQuickBreastInput
     feedSessionEventId: ID
     clientRequestId: String!
+    """Optional ISO-8601 with offset — start/diaper backdate (truth table)."""
+    occurredAt: String
+    """Optional ISO-8601 with offset — sleep end / auto-endNap clock."""
+    endedAt: String
   }
 
   type BabyQuickCareStepResult {

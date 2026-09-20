@@ -1,4 +1,8 @@
 import type { BreadcrumbItem } from "@/components/ui/breadcrumb";
+import {
+  babyAgeInDays,
+  babyAgeInMonthsFloor,
+} from "@/lib/baby-age-guide";
 import type { BabyMessageKey } from "@/messages/baby/en";
 
 export type BabyAppHeaderCrumb = {
@@ -10,6 +14,40 @@ export type BabyAppHeaderResolved = {
   titleKey: BabyMessageKey;
   breadcrumbs: BabyAppHeaderCrumb[];
 };
+
+function fillTemplate(
+  template: string,
+  vars: Record<string, string>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => vars[key] ?? "");
+}
+
+/**
+ * Home chrome title from **status** birthDate only (Decision 7 Option 2).
+ * Under 1 month → day(s); 1+ months → months; null/invalid → plain `home.title`.
+ */
+export function babyHomeTitleFromStatusBirthDate(input: {
+  statusBirthDate: string | null | undefined;
+  now: Date;
+  title: string;
+  titleWithAgeTemplate: string;
+  titleWithAgeDayTemplate: string;
+  titleWithAgeDaysTemplate: string;
+}): string {
+  const ageDays = babyAgeInDays(input.statusBirthDate ?? null, input.now);
+  if (ageDays == null) return input.title;
+  const months = babyAgeInMonthsFloor(ageDays);
+  if (months < 1) {
+    const template =
+      ageDays === 1
+        ? input.titleWithAgeDayTemplate
+        : input.titleWithAgeDaysTemplate;
+    return fillTemplate(template, { n: String(ageDays) });
+  }
+  return fillTemplate(input.titleWithAgeTemplate, {
+    n: String(months),
+  });
+}
 
 /**
  * Pathname → page heading defaults for `/baby` (title keys for i18n).

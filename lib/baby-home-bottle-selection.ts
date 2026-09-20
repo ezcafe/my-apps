@@ -17,6 +17,51 @@ export function resolveBabyHomeSelectedBottleMl(input: {
 }
 
 /**
+ * Custom tile stays selected while pending Custom ml or during
+ * custom-origin Done flash (keep *FromCustom until flash clears).
+ */
+export function resolveBabyHomeCustomSelected(input: {
+  fromCustom: boolean;
+  override: number | null;
+  doneMl: number | null;
+}): boolean {
+  if (!input.fromCustom) return false;
+  return input.override != null || input.doneMl != null;
+}
+
+/**
+ * After a custom-origin amount save, keep fromCustom for the flash window.
+ */
+export function babyHomeKeepFromCustomAfterAmountSuccess(input: {
+  fromCustom: boolean;
+  doneMl: number | null;
+}): boolean {
+  return Boolean(input.fromCustom && input.doneMl != null);
+}
+
+/**
+ * Custom ml tile tap: save pending vs open modal for first pick.
+ * Edit is a separate control (outside the 2×2).
+ */
+export function babyHomeCustomMlTapAction(input: {
+  fromCustom: boolean;
+  override: number | null;
+}): "save" | "open" {
+  if (input.fromCustom && input.override != null) return "save";
+  return "open";
+}
+
+/** Edit affordance: reopen modal seeded with current override. */
+export function babyHomeCustomMlEditAction(input: {
+  fromCustom: boolean;
+  override: number | null;
+}): "edit" | "noop" {
+  if (input.fromCustom && input.override != null) return "edit";
+  // Still open so caregiver can set a custom amount from Edit.
+  return "edit";
+}
+
+/**
  * Custom modal seed. No birth → first chip or safe snap (90), never FALLBACK ~120
  * as if it were recommended.
  */

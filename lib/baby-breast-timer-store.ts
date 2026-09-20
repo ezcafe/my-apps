@@ -15,10 +15,11 @@ export type BabyCareTimerSide =
   | "breast_l"
   | "breast_r"
   | "pump_l"
-  | "pump_r";
+  | "pump_r"
+  | "pump_both";
 
 export type BabyBreastCareSide = "breast_l" | "breast_r";
-export type BabyPumpCareSide = "pump_l" | "pump_r";
+export type BabyPumpCareSide = "pump_l" | "pump_r" | "pump_both";
 
 /** @deprecated Prefer BabyCareTimerSide — kept as alias after widen. */
 export type BabyBreastSide = BabyCareTimerSide;
@@ -44,6 +45,7 @@ const CARE_TIMER_SIDES = new Set<string>([
   "breast_r",
   "pump_l",
   "pump_r",
+  "pump_both",
 ]);
 
 export function isBabyCareTimerSide(value: unknown): value is BabyCareTimerSide {
@@ -59,7 +61,7 @@ export function isBabyBreastCareSide(
 export function isBabyPumpCareSide(
   side: BabyCareTimerSide,
 ): side is BabyPumpCareSide {
-  return side === "pump_l" || side === "pump_r";
+  return side === "pump_l" || side === "pump_r" || side === "pump_both";
 }
 
 export function emptyBabyCareTimerSlots(babyId: string): BabyCareTimerSlots {
@@ -336,16 +338,23 @@ export function babyCareElapsedSec(startedAt: number, now: number): number {
 export const babyBreastElapsedSec = babyCareElapsedSec;
 
 /**
- * createBabyFeed input when stopping a care-timer side (breast/pump L·R).
+ * createBabyFeed input when stopping a care-timer side (breast/pump L·R·Both).
  * Duration is at least 1s so a same-second stop still writes a valid row.
+ * `pump_both` expands to two feed legs (L + R).
  */
 export function babyCareTimerStopFeedInput(
   side: BabyCareTimerSide,
   startedAt: number,
   now: number,
-): { method: BabyCareTimerSide; durationSec: number } {
-  return {
-    method: side,
-    durationSec: Math.max(1, babyCareElapsedSec(startedAt, now)),
-  };
+):
+  | { method: Exclude<BabyCareTimerSide, "pump_both">; durationSec: number }
+  | {
+      methods: readonly ["pump_l", "pump_r"];
+      durationSec: number;
+    } {
+  const durationSec = Math.max(1, babyCareElapsedSec(startedAt, now));
+  if (side === "pump_both") {
+    return { methods: ["pump_l", "pump_r"], durationSec };
+  }
+  return { method: side, durationSec };
 }

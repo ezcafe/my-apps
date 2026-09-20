@@ -77,7 +77,7 @@ export function BabyDiaperKindControl({
       data-layout="diaper-kind-2x2"
       data-done-kind={doneKind ?? undefined}
       className={cn(
-        "grid h-full grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
+        "grid grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
         BABY_HOME_SMALL_GRID_MIN_H,
         className,
       )}
@@ -102,7 +102,7 @@ export function BabyDiaperKindControl({
               onPlan(planBabyDiaperKindTap(kind));
             }}
             className={cn(
-              "flex min-h-11 min-w-0 flex-row items-center justify-center gap-1 rounded-none px-1 text-foreground fx-press fx-ripple transition-colors",
+              "relative flex min-h-11 min-w-0 flex-row items-center justify-center gap-1 rounded-none px-1 text-center text-foreground fx-press fx-ripple transition-colors",
               TILE_EDGE[kind],
               "border-border",
               selected
@@ -111,12 +111,26 @@ export function BabyDiaperKindControl({
               busy && "opacity-50",
             )}
           >
-            {!showDone ? (
+            <span
+              data-face-slot="idle"
+              className={cn(
+                "flex items-center justify-center gap-1",
+                showDone && "invisible",
+              )}
+            >
               <Icon className="size-4 shrink-0" />
-            ) : null}
-            <span className="text-sm font-medium tabular-nums">
-              {showDone ? doneText : t(SHORT_LABEL_KEY[kind])}
+              <span className="text-sm font-medium tabular-nums">
+                {t(SHORT_LABEL_KEY[kind])}
+              </span>
             </span>
+            {showDone ? (
+              <span
+                data-face-slot="done"
+                className="absolute inset-0 flex items-center justify-center text-sm font-medium tabular-nums"
+              >
+                {doneText}
+              </span>
+            ) : null}
           </button>
         );
       })}

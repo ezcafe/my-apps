@@ -26,14 +26,22 @@ export function babyHomeBottleDoneMl(
 /** Second click that fully stops a timed care side → Done on that side. */
 export function babyHomeBreastDoneSide(input: {
   stopBreastSession: boolean;
-  side: "breast_l" | "breast_r" | "pump_l" | "pump_r" | undefined | null;
-}): "breast_l" | "breast_r" | "pump_l" | "pump_r" | null {
+  side:
+    | "breast_l"
+    | "breast_r"
+    | "pump_l"
+    | "pump_r"
+    | "pump_both"
+    | undefined
+    | null;
+}): "breast_l" | "breast_r" | "pump_l" | "pump_r" | "pump_both" | null {
   if (!input.stopBreastSession) return null;
   if (
     input.side === "breast_l" ||
     input.side === "breast_r" ||
     input.side === "pump_l" ||
-    input.side === "pump_r"
+    input.side === "pump_r" ||
+    input.side === "pump_both"
   ) {
     return input.side;
   }

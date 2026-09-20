@@ -1,26 +1,57 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { useBabyLocale } from "@/components/baby-locale-provider";
 import { MoneyAppMenu } from "@/components/money-section-tabs";
 import { PageHeading } from "@/components/page-heading";
 import {
   babyHeaderBreadcrumbs,
+  babyHomeTitleFromStatusBirthDate,
   resolveBabyAppHeader,
 } from "@/lib/baby-app-header";
+import { babyLocalDayWindow } from "@/lib/baby-home-day-window";
+import { babyHomeQuickStatusQueryOptions } from "@/lib/baby-query-options";
 import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 
 function BabySectionHeading() {
   const pathname = usePathname();
   const { t } = useBabyLocale();
   const resolved = resolveBabyAppHeader(pathname);
+  const isHome = pathname === "/baby" || pathname === "/baby/";
+  const [dayKey, setDayKey] = useState(
+    () => babyLocalDayWindow(new Date()).dayKey,
+  );
+
+  useEffect(() => {
+    if (!isHome) return;
+    setDayKey(babyLocalDayWindow(new Date()).dayKey);
+  }, [isHome]);
+
+  const statusQuery = useQuery({
+    ...babyHomeQuickStatusQueryOptions(new Date(`${dayKey}T12:00:00`)),
+    enabled: isHome,
+  });
+
+  let title = t(resolved.titleKey);
+  if (isHome && resolved.titleKey === "home.title") {
+    title = babyHomeTitleFromStatusBirthDate({
+      statusBirthDate:
+        statusQuery.data?.babyHomeQuickStatus?.birthDate ?? null,
+      now: new Date(),
+      title: t("home.title"),
+      titleWithAgeTemplate: t("home.titleWithAge"),
+      titleWithAgeDayTemplate: t("home.titleWithAgeDay"),
+      titleWithAgeDaysTemplate: t("home.titleWithAgeDays"),
+    });
+  }
 
   return (
     <PageHeading
       className={SHELL_FULL_SPAN}
       leading={<MoneyAppMenu />}
-      title={t(resolved.titleKey)}
+      title={title}
       breadcrumbs={babyHeaderBreadcrumbs(resolved.breadcrumbs, t)}
     />
   );

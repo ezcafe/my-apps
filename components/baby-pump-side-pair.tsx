@@ -29,13 +29,14 @@ export type BabyPumpSideChipProps = {
 };
 
 export type BabyPumpSidePairProps = {
-  sides: readonly [BabyPumpSideChipProps, BabyPumpSideChipProps];
+  /** L, R, and optional Both (after L/R). */
+  sides: readonly BabyPumpSideChipProps[];
   className?: string;
   /** When true, wrapper uses display:contents so chips join a parent grid. */
   asContents?: boolean;
 };
 
-/** Shared Pump L/R timed chips — Home + Pump page. */
+/** Shared Pump L/R(/Both) timed chips — Home + Pump page. */
 export function BabyPumpSidePair({
   sides,
   className,

@@ -64,8 +64,15 @@ describe("BabyDiaperKindControl", () => {
       dirtyDone,
       /data-diaper-kind="dirty"[^>]*data-diaper-flash="done"/,
     );
-    assert.match(dirtyDone, />Done</);
-    assert.doesNotMatch(dirtyDone, />Poop</);
+    assert.match(dirtyDone, /data-face-slot="done"[^>]*>Done</);
+    assert.match(
+      dirtyDone,
+      /data-face-slot="done"[^>]*absolute inset-0[^>]*items-center justify-center/,
+    );
+    assert.match(
+      dirtyDone,
+      /data-diaper-kind="dirty"[^]*?data-face-slot="idle"[^>]*invisible/,
+    );
   });
 
   it("shows Done on doneKind tile then short labels on others (S1)", () => {
@@ -84,11 +91,15 @@ describe("BabyDiaperKindControl", () => {
       wetDone,
       /data-diaper-kind="wet"[^>]*data-diaper-flash="done"/,
     );
-    assert.match(wetDone, />Done</);
+    assert.match(wetDone, /data-face-slot="done"[^>]*>Done</);
     assert.match(wetDone, />Poop</);
     assert.match(wetDone, />Mixed</);
     assert.match(wetDone, />Dry</);
-    assert.doesNotMatch(wetDone, />Wet</);
+    // Idle label stays reserved (invisible) so height does not jump.
+    assert.match(
+      wetDone,
+      /data-diaper-kind="wet"[^]*?data-face-slot="idle"[^>]*invisible[^]*>Wet</,
+    );
     assert.doesNotMatch(
       wetDone,
       /data-diaper-kind="dirty"[^>]*data-selected/,
@@ -107,7 +118,7 @@ describe("BabyDiaperKindControl", () => {
       dryDone,
       /data-diaper-kind="dry"[^>]*data-diaper-flash="done"/,
     );
-    assert.match(dryDone, />Done</);
+    assert.match(dryDone, /data-face-slot="done"[^>]*>Done</);
     assert.match(dryDone, />Wet</);
     // Only the Done-flash tile is selected.
     assert.match(

@@ -268,6 +268,33 @@ function requestWritesFeed(input: {
   );
 }
 
+/** Parse optional ISO; invalid already rejected by Zod. */
+function parseOptionalIso(value: string | undefined): Date | null {
+  if (!value) return null;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? new Date(ms) : null;
+}
+
+/**
+ * Clock for closing an open nap on this request.
+ * SLEEP end: endedAt else now (IGNORE occurredAt).
+ * Auto-endNap (non-SLEEP): endedAt else occurredAt else now.
+ */
+function napEndClock(input: {
+  kind: string;
+  occurredAt?: string;
+  endedAt?: string;
+  now: Date;
+}): Date {
+  const ended = parseOptionalIso(input.endedAt);
+  if (ended) return ended;
+  if (input.kind !== "SLEEP") {
+    const occurred = parseOptionalIso(input.occurredAt);
+    if (occurred) return occurred;
+  }
+  return input.now;
+}
+
 function legsFromExistingPayload(payload: unknown): BabyFeedLeg[] {
   const p = (payload ?? {}) as BabyFeedPayload;
   if (Array.isArray(p.legs) && p.legs.length > 0) {
@@ -332,7 +359,11 @@ export async function runBabyQuickCare(
       async function writeFeedLegs(
         step: "saveBreast" | "createFormula" | "createPumpAmount",
         incoming: BabyFeedLeg[],
-        opts: { breastRunningForMerge: boolean },
+        opts: {
+          breastRunningForMerge: boolean;
+          /** FORMULA/PUMP_AMOUNT inserts: client occurredAt else server now. */
+          occurredAt?: Date;
+        },
       ): Promise<BabyQuickCareStep> {
         // Same-request 2A: breast already inserted → always update that row.
         if (sessionFeed) {
@@ -397,7 +428,7 @@ export async function runBabyQuickCare(
           workspaceId,
           babyId: baby.id,
           type: "feed",
-          occurredAt: now,
+          occurredAt: opts.occurredAt ?? now,
           payload,
           source: "web",
           createdByUserSub: userSub,
@@ -408,21 +439,34 @@ export async function runBabyQuickCare(
       }
 
       if (input.breastRunning) {
-        const step = await writeFeedLegs(
-          "saveBreast",
-          [
-            {
-              method: input.breastRunning.side,
-              durationSec: input.breastRunning.durationSec,
-            },
-          ],
-          { breastRunningForMerge: true },
-        );
+        const running = input.breastRunning;
+        const legs =
+          running.side === "pump_both"
+            ? [
+                {
+                  method: "pump_l" as const,
+                  durationSec: running.durationSec,
+                },
+                {
+                  method: "pump_r" as const,
+                  durationSec: running.durationSec,
+                },
+              ]
+            : [
+                {
+                  method: running.side,
+                  durationSec: running.durationSec,
+                },
+              ];
+        const step = await writeFeedLegs("saveBreast", legs, {
+          breastRunningForMerge: true,
+        });
         steps.push(step);
       }
 
       const pumpFamily = isPumpFamilyQuickAction(input.action);
       const openBefore = await deps.findOpenSleep(workspaceId, baby.id);
+      const kind = input.action.kind;
       let endedNap = false;
       // Pump is unrelated to nap — do not auto-end open sleep.
       if (openBefore && !pumpFamily) {
@@ -430,8 +474,14 @@ export async function runBabyQuickCare(
           ...((openBefore.payload as object) ?? {}),
           ...trace,
         };
+        const endAt = napEndClock({
+          kind,
+          occurredAt: input.occurredAt,
+          endedAt: input.endedAt,
+          now,
+        });
         const event = await deps.updateCareEvent(workspaceId, openBefore.id, {
-          endedAt: now,
+          endedAt: endAt,
           payload,
           updatedByUserSub: userSub,
           updatedAt: now,
@@ -440,8 +490,9 @@ export async function runBabyQuickCare(
         endedNap = true;
       }
 
-      const kind = input.action.kind;
       if (kind === "FORMULA") {
+        // FORMULA: occurredAt else server now. BREAST timer save stays server now.
+        const formulaAt = parseOptionalIso(input.occurredAt) ?? now;
         const step = await writeFeedLegs(
           "createFormula",
           [
@@ -454,10 +505,12 @@ export async function runBabyQuickCare(
           // post-stop bottle uses grace on the target row.
           {
             breastRunningForMerge: Boolean(input.breastRunning),
+            occurredAt: formulaAt,
           },
         );
         steps.push(step);
       } else if (kind === "PUMP_AMOUNT") {
+        const pumpAt = parseOptionalIso(input.occurredAt) ?? now;
         const step = await writeFeedLegs(
           "createPumpAmount",
           [
@@ -468,6 +521,7 @@ export async function runBabyQuickCare(
           ],
           {
             breastRunningForMerge: Boolean(input.breastRunning),
+            occurredAt: pumpAt,
           },
         );
         steps.push(step);
@@ -490,11 +544,13 @@ export async function runBabyQuickCare(
             : {}),
           ...trace,
         };
+        // DIAPER: occurredAt else now; IGNORE endedAt for the insert.
+        const diaperAt = parseOptionalIso(input.occurredAt) ?? now;
         const event = await deps.insertCareEvent({
           workspaceId,
           babyId: baby.id,
           type: "diaper",
-          occurredAt: now,
+          occurredAt: diaperAt,
           payload,
           source: "web",
           createdByUserSub: userSub,
@@ -503,11 +559,13 @@ export async function runBabyQuickCare(
         steps.push({ step: "createDiaper", wrote: "insert", event });
       } else if (kind === "SLEEP") {
         if (!endedNap) {
+          // SLEEP start: occurredAt else now; IGNORE endedAt.
+          const startAt = parseOptionalIso(input.occurredAt) ?? now;
           const event = await deps.insertCareEvent({
             workspaceId,
             babyId: baby.id,
             type: "sleep",
-            occurredAt: now,
+            occurredAt: startAt,
             endedAt: null,
             payload: { ...trace },
             source: "web",

@@ -1804,6 +1804,43 @@ test.describe("Baby Care capture navigate", () => {
     await expect(page.getByTestId("baby-home-status")).toBeVisible();
   });
 
+  test("diaper Custom time → createBabyDiaper sends occurredAt", async ({
+    page,
+  }) => {
+    await page.goto("/baby/diaper");
+    await expect(page.getByTestId("baby-diaper-form")).toBeVisible();
+    await expect(page.getByTestId("baby-diaper-custom-time")).toBeVisible();
+
+    await page.getByTestId("baby-diaper-custom-time").click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await dialog.locator('input[type="datetime-local"]').fill("2026-09-20T06:40");
+    await dialog
+      .getByRole("button", { name: /^(use|dùng)$/i })
+      .click();
+    await expect(dialog).toHaveCount(0);
+
+    const createDiaper = page.waitForRequest(
+      (req) => {
+        if (!req.url().includes("/api/graphql/baby")) return false;
+        const body = req.postData() ?? "";
+        return /createBabyDiaper/i.test(body);
+      },
+      { timeout: 30_000 },
+    );
+    await page.getByRole("button", { name: /wet|ướt/i }).click();
+    const req = await createDiaper;
+    const vars = parseGraphqlVariables(req.postData());
+    const input = vars?.input as
+      | { kind?: string; occurredAt?: string; endedAt?: string }
+      | undefined;
+    expect(input?.kind).toBe("wet");
+    expect(input?.occurredAt).toBeTruthy();
+    expect(input?.endedAt).toBeUndefined();
+
+    await expect(page).toHaveURL(/\/baby\/?$/);
+  });
+
   test("feed formula chip posts createBabyFeed formula + ml", async ({
     page,
   }) => {

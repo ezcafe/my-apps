@@ -183,6 +183,7 @@ export type BabyQuickPendingOwnerId =
   | "breast_r"
   | "pump_l"
   | "pump_r"
+  | "pump_both"
   | "nap"
   | "bottle"
   | "pump_amount"

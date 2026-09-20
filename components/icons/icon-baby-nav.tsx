@@ -204,24 +204,38 @@ export function IconBabyBottle(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** Pump / breast-pump outline. */
+/** Breast-pump bottle — profile horn flange, cap, motor bump, collection bottle. */
 export function IconBabyPump(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
       <path
-        d="M8 8c0-2.2 1.8-4 4-4s4 1.8 4 4v2H8V8Z"
+        d="M2.5 12c1-6 5-9 9.5-6l2 3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M11 9h6.5v3H11V9Z"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinejoin="round"
       />
       <path
-        d="M9 10h6v7a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-7Z"
+        d="M14.5 6.5h3.5a1.5 1.5 0 0 1 0 3H16"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 12h8v7a2.5 2.5 0 0 1-2.5 2.5h-3A2.5 2.5 0 0 1 9 19v-7Z"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinejoin="round"
       />
       <path
-        d="M12 4V2"
+        d="M11 16.5h4"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"

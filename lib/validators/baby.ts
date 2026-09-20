@@ -480,6 +480,7 @@ export const babyCareTimerSideSchema = z.enum([
   "breast_r",
   "pump_l",
   "pump_r",
+  "pump_both",
 ]);
 
 /** @deprecated Prefer babyCareTimerSideSchema — kept after widen. */
@@ -561,6 +562,10 @@ export const babyQuickCareSchema = z
     /** Target feed row to merge when client still has an open/grace session. */
     feedSessionEventId: z.string().uuid().optional(),
     clientRequestId: z.string().trim().min(8).max(64),
+    /** Optional backdate — applied per quick-care time truth table. */
+    occurredAt: z.string().datetime({ offset: true }).optional(),
+    /** Optional sleep-end clock — applied per quick-care time truth table. */
+    endedAt: z.string().datetime({ offset: true }).optional(),
   })
   .superRefine((v, ctx) => {
     const need = (ok: boolean, message: string, path: string) => {

@@ -1033,6 +1033,12 @@ export function babyQuickCareMutationOptions(
               ...(vars.request.feedSessionEventId
                 ? { feedSessionEventId: vars.request.feedSessionEventId }
                 : {}),
+              ...(vars.request.occurredAt
+                ? { occurredAt: vars.request.occurredAt }
+                : {}),
+              ...(vars.request.endedAt
+                ? { endedAt: vars.request.endedAt }
+                : {}),
               clientRequestId: vars.clientRequestId,
             },
           },

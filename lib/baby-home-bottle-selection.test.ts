@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import { BABY_BOTTLE_CHIPS_NO_BIRTH_SNAPS } from "@/lib/baby-age-guide";
 import {
   babyHomeCustomInitialMl,
+  babyHomeKeepFromCustomAfterAmountSuccess,
   ensureMlInBottleChips,
+  resolveBabyHomeCustomSelected,
   resolveBabyHomeSelectedBottleMl,
 } from "@/lib/baby-home-bottle-selection";
 
@@ -38,6 +40,80 @@ describe("resolveBabyHomeSelectedBottleMl", () => {
         formulaOverride: 95,
       }),
       95,
+    );
+  });
+});
+
+describe("resolveBabyHomeCustomSelected", () => {
+  it("stays true for pending Custom and custom-origin flash window", () => {
+    assert.equal(
+      resolveBabyHomeCustomSelected({
+        fromCustom: true,
+        override: 150,
+        doneMl: null,
+      }),
+      true,
+    );
+    assert.equal(
+      resolveBabyHomeCustomSelected({
+        fromCustom: true,
+        override: null,
+        doneMl: 150,
+      }),
+      true,
+    );
+    assert.equal(
+      resolveBabyHomeCustomSelected({
+        fromCustom: false,
+        override: null,
+        doneMl: 150,
+      }),
+      false,
+    );
+  });
+});
+
+describe("babyHomeKeepFromCustomAfterAmountSuccess", () => {
+  it("keeps fromCustom only when custom-origin save has a flash ml", () => {
+    assert.equal(
+      babyHomeKeepFromCustomAfterAmountSuccess({
+        fromCustom: true,
+        doneMl: 150,
+      }),
+      true,
+    );
+    assert.equal(
+      babyHomeKeepFromCustomAfterAmountSuccess({
+        fromCustom: false,
+        doneMl: 150,
+      }),
+      false,
+    );
+    assert.equal(
+      babyHomeKeepFromCustomAfterAmountSuccess({
+        fromCustom: true,
+        doneMl: null,
+      }),
+      false,
+    );
+  });
+});
+
+describe("babyHomeCustomMlTapAction / Edit", () => {
+  it("pending Custom second tap saves; otherwise opens modal", async () => {
+    const { babyHomeCustomMlTapAction, babyHomeCustomMlEditAction } =
+      await import("@/lib/baby-home-bottle-selection");
+    assert.equal(
+      babyHomeCustomMlTapAction({ fromCustom: true, override: 135 }),
+      "save",
+    );
+    assert.equal(
+      babyHomeCustomMlTapAction({ fromCustom: false, override: null }),
+      "open",
+    );
+    assert.equal(
+      babyHomeCustomMlEditAction({ fromCustom: true, override: 135 }),
+      "edit",
     );
   });
 });

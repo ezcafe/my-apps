@@ -89,7 +89,7 @@ describe("baby breast timer store", () => {
     assert.equal(babyBreastElapsedSec(1000, 3500), 2);
   });
 
-  it("stop feed input maps side + floors duration (≥1s)", () => {
+  it("stop feed input maps side + floors duration (≥1s); pump_both → L+R", () => {
     assert.deepEqual(babyCareTimerStopFeedInput("pump_l", 1000, 1000), {
       method: "pump_l",
       durationSec: 1,
@@ -101,6 +101,10 @@ describe("baby breast timer store", () => {
     assert.deepEqual(babyCareTimerStopFeedInput("breast_r", 0, 10_000), {
       method: "breast_r",
       durationSec: 10,
+    });
+    assert.deepEqual(babyCareTimerStopFeedInput("pump_both", 1000, 4500), {
+      methods: ["pump_l", "pump_r"],
+      durationSec: 3,
     });
   });
 

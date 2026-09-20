@@ -21,6 +21,10 @@ export type BabyQuickCareRequest = {
   breastRunning: { side: BabyCareTimerSide; durationSec: number } | null;
   /** Merge target when client still has an open/grace feed session. */
   feedSessionEventId?: string;
+  /** Optional backdate — Nap idle / Diaper (truth table). */
+  occurredAt?: string;
+  /** Optional end clock — Nap running end (truth table). */
+  endedAt?: string;
 };
 
 /** What the client changes locally, only after the server confirms. */

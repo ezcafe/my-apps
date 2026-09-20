@@ -227,12 +227,27 @@ export async function createBabyFeed(
 ) {
   const input = parseOrThrow(createBabyFeedSchema, raw);
   const baby = await deps.ensureBabyProfile(workspaceId);
-  const payload: BabyFeedPayload = {
-    method: input.method,
-    ...(input.durationSec != null ? { durationSec: input.durationSec } : {}),
-    ...(input.amountMl != null ? { amountMl: input.amountMl } : {}),
-    ...(input.notes ? { notes: input.notes } : {}),
-  };
+  const payload: BabyFeedPayload =
+    input.legs && input.legs.length > 0
+      ? {
+          method: input.method,
+          legs: input.legs.map((leg) => ({
+            method: leg.method,
+            ...(leg.durationSec != null
+              ? { durationSec: leg.durationSec }
+              : {}),
+            ...(leg.amountMl != null ? { amountMl: leg.amountMl } : {}),
+          })),
+          ...(input.notes ? { notes: input.notes } : {}),
+        }
+      : {
+          method: input.method,
+          ...(input.durationSec != null
+            ? { durationSec: input.durationSec }
+            : {}),
+          ...(input.amountMl != null ? { amountMl: input.amountMl } : {}),
+          ...(input.notes ? { notes: input.notes } : {}),
+        };
   return deps.insertCareEvent({
     workspaceId,
     babyId: baby.id,

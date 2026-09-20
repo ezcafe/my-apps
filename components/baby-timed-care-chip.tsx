@@ -31,6 +31,7 @@ export type BabyTimedCareChipProps = {
 /**
  * Shared chrome for timed care chips (Breast/Pump L·R, Nap/Sleep).
  * Adapters own start/stop — this only renders idle / running / Done.
+ * Running title is merged by callers: `{endTitle} - {tapToStop}`.
  */
 export function BabyTimedCareChip({
   labelId,
@@ -52,9 +53,9 @@ export function BabyTimedCareChip({
   // Running chrome wins — never paint Done over Tap to stop / elapsed.
   const showDone = Boolean(doneText) && !running;
   const valueText = running
-    ? (elapsedText ?? tapToStop)
+    ? (elapsedText ?? tapToStart)
     : tapToStart;
-  const runningSubtitle = running ? tapToStop : subtitle;
+  // Running stop copy lives in the title — subtitle only for extras (stale).
 
   return (
     <div
@@ -68,7 +69,7 @@ export function BabyTimedCareChip({
         labelId={labelId}
         label={label}
         valueText={valueText}
-        subtitle={showDone ? undefined : runningSubtitle}
+        subtitle={showDone ? undefined : subtitle}
         disabled={disabled}
         selected={running}
         doneText={showDone ? doneText : null}
@@ -93,4 +94,23 @@ export function babyTimedCareChipRunningCopy(input: {
   tapToStop: string;
 }): string {
   return input.running ? input.tapToStop : input.tapToStart;
+}
+
+/** Merged stop title on all timed chips: `{endTitle} - {tapToStop}`. */
+export function babyTimedCareMergedStopTitle(
+  endTitle: string,
+  tapToStop: string,
+): string {
+  return `${endTitle} - ${tapToStop}`;
+}
+
+/** Idle vs running label — running uses merged stop title. */
+export function babyTimedCareChipLabel(input: {
+  running: boolean;
+  idleLabel: string;
+  endTitle: string;
+  tapToStop: string;
+}): string {
+  if (!input.running) return input.idleLabel;
+  return babyTimedCareMergedStopTitle(input.endTitle, input.tapToStop);
 }

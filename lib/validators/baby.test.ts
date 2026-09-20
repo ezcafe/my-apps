@@ -922,6 +922,43 @@ describe("babyQuickCareSchema", () => {
       false,
     );
   });
+
+  it("accepts optional occurredAt/endedAt ISO; rejects garbage", async () => {
+    const { babyQuickCareSchema } = await import("@/lib/validators/baby");
+    const base = {
+      clientRequestId: "req-12345678",
+      breastRunning: null,
+      action: { kind: "DIAPER" as const, diaperKind: "wet" as const },
+    };
+    assert.equal(
+      babyQuickCareSchema.safeParse({
+        ...base,
+        occurredAt: "2026-09-20T06:40:00.000+07:00",
+      }).success,
+      true,
+    );
+    assert.equal(
+      babyQuickCareSchema.safeParse({
+        ...base,
+        endedAt: "2026-09-20T06:40:00.000Z",
+      }).success,
+      true,
+    );
+    assert.equal(
+      babyQuickCareSchema.safeParse({
+        ...base,
+        occurredAt: "not-a-datetime",
+      }).success,
+      false,
+    );
+    assert.equal(
+      babyQuickCareSchema.safeParse({
+        ...base,
+        endedAt: "yesterday",
+      }).success,
+      false,
+    );
+  });
 });
 
 describe("babyHomeQuickStatusInputSchema", () => {

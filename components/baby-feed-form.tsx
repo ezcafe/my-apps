@@ -7,6 +7,9 @@ import { BabyBreastSidePair } from "@/components/baby-breast-side-pair";
 import { BabyCustomMlModal } from "@/components/baby-custom-ml-modal";
 import { BabyMlChipSection } from "@/components/baby-ml-chip-section";
 import { useBabyLocale } from "@/components/baby-locale-provider";
+import {
+  babyTimedCareChipLabel,
+} from "@/components/baby-timed-care-chip";
 import { useNotify } from "@/components/notification-provider";
 import { babyGraphQLRequest } from "@/lib/baby-gql-client";
 import {
@@ -38,6 +41,9 @@ import {
 } from "@/lib/baby-age-guide";
 import {
   babyHomeCustomInitialMl,
+  babyHomeCustomMlTapAction,
+  babyHomeKeepFromCustomAfterAmountSuccess,
+  resolveBabyHomeCustomSelected,
   resolveBabyHomeSelectedBottleMl,
 } from "@/lib/baby-home-bottle-selection";
 import { invalidateBabyQueries } from "@/lib/baby-query-options";
@@ -65,6 +71,7 @@ export function BabyFeedForm() {
   const [doneMl, setDoneMl] = useState<number | null>(null);
   const [formulaOverride, setFormulaOverride] = useState<number | null>(null);
   const [formulaFromCustom, setFormulaFromCustom] = useState(false);
+  const [formulaCustomIso, setFormulaCustomIso] = useState<string | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const doneTimerRef = useRef(createBabyHomeDoneFlashTimer());
 
@@ -82,6 +89,11 @@ export function BabyFeedForm() {
     bottleDoneMl: doneMl,
     formulaFromCustom,
     formulaOverride,
+  });
+  const bottleCustomSelected = resolveBabyHomeCustomSelected({
+    fromCustom: formulaFromCustom,
+    override: formulaOverride,
+    doneMl,
   });
 
   useEffect(() => {
@@ -167,22 +179,37 @@ export function BabyFeedForm() {
     });
   }
 
-  function logFormula(ml: number) {
+  function logFormula(ml: number, fromCustom = formulaFromCustom) {
     if (pending) return;
+    const occurredAt =
+      fromCustom && formulaCustomIso ? formulaCustomIso : undefined;
     startTransition(async () => {
       await runBabyCareSaveThenNavigate({
         mutate: async () => {
           await babyGraphQLRequest(MUTATION, {
-            input: { method: "formula", amountMl: ml },
+            input: {
+              method: "formula",
+              amountMl: ml,
+              ...(occurredAt ? { occurredAt } : {}),
+            },
           });
         },
         onSuccess: async () => {
           const flash = babyHomeBottleDoneMl(ml);
+          const keepFromCustom = babyHomeKeepFromCustomAfterAmountSuccess({
+            fromCustom,
+            doneMl: flash,
+          });
           setFormulaOverride(null);
-          setFormulaFromCustom(false);
+          setFormulaFromCustom(keepFromCustom);
+          if (!keepFromCustom) setFormulaCustomIso(null);
           if (flash != null) {
             setDoneMl(flash);
-            doneTimerRef.current.arm(() => setDoneMl(null));
+            doneTimerRef.current.arm(() => {
+              setDoneMl(null);
+              setFormulaFromCustom(false);
+              setFormulaCustomIso(null);
+            });
           }
           await invalidateBabyQueries(queryClient, "care");
           notify.success(t("feed.saved"));
@@ -228,7 +255,12 @@ export function BabyFeedForm() {
             {
               side: "breast_l",
               "data-testid": "baby-feed-method-breast_l",
-              label: t("feed.breastL"),
+              label: babyTimedCareChipLabel({
+                running: breast?.side === "breast_l",
+                idleLabel: t("feed.breastL"),
+                endTitle: t("feed.breastL"),
+                tapToStop: t("home.tapToStop"),
+              }),
               running: breast?.side === "breast_l",
               elapsedText:
                 breast?.side === "breast_l" ? breastElapsed : undefined,
@@ -241,7 +273,12 @@ export function BabyFeedForm() {
             {
               side: "breast_r",
               "data-testid": "baby-feed-method-breast_r",
-              label: t("feed.breastR"),
+              label: babyTimedCareChipLabel({
+                running: breast?.side === "breast_r",
+                idleLabel: t("feed.breastR"),
+                endTitle: t("feed.breastR"),
+                tapToStop: t("home.tapToStop"),
+              }),
               running: breast?.side === "breast_r",
               elapsedText:
                 breast?.side === "breast_r" ? breastElapsed : undefined,
@@ -260,16 +297,35 @@ export function BabyFeedForm() {
           doneFlash={doneMl != null}
           doneText={t("home.logged")}
           disabled={pending}
-          customSelected={formulaFromCustom && formulaOverride != null}
+          customSelected={bottleCustomSelected}
+          showEditCustom={bottleCustomSelected}
+          onEditCustom={() => {
+            if (pending) return;
+            setCustomOpen(true);
+          }}
           className="h-full"
           groupLabel={t("feed.formula")}
           onSelectMl={(ml) => {
-            setFormulaFromCustom(false);
+            const wasCustomOrigin =
+              formulaFromCustom && formulaOverride === ml;
+            if (!wasCustomOrigin) {
+              setFormulaFromCustom(false);
+              setFormulaCustomIso(null);
+            }
             setFormulaOverride(ml);
-            logFormula(ml);
+            logFormula(ml, wasCustomOrigin);
           }}
           onCustom={() => {
             if (pending) return;
+            if (
+              babyHomeCustomMlTapAction({
+                fromCustom: formulaFromCustom,
+                override: formulaOverride,
+              }) === "save"
+            ) {
+              logFormula(formulaOverride!, true);
+              return;
+            }
             setCustomOpen(true);
           }}
           t={t}
@@ -279,9 +335,11 @@ export function BabyFeedForm() {
       <BabyCustomMlModal
         open={customOpen}
         initialMl={formulaCustomMl}
+        initialIso={formulaCustomIso}
         onClose={() => setCustomOpen(false)}
-        onConfirm={(ml) => {
+        onConfirm={({ ml, iso }) => {
           setFormulaOverride(ml);
+          setFormulaCustomIso(iso);
           setFormulaFromCustom(true);
           setCustomOpen(false);
         }}

@@ -310,9 +310,44 @@ export async function installBabyHomeMocks(
   };
 }
 
+/** Mirrors `BABY_BIRTH_DATE_PROMPT_VISIT_KEY` — keep e2e free of `@/` imports. */
+export const BABY_BIRTH_DATE_PROMPT_VISIT_KEY =
+  "baby.birthDatePrompt.dismissedThisVisit";
+
+/**
+ * Seed visit dismiss before navigation so the birthday modal never opens.
+ * Use when status `birthDate` is null but the test must click care controls.
+ */
+export async function seedBirthDateModalVisitDismissed(page: Page) {
+  await page.addInitScript((key: string) => {
+    try {
+      sessionStorage.setItem(key, "1");
+    } catch {
+      /* ignore */
+    }
+  }, BABY_BIRTH_DATE_PROMPT_VISIT_KEY);
+}
+
+/**
+ * Click Not now when the birthday modal is open (status ready + null birthDate).
+ * Native dialog showModal() marks the page inert — clicks and boundingBox fail until closed.
+ */
+export async function dismissBabyBirthDateModalIfOpen(page: Page) {
+  const modal = page.getByTestId("baby-birth-date-modal");
+  if (!(await modal.isVisible().catch(() => false))) return;
+  await page.getByRole("button", { name: /not now|để sau/i }).click();
+  await expect(modal).toHaveCount(0);
+}
+
 export async function gotoBabyHomeReady(page: Page) {
   await page.goto("/baby");
   await expect(page.getByTestId("baby-home")).toBeVisible({ timeout: 60_000 });
+}
+
+/** Home ready + birthday modal dismissed so care chips are clickable / measurable. */
+export async function gotoBabyHomeReadyForCare(page: Page) {
+  await gotoBabyHomeReady(page);
+  await dismissBabyBirthDateModalIfOpen(page);
 }
 
 export function breastL(page: Page) {
@@ -370,8 +405,29 @@ export function customMlButton(page: Page) {
   );
 }
 
+export function pumpCustomMlButton(page: Page) {
+  return page.locator(
+    '[data-section="pump-amount"] [data-bottle-ml="custom"]',
+  );
+}
+
+export function napCustomTimeChip(page: Page) {
+  return page.getByTestId("baby-care-chip-nap-custom-time");
+}
+
+export function diaperCustomTimeChip(page: Page) {
+  return page.getByTestId("baby-care-chip-diaper-custom-time");
+}
+
+export function bottleCustomMlEdit(page: Page) {
+  return page.locator(
+    '[data-section="bottle"] [data-testid="baby-custom-ml-edit"]',
+  );
+}
+
 export function bottleHeader(page: Page) {
-  return page.getByTestId("baby-home-header-bottle");
+  // Progress / ml tip live in the bottle section footer (header is lead-only when band known).
+  return page.locator('[data-section-footer="bottle"]');
 }
 
 export function sectionOrder(page: Page) {
@@ -380,6 +436,10 @@ export function sectionOrder(page: Page) {
     bottle: page.locator('[data-section="bottle"]'),
     nap: page.locator('[data-section="nap"]'),
     diaper: page.locator('[data-section="diaper"]'),
+    pump: page.locator('[data-section="pump"]'),
+    napRow: page.locator('[data-layout="home-row-nap"]'),
+    diaperRow: page.locator('[data-layout="home-row-diaper"]'),
+    pumpRow: page.locator('[data-layout="home-row-pump"]'),
   };
 }
 

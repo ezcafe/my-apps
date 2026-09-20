@@ -209,7 +209,7 @@ export function BabyQuickSimpleCard({
       }}
       aria-labelledby={labelId}
       className={cn(
-        "flex h-full w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border px-3 py-4 fx-press fx-ripple transition-colors",
+        "relative flex w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[var(--radius-md)] border px-3 py-2 text-center fx-press fx-ripple transition-colors",
         BABY_HOME_BIG_CONTROL_MIN_H,
         primary
           ? "border-transparent bg-accent text-accent-foreground hover:bg-accent-hover"
@@ -219,7 +219,7 @@ export function BabyQuickSimpleCard({
       )}
       {...rest}
     >
-      {/* Reserve icon height on Done (invisible) so the card does not shrink. */}
+      {/* Reserve idle slots on Done (invisible) so the card does not shrink. */}
       <span
         data-face-slot="icon"
         data-icon-collapsed={showDone ? "true" : undefined}
@@ -231,33 +231,42 @@ export function BabyQuickSimpleCard({
       >
         {icon}
       </span>
-      <span id={labelId} className="text-sm font-medium">
-        {showDone ? doneText : label}
+      <span
+        id={labelId}
+        data-face-slot="title"
+        className={cn("text-sm font-medium", showDone && "invisible")}
+      >
+        {label}
       </span>
-      {!showDone ? (
-        <span
-          data-face-slot="value"
-          className="min-h-6 text-base font-semibold tabular-nums"
-        >
-          {valueText}
-        </span>
-      ) : (
-        <span data-face-slot="value" className="min-h-6" aria-hidden />
-      )}
-      {!showDone ? (
+      <span
+        data-face-slot="value"
+        className={cn(
+          "min-h-6 text-base font-semibold tabular-nums",
+          showDone && "invisible",
+        )}
+      >
+        {valueText}
+      </span>
+      {subtitle ? (
         <span
           data-face-slot="subtitle"
           className={cn(
             "min-h-4 text-xs",
             primary ? "text-accent-foreground/80" : "text-muted",
-            !subtitle && "invisible",
+            showDone && "invisible",
           )}
         >
-          {subtitle ?? "\u00a0"}
+          {subtitle}
         </span>
-      ) : (
-        <span data-face-slot="subtitle" className="min-h-4" aria-hidden />
-      )}
+      ) : null}
+      {showDone ? (
+        <span
+          data-face-slot="done"
+          className="absolute inset-0 flex items-center justify-center text-sm font-medium"
+        >
+          {doneText}
+        </span>
+      ) : null}
     </button>
   );
 }

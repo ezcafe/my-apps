@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { BabyCustomMlModal } from "@/components/baby-custom-ml-modal";
 import { BabyMlChipSection } from "@/components/baby-ml-chip-section";
 import { BabyPumpSidePair } from "@/components/baby-pump-side-pair";
+import { babyTimedCareChipLabel } from "@/components/baby-timed-care-chip";
 import { useBabyLocale } from "@/components/baby-locale-provider";
 import { useNotify } from "@/components/notification-provider";
 import { babyGraphQLRequest } from "@/lib/baby-gql-client";
@@ -38,6 +39,9 @@ import {
 } from "@/lib/baby-age-guide";
 import {
   babyHomeCustomInitialMl,
+  babyHomeCustomMlTapAction,
+  babyHomeKeepFromCustomAfterAmountSuccess,
+  resolveBabyHomeCustomSelected,
   resolveBabyHomeSelectedBottleMl,
 } from "@/lib/baby-home-bottle-selection";
 import { invalidateBabyQueries } from "@/lib/baby-query-options";
@@ -65,6 +69,7 @@ export function BabyPumpForm() {
   const [doneMl, setDoneMl] = useState<number | null>(null);
   const [pumpOverride, setPumpOverride] = useState<number | null>(null);
   const [pumpFromCustom, setPumpFromCustom] = useState(false);
+  const [pumpCustomIso, setPumpCustomIso] = useState<string | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const doneTimerRef = useRef(createBabyHomeDoneFlashTimer());
 
@@ -82,6 +87,11 @@ export function BabyPumpForm() {
     bottleDoneMl: doneMl,
     formulaFromCustom: pumpFromCustom,
     formulaOverride: pumpOverride,
+  });
+  const pumpCustomSelected = resolveBabyHomeCustomSelected({
+    fromCustom: pumpFromCustom,
+    override: pumpOverride,
+    doneMl,
   });
 
   useEffect(() => {
@@ -135,6 +145,19 @@ export function BabyPumpForm() {
     startTransition(async () => {
       await runBabyCareSaveThenNavigate({
         mutate: async () => {
+          if ("methods" in input) {
+            await babyGraphQLRequest(MUTATION, {
+              input: {
+                method: "pump_l",
+                durationSec: input.durationSec,
+                legs: input.methods.map((method) => ({
+                  method,
+                  durationSec: input.durationSec,
+                })),
+              },
+            });
+            return;
+          }
           await babyGraphQLRequest(MUTATION, { input });
         },
         onSuccess: async () => {
@@ -150,7 +173,11 @@ export function BabyPumpForm() {
             stopBreastSession: true,
             side,
           });
-          if (flash === "pump_l" || flash === "pump_r") {
+          if (
+            flash === "pump_l" ||
+            flash === "pump_r" ||
+            flash === "pump_both"
+          ) {
             setDoneSide(flash);
             doneTimerRef.current.arm(() => setDoneSide(null));
           }
@@ -167,22 +194,37 @@ export function BabyPumpForm() {
     });
   }
 
-  function logPumpAmount(ml: number) {
+  function logPumpAmount(ml: number, fromCustom = pumpFromCustom) {
     if (pending) return;
+    const occurredAt =
+      fromCustom && pumpCustomIso ? pumpCustomIso : undefined;
     startTransition(async () => {
       await runBabyCareSaveThenNavigate({
         mutate: async () => {
           await babyGraphQLRequest(MUTATION, {
-            input: { method: "pump", amountMl: ml },
+            input: {
+              method: "pump",
+              amountMl: ml,
+              ...(occurredAt ? { occurredAt } : {}),
+            },
           });
         },
         onSuccess: async () => {
           const flash = babyHomeBottleDoneMl(ml);
+          const keepFromCustom = babyHomeKeepFromCustomAfterAmountSuccess({
+            fromCustom,
+            doneMl: flash,
+          });
           setPumpOverride(null);
-          setPumpFromCustom(false);
+          setPumpFromCustom(keepFromCustom);
+          if (!keepFromCustom) setPumpCustomIso(null);
           if (flash != null) {
             setDoneMl(flash);
-            doneTimerRef.current.arm(() => setDoneMl(null));
+            doneTimerRef.current.arm(() => {
+              setDoneMl(null);
+              setPumpFromCustom(false);
+              setPumpCustomIso(null);
+            });
           }
           await invalidateBabyQueries(queryClient, "care");
           notify.success(t("pump.saved"));
@@ -214,20 +256,24 @@ export function BabyPumpForm() {
       data-testid="baby-pump-form"
     >
       <div
-        className="grid items-stretch gap-3"
+        className="grid gap-x-3 gap-y-2"
         style={{
           gridTemplateColumns:
-            "repeat(auto-fit, minmax(min(100%, 8rem), 1fr))",
+            "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
         }}
         data-testid="baby-pump-timer-chips"
       >
         <BabyPumpSidePair
-          asContents
           sides={[
             {
               side: "pump_l",
               "data-testid": "baby-pump-method-pump_l",
-              label: t("home.pumpL"),
+              label: babyTimedCareChipLabel({
+                running: pump?.side === "pump_l",
+                idleLabel: t("home.pumpL"),
+                endTitle: t("home.pumpL"),
+                tapToStop: t("home.tapToStop"),
+              }),
               running: pump?.side === "pump_l",
               elapsedText: pump?.side === "pump_l" ? pumpElapsed : undefined,
               tapToStart: t("home.tapToStart"),
@@ -239,7 +285,12 @@ export function BabyPumpForm() {
             {
               side: "pump_r",
               "data-testid": "baby-pump-method-pump_r",
-              label: t("home.pumpR"),
+              label: babyTimedCareChipLabel({
+                running: pump?.side === "pump_r",
+                idleLabel: t("home.pumpR"),
+                endTitle: t("home.pumpR"),
+                tapToStop: t("home.tapToStop"),
+              }),
               running: pump?.side === "pump_r",
               elapsedText: pump?.side === "pump_r" ? pumpElapsed : undefined,
               tapToStart: t("home.tapToStart"),
@@ -247,6 +298,24 @@ export function BabyPumpForm() {
               doneText: doneSide === "pump_r" ? t("home.done") : null,
               disabled: pending,
               onPress: () => pressPumpSide("pump_r"),
+            },
+            {
+              side: "pump_both",
+              "data-testid": "baby-pump-method-pump_both",
+              label: babyTimedCareChipLabel({
+                running: pump?.side === "pump_both",
+                idleLabel: t("home.pumpBoth"),
+                endTitle: t("home.pumpBoth"),
+                tapToStop: t("home.tapToStop"),
+              }),
+              running: pump?.side === "pump_both",
+              elapsedText:
+                pump?.side === "pump_both" ? pumpElapsed : undefined,
+              tapToStart: t("home.tapToStart"),
+              tapToStop: t("home.tapToStop"),
+              doneText: doneSide === "pump_both" ? t("home.done") : null,
+              disabled: pending,
+              onPress: () => pressPumpSide("pump_both"),
             },
           ]}
         />
@@ -257,16 +326,34 @@ export function BabyPumpForm() {
           doneFlash={doneMl != null}
           doneText={t("home.logged")}
           disabled={pending}
-          customSelected={pumpFromCustom && pumpOverride != null}
+          customSelected={pumpCustomSelected}
+          showEditCustom={pumpCustomSelected}
+          onEditCustom={() => {
+            if (pending) return;
+            setCustomOpen(true);
+          }}
           className="h-full"
           groupLabel={t("home.pumpAmount")}
           onSelectMl={(ml) => {
-            setPumpFromCustom(false);
+            const wasCustomOrigin = pumpFromCustom && pumpOverride === ml;
+            if (!wasCustomOrigin) {
+              setPumpFromCustom(false);
+              setPumpCustomIso(null);
+            }
             setPumpOverride(ml);
-            logPumpAmount(ml);
+            logPumpAmount(ml, wasCustomOrigin);
           }}
           onCustom={() => {
             if (pending) return;
+            if (
+              babyHomeCustomMlTapAction({
+                fromCustom: pumpFromCustom,
+                override: pumpOverride,
+              }) === "save"
+            ) {
+              logPumpAmount(pumpOverride!, true);
+              return;
+            }
             setCustomOpen(true);
           }}
           t={t}
@@ -276,12 +363,14 @@ export function BabyPumpForm() {
       <BabyCustomMlModal
         open={customOpen}
         initialMl={pumpCustomMl}
+        initialIso={pumpCustomIso}
         onClose={() => setCustomOpen(false)}
-        onConfirm={(ml) => {
+        onConfirm={({ ml, iso }) => {
+          // Confirm sets ml + time — second Custom tap saves (D4).
           setPumpOverride(ml);
+          setPumpCustomIso(iso);
           setPumpFromCustom(true);
           setCustomOpen(false);
-          logPumpAmount(ml);
         }}
         t={t}
       />

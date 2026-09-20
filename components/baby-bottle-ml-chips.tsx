@@ -59,7 +59,7 @@ export function BabyBottleMlChips({
       data-layout="bottle-ml-chips"
       data-done-flash={doneFlash || undefined}
       className={cn(
-        "grid h-full grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
+        "grid grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
         BABY_HOME_SMALL_GRID_MIN_H,
         className,
       )}
@@ -69,8 +69,12 @@ export function BabyBottleMlChips({
         const ml = isCustom ? null : chip;
         const selected = isCustom
           ? Boolean(customSelected)
-          : selectedMl != null && ml === selectedMl;
-        const showDone = Boolean(doneFlash && selected && doneText && !isCustom);
+          : !customSelected && selectedMl != null && ml === selectedMl;
+        const showDone = Boolean(
+          doneFlash &&
+            doneText &&
+            (isCustom ? Boolean(customSelected) : selected),
+        );
         return (
           <button
             key={isCustom ? "custom" : `ml-${ml}`}
@@ -91,7 +95,7 @@ export function BabyBottleMlChips({
               else onSelectMl(ml!);
             }}
             className={cn(
-              "flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-none px-1 text-sm font-medium tabular-nums text-foreground fx-press fx-ripple transition-colors",
+              "relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-none px-1 text-center text-sm font-medium tabular-nums text-foreground fx-press fx-ripple transition-colors",
               TILE_EDGE[index] ?? "",
               "border-border",
               selected
@@ -100,11 +104,23 @@ export function BabyBottleMlChips({
               busy && "opacity-50",
             )}
           >
-            {isCustom
-              ? t("home.formulaCustom")
-              : showDone
-                ? doneText
+            <span
+              data-face-slot="value"
+              className={cn(showDone && "invisible")}
+            >
+              {isCustom
+                ? t("home.formulaCustom")
                 : fill(t("home.chipMl"), { ml: String(ml) })}
+            </span>
+            {showDone ? (
+              <span
+                data-face-slot="done"
+                data-bottle-flash-label=""
+                className="absolute inset-0 flex items-center justify-center text-sm font-medium"
+              >
+                {doneText}
+              </span>
+            ) : null}
           </button>
         );
       })}

@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { BabyHomeContent } from "@/components/baby-home";
+import { babyAgeInDays, babyFeedGuideForAge } from "@/lib/baby-age-guide";
 import { t } from "@/lib/baby-i18n";
 import {
   BABY_QUICK_PENDING_RETRY_MAX_AGE_MS,
@@ -76,25 +77,26 @@ function pendingUnknown(
   };
 }
 
-/** Recovery must sit between this chip's open and the next chip/section. */
-function assertRecoveryNestedInChip(
+/** Recovery must sit in the section footer (not under a single chip). */
+function assertRecoveryInSectionFooter(
   markup: string,
-  chipTestId: string,
+  section: "breast" | "bottle" | "nap" | "diaper" | "pump",
   owner: string,
-  nextMarker: string,
 ) {
-  const chipIdx = markup.indexOf(`data-testid="${chipTestId}"`);
-  const nextIdx = markup.indexOf(nextMarker, chipIdx + 1);
-  assert.ok(chipIdx >= 0, `missing chip ${chipTestId}`);
-  assert.ok(nextIdx > chipIdx, `missing next marker ${nextMarker}`);
-  const nested = markup.slice(chipIdx, nextIdx);
+  const sectionIdx = markup.indexOf(`data-section="${section}"`);
+  assert.ok(sectionIdx >= 0, `missing section ${section}`);
+  const footerIdx = markup.indexOf(`data-section-footer="${section}"`, sectionIdx);
+  assert.ok(footerIdx > sectionIdx, `missing footer for ${section}`);
+  const chunk = markup.slice(footerIdx, footerIdx + 1200);
   assert.match(
-    nested,
+    chunk,
     new RegExp(
       `data-testid="baby-home-pending-recovery"[^>]*data-pending-owner="${owner}"`,
     ),
   );
-  assert.match(nested, /Try again/);
+  assert.match(chunk, /Try again|Open Activities/);
+  assert.match(chunk, /aria-live="polite"|role="status"/);
+  assert.match(chunk, /min-h-11/);
 }
 
 function countRecovery(markup: string): number {
@@ -199,10 +201,26 @@ describe("BabyHomeContent", () => {
       }),
     );
     const statusIdx = markup.indexOf('data-testid="baby-home-status"');
-    const statusChunk = markup.slice(statusIdx);
+    const guidelinesIdx = markup.indexOf('data-testid="baby-care-guidelines"', statusIdx);
+    const end = guidelinesIdx >= 0 ? guidelinesIdx : markup.length;
+    const statusChunk = markup.slice(statusIdx, end);
     assert.match(statusChunk, /No feed logged yet/);
     assert.doesNotMatch(statusChunk, /2 today/);
     assert.doesNotMatch(statusChunk, /\d+\/\d+/);
+  });
+
+  it("keeps customSelected during flash window after Custom-origin success", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const src = readFileSync(
+      resolve(process.cwd(), "components/baby-home.tsx"),
+      "utf8",
+    );
+    assert.match(src, /babyHomeKeepFromCustomAfterAmountSuccess/);
+    assert.match(src, /resolveBabyHomeCustomSelected/);
+    assert.match(src, /customSelected=\{bottleCustomSelected\}/);
+    assert.match(src, /customSelected=\{pumpCustomSelected\}/);
+    assert.doesNotMatch(src, /customSelected=\{false\}/);
   });
 
   it("Custom confirm still sets formulaFromCustom (no auto-save in modal)", async () => {
@@ -214,14 +232,14 @@ describe("BabyHomeContent", () => {
     );
     assert.match(src, /formulaFromCustom/);
     assert.match(src, /setFormulaFromCustom\(true\)/);
-    const onConfirmStart = src.indexOf("onConfirm={(ml) => {");
+    const onConfirmStart = src.indexOf("onConfirm={({ ml, iso }) => {");
     assert.ok(onConfirmStart >= 0, "Custom onConfirm handler");
     const onConfirmEnd = src.indexOf("}", onConfirmStart);
     const onConfirmBody = src.slice(onConfirmStart, onConfirmEnd);
     assert.doesNotMatch(
       onConfirmBody,
       /runQuick/,
-      "confirm sets ml only — chip tap saves",
+      "confirm sets ml + time — chip tap saves",
     );
   });
 
@@ -272,6 +290,48 @@ describe("BabyHomeContent", () => {
     assert.ok(
       setIdx < awaitIdx,
       "inFlightRef must be set before the first await",
+    );
+  });
+
+  it("captures formula/pump fromCustom at runQuick call time (before await)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const src = readFileSync(
+      resolve(process.cwd(), "components/baby-home.tsx"),
+      "utf8",
+    );
+    const start = src.indexOf("async function runQuick");
+    const end = src.indexOf("const breastElapsed");
+    assert.ok(start >= 0 && end > start);
+    const body = src.slice(start, end);
+    const awaitIdx = body.indexOf("await ");
+    assert.ok(awaitIdx >= 0);
+    const beforeAwait = body.slice(0, awaitIdx);
+    assert.match(
+      beforeAwait,
+      /const formulaFromCustomAtCall\s*=\s*formulaFromCustom/,
+    );
+    assert.match(
+      beforeAwait,
+      /const pumpAmountFromCustomAtCall\s*=\s*pumpAmountFromCustom/,
+    );
+    assert.match(
+      body,
+      /fromCustom:\s*formulaFromCustomAtCall/,
+    );
+    assert.match(
+      body,
+      /fromCustom:\s*pumpAmountFromCustomAtCall/,
+    );
+    assert.doesNotMatch(
+      body,
+      /fromCustom:\s*formulaFromCustom\s*[,}]/,
+      "FORMULA keepFromCustom must not re-read live formulaFromCustom after await",
+    );
+    assert.doesNotMatch(
+      body,
+      /fromCustom:\s*pumpAmountFromCustom\s*[,}]/,
+      "PUMP_AMOUNT keepFromCustom must not re-read live pumpAmountFromCustom after await",
     );
   });
 
@@ -368,15 +428,54 @@ describe("BabyHomeContent", () => {
     assert.ok(breast >= 0 && bottle > breast && nap > bottle && diaper > nap);
     assert.ok(pump > diaper && status > pump && guidelines > status);
     assert.match(markup, /data-layout="home-row-breast-bottle"/);
-    assert.match(markup, /data-layout="home-row-nap-diaper"/);
+    assert.match(markup, /data-layout="home-row-nap"/);
+    assert.match(markup, /data-layout="home-row-diaper"/);
     assert.match(markup, /data-layout="home-row-pump"/);
+    // Nap/Diaper: fixed 2 cols (auto-fit + col-span-full footer blocks stretch).
+    const napRow = markup.slice(
+      markup.indexOf('data-layout="home-row-nap"'),
+      markup.indexOf('data-layout="home-row-diaper"'),
+    );
+    assert.match(napRow, /repeat\(2, minmax\(0, 1fr\)\)/);
+    const diaperRow = markup.slice(
+      markup.indexOf('data-layout="home-row-diaper"'),
+      markup.indexOf('data-layout="home-row-pump"'),
+    );
+    assert.match(diaperRow, /repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(markup, /data-testid="baby-home-header-pump"/);
     assert.match(markup, /data-testid="baby-care-chip-pump_l"/);
     assert.match(markup, /data-testid="baby-care-chip-pump_r"/);
+    assert.match(markup, /data-testid="baby-care-chip-pump_both"/);
     assert.match(markup, /data-testid="baby-care-chip-nap"/);
+    assert.match(markup, /data-testid="baby-care-chip-nap-custom-time"/);
+    assert.match(markup, /data-testid="baby-care-chip-diaper-custom-time"/);
+    assert.match(markup, />Custom nap</);
+    assert.match(markup, />Custom diaper</);
+    assert.match(markup, />Both</);
+    assert.match(markup, /data-custom-time-chip/);
+    // Custom columns keep empty header slot — no "Custom time" section headings.
+    assert.doesNotMatch(markup, /data-testid="baby-home-header-nap-custom"/);
+    assert.doesNotMatch(markup, /data-testid="baby-home-header-diaper-custom"/);
     assert.match(
       markup,
-      /data-section="pump-amount"[^]*?min-h-\[calc\(2\*2\.75rem\+1px\)\]/,
+      /data-section="nap-custom-time"[^]*?data-header-slot="empty"/,
+    );
+    assert.match(
+      markup,
+      /data-section="diaper-custom-time"[^]*?data-header-slot="empty"/,
+    );
+    // Pump sides nested in 12rem section — not equal 3-col asContents with amount.
+    const homeSrc = readFileSync(
+      resolve(process.cwd(), "components/baby-home.tsx"),
+      "utf8",
+    );
+    assert.doesNotMatch(
+      homeSrc.slice(homeSrc.indexOf('data-layout="home-row-pump"')),
+      /asContents/,
+    );
+    assert.match(
+      markup,
+      /data-section="pump-amount"[^]*?min-h-\[calc\(2\*2\.75rem\+3px\)\]/,
     );
     // Idle chips show Tap to start (not Tap to stop).
     const pumpLIdle = markup.slice(
@@ -505,7 +604,7 @@ describe("BabyHomeContent", () => {
     );
     assert.match(
       breastMarkup,
-      /data-done-flash[\s\S]*?id="baby-breast-breast_l"[^>]*>Done</,
+      /data-testid="baby-care-chip-breast_l"[^]*?data-face-slot="done"[^>]*>Done</,
     );
 
     const napDoneMarkup = renderToStaticMarkup(
@@ -555,7 +654,8 @@ describe("BabyHomeContent", () => {
     assert.doesNotMatch(napRun, />Done</);
   });
 
-  it("under-chip helpers + guidelines + pump chips present", () => {
+  it("age footers + no under-chip helpers; guidelines + pump chips present", () => {
+    const clock = new Date("2026-09-12T12:00:00.000Z").getTime();
     const markup = renderToStaticMarkup(
       createElement(BabyHomeContent, {
         status: { ...emptyStatus, birthDate: "2026-01-01", feedsToday: 0 },
@@ -565,7 +665,7 @@ describe("BabyHomeContent", () => {
         babyId: "b1",
         t: (key) => t(key as never, "en"),
         locale: "en",
-        nowMs: now,
+        nowMs: clock,
       }),
     );
     assert.match(markup, /data-testid="baby-home-header-breast"/);
@@ -573,19 +673,48 @@ describe("BabyHomeContent", () => {
     assert.match(markup, /data-testid="baby-home-header-nap"/);
     assert.match(markup, /data-testid="baby-home-header-diaper"/);
     assert.match(markup, /data-testid="baby-home-header-pump"/);
-    assert.match(markup, /Session side/);
-    assert.match(markup, /Volume when needed/);
-    assert.match(markup, /Start or end nap/);
-    assert.match(markup, /Pick a kind/);
-    assert.match(markup, /Timed side/);
-    assert.match(markup, /data-testid="baby-care-guidelines"/);
-    assert.match(markup, /data-testid="baby-guideline-feed"/);
-    assert.match(markup, /data-testid="baby-guideline-pump"/);
-    assert.match(markup, /aria-expanded="false"/);
-    assert.doesNotMatch(
-      markup,
-      /Guidelines only — watch wet diapers and weight gain\./,
+    assert.doesNotMatch(markup, /Session side/);
+    assert.doesNotMatch(markup, /Start or end nap/);
+    assert.doesNotMatch(markup, /Pick a kind/);
+    assert.doesNotMatch(markup, /Timed side/);
+    // Bottle progress in footer, not header
+    const bottleHeader = markup.slice(
+      markup.indexOf('data-testid="baby-home-header-bottle"'),
+      markup.indexOf('data-layout="bottle-ml-chips"'),
     );
+    assert.doesNotMatch(bottleHeader, /Today/);
+    const bottleFooter = markup.slice(
+      markup.indexOf('data-section-footer="bottle"'),
+      markup.indexOf('data-layout="home-row-nap"'),
+    );
+    assert.match(bottleFooter, /Today/);
+    assert.match(markup, /data-section-footer="breast"/);
+    const breastFooter = markup.slice(
+      markup.indexOf('data-section-footer="breast"'),
+      markup.indexOf('data-section-footer="bottle"'),
+    );
+    const ageDays = babyAgeInDays("2026-01-01", new Date(clock))!;
+    const band = babyFeedGuideForAge(ageDays);
+    // Marked «min»/«max» render as strong numbers in the footer.
+    assert.match(
+      breastFooter,
+      new RegExp(
+        `>${band.feedsMin}<[\\s\\S]*–[\\s\\S]*>${band.feedsMax}<[\\s\\S]*feeds a day`,
+      ),
+    );
+    assert.match(markup, /data-testid="baby-care-guidelines"/);
+    assert.match(markup, /data-guide-mode="full"/);
+    assert.doesNotMatch(markup, /baby-guideline-feed/);
+    assert.match(markup, /data-guide-section-collapsed/);
+    assert.match(markup, /data-guide-stage-collapsed/);
+    assert.doesNotMatch(markup, /data-guide-block="section-i"[^>]*\sopen[\s>]/);
+    assert.doesNotMatch(markup, /data-guide-block="section-ii"[^>]*\sopen[\s>]/);
+    assert.doesNotMatch(markup, /data-guide-stage="[^"]+"[^>]*\sopen[\s>]/);
+    assert.match(
+      markup,
+      /This information is for reference only\. For medical advice or diagnosis/,
+    );
+    assert.match(markup, /Room Temperature|Newborn Stage/i);
   });
 
   it("EN/VI nap blend keys match full design table", () => {
@@ -664,7 +793,7 @@ describe("BabyHomeContent", () => {
     assert.doesNotMatch(retryMid, /could not confirm/i);
     assert.equal(countRecovery(retryMid), 0);
 
-    // Orphaned sending after remount (!saving) → recovery nested in Left, not Right.
+    // Orphaned sending after remount (!saving) → recovery in breast section footer.
     const orphaned = renderToStaticMarkup(
       createElement(
         BabyHomeContent,
@@ -674,19 +803,13 @@ describe("BabyHomeContent", () => {
         }),
       ),
     );
-    assertRecoveryNestedInChip(
-      orphaned,
-      "baby-care-chip-breast_l",
-      "breast_l",
-      'data-testid="baby-care-chip-breast_r"',
-    );
+    assertRecoveryInSectionFooter(orphaned, "breast", "breast_l");
     const rightIdx = orphaned.indexOf('data-testid="baby-care-chip-breast_r"');
     const rightChunk = orphaned.slice(
       rightIdx,
-      orphaned.indexOf('data-section="bottle"', rightIdx),
+      orphaned.indexOf('data-section-footer="breast"', rightIdx),
     );
     assert.doesNotMatch(rightChunk, /baby-home-pending-recovery/);
-    assert.doesNotMatch(rightChunk, /data-pending-owner/);
     assert.equal(countRecovery(orphaned), 1);
     // Durable page-strip contract: status region has no failure title / recovery.
     const afterStatus = orphaned.slice(
@@ -696,21 +819,20 @@ describe("BabyHomeContent", () => {
     assert.doesNotMatch(afterStatus, /Try again/);
     assert.doesNotMatch(afterStatus, /baby-home-pending-recovery/);
 
-    // Unknown FORMULA → recovery under bottle; matching ml chip selected.
+    // Unknown FORMULA → recovery under bottle footer; matching ml chip selected.
     const formula = renderToStaticMarkup(
       createElement(
         BabyHomeContent,
         homeProps({ pendingSeed: pendingFormula(120) }),
       ),
     );
+    assertRecoveryInSectionFooter(formula, "bottle", "bottle");
     const bottleIdx = formula.indexOf('data-section="bottle"');
     assert.ok(bottleIdx >= 0);
     const bottleChunk = formula.slice(
       bottleIdx,
-      formula.indexOf('data-layout="home-row-nap-diaper"', bottleIdx),
+      formula.indexOf('data-layout="home-row-nap"', bottleIdx),
     );
-    assert.match(bottleChunk, /data-testid="baby-home-pending-recovery"/);
-    assert.match(bottleChunk, /data-pending-owner="bottle"/);
     assert.match(bottleChunk, /Try again/);
     assert.match(bottleChunk, /Discard/);
     assert.match(bottleChunk, /could not confirm/i);
@@ -726,7 +848,7 @@ describe("BabyHomeContent", () => {
       /baby-home-pending-recovery/,
     );
 
-    // Pump amount unknown → under pump-amount; matching ml selected.
+    // Pump amount unknown → pump section footer; matching ml selected.
     const pumpAmt = renderToStaticMarkup(
       createElement(
         BabyHomeContent,
@@ -738,19 +860,50 @@ describe("BabyHomeContent", () => {
         }),
       ),
     );
+    assertRecoveryInSectionFooter(pumpAmt, "pump", "pump_amount");
     const pumpAmtChunk = pumpAmt.slice(
-      pumpAmt.indexOf('data-section="pump-amount"'),
+      pumpAmt.indexOf('data-section="pump"'),
       pumpAmt.indexOf('data-testid="baby-home-status"'),
     );
-    assert.match(pumpAmtChunk, /data-pending-owner="pump_amount"/);
     assert.match(pumpAmtChunk, /Try again/);
     assert.match(
       pumpAmtChunk,
       /data-bottle-ml="90"[^>]*data-selected(?:="true")?/,
     );
     assert.equal(countRecovery(pumpAmt), 1);
+    // Age tip suppressed while recovery shows (footer only — not guidelines).
+    const pumpFooterOnly = pumpAmt.slice(
+      pumpAmt.indexOf('data-section-footer="pump"'),
+      pumpAmt.indexOf('data-testid="baby-home-status"'),
+    );
+    assert.doesNotMatch(
+      pumpFooterOnly,
+      /ml\/session|times\/day|Pump about/,
+    );
 
-    // Pump timed L orphaned sending → nested under pump_l only.
+    // Diaper unknown → shared col-span footer (same line as section tip row).
+    const diaperRec = renderToStaticMarkup(
+      createElement(
+        BabyHomeContent,
+        homeProps({
+          pendingSeed: pendingUnknown({
+            kind: "DIAPER",
+            diaperKind: "wet",
+          }),
+        }),
+      ),
+    );
+    assertRecoveryInSectionFooter(diaperRec, "diaper", "diaper");
+    const diaperFooter = diaperRec.slice(
+      diaperRec.indexOf('data-section-footer="diaper"'),
+      diaperRec.indexOf('data-layout="home-row-pump"'),
+    );
+    assert.match(diaperFooter, /col-span-full/);
+    assert.match(diaperFooter, /flex flex-nowrap/);
+    assert.match(diaperFooter, /could not confirm/i);
+    assert.equal(countRecovery(diaperRec), 1);
+
+    // Pump timed L orphaned sending → pump section footer.
     const pumpL = renderToStaticMarkup(
       createElement(
         BabyHomeContent,
@@ -760,12 +913,7 @@ describe("BabyHomeContent", () => {
         }),
       ),
     );
-    assertRecoveryNestedInChip(
-      pumpL,
-      "baby-care-chip-pump_l",
-      "pump_l",
-      'data-testid="baby-care-chip-pump_r"',
-    );
+    assertRecoveryInSectionFooter(pumpL, "pump", "pump_l");
     assert.equal(countRecovery(pumpL), 1);
 
     // Diaper + nap unknown placement.
@@ -780,12 +928,7 @@ describe("BabyHomeContent", () => {
         }),
       ),
     );
-    const diaperChunk = diaper.slice(
-      diaper.indexOf('data-section="diaper"'),
-      diaper.indexOf('data-testid="baby-home-status"'),
-    );
-    assert.match(diaperChunk, /data-pending-owner="diaper"/);
-    assert.match(diaperChunk, /Try again/);
+    assertRecoveryInSectionFooter(diaper, "diaper", "diaper");
     assert.equal(countRecovery(diaper), 1);
 
     const nap = renderToStaticMarkup(
@@ -796,12 +939,7 @@ describe("BabyHomeContent", () => {
         }),
       ),
     );
-    assertRecoveryNestedInChip(
-      nap,
-      "baby-care-chip-nap",
-      "nap",
-      'data-section="diaper"',
-    );
+    assertRecoveryInSectionFooter(nap, "nap", "nap");
     assert.equal(countRecovery(nap), 1);
 
     // Ambiguous fail chrome: under-owner recovery without chainFailed status shout.
@@ -823,7 +961,7 @@ describe("BabyHomeContent", () => {
     assert.doesNotMatch(statusAmb, /Nothing was saved\. Try again/);
     assert.doesNotMatch(statusAmb, /Không lưu được gì/);
 
-    // tooOld → Activities + Discard under owner; no Retry; no page strip.
+    // tooOld → Activities + Discard under section footer; no Retry; no page strip.
     const tooOld = renderToStaticMarkup(
       createElement(
         BabyHomeContent,
@@ -837,14 +975,15 @@ describe("BabyHomeContent", () => {
     );
     const bottleTooOld = tooOld.slice(
       tooOld.indexOf('data-section="bottle"'),
-      tooOld.indexOf('data-layout="home-row-nap-diaper"'),
+      tooOld.indexOf('data-layout="home-row-nap"'),
     );
     assert.match(bottleTooOld, /data-testid="baby-home-pending-recovery"/);
     assert.doesNotMatch(bottleTooOld, /Try again/);
     assert.match(bottleTooOld, /Discard/);
     assert.match(bottleTooOld, /Open Activities/);
     assert.match(bottleTooOld, /href="\/baby\/activities"/);
-    assert.match(bottleTooOld, /inline-flex/);
+    assert.match(bottleTooOld, /flex flex-nowrap/);
+    assert.match(bottleTooOld, /min-h-11/);
     assert.doesNotMatch(tooOld, /href="\/baby\/timeline"/);
     assert.equal(countRecovery(tooOld), 1);
     assert.doesNotMatch(
@@ -920,6 +1059,279 @@ describe("BabyHomeContent", () => {
       }),
     );
     assert.match(markup, /data-day-key="2026-09-12"/);
+  });
+
+  it("nap header uses sleep next-due; chip subtitle is blank (not next/overdue)", () => {
+    const clock = new Date("2026-09-12T12:00:00.000Z").getTime();
+    const markup = renderToStaticMarkup(
+      createElement(BabyHomeContent, {
+        status: {
+          ...emptyStatus,
+          birthDate: "2026-01-01",
+          lastSleep: {
+            id: "s1",
+            at: new Date(clock - 30 * 60_000).toISOString(),
+            endedAt: new Date(clock - 30 * 60_000).toISOString(),
+            payload: null,
+            summary: "Nap",
+          },
+        },
+        statusLoading: false,
+        statusError: false,
+        onRetryStatus: () => {},
+        babyId: "b1",
+        t: (key) => t(key as never, "en"),
+        locale: "en",
+        nowMs: clock,
+      }),
+    );
+    const header = markup.slice(
+      markup.indexOf('data-testid="baby-home-header-nap"'),
+      markup.indexOf('data-testid="baby-care-chip-nap"'),
+    );
+    assert.match(header, /Next nap|overdue|Tap to/i);
+    const chip = markup.slice(
+      markup.indexOf('data-testid="baby-care-chip-nap"'),
+      markup.indexOf('data-section-footer="nap"'),
+    );
+    assert.doesNotMatch(chip, /Next nap|overdue/i);
+    const footer = markup.slice(
+      markup.indexOf('data-section-footer="nap"'),
+      markup.indexOf('data-section="diaper"'),
+    );
+    assert.match(footer, /hours|naps/i);
+  });
+
+  it("bottle with birth band → lead-only header; without band → empty/pick body", () => {
+    const withBand = renderToStaticMarkup(
+      createElement(BabyHomeContent, {
+        ...homeProps(),
+        status: { ...emptyStatus, birthDate: "2026-01-01", feedsToday: 2 },
+        nowMs: new Date("2026-09-12T12:00:00.000Z").getTime(),
+      }),
+    );
+    const bandHeader = withBand.slice(
+      withBand.indexOf('data-testid="baby-home-header-bottle"'),
+      withBand.indexOf('data-layout="bottle-ml-chips"'),
+    );
+    assert.doesNotMatch(bandHeader, /Today|About «|Pick an/);
+    assert.match(
+      withBand.slice(withBand.indexOf('data-section-footer="bottle"')),
+      /Today/,
+    );
+
+    const noBand = renderToStaticMarkup(
+      createElement(BabyHomeContent, homeProps()),
+    );
+    const noBandHeader = noBand.slice(
+      noBand.indexOf('data-testid="baby-home-header-bottle"'),
+      noBand.indexOf('data-layout="bottle-ml-chips"'),
+    );
+    assert.match(noBandHeader, /Pick an/);
+  });
+
+  it("pump heading is lead only (no empty tip body)", () => {
+    const markup = renderToStaticMarkup(
+      createElement(BabyHomeContent, homeProps()),
+    );
+    const header = markup.slice(
+      markup.indexOf('data-testid="baby-home-header-pump"'),
+      markup.indexOf('data-testid="baby-care-chip-pump_l"'),
+    );
+    assert.match(header, /Pump/);
+    assert.doesNotMatch(header, /Tap|amount|start/i);
+  });
+
+  it("diaper and pump footers stay empty when birth age unknown", () => {
+    const markup = renderToStaticMarkup(
+      createElement(BabyHomeContent, homeProps()),
+    );
+    const diaperFooter = markup.slice(
+      markup.indexOf('data-section-footer="diaper"'),
+      markup.indexOf('data-section="pump"'),
+    );
+    const pumpFooter = markup.slice(
+      markup.indexOf('data-section-footer="pump"'),
+      markup.indexOf('data-testid="baby-home-status"'),
+    );
+    assert.doesNotMatch(diaperFooter, /Change about|Tape diapers|Pants/);
+    assert.doesNotMatch(pumpFooter, /Pump about|ml\/session|times\/day/);
+  });
+
+  it("diaper/pump footer stage key matches ageDays (day 0 → newborn)", () => {
+    const clock = new Date("2026-01-01T12:00:00.000Z").getTime();
+    const markup = renderToStaticMarkup(
+      createElement(BabyHomeContent, {
+        ...homeProps(),
+        status: { ...emptyStatus, birthDate: "2026-01-01" },
+        nowMs: clock,
+      }),
+    );
+    assert.match(
+      markup.slice(markup.indexOf('data-section-footer="diaper"')),
+      /Change about every 2–3 hours/,
+    );
+    assert.match(
+      markup.slice(markup.indexOf('data-section-footer="pump"')),
+      /Pump about every 2–3 hours/,
+    );
+  });
+
+  it("nap status-fail keeps fixed shell; fail copy lives in footer", () => {
+    const markup = renderToStaticMarkup(
+      createElement(BabyHomeContent, {
+        status: null,
+        statusLoading: false,
+        statusError: true,
+        onRetryStatus: () => {},
+        babyId: "b1",
+        t: (key) => t(key as never, "en"),
+        locale: "en",
+      }),
+    );
+    assert.match(markup, /data-nap-shell="fail"/);
+    assert.match(markup, /h-\[calc\(2\*2\.75rem\+3px\)\]/);
+    const chip = markup.slice(
+      markup.indexOf('data-testid="baby-care-chip-nap"'),
+      markup.indexOf('data-section-footer="nap"'),
+    );
+    assert.doesNotMatch(chip, /Could not check nap status/);
+    const footer = markup.slice(
+      markup.indexOf('data-section-footer="nap"'),
+      markup.indexOf('data-section="diaper"'),
+    );
+    assert.match(footer, /Could not check nap status/);
+    assert.match(footer, /Retry/);
+    assert.match(footer, /aria-live="polite"|role="status"/);
+  });
+
+  it("nap pending recovery wins over status-check fail in footer", () => {
+    const markup = renderToStaticMarkup(
+      createElement(BabyHomeContent, {
+        status: null,
+        statusLoading: false,
+        statusError: true,
+        onRetryStatus: () => {},
+        babyId: "b1",
+        t: (key) => t(key as never, "en"),
+        locale: "en",
+        nowMs: now,
+        pendingSeed: pendingUnknown({ kind: "SLEEP" }),
+      }),
+    );
+    const footer = markup.slice(
+      markup.indexOf('data-section-footer="nap"'),
+      markup.indexOf('data-section="diaper"'),
+    );
+    assert.match(footer, /data-pending-owner="nap"/);
+    assert.match(footer, /Try again/);
+    assert.doesNotMatch(footer, /Could not check nap status/);
+    assert.doesNotMatch(footer, /hours of sleep|naps/);
+  });
+
+  it("birthday modal opens when status ready + unset; no strip; closed on error/loading", () => {
+    const open = renderToStaticMarkup(
+      createElement(BabyHomeContent, {
+        ...homeProps(),
+        visitDismissedSeed: false,
+      }),
+    );
+    assert.match(open, /data-birth-date-modal="open"/);
+    assert.doesNotMatch(open, /baby-birth-date-prompt/);
+    assert.doesNotMatch(open, /Add a birthday for age-based/);
+
+    const errored = renderToStaticMarkup(
+      createElement(BabyHomeContent, {
+        status: null,
+        statusLoading: false,
+        statusError: true,
+        onRetryStatus: () => {},
+        babyId: "b1",
+        t: (key) => t(key as never, "en"),
+        locale: "en",
+        visitDismissedSeed: false,
+      }),
+    );
+    assert.match(errored, /data-birth-date-modal="closed"/);
+
+    const loading = renderToStaticMarkup(
+      createElement(BabyHomeContent, {
+        status: null,
+        statusLoading: true,
+        statusError: false,
+        onRetryStatus: () => {},
+        babyId: "b1",
+        t: (key) => t(key as never, "en"),
+        locale: "en",
+        visitDismissedSeed: false,
+      }),
+    );
+    assert.match(loading, /data-birth-date-modal="closed"/);
+
+    const dismissed = renderToStaticMarkup(
+      createElement(BabyHomeContent, {
+        ...homeProps(),
+        visitDismissedSeed: true,
+      }),
+    );
+    assert.match(dismissed, /data-birth-date-modal="closed"/);
+    assert.match(dismissed, /data-testid="baby-home"/);
+  });
+
+  it("status Row 4 includes mapped care icons", () => {
+    const breastFeed = renderToStaticMarkup(
+      createElement(BabyHomeContent, {
+        ...homeProps(),
+        status: {
+          ...emptyStatus,
+          birthDate: "2026-01-01",
+          lastFeed: {
+            id: "f1",
+            at: new Date(now - 60_000).toISOString(),
+            endedAt: null,
+            payload: { method: "breast_l" },
+            summary: "Feed",
+          },
+        },
+      }),
+    );
+    const statusBreast = breastFeed.slice(
+      breastFeed.indexOf('data-testid="baby-home-status"'),
+      breastFeed.indexOf('data-testid="baby-care-guidelines"'),
+    );
+    assert.match(statusBreast, /aria-hidden/);
+    assert.ok(
+      (statusBreast.match(/size-5 shrink-0/g) ?? []).length >= 4,
+      "expected ≥4 status icons",
+    );
+    // Breast last feed → breast glyph path (not bottle)
+    assert.match(statusBreast, /M12 4c/);
+    assert.doesNotMatch(statusBreast, /M9 3h6/);
+
+    const emptyFeed = renderToStaticMarkup(
+      createElement(BabyHomeContent, homeProps()),
+    );
+    const statusEmpty = emptyFeed.slice(
+      emptyFeed.indexOf('data-testid="baby-home-status"'),
+      emptyFeed.indexOf('data-testid="baby-care-guidelines"'),
+    );
+    // Empty / unknown feed → bottle glyph path
+    assert.match(statusEmpty, /M9 3h6/);
+    assert.doesNotMatch(statusEmpty, /M12 4c/);
+  });
+});
+
+describe("home.titleWithAge i18n (Decision 7 Option 2)", () => {
+  it("EN/VI full-word months templates exist", () => {
+    assert.equal(t("home.titleWithAge", "en"), "Baby Care · {n} months");
+    assert.equal(t("home.titleWithAge", "vi"), "Chăm bé · {n} tháng");
+  });
+
+  it("EN/VI day templates for under-1-month header", () => {
+    assert.equal(t("home.titleWithAgeDay", "en"), "Baby Care · {n} day");
+    assert.equal(t("home.titleWithAgeDay", "vi"), "Chăm bé · {n} ngày");
+    assert.equal(t("home.titleWithAgeDays", "en"), "Baby Care · {n} days");
+    assert.equal(t("home.titleWithAgeDays", "vi"), "Chăm bé · {n} ngày");
   });
 });
 

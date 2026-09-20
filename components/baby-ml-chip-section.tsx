@@ -14,6 +14,9 @@ export type BabyMlChipSectionProps = BabyBottleMlChipsProps & {
   recovery?: ReactNode;
   sectionClassName?: string;
   "data-section"?: string;
+  /** Edit outside the flush 2×2 — reopen Custom ml modal. */
+  onEditCustom?: () => void;
+  showEditCustom?: boolean;
 };
 
 /** Bottle / pump-amount ml chips + optional helper + recovery. */
@@ -23,6 +26,8 @@ export function BabyMlChipSection({
   sectionClassName,
   "data-section": dataSection,
   className,
+  onEditCustom,
+  showEditCustom,
   ...chipProps
 }: BabyMlChipSectionProps) {
   return (
@@ -32,6 +37,24 @@ export function BabyMlChipSection({
       className={cn("flex h-full min-h-14 min-w-0 flex-col gap-1", sectionClassName)}
     >
       <BabyBottleMlChips {...chipProps} className={className} />
+      {showEditCustom && onEditCustom ? (
+        <button
+          type="button"
+          data-testid="baby-custom-ml-edit"
+          aria-label={chipProps.t("home.customMlEditAria")}
+          disabled={chipProps.disabled}
+          onClick={() => {
+            if (chipProps.disabled) return;
+            onEditCustom();
+          }}
+          className={cn(
+            "fx-hit-40 fx-press min-h-11 self-start rounded-[var(--radius-sm)] px-3 text-sm text-accent transition-colors",
+            chipProps.disabled && "opacity-50",
+          )}
+        >
+          {chipProps.t("home.customMlEdit")}
+        </button>
+      ) : null}
       {helperText ? (
         <p className="text-xs text-muted">{helperText}</p>
       ) : null}

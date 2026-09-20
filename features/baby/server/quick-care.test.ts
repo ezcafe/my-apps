@@ -1124,3 +1124,271 @@ describe("babyQuickCare DIAPER payload", () => {
     assert.equal(row.updatedAt?.getTime(), now.getTime());
   });
 });
+
+describe("runBabyQuickCare optional occurredAt/endedAt", () => {
+  const CUSTOM = "2026-09-20T06:40:00.000+07:00";
+  const CUSTOM_MS = Date.parse(CUSTOM);
+  const OTHER = "2026-09-20T07:00:00.000+07:00";
+  const OTHER_MS = Date.parse(OTHER);
+
+  it("SLEEP start (no open nap) + occurredAt persists start time", async () => {
+    const deps = makeDeps({ napOpen: false });
+    const now = new Date(BABY_AUTO_FINALIZE_NOW);
+    deps.now = () => now;
+    const result = await runBabyQuickCare(
+      workspaceId,
+      userSub,
+      {
+        action: { kind: "SLEEP" },
+        breastRunning: null,
+        clientRequestId: "req-sleep-start-custom",
+        occurredAt: CUSTOM,
+      },
+      deps,
+    );
+    assert.equal(result.steps[0]?.step, "startNap");
+    const nap = deps.rows.find((r) => r.type === "sleep")!;
+    assert.equal(nap.occurredAt.getTime(), CUSTOM_MS);
+    assert.notEqual(nap.occurredAt.getTime(), now.getTime());
+  });
+
+  it("DIAPER + occurredAt persists diaper time", async () => {
+    const deps = makeDeps({ napOpen: false });
+    const now = new Date(BABY_AUTO_FINALIZE_NOW);
+    deps.now = () => now;
+    await runBabyQuickCare(
+      workspaceId,
+      userSub,
+      {
+        action: { kind: "DIAPER", diaperKind: "wet" },
+        breastRunning: null,
+        clientRequestId: "req-diaper-custom",
+        occurredAt: CUSTOM,
+      },
+      deps,
+    );
+    const diaper = deps.rows.find((r) => r.type === "diaper")!;
+    assert.equal(diaper.occurredAt.getTime(), CUSTOM_MS);
+  });
+
+  it("DIAPER (no open nap) + only endedAt ignores end for insert", async () => {
+    const deps = makeDeps({ napOpen: false });
+    const now = new Date(BABY_AUTO_FINALIZE_NOW);
+    deps.now = () => now;
+    await runBabyQuickCare(
+      workspaceId,
+      userSub,
+      {
+        action: { kind: "DIAPER", diaperKind: "wet" },
+        breastRunning: null,
+        clientRequestId: "req-diaper-ended-only",
+        endedAt: CUSTOM,
+      },
+      deps,
+    );
+    const diaper = deps.rows.find((r) => r.type === "diaper")!;
+    assert.equal(diaper.occurredAt.getTime(), now.getTime());
+    assert.notEqual(diaper.occurredAt.getTime(), CUSTOM_MS);
+  });
+
+  it("FORMULA with occurredAt persists that time; BREAST still server now", async () => {
+    {
+      const deps = makeDeps({ napOpen: false });
+      const now = new Date(BABY_AUTO_FINALIZE_NOW);
+      deps.now = () => now;
+      await runBabyQuickCare(
+        workspaceId,
+        userSub,
+        {
+          action: { kind: "FORMULA", amountMl: 90 },
+          breastRunning: null,
+          clientRequestId: "req-formula-occurred",
+          occurredAt: CUSTOM,
+        },
+        deps,
+      );
+      const feed = deps.rows.find((r) => r.type === "feed")!;
+      assert.equal(feed.occurredAt.getTime(), CUSTOM_MS);
+    }
+    {
+      const deps = makeDeps({ napOpen: false });
+      const now = new Date(BABY_AUTO_FINALIZE_NOW);
+      deps.now = () => now;
+      await runBabyQuickCare(
+        workspaceId,
+        userSub,
+        {
+          action: { kind: "PUMP_AMOUNT", amountMl: 60 },
+          breastRunning: null,
+          clientRequestId: "req-pump-occurred",
+          occurredAt: CUSTOM,
+        },
+        deps,
+      );
+      const feed = deps.rows.find((r) => r.type === "feed")!;
+      assert.equal(feed.occurredAt.getTime(), CUSTOM_MS);
+    }
+    {
+      const deps = makeDeps({ napOpen: false });
+      const now = new Date(BABY_AUTO_FINALIZE_NOW);
+      deps.now = () => now;
+      await runBabyQuickCare(
+        workspaceId,
+        userSub,
+        {
+          action: { kind: "BREAST", side: "breast_l" },
+          breastRunning: {
+            side: "breast_l",
+            durationSec: 45,
+          },
+          clientRequestId: "req-breast-ignore",
+          occurredAt: CUSTOM,
+          endedAt: OTHER,
+        },
+        deps,
+      );
+      const feed = deps.rows.find((r) => r.type === "feed")!;
+      assert.equal(feed.occurredAt.getTime(), now.getTime());
+    }
+  });
+
+  it("open nap + SLEEP + only occurredAt ends nap at server now", async () => {
+    const deps = makeDeps({ napOpen: true });
+    const now = new Date(BABY_AUTO_FINALIZE_NOW);
+    deps.now = () => now;
+    const result = await runBabyQuickCare(
+      workspaceId,
+      userSub,
+      {
+        action: { kind: "SLEEP" },
+        breastRunning: null,
+        clientRequestId: "req-sleep-end-occurred-only",
+        occurredAt: CUSTOM,
+      },
+      deps,
+    );
+    assert.equal(result.steps[0]?.step, "endNap");
+    const nap = deps.rows.find((r) => r.id === "nap-open-1")!;
+    assert.equal(nap.endedAt?.getTime(), now.getTime());
+    assert.notEqual(nap.endedAt?.getTime(), CUSTOM_MS);
+  });
+
+  it("open nap + SLEEP + endedAt ends nap at that end time", async () => {
+    const deps = makeDeps({ napOpen: true });
+    const now = new Date(BABY_AUTO_FINALIZE_NOW);
+    deps.now = () => now;
+    await runBabyQuickCare(
+      workspaceId,
+      userSub,
+      {
+        action: { kind: "SLEEP" },
+        breastRunning: null,
+        clientRequestId: "req-sleep-end-custom",
+        endedAt: CUSTOM,
+        occurredAt: OTHER,
+      },
+      deps,
+    );
+    const nap = deps.rows.find((r) => r.id === "nap-open-1")!;
+    assert.equal(nap.endedAt?.getTime(), CUSTOM_MS);
+    assert.notEqual(nap.endedAt?.getTime(), OTHER_MS);
+  });
+
+  it("open nap + DIAPER auto-endNap uses endedAt else occurredAt else now", async () => {
+    // endedAt wins
+    {
+      const deps = makeDeps({ napOpen: true });
+      const now = new Date(BABY_AUTO_FINALIZE_NOW);
+      deps.now = () => now;
+      await runBabyQuickCare(
+        workspaceId,
+        userSub,
+        {
+          action: { kind: "DIAPER", diaperKind: "wet" },
+          breastRunning: null,
+          clientRequestId: "req-auto-end-ended",
+          endedAt: CUSTOM,
+          occurredAt: OTHER,
+        },
+        deps,
+      );
+      const nap = deps.rows.find((r) => r.id === "nap-open-1")!;
+      assert.equal(nap.endedAt?.getTime(), CUSTOM_MS);
+    }
+    // occurredAt when no endedAt
+    {
+      const deps = makeDeps({ napOpen: true });
+      const now = new Date(BABY_AUTO_FINALIZE_NOW);
+      deps.now = () => now;
+      await runBabyQuickCare(
+        workspaceId,
+        userSub,
+        {
+          action: { kind: "DIAPER", diaperKind: "wet" },
+          breastRunning: null,
+          clientRequestId: "req-auto-end-occurred",
+          occurredAt: CUSTOM,
+        },
+        deps,
+      );
+      const nap = deps.rows.find((r) => r.id === "nap-open-1")!;
+      assert.equal(nap.endedAt?.getTime(), CUSTOM_MS);
+    }
+    // now when neither
+    {
+      const deps = makeDeps({ napOpen: true });
+      const now = new Date(BABY_AUTO_FINALIZE_NOW);
+      deps.now = () => now;
+      await runBabyQuickCare(
+        workspaceId,
+        userSub,
+        {
+          action: { kind: "DIAPER", diaperKind: "wet" },
+          breastRunning: null,
+          clientRequestId: "req-auto-end-now",
+        },
+        deps,
+      );
+      const nap = deps.rows.find((r) => r.id === "nap-open-1")!;
+      assert.equal(nap.endedAt?.getTime(), now.getTime());
+    }
+  });
+
+  it("same clientRequestId + different times replays first write", async () => {
+    const deps = makeDeps({ napOpen: false });
+    const now = new Date(BABY_AUTO_FINALIZE_NOW);
+    deps.now = () => now;
+    const first = await runBabyQuickCare(
+      workspaceId,
+      userSub,
+      {
+        action: { kind: "DIAPER", diaperKind: "wet" },
+        breastRunning: null,
+        clientRequestId: "req-replay-times",
+        occurredAt: CUSTOM,
+      },
+      deps,
+    );
+    assert.equal(first.replayed, false);
+    const firstAt = deps.rows.find((r) => r.type === "diaper")!.occurredAt;
+
+    const second = await runBabyQuickCare(
+      workspaceId,
+      userSub,
+      {
+        action: { kind: "DIAPER", diaperKind: "wet" },
+        breastRunning: null,
+        clientRequestId: "req-replay-times",
+        occurredAt: OTHER,
+      },
+      deps,
+    );
+    assert.equal(second.replayed, true);
+    assert.equal(deps.writes.length, 1);
+    assert.equal(
+      second.steps[0]?.event.occurredAt.getTime(),
+      firstAt.getTime(),
+    );
+    assert.equal(firstAt.getTime(), CUSTOM_MS);
+  });
+});
