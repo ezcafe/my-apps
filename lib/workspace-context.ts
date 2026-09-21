@@ -130,6 +130,19 @@ export async function getActiveWorkspaceId(
     FROM candidates c
     INNER JOIN workspace_member wm
       ON wm.workspace_id = c.wid AND wm.user_sub = ${userSub}
+    INNER JOIN workspace w
+      ON w.id = wm.workspace_id
+    WHERE
+      wm.role = 'owner'
+      OR w.kind = 'personal'
+      OR ${appKey} NOT IN ('money', 'baby')
+      OR EXISTS (
+        SELECT 1
+        FROM workspace_member_app a
+        WHERE a.workspace_id = wm.workspace_id
+          AND a.user_sub = wm.user_sub
+          AND a.app_key = ${appKey}
+      )
     ORDER BY c.ord
     LIMIT 1
   `);

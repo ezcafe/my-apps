@@ -9,7 +9,7 @@ import {
   loanInstallmentStatus,
   loanScheduleInstallment,
 } from "@/db/schema/loans";
-import { assertWorkspaceMember } from "@/lib/workspace-context";
+import { assertWorkspaceAppAccess } from "@/lib/workspace-app-access";
 import type { LoansWorkspaceCtx } from "@/lib/loans-services/types";
 import { createMoneyTransaction } from "@/lib/money-services/transactions";
 import {
@@ -145,7 +145,7 @@ export async function payLoanInstallmentWithTransaction(
   const moneyWorkspaceId =
     parsed.data.moneyWorkspaceId ?? ctx.workspaceId;
 
-  const member = await assertWorkspaceMember(ctx.userSub, moneyWorkspaceId);
+  const member = await assertWorkspaceAppAccess(ctx.userSub, moneyWorkspaceId, "money");
   if (!member) throw new Error("FORBIDDEN");
 
   return withDbTransaction(async () => {
@@ -196,7 +196,7 @@ export async function payInstallmentMoneyAtomic(
     occurredAt: string;
   },
 ): Promise<{ moneyTransactionId: string }> {
-  const member = await assertWorkspaceMember(ctx.userSub, args.moneyWorkspaceId);
+  const member = await assertWorkspaceAppAccess(ctx.userSub, args.moneyWorkspaceId, "money");
   if (!member) throw new Error("FORBIDDEN");
 
   return withDbTransaction(async () => {

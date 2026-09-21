@@ -28,7 +28,7 @@ import {
   loanCreateSchema,
   loanUpdateSchema,
 } from "@/lib/validators/loans";
-import { assertWorkspaceMember } from "@/lib/workspace-context";
+import { assertWorkspaceAppAccess } from "@/lib/workspace-app-access";
 import { getWorkspaceDefaultCurrency } from "@/lib/workspace-loans";
 
 function todayIso(): string {
@@ -178,7 +178,11 @@ export async function createLoan(
       parsed.data.moneyAccountId,
       parsed.data.moneyCategoryId,
     );
-    const member = await assertWorkspaceMember(ctx.userSub, moneyWorkspaceId);
+    const member = await assertWorkspaceAppAccess(
+      ctx.userSub,
+      moneyWorkspaceId,
+      "money",
+    );
     if (!member) throw new Error("FORBIDDEN");
   }
 

@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { WORKSPACE_APP_KEYS } from "@/db/schema/workspace";
+import { SHAREABLE_WORKSPACE_APP_KEYS } from "@/lib/workspace-shareable-apps";
 
 export const workspaceAppKeySchema = z.enum(WORKSPACE_APP_KEYS);
+
+export const shareableWorkspaceAppKeySchema = z.enum(SHAREABLE_WORKSPACE_APP_KEYS);
 
 export const workspaceActiveSchema = z.object({
   workspaceId: z.string().uuid(),
@@ -29,7 +32,6 @@ export const workspaceResetSchema = z.object({
   workspaceId: z.string().uuid(),
 });
 
-
 /** IANA timezone name for analytics date bucketing (e.g. Asia/Ho_Chi_Minh). */
 export const workspaceTimezonePatchSchema = z.object({
   workspaceId: z.string().uuid(),
@@ -38,4 +40,25 @@ export const workspaceTimezonePatchSchema = z.object({
     .min(1)
     .max(64)
     .regex(/^[A-Za-z0-9_+\/-]+$/, "Invalid timezone name"),
+});
+
+export const workspaceMembersQuerySchema = z.object({
+  workspaceId: z.string().uuid(),
+});
+
+export const workspaceMemberCreateSchema = z.object({
+  workspaceId: z.string().uuid(),
+  email: z.string().email().max(320),
+  apps: z.array(shareableWorkspaceAppKeySchema).min(1),
+});
+
+export const workspaceMemberPatchSchema = z.object({
+  workspaceId: z.string().uuid(),
+  userSub: z.string().min(1).max(200),
+  apps: z.array(shareableWorkspaceAppKeySchema).min(1),
+});
+
+export const workspaceMemberRemoveSchema = z.object({
+  workspaceId: z.string().uuid(),
+  userSub: z.string().min(1).max(200),
 });

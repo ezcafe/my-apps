@@ -6,8 +6,8 @@ import { isDbUnreachable } from "@/lib/db-errors";
 import { cloneMoneyWorkspaceStructure } from "@/lib/money-clone-workspace";
 import { resetWorkspaceData } from "@/lib/workspace-reset";
 import { writeAuditEvent } from "@/lib/audit-log";
+import { assertWorkspaceAppAccess } from "@/lib/workspace-app-access";
 import {
-  assertWorkspaceMember,
   assertWorkspaceOwner,
   isWorkspaceIdCookieSafe,
 } from "@/lib/workspace-context";
@@ -116,7 +116,7 @@ export async function cloneMoneyWorkspaceApi(
     throw new Error("Source and target must differ");
   }
 
-  const sourceOk = await assertWorkspaceMember(userSub, sourceWorkspaceId);
+  const sourceOk = await assertWorkspaceAppAccess(userSub, sourceWorkspaceId, "money");
   if (!sourceOk) throw new Error("FORBIDDEN");
 
   const ownerOk = await assertWorkspaceOwner(userSub, targetWorkspaceId);
@@ -161,7 +161,7 @@ export async function setActiveWorkspaceApi(
   if (!isWorkspaceIdCookieSafe(workspaceId)) {
     throw new Error("BAD_REQUEST");
   }
-  const ok = await assertWorkspaceMember(userSub, workspaceId);
+  const ok = await assertWorkspaceAppAccess(userSub, workspaceId, "money");
   if (!ok) throw new Error("FORBIDDEN");
   if (app !== "money") throw new Error("Unsupported app");
 }

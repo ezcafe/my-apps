@@ -1,13 +1,7 @@
-import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { db } from "@/db";
-import {
-  userWorkspaceDefault,
-  workspace,
-  workspaceMember,
-} from "@/db/schema/workspace";
 import { unauthorized } from "@/lib/api-money";
+import { fetchWorkspacesForUser } from "@/lib/workspace-list";
 import { workspaceAppKeySchema } from "@/lib/validators/workspace";
 
 export async function GET(req: Request) {
@@ -23,37 +17,10 @@ export async function GET(req: Request) {
       { status: 400 },
     );
   }
-  const appKey = appParsed.data;
 
-  const rows = await db
-    .select({
-      id: workspace.id,
-      name: workspace.name,
-      kind: workspace.kind,
-      ownedByUserSub: workspace.ownedByUserSub,
-      defaultCurrency: workspace.defaultCurrency,
-      role: workspaceMember.role,
-    })
-    .from(workspaceMember)
-    .innerJoin(workspace, eq(workspace.id, workspaceMember.workspaceId))
-    .where(eq(workspaceMember.userSub, userSub));
-
-  const prefRow = await db
-    .select({ defaultWorkspaceId: userWorkspaceDefault.defaultWorkspaceId })
-    .from(userWorkspaceDefault)
-    .where(
-      and(
-        eq(userWorkspaceDefault.userSub, userSub),
-        eq(userWorkspaceDefault.appKey, appKey),
-      ),
-    )
-    .limit(1);
-  const defaultWorkspaceId = prefRow[0]?.defaultWorkspaceId ?? null;
+  const { workspaces } = await fetchWorkspacesForUser(userSub, appParsed.data);
 
   return NextResponse.json({
-    data: rows.map((r) => ({
-      ...r,
-      isDefault: r.id === defaultWorkspaceId,
-    })),
+    data: workspaces,
   });
 }

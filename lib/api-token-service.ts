@@ -9,7 +9,7 @@ import {
   type ApiTokenAppKey,
 } from "@/lib/api-auth";
 import { writeAuditEvent } from "@/lib/audit-log";
-import { assertWorkspaceMember } from "@/lib/workspace-context";
+import { assertWorkspaceAppAccess } from "@/lib/workspace-app-access";
 
 export type ApiTokenListItem = {
   id: string;
@@ -65,7 +65,7 @@ export async function createApiTokenForUser(
     expiresAt: Date | null;
   },
 ): Promise<{ token: string; item: ApiTokenListItem }> {
-  const member = await assertWorkspaceMember(userSub, input.workspaceId);
+  const member = await assertWorkspaceAppAccess(userSub, input.workspaceId, "money");
   if (!member) {
     throw new Error("FORBIDDEN");
   }

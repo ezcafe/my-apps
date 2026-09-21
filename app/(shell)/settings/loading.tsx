@@ -99,9 +99,35 @@ export default function SettingsLoading() {
               <Skeleton className="h-7 w-40 rounded-[var(--radius-sm)]" />
               <Skeleton className="h-4 w-96 max-w-full rounded-[var(--radius-sm)]" />
             </div>
-            <div className="rounded-[var(--radius-md)] border border-border bg-background p-4 space-y-4">
-              <Skeleton className="h-4 w-64 max-w-full rounded-[var(--radius-sm)]" />
-              <Skeleton className="h-10 w-full rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-4 w-48 rounded-[var(--radius-sm)]" />
+            <div className="divide-y divide-border rounded-[var(--radius-sm)] border border-border bg-background">
+              <div className="flex justify-between px-3 py-2.5">
+                <Skeleton className="h-4 w-24 rounded-[var(--radius-sm)]" />
+                <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
+              </div>
+              <div className="flex justify-between px-3 py-2.5">
+                <Skeleton className="h-4 w-20 rounded-[var(--radius-sm)]" />
+                <Skeleton className="h-4 w-24 rounded-[var(--radius-sm)]" />
+              </div>
+            </div>
+            <div className="space-y-3 border-t border-border pt-6">
+              <Skeleton className="h-4 w-32 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-4 w-72 max-w-full rounded-[var(--radius-sm)]" />
+              <div className="divide-y divide-border rounded-[var(--radius-sm)] border border-border">
+                <div className="space-y-2 px-3 py-2.5">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-40 rounded-[var(--radius-sm)]" />
+                    <Skeleton className="h-4 w-24 rounded-[var(--radius-sm)]" />
+                  </div>
+                  <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(8rem,1fr))]">
+                    <Skeleton className="h-9 w-full rounded-[var(--radius-sm)]" />
+                    <Skeleton className="h-9 w-full rounded-[var(--radius-sm)]" />
+                  </div>
+                </div>
+              </div>
+              <Skeleton className="h-4 w-28 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-10 w-full max-w-md rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-9 w-28 rounded-[var(--radius-sm)]" />
             </div>
           </section>
 

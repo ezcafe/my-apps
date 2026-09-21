@@ -7,7 +7,7 @@ import {
   apiToken,
   type ApiTokenScope,
 } from "@/db/schema/api-token";
-import { assertWorkspaceMember } from "@/lib/workspace-context";
+import { assertWorkspaceAppAccess } from "@/lib/workspace-app-access";
 import { getWorkspaceIdForUser } from "@/lib/workspace";
 import { getSavingsWorkspaceIdForUser } from "@/lib/workspace-savings";
 import { getInvestmentWorkspaceIdForUser } from "@/lib/workspace-investment";
@@ -359,7 +359,19 @@ export async function verifyMoneyWorkspaceAccess(
 ): Promise<boolean> {
   if (!auth.userSub) return false;
   try {
-    return await assertWorkspaceMember(auth.userSub, workspaceId);
+    return await assertWorkspaceAppAccess(auth.userSub, workspaceId, "money");
+  } catch {
+    return false;
+  }
+}
+
+export async function verifyBabyWorkspaceAccess(
+  auth: ResolvedRequestAuth,
+  workspaceId: string,
+): Promise<boolean> {
+  if (!auth.userSub) return false;
+  try {
+    return await assertWorkspaceAppAccess(auth.userSub, workspaceId, "baby");
   } catch {
     return false;
   }

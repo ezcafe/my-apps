@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { WorkspaceAppKey } from "@/db/schema/workspace";
 import { MoneyStatusEmphasis, MoneyStatusStrip } from "@/lib/money-status-strip";
+import { WorkspaceMembersPanel } from "@/components/workspace-members-panel";
 
 type WorkspaceRow = {
   id: string;
@@ -291,7 +292,7 @@ export function WorkspaceSettings({
     <SettingsSection
       id="settings-workspaces"
       title="Workspaces"
-      description="Shared workspaces are used by Money (transactions, investments, and loans). Money remembers your default when you open it without an active workspace cookie."
+      description="Shared workspaces for Money and Baby Care. Grant apps per member — not the whole workspace to every app. Defaults apply when you open an app without an active cookie."
     >
       {loadErr ? (
         <Alert
@@ -339,6 +340,16 @@ export function WorkspaceSettings({
             ) : null}
             {createForm}
           </ul>
+
+          {workspaceList
+            .filter((w) => w.kind === "shared" && w.role === "owner")
+            .map((w) => (
+              <WorkspaceMembersPanel
+                key={w.id}
+                workspaceId={w.id}
+                workspaceName={w.name}
+              />
+            ))}
         </>
       ) : (
         <ul role="list" className="divide-y divide-border border-t border-border">

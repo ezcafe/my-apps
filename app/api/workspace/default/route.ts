@@ -9,9 +9,9 @@ import {
   unauthorized,
 } from "@/lib/api-money";
 import {
-  assertWorkspaceMember,
-  setActiveWorkspaceCookie,
-} from "@/lib/workspace-context";
+  assertWorkspaceAppAccess,
+} from "@/lib/workspace-app-access";
+import { setActiveWorkspaceCookie } from "@/lib/workspace-context";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { assertSameOriginStrict, readJsonBounded } from "@/lib/request-guards";
 import { workspaceAppKeySchema, workspaceDefaultPatchSchema } from "@/lib/validators/workspace";
@@ -74,7 +74,11 @@ export async function PATCH(req: Request) {
     );
   }
 
-  const ok = await assertWorkspaceMember(userSub, parsed.data.workspaceId);
+  const ok = await assertWorkspaceAppAccess(
+    userSub,
+    parsed.data.workspaceId,
+    parsed.data.app,
+  );
   if (!ok) return forbidden();
 
   await db

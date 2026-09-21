@@ -77,6 +77,8 @@ export const authConfig = {
       if (!id) return;
       const { ensureUserBootstrap } = await import("@/lib/bootstrap");
       await ensureUserBootstrap(id);
+      const { upsertUserDirectory } = await import("@/lib/workspace-app-access");
+      await upsertUserDirectory(id, message.user?.email);
     },
   },
   trustHost: true,

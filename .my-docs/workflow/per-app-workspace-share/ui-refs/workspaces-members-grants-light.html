@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en" data-style="quiet">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Workspaces — members + app grants (concept draft)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --radius: 0.5rem;
+      --radius-sm: 0.375rem;
+      --background: #fafafa;
+      --foreground: #1a1a1a;
+      --muted: #6b6b6b;
+      --surface: #ffffff;
+      --border: #e5e5e5;
+      --muted-surface: #f5f5f5;
+      --accent: #0d9488;
+      --accent-foreground: #ffffff;
+      --font: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--background);
+      color: var(--foreground);
+      -webkit-font-smoothing: antialiased;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .shell {
+      max-width: 42rem;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+    .eyebrow {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 0.25rem;
+    }
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0 0 0.25rem;
+      text-wrap: balance;
+    }
+    .desc {
+      color: var(--muted);
+      margin: 0 0 1.5rem;
+    }
+    .section-title {
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin: 0 0 0.25rem;
+    }
+    .section-desc {
+      color: var(--muted);
+      font-size: 0.875rem;
+      margin: 0 0 1rem;
+    }
+    .list {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .row {
+      padding: 0.75rem 0.875rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .row:last-child { border-bottom: 0; }
+    .row-top {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.5rem 1rem;
+      align-items: baseline;
+    }
+    .name { font-weight: 500; }
+    .meta { color: var(--muted); font-size: 0.8125rem; }
+    .grants {
+      margin-top: 0.75rem;
+      display: grid;
+      gap: 0.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    }
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      padding: 0.5rem 0.625rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--muted-surface);
+    }
+    .box {
+      width: 1rem;
+      height: 1rem;
+      border: 1.5px solid var(--accent);
+      border-radius: 0.2rem;
+      background: var(--accent);
+      flex-shrink: 0;
+      position: relative;
+    }
+    .box.empty { background: var(--surface); }
+    .box::after {
+      content: "";
+      position: absolute;
+      left: 3px; top: 0px;
+      width: 4px; height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    .box.empty::after { display: none; }
+    .add {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+    label.field {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.375rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font: inherit;
+      color: var(--foreground);
+    }
+    .btn {
+      margin-top: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.5rem;
+      padding: 0 1rem;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: var(--accent);
+      color: var(--accent-foreground);
+      font: inherit;
+      font-weight: 500;
+      cursor: default;
+    }
+    .hint {
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.6875rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.125rem 0.375rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <p class="badge">Concept draft — tokens from globals.css; replace with live /settings screenshot after Build</p>
+    <p class="eyebrow">Settings</p>
+    <h1>Workspaces</h1>
+    <p class="desc">Shared workspaces for Money and Baby Care. Grant apps per member — not the whole workspace to every app.</p>
+
+    <p class="section-title">Family</p>
+    <p class="section-desc">Shared · you are owner</p>
+
+    <div class="list">
+      <div class="row">
+        <div class="row-top">
+          <span class="name">You</span>
+          <span class="meta">Owner · All apps</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="row-top">
+          <span class="name">partner@example.com</span>
+          <span class="meta">Member</span>
+        </div>
+        <div class="grants" aria-label="Apps this person can use">
+          <div class="chip"><span class="box" aria-hidden="true"></span> Money</div>
+          <div class="chip"><span class="box" aria-hidden="true"></span> Baby Care</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="row-top">
+          <span class="name">accountant@example.com</span>
+          <span class="meta">Member</span>
+        </div>
+        <div class="grants" aria-label="Apps this person can use">
+          <div class="chip"><span class="box" aria-hidden="true"></span> Money</div>
+          <div class="chip"><span class="box empty" aria-hidden="true"></span> Baby Care</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="add">
+      <p class="section-title">Add member</p>
+      <p class="section-desc">Enter their account email. Choose at least one app.</p>
+      <label class="field" for="email">Email</label>
+      <input id="email" type="email" value="" placeholder="name@example.com" readonly />
+      <div class="grants" style="margin-top: 0.75rem;">
+        <div class="chip"><span class="box" aria-hidden="true"></span> Money</div>
+        <div class="chip"><span class="box empty" aria-hidden="true"></span> Baby Care</div>
+      </div>
+      <button type="button" class="btn">Add member</button>
+      <p class="hint">Enforcement: ungranted apps hide this workspace in that app’s picker and APIs.</p>
+    </div>
+  </main>
+</body>
+</html>

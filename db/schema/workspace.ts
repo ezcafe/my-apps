@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  foreignKey,
   index,
   pgEnum,
   pgTable,
@@ -72,6 +73,48 @@ export const workspaceMember = pgTable(
   (t) => [
     primaryKey({ columns: [t.workspaceId, t.userSub] }),
     index("workspace_member_user_idx").on(t.userSub),
+  ],
+);
+
+/**
+ * Per-member app grants on a shared workspace.
+ * Owners do not need rows (role=owner bypasses grants).
+ * Cascade: deleting membership removes grants.
+ */
+export const workspaceMemberApp = pgTable(
+  "workspace_member_app",
+  {
+    workspaceId: uuid("workspace_id").notNull(),
+    userSub: text("user_sub").notNull(),
+    appKey: text("app_key").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workspaceId, t.userSub, t.appKey] }),
+    index("workspace_member_app_user_app_idx").on(t.userSub, t.appKey),
+    check(
+      "workspace_member_app_key_ck",
+      sql`${t.appKey} IN ('money', 'baby')`,
+    ),
+    foreignKey({
+      columns: [t.workspaceId, t.userSub],
+      foreignColumns: [workspaceMember.workspaceId, workspaceMember.userSub],
+      name: "workspace_member_app_member_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+/** Email → OIDC sub for add-member lookup (PII — avoid verbose logging). */
+export const userDirectory = pgTable(
+  "user_directory",
+  {
+    userSub: text("user_sub").primaryKey(),
+    emailNormalized: text("email_normalized").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("user_directory_email_normalized_uq").on(t.emailNormalized),
   ],
 );
 

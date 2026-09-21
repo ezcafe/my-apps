@@ -4,7 +4,7 @@ import {
   resolveRequestAuth,
   type RequestAuthMethod,
   type ResolvedRequestAuth,
-  verifyMoneyWorkspaceAccess,
+  verifyBabyWorkspaceAccess,
 } from "@/lib/api-auth";
 import { isDbUnreachable } from "@/lib/db-errors";
 import { getBabyWorkspaceIdForUser } from "@/lib/workspace-baby";
@@ -100,7 +100,7 @@ export async function createBabyGraphQLContext(
 
   let ok = false;
   try {
-    ok = await verifyMoneyWorkspaceAccess(auth, workspaceId);
+    ok = await verifyBabyWorkspaceAccess(auth, workspaceId);
   } catch (e) {
     if (isDbUnreachable(e)) {
       return {

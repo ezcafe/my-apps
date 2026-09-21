@@ -5,7 +5,7 @@ import {
   hasWriteScope,
   resolveRequestAuth,
   type ResolvedRequestAuth,
-  verifyMoneyWorkspaceAccess,
+  verifyBabyWorkspaceAccess,
 } from "@/lib/api-auth";
 import type { ApiTokenScope } from "@/db/schema/api-token";
 import { setActiveWorkspaceCookie } from "@/lib/workspace-context";
@@ -94,7 +94,7 @@ export async function requireBabyContext(
 
   let ok: boolean;
   try {
-    ok = await verifyMoneyWorkspaceAccess(auth, workspaceId);
+    ok = await verifyBabyWorkspaceAccess(auth, workspaceId);
   } catch (e) {
     if (isDbUnreachable(e)) return { error: babyDbUnavailable() };
     throw e;
