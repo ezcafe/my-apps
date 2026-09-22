@@ -46,6 +46,47 @@ Money insights live under **`/money/insights`**. Investments insights at **`/inv
 
 [`shellNavItems`](../lib/features/registry.ts) is the single place to add/remove **top-level nav** entries. `registeredWorkspaceFeatures()` returns only `kind: "feature"` rows for tooling or docs.
 
+## List pagination dialects (document only)
+
+These dialects differ on purpose today. **Follow-up: unify pagination — not this PR.**
+
+| Dialect | Where | Params |
+|---------|-------|--------|
+| Money lists | Money validators / GraphQL | `page` / `pageSize` + composite cursor |
+| Investment / Savings REST | Investment/Savings validators | `limit` / `cursor` (uuid) |
+| Baby GraphQL | Baby validators | `limit` max 100 |
+
+Do **not** rename validators or route query params in casual hardening work unless a dedicated unify task is approved.
+
+## Non-RLS system tables (app ownership filters)
+
+These tables have **no workspace RLS**. Writers must keep `userSub` / membership checks tight (filter by auth, never trust client-supplied workspace alone):
+
+| Table | Notes / migration |
+|-------|-------------------|
+| `api_token` | `0007_api_token` — filter by `user_sub` |
+| `audit_event` | `0010_audit_event` |
+| `user_preferences` | `0035_user_preferences` — PK `user_sub` |
+| `workspace*` (`workspace`, `workspace_member`, grants, …) | membership / owner checks in app code |
+| `http_idempotency` | `0042_http_idempotency` — filter by `workspace_id` + `user_sub`; 24h TTL; do not log `response_body`; store redacted replay bodies (ids/counts; members omit email) |
+
+**Not on this list:** `money_import_preview` — it has workspace RLS (`0034_security_perf_hardening` / preview path). Cron/system bypass uses `withBypassRls` separately (`security_rate_limit`, etc.).
+
+## Idempotency-Key (client contract)
+
+Optional header on three hot mutating REST paths. Same key + same body within TTL replays the first success; missing header stays **unsafe to retry**.
+
+| Item | Rule |
+|------|------|
+| Routes | `POST /api/money/import/commit`, `POST /api/investment/import/commit`, `POST /api/workspace/members` |
+| Header | Optional `Idempotency-Key` |
+| Max length | **128** Unicode code points (trim, then count) |
+| Absent key | Request runs once with no durable store — **unsafe to retry** (may double-apply) |
+| Replay | Success replay returns stored JSON + `Idempotency-Replayed: true` and `Cache-Control: no-store` |
+| Conflicts | `409` with `code` `idempotency_in_progress` or `idempotency_body_mismatch` |
+| Auth on replay | Route re-runs live session/token auth (and members **owner** check) before claim/replay. Product accepts **24h TTL** without an extra membership re-check beyond those route gates. |
+| Replay body | Stored body is minimized (counts / ids; members omit email). Do not log `response_body`. |
+
 ## Further reading
 
 - [DESIGN_GUIDE.md](./DESIGN_GUIDE.md) — **mandatory** design system: tokens, primitives, microinteractions, style presets.

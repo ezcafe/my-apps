@@ -1,13 +1,34 @@
 import { NextResponse } from "next/server";
-import { badRequest, requireMoneyContext, withMoneyWorkspaceRls } from "@/lib/api-money";
+import { ClientFacingError, clientSafeErrorMessage } from "@/lib/api-http";
+import {
+  badRequest,
+  rateLimited,
+  requireMoneyContext,
+  withMoneyWorkspaceRls,
+} from "@/lib/api-money";
 import { validateRowsForCommit } from "@/lib/money-import-csv";
-import { deleteImportPreview, getImportPreview } from "@/lib/money-import-preview-store";
+import {
+  deleteImportPreview,
+  getImportPreview,
+  pruneExpiredImportPreviews,
+} from "@/lib/money-import-preview-store";
 import { importCommitBodySchema } from "@/lib/money-import-types";
 import { commitMoneyImport } from "@/lib/money-import";
+import {
+  abortIdempotencyClaim,
+  beginIdempotencyRequest,
+  completeIdempotencyClaim,
+} from "@/lib/http-idempotency";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { assertSameOriginStrict, readJsonBounded } from "@/lib/request-guards";
+import {
+  assertSameOriginStrict,
+  readJsonBoundedWithRaw,
+} from "@/lib/request-guards";
 
 export const dynamic = "force-dynamic";
+
+const ROUTE_ID = "POST /api/money/import/commit";
+
 
 async function requireSameOrigin(req: Request): Promise<NextResponse | null> {
   const authHeader = req.headers.get("authorization");
@@ -31,55 +52,87 @@ export async function POST(req: Request) {
     points: Number(process.env.MONEY_IMPORT_COMMIT_RPM ?? 15),
     durationSeconds: 60,
   });
-  if (!allowed) return new Response("Too many requests", { status: 429 });
+  if (!allowed) return rateLimited();
 
-  let body: unknown;
+  let json: unknown;
+  let rawText: string;
   try {
-    body = await readJsonBounded(req, Number(process.env.JSON_MAX_BYTES ?? 262144));
+    ({ json, rawText } = await readJsonBoundedWithRaw(
+      req,
+      Number(process.env.JSON_MAX_BYTES ?? 262144),
+    ));
   } catch {
     return badRequest("Invalid JSON");
   }
 
-  const parsed = importCommitBodySchema.safeParse(body);
+  // Validate before claim so bad bodies never INSERT http_idempotency rows.
+  const parsed = importCommitBodySchema.safeParse(json);
   if (!parsed.success) {
     return badRequest(
       parsed.error.issues.map((i) => i.message).join("; ") || "Validation failed",
     );
   }
 
-  const { type, previewId, rows } = parsed.data;
-  const rowSource = await withMoneyWorkspaceRls(ctx, async () =>
-    previewId ? getImportPreview(ctx, previewId) : rows,
-  );
-  if (previewId && !rowSource) {
-    return badRequest(
-      "Import preview expired or was discarded. Run Preview again.",
-    );
-  }
-  if (!rowSource) {
-    return badRequest("Missing rows");
-  }
+  const actor = {
+    workspaceId: ctx.workspaceId,
+    userSub: ctx.userSub,
+    route: ROUTE_ID,
+  };
 
-  const validated = validateRowsForCommit(type, rowSource);
-  if (!validated.ok) {
-    return badRequest(validated.message);
+  const began = await beginIdempotencyRequest({
+    actor,
+    keyHeader: req.headers.get("Idempotency-Key"),
+    rawBody: rawText,
+  });
+  if (began.kind === "response") return began.response;
+  const claimId = began.claimId;
+
+  const { type, previewId, rows } = parsed.data;
+
+  // Best-effort prune OUTSIDE commit RLS (separate bypass tx OK).
+  try {
+    await pruneExpiredImportPreviews();
+  } catch {
+    /* ignore prune failures */
   }
 
   try {
-    const imported = await withMoneyWorkspaceRls(ctx, () =>
-      commitMoneyImport(ctx, type, validated.rows),
-    );
-    if (previewId) {
-      await withMoneyWorkspaceRls(ctx, () =>
-        deleteImportPreview(ctx, previewId),
-      );
-    }
-    return NextResponse.json(
-      { data: { imported } },
-      { headers: { "Cache-Control": "no-store" } },
-    );
+    const imported = await withMoneyWorkspaceRls(ctx, async () => {
+      const rowSource = previewId
+        ? await getImportPreview(ctx, previewId, { skipPrune: true })
+        : rows;
+      if (previewId && !rowSource) {
+        throw new ClientFacingError(
+          "Import preview expired or was discarded. Run Preview again.",
+        );
+      }
+      if (!rowSource) {
+        throw new ClientFacingError("Missing rows");
+      }
+
+      const validated = validateRowsForCommit(type, rowSource);
+      if (!validated.ok) {
+        throw new ClientFacingError(validated.message);
+      }
+
+      const count = await commitMoneyImport(ctx, type, validated.rows);
+      if (previewId) {
+        await deleteImportPreview(ctx, previewId, { skipPrune: true });
+      }
+
+      const body = { data: { imported: count } };
+      if (claimId) {
+        await completeIdempotencyClaim(actor, claimId, 200, body);
+      }
+      return body;
+    });
+
+    return NextResponse.json(imported, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Import failed";
-    return badRequest(msg);
+    await abortIdempotencyClaim(actor, claimId);
+    console.error("[money import commit]", e);
+    return badRequest(clientSafeErrorMessage(e, "Import failed"));
   }
 }

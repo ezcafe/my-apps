@@ -191,3 +191,18 @@ export const investmentPortfolioSeriesSchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
+
+/**
+ * Investment statement import commit body.
+ * Validates shape before Idempotency-Key claim (same order as money import).
+ * Nested row arrays stay loosely typed; service code owns row-level rules.
+ */
+export const investmentImportCommitBodySchema = z.object({
+  moneyAccountId: z.string().uuid().optional(),
+  autoCreateMissingInstruments: z.boolean().optional(),
+  skipDuplicates: z.boolean().optional(),
+  trades: z.array(z.record(z.string(), z.unknown())).optional(),
+  positions: z.array(z.record(z.string(), z.unknown())).optional(),
+  cashMoves: z.array(z.record(z.string(), z.unknown())).optional(),
+  excludedExternalIds: z.array(z.string()).optional(),
+});

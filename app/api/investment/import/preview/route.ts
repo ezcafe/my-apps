@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import {
   badRequest,
+  rateLimited,
   requireInvestmentContext,
   withInvestmentWorkspaceRls,
 } from "@/lib/api-investment";
 import { previewInvestmentStatement } from "@/lib/investment-services/import-statement";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { readJsonBounded, assertSameOriginStrict } from "@/lib/request-guards";
 import type { StatementPlatform } from "@/lib/investment-statement-parsers";
 
@@ -25,6 +27,15 @@ export async function POST(req: Request) {
 
   const ctx = await requireInvestmentContext(req, { requireWrite: true });
   if ("error" in ctx) return ctx.error;
+
+  const allowed = await enforceRateLimit({
+    name: "investment:import:preview",
+    request: req,
+    userKey: ctx.userSub,
+    points: Number(process.env.INVESTMENT_IMPORT_RPM ?? 30),
+    durationSeconds: 60,
+  });
+  if (!allowed) return rateLimited();
 
   let body: unknown;
   try {

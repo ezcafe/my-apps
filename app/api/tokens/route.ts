@@ -3,6 +3,7 @@ import type { ApiTokenScope } from "@/db/schema/api-token";
 import {
   badRequest,
   forbidden,
+  rateLimited,
   unauthorized,
 } from "@/lib/api-money";
 import {
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
     points: Number(process.env.API_TOKEN_CREATE_RPM ?? 20),
     durationSeconds: 60,
   });
-  if (!allowed) return new Response("Too many requests", { status: 429 });
+  if (!allowed) return rateLimited();
   if (!assertSameOriginStrict(req)) return badRequest("Cross-origin request blocked");
 
   let body: unknown;

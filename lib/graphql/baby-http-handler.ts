@@ -1,4 +1,5 @@
 import { resolveRequestAuth, type ResolvedRequestAuth } from "@/lib/api-auth";
+import { forbidden, rateLimited } from "@/lib/api-http";
 import { handleBabyGraphQL } from "@/lib/graphql/baby-yoga";
 import { assertSessionMutationCsrf } from "@/lib/request-guards";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -33,7 +34,7 @@ export async function handleBabyGraphQLHttp(request: Request): Promise<Response>
       hasCookie,
     })
   ) {
-    return new Response("Cross-origin request blocked", { status: 403 });
+    return forbidden("Cross-origin request blocked");
   }
 
   const allowed = await enforceRateLimit({
@@ -44,7 +45,7 @@ export async function handleBabyGraphQLHttp(request: Request): Promise<Response>
     durationSeconds: 60,
   });
   if (!allowed) {
-    return new Response("Too many requests", { status: 429 });
+    return rateLimited();
   }
 
   const responseHeaders = new Headers();

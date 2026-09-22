@@ -85,6 +85,8 @@ describe("feed / diaper / sleep one-tap chrome (no extra Save)", () => {
   });
 
   it("sleep TimedCareChip uses SLEEP open-session — Done only after End", () => {
+    // Intentional out-of-scope for API/DB hardening: smoke on main needs this
+    // Done-flash contract sync. Pending-duration path arms Done; open-session still forbids it.
     assert.match(sleepSrc, /BabyTimedCareChip/);
     assert.match(sleepSrc, /home\.tapToStop/);
     assert.match(sleepSrc, /function start\(\)/);
@@ -93,10 +95,19 @@ describe("feed / diaper / sleep one-tap chrome (no extra Save)", () => {
     assert.match(sleepSrc, /babyGraphQLRequest\(END/);
     assert.match(sleepSrc, /endedSleepSession:\s*true/);
     assert.match(sleepSrc, /BABY_CARE_DONE_BEFORE_NAV_MS/);
-    // Start path must not arm Done while session runs.
+    // Open-session start must not arm Done; duration-end-in-start may.
     const startBody = sliceFn(sleepSrc, "function start(", "function end(");
-    assert.doesNotMatch(startBody, /setSleepDone\(true\)/);
-    assert.doesNotMatch(startBody, /babyHomeSleepDoneFlash/);
+    const openSessionStart = startBody.replace(
+      /if \(endedWithDuration\) \{[\s\S]*?\n          \}/g,
+      "",
+    );
+    assert.doesNotMatch(openSessionStart, /setSleepDone\(true\)/);
+    assert.doesNotMatch(openSessionStart, /babyHomeSleepDoneFlash/);
+    // Pending custom duration ends inside start → Done flash is allowed.
+    assert.match(
+      startBody,
+      /if \(endedWithDuration\) \{[\s\S]*?babyHomeSleepDoneFlash\([\s\S]*?setSleepDone\(true\)/,
+    );
     assert.doesNotMatch(sleepSrc, /careTimer|writeBabyCareTimer|BREAST|pump_l/);
     assert.doesNotMatch(sleepSrc, /data-testid="baby-sleep-save"/);
     assert.match(sleepSrc, /t\("sleep\.retryCheck"\)/);

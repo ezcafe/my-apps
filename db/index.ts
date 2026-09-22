@@ -54,6 +54,11 @@ function currentDb(): AppDatabase {
   return workspaceDbStorage.getStore() ?? getDbInstance();
 }
 
+/** True when `db` proxy is bound to an open ALS transaction (RLS or withDbTransaction). */
+export function isDbTransactionBound(): boolean {
+  return workspaceDbStorage.getStore() != null;
+}
+
 export const db = new Proxy({} as AppDatabase, {
   get(_, prop, receiver) {
     const instance = currentDb();

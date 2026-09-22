@@ -1,4 +1,5 @@
 import { resolveRequestAuth, type ResolvedRequestAuth } from "@/lib/api-auth";
+import { forbidden, rateLimited } from "@/lib/api-http";
 import { handleMoneyGraphQL } from "@/lib/graphql/money-yoga";
 import { assertSessionMutationCsrf } from "@/lib/request-guards";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -37,7 +38,7 @@ export async function handleMoneyGraphQLHttp(
       hasCookie,
     })
   ) {
-    return new Response("Cross-origin request blocked", { status: 403 });
+    return forbidden("Cross-origin request blocked");
   }
 
   const allowed = await enforceRateLimit({
@@ -48,7 +49,7 @@ export async function handleMoneyGraphQLHttp(
     durationSeconds: 60,
   });
   if (!allowed) {
-    return new Response("Too many requests", { status: 429 });
+    return rateLimited();
   }
 
   const responseHeaders = new Headers();

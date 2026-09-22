@@ -9,12 +9,17 @@ const PREVIEW_TTL_MS = 60 * 60 * 1000;
 const MAX_PREVIEWS_PER_USER = 5;
 const MAX_PREVIEWS_GLOBAL = 250;
 
-async function pruneExpired() {
+/** Best-effort prune via bypass RLS — call outside commit RLS callbacks. */
+export async function pruneExpiredImportPreviews() {
   await withBypassRls(async () => {
     await db.execute(
       sql`DELETE FROM money_import_preview WHERE expires_at <= now()`,
     );
   });
+}
+
+async function pruneExpired() {
+  await pruneExpiredImportPreviews();
 }
 
 async function enforcePreviewCaps(ctx: PreviewCtx) {
@@ -70,12 +75,15 @@ export async function stashImportPreview(
   return id;
 }
 
+type PreviewReadOpts = { skipPrune?: boolean };
+
 /** Returns stashed rows if the id is valid; does not remove (caller deletes after successful commit). */
 export async function getImportPreview(
   ctx: PreviewCtx,
   id: string,
+  opts?: PreviewReadOpts,
 ): Promise<unknown[] | null> {
-  await pruneExpired();
+  if (!opts?.skipPrune) await pruneExpired();
   const rows = await db.execute(sql`
     SELECT rows
     FROM money_import_preview
@@ -92,8 +100,9 @@ export async function getImportPreview(
 export async function deleteImportPreview(
   ctx: PreviewCtx,
   id: string,
+  opts?: PreviewReadOpts,
 ): Promise<void> {
-  await pruneExpired();
+  if (!opts?.skipPrune) await pruneExpired();
   await db.execute(sql`
     DELETE FROM money_import_preview
     WHERE id = ${id}::uuid

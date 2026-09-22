@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { categoryKindForTransactionKind } from "@/lib/validators/money";
 import { and, eq, inArray } from "drizzle-orm";
 import type { AppDatabase } from "@/db";
-import { db } from "@/db";
+import { db, isDbTransactionBound, withDbTransaction } from "@/db";
 import {
   moneyAccount,
   moneyBudget,
@@ -681,47 +681,63 @@ async function importTransactions(
   await applyBalanceDeltas(tx, ctx.workspaceId, deltasByAccount);
 }
 
+async function commitMoneyImportInTx(
+  tx: MoneyTx,
+  ctx: MoneyCtx,
+  type: MoneyImportType,
+  rows: unknown[],
+): Promise<number> {
+  switch (type) {
+    case "accounts": {
+      const list = rows as AccountRow[];
+      await importAccounts(tx, ctx, list);
+      return list.length;
+    }
+    case "categories": {
+      const list = rows as CategoryImportRow[];
+      await importCategories(tx, ctx, list);
+      return list.length;
+    }
+    case "budgets": {
+      const list = rows as BudgetRow[];
+      await importBudgets(tx, ctx, list);
+      return list.length;
+    }
+    case "rules": {
+      const list = rows as RuleRow[];
+      await importRules(tx, ctx, list);
+      return list.length;
+    }
+    case "recurrence": {
+      const list = rows as RecurrenceRow[];
+      await importRecurrence(tx, ctx, list);
+      return list.length;
+    }
+    case "transactions": {
+      const list = rows as TransactionImportRow[];
+      await importTransactions(tx, ctx, list);
+      return list.length;
+    }
+    default: {
+      const _e: never = type;
+      return _e;
+    }
+  }
+}
+
+/**
+ * Persist import rows. When called under `runInWorkspace` / ALS, uses the bound
+ * `db` (no nested `db.transaction`). Otherwise opens `withDbTransaction`.
+ */
 export async function commitMoneyImport(
   ctx: MoneyCtx,
   type: MoneyImportType,
   rows: unknown[],
 ): Promise<number> {
-  return db.transaction(async (tx) => {
-    switch (type) {
-      case "accounts": {
-        const list = rows as AccountRow[];
-        await importAccounts(tx, ctx, list);
-        return list.length;
-      }
-      case "categories": {
-        const list = rows as CategoryImportRow[];
-        await importCategories(tx, ctx, list);
-        return list.length;
-      }
-      case "budgets": {
-        const list = rows as BudgetRow[];
-        await importBudgets(tx, ctx, list);
-        return list.length;
-      }
-      case "rules": {
-        const list = rows as RuleRow[];
-        await importRules(tx, ctx, list);
-        return list.length;
-      }
-      case "recurrence": {
-        const list = rows as RecurrenceRow[];
-        await importRecurrence(tx, ctx, list);
-        return list.length;
-      }
-      case "transactions": {
-        const list = rows as TransactionImportRow[];
-        await importTransactions(tx, ctx, list);
-        return list.length;
-      }
-      default: {
-        const _e: never = type;
-        return _e;
-      }
-    }
-  });
+  if (isDbTransactionBound()) {
+    return commitMoneyImportInTx(db as MoneyTx, ctx, type, rows);
+  }
+  return withDbTransaction(() =>
+    commitMoneyImportInTx(db as MoneyTx, ctx, type, rows),
+  );
 }

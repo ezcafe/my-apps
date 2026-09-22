@@ -99,4 +99,4 @@ sql<number>`COALESCE(SUM(${loanScheduleInstallment.principalMinor}), 0)::bigint`
 sql<number>`count(*)::int`
 ```
 
-ESLint flags `sql` templates that contain both `SUM` and `)::int`.
+ESLint (`eslint.config.mjs` → `no-restricted-syntax`) flags both the array-bind pattern and `sql` templates that contain both `SUM` and `)::int`. Keep those rules on.

@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { runInWorkspace } from "@/db";
 import { isDbUnreachable } from "@/lib/db-errors";
 import {
+  badRequest,
+  dbUnavailable,
+  forbidden,
+  notFound,
+  rateLimited,
+  unauthorized,
+} from "@/lib/api-http";
+import {
   hasWriteScope,
   resolveRequestAuth,
   resolveInvestmentWorkspaceId,
@@ -11,31 +19,23 @@ import {
 import type { ApiTokenScope } from "@/db/schema/api-token";
 import { setActiveWorkspaceCookie } from "@/lib/workspace-context";
 
-export async function unauthorized(message = "Unauthorized") {
-  return NextResponse.json({ error: message, code: "unauthorized" }, { status: 401 });
-}
+export {
+  unauthorized,
+  badRequest,
+  forbidden,
+  notFound,
+  rateLimited,
+};
 
-export async function badRequest(message: string) {
-  return NextResponse.json({ error: message, code: "bad_request" }, { status: 400 });
-}
-
-export async function forbidden(message = "Forbidden") {
-  return NextResponse.json({ error: message, code: "forbidden" }, { status: 403 });
-}
-
-export async function notFound(message = "Not found") {
-  return NextResponse.json({ error: message, code: "not_found" }, { status: 404 });
+/** App keys allowed on Investment REST (same rule as resolveInvestmentWorkspaceId / GraphQL). */
+export function isInvestmentApiTokenAppKeyAllowed(
+  appKey: string | null | undefined,
+): boolean {
+  return appKey === "money" || appKey === "investment";
 }
 
 export function investmentDbUnavailable() {
-  return NextResponse.json(
-    {
-      error:
-        "Cannot reach PostgreSQL. Start the database (from the apps folder: docker compose up -d) or fix DATABASE_URL.",
-      code: "db_unavailable",
-    },
-    { status: 503 },
-  );
+  return dbUnavailable();
 }
 
 export type InvestmentRequestContext = {
@@ -62,7 +62,7 @@ export async function requireInvestmentContext(
 
   if (
     auth.method === "api_key" &&
-    auth.apiTokenAppKey !== "investment"
+    !isInvestmentApiTokenAppKeyAllowed(auth.apiTokenAppKey)
   ) {
     return { error: await forbidden("Token is not valid for Investment") };
   }

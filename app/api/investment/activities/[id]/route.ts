@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { clientSafeErrorMessage } from "@/lib/api-http";
 import {
   badRequest,
   notFound,
+  rateLimited,
   requireInvestmentContext,
   withInvestmentWorkspaceRls,
 } from "@/lib/api-investment";
@@ -11,6 +13,7 @@ import {
   updateInvestmentActivity,
 } from "@/lib/investment-services/activities";
 import { investmentActivityUpdateSchema } from "@/lib/validators/investment";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { assertSameOriginStrict, readJsonBounded } from "@/lib/request-guards";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +27,14 @@ async function requireSameOrigin(req: Request): Promise<NextResponse | null> {
     return badRequest("Cross-origin request blocked");
   }
   return null;
+}
+
+function zodBadRequest(parsed: {
+  error: { issues: { message: string }[]; flatten: () => unknown };
+}) {
+  const message =
+    parsed.error.issues.map((i) => i.message).join("; ") || "Validation failed";
+  return badRequest(message, parsed.error.flatten());
 }
 
 export async function GET(req: Request, context: RouteContext) {
@@ -45,6 +56,16 @@ export async function PATCH(req: Request, context: RouteContext) {
   if (csrf) return csrf;
   const ctx = await requireInvestmentContext(req, { requireWrite: true });
   if ("error" in ctx) return ctx.error;
+
+  const allowed = await enforceRateLimit({
+    name: "investment:activities",
+    request: req,
+    userKey: ctx.userSub,
+    points: Number(process.env.INVESTMENT_ACTIVITIES_RPM ?? 60),
+    durationSeconds: 60,
+  });
+  if (!allowed) return rateLimited();
+
   const { id } = await context.params;
 
   let body: unknown;
@@ -55,7 +76,7 @@ export async function PATCH(req: Request, context: RouteContext) {
   }
 
   const parsed = investmentActivityUpdateSchema.safeParse(body);
-  if (!parsed.success) return badRequest("Validation failed");
+  if (!parsed.success) return zodBadRequest(parsed);
 
   try {
     const row = await withInvestmentWorkspaceRls(ctx, () =>
@@ -63,9 +84,9 @@ export async function PATCH(req: Request, context: RouteContext) {
     );
     return NextResponse.json({ data: row });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (msg === "NOT_FOUND") return notFound();
-    return badRequest(msg);
+    console.error("[investment activities PATCH]", e);
+    if (e instanceof Error && e.message === "NOT_FOUND") return notFound();
+    return badRequest(clientSafeErrorMessage(e, "Request failed"));
   }
 }
 
@@ -74,6 +95,16 @@ export async function DELETE(req: Request, context: RouteContext) {
   if (csrf) return csrf;
   const ctx = await requireInvestmentContext(req, { requireWrite: true });
   if ("error" in ctx) return ctx.error;
+
+  const allowed = await enforceRateLimit({
+    name: "investment:activities",
+    request: req,
+    userKey: ctx.userSub,
+    points: Number(process.env.INVESTMENT_ACTIVITIES_RPM ?? 60),
+    durationSeconds: 60,
+  });
+  if (!allowed) return rateLimited();
+
   const { id } = await context.params;
 
   try {
@@ -82,8 +113,8 @@ export async function DELETE(req: Request, context: RouteContext) {
     );
     return NextResponse.json({ data: { ok: true } });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (msg === "NOT_FOUND") return notFound();
-    return badRequest(msg);
+    console.error("[investment activities DELETE]", e);
+    if (e instanceof Error && e.message === "NOT_FOUND") return notFound();
+    return badRequest(clientSafeErrorMessage(e, "Request failed"));
   }
 }

@@ -6,3 +6,4 @@ export * from "./api-token";
 export * from "./security";
 export * from "./user-preferences";
 export * from "./baby";
+export * from "./http-idempotency";

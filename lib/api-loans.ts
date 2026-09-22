@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { runInWorkspace } from "@/db";
 import { isDbUnreachable } from "@/lib/db-errors";
 import {
+  badRequest,
+  dbUnavailable,
+  forbidden,
+  notFound,
+  rateLimited,
+  unauthorized,
+} from "@/lib/api-http";
+import {
   hasWriteScope,
   resolveLoansWorkspaceId,
   resolveRequestAuth,
@@ -11,31 +19,16 @@ import {
 import type { ApiTokenScope } from "@/db/schema/api-token";
 import { setActiveWorkspaceCookie } from "@/lib/workspace-context";
 
-export async function unauthorized(message = "Unauthorized") {
-  return NextResponse.json({ error: message, code: "unauthorized" }, { status: 401 });
-}
-
-export async function badRequest(message: string) {
-  return NextResponse.json({ error: message, code: "bad_request" }, { status: 400 });
-}
-
-export async function forbidden(message = "Forbidden") {
-  return NextResponse.json({ error: message, code: "forbidden" }, { status: 403 });
-}
-
-export async function notFound(message = "Not found") {
-  return NextResponse.json({ error: message, code: "not_found" }, { status: 404 });
-}
+export {
+  unauthorized,
+  badRequest,
+  forbidden,
+  notFound,
+  rateLimited,
+};
 
 export function loansDbUnavailable() {
-  return NextResponse.json(
-    {
-      error:
-        "Cannot reach PostgreSQL. Start the database (from the apps folder: docker compose up -d) or fix DATABASE_URL.",
-      code: "db_unavailable",
-    },
-    { status: 503 },
-  );
+  return dbUnavailable();
 }
 
 export type LoansRequestContext = {

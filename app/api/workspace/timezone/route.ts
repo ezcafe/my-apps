@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { badRequest, forbidden, unauthorized } from "@/lib/api-money";
+import {
+  badRequest,
+  forbidden,
+  notFound,
+  rateLimited,
+  unauthorized,
+} from "@/lib/api-money";
 import { patchWorkspaceTimezone } from "@/lib/money-services/workspace-money";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { assertSameOriginStrict, readJsonBounded } from "@/lib/request-guards";
@@ -16,7 +22,7 @@ export async function PATCH(req: Request) {
     points: Number(process.env.WORKSPACE_TIMEZONE_RPM ?? 30),
     durationSeconds: 60,
   });
-  if (!allowed) return new Response("Too many requests", { status: 429 });
+  if (!allowed) return rateLimited();
   if (!assertSameOriginStrict(req)) return badRequest("Cross-origin request blocked");
 
   let body: unknown;
@@ -33,7 +39,7 @@ export async function PATCH(req: Request) {
     const message = e instanceof Error ? e.message : "Request failed";
     if (message === "FORBIDDEN") return forbidden();
     if (message === "NOT_FOUND") {
-      return new Response("Workspace not found", { status: 404 });
+      return notFound("Workspace not found");
     }
     return badRequest(message);
   }

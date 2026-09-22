@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import {
+  badRequest,
   notFound,
+  rateLimited,
   unauthorized,
 } from "@/lib/api-money";
 import { revokeApiTokenForUser } from "@/lib/api-token-service";
@@ -22,8 +24,8 @@ export async function DELETE(req: Request, ctx: RouteCtx) {
     points: Number(process.env.API_TOKEN_REVOKE_RPM ?? 30),
     durationSeconds: 60,
   });
-  if (!allowed) return new Response("Too many requests", { status: 429 });
-  if (!assertSameOriginStrict(req)) return new Response("Cross-origin request blocked", { status: 400 });
+  if (!allowed) return rateLimited();
+  if (!assertSameOriginStrict(req)) return badRequest("Cross-origin request blocked");
 
   const { id } = await ctx.params;
   const ok = await revokeApiTokenForUser(userSub, id);

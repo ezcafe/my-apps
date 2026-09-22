@@ -57,6 +57,15 @@ export async function readJsonBounded(
   return JSON.parse(text) as unknown;
 }
 
+/** Same bound as readJsonBounded, but also returns raw UTF-8 bytes for hashing. */
+export async function readJsonBoundedWithRaw(
+  request: Request,
+  maxBytes = DEFAULT_JSON_MAX_BYTES,
+): Promise<{ json: unknown; rawText: string }> {
+  const rawText = await readBodyTextBounded(request, maxBytes);
+  return { json: JSON.parse(rawText) as unknown, rawText };
+}
+
 function originsMatch(origin: string, request: Request): boolean {
   const host = request.headers.get("host");
   if (!host) return false;
