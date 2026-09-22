@@ -12,6 +12,11 @@ const ALLOWLISTED: Record<string, { message: string; code: string }> = {
     message: "Service temporarily unavailable",
     code: "DB_UNAVAILABLE",
   },
+  /** Pre-commit gate only (workspace resolve failed) — never mid-mutation. */
+  SERVICE_UNAVAILABLE: {
+    message: "Service temporarily unavailable",
+    code: "SERVICE_UNAVAILABLE",
+  },
   CONFLICT: { message: "Conflict", code: "CONFLICT" },
 };
 

@@ -115,7 +115,8 @@ export const babyEn = {
   "home.diaperTileDry": "Dry",
   "home.diaperSheetSave": "Save diaper",
   "home.done": "Done",
-  "home.logged": "Logged",
+  /** Alias — bottle/pump flash uses Done styles/copy (`home.done`). */
+  "home.logged": "Done",
   "home.lastMl": "{ml} ml",
   "home.formulaCustomUnder": "Custom",
   "home.nextIn": "next in {duration}",

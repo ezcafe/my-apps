@@ -295,7 +295,7 @@ export function BabyFeedForm() {
           mls={bottleChipMls}
           selectedMl={selectedBottleMl}
           doneFlash={doneMl != null}
-          doneText={t("home.logged")}
+          doneText={t("home.done")}
           disabled={pending}
           customSelected={bottleCustomSelected}
           showEditCustom={bottleCustomSelected}

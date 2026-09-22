@@ -1,6 +1,13 @@
 /** Brief Done/Logged flash after care saves (breast stop, bottle, nap, diaper). */
 export const BABY_HOME_DONE_MS = 2000;
 
+/**
+ * Shared Done face overlay (absolute center). Logged flashes use this too —
+ * same type, weight, and layout as Done on timed care chips.
+ */
+export const BABY_HOME_DONE_FACE_CLASS =
+  "absolute inset-0 flex items-center justify-center text-sm font-medium";
+
 const DIAPER_DONE_KINDS = new Set(["wet", "dry", "dirty", "mixed"]);
 
 /** Any saved diaper kind gets a Done flash on that tile. */

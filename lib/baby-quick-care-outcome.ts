@@ -13,6 +13,8 @@ export const BABY_QUICK_DEFINITE_NO_COMMIT_CODES = [
   "UNAUTHORIZED",
   "FORBIDDEN",
   "NOT_FOUND",
+  /** Workspace/DB gate failed before babyQuickCare.run — never mid-commit. */
+  "SERVICE_UNAVAILABLE",
 ] as const;
 
 export type BabyQuickErrorClass = "definiteNoCommit" | "ambiguous";

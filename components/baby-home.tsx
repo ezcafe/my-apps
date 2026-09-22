@@ -304,17 +304,8 @@ export function BabyHomeContent({
     dayKeyProp ??
     babyLocalDayWindow(new Date(nowMs ?? Date.now())).dayKey;
   const [careSlots, setCareSlots] = useState<BabyCareTimerSlots>(() => {
-    if (typeof window === "undefined") return emptyBabyCareTimerSlots(babyId);
-    try {
-      return (
-        readBabyCareTimerSlots(localStorage, {
-          babyId,
-          now: Date.now(),
-        })?.slots ?? emptyBabyCareTimerSlots(babyId)
-      );
-    } catch {
-      return emptyBabyCareTimerSlots(babyId);
-    }
+    // Hydrate-safe: never read localStorage in useState (SSR empty ≠ client LS).
+    return emptyBabyCareTimerSlots(babyId);
   });
   const breast: BabyCareTimer | null = careSlots.breast
     ? {
@@ -330,40 +321,10 @@ export function BabyHomeContent({
         startedAt: careSlots.pump.startedAt,
       }
     : null;
-  const [breastStale, setBreastStale] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return (
-        readBabyCareTimerSlots(localStorage, {
-          babyId,
-          now: Date.now(),
-        })?.breastStale ?? false
-      );
-    } catch {
-      return false;
-    }
-  });
-  const [pumpStale, setPumpStale] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return (
-        readBabyCareTimerSlots(localStorage, {
-          babyId,
-          now: Date.now(),
-        })?.pumpStale ?? false
-      );
-    } catch {
-      return false;
-    }
-  });
+  const [breastStale, setBreastStale] = useState(false);
+  const [pumpStale, setPumpStale] = useState(false);
   const [feedSession, setFeedSession] = useState<BabyFeedSessionHandle | null>(
-    () => {
-      if (typeof window === "undefined") return null;
-      return readBabyHomeFeedSession(localStorage, {
-        babyId,
-        now: Date.now(),
-      });
-    },
+    null,
   );
   const [formulaOverride, setFormulaOverride] = useState<number | null>(null);
   // Modal Confirm sets this so in-band values (e.g. 95) still show Custom selected.
@@ -405,13 +366,8 @@ export function BabyHomeContent({
     BabyHomeQuickStatusData["babyHomeQuickStatus"]["openSleep"] | undefined
   >(undefined);
   const [pending, setPending] = useState<BabyQuickPending | null>(() => {
-    if (pendingSeed) return pendingSeed;
-    if (typeof window === "undefined") return null;
-    try {
-      return readBabyQuickPending(localStorage, { babyId });
-    } catch {
-      return null;
-    }
+    // Hydrate-safe: pendingSeed for tests; else null until mount re-read.
+    return pendingSeed ?? null;
   });
   const [visitDismissed, setVisitDismissed] = useState(
     () => visitDismissedSeed ?? false,
@@ -534,7 +490,18 @@ export function BabyHomeContent({
   useEffect(() => {
     if (pendingSeed) return;
     try {
-      setPending(readBabyQuickPending(localStorage, { babyId }));
+      const loadedRaw = readBabyQuickPending(localStorage, { babyId });
+      // Too-old: Retry is gone. Clear on mount so recovery chrome does not
+      // stick on every visit (same-session tooOld still via pendingSeed/clock).
+      let loaded = loadedRaw;
+      if (
+        loaded &&
+        babyQuickPendingView(loaded, Date.now()).kind === "tooOld"
+      ) {
+        clearBabyQuickPending(localStorage);
+        loaded = null;
+      }
+      setPending(loaded);
     } catch {
       setPending(null);
     }
@@ -1455,7 +1422,7 @@ export function BabyHomeContent({
             mls={bottleChipMls}
             selectedMl={selectedBottleMl}
             doneFlash={bottleDoneMl != null}
-            doneText={t("home.logged")}
+            doneText={t("home.done")}
             disabled={savingOwner === "bottle"}
             customSelected={bottleCustomSelected}
             showEditCustom={bottleCustomSelected}
@@ -1817,7 +1784,7 @@ export function BabyHomeContent({
             mls={pumpChipMls}
             selectedMl={selectedPumpMl}
             doneFlash={pumpAmountDoneMl != null}
-            doneText={t("home.logged")}
+            doneText={t("home.done")}
             disabled={savingOwner === "pump_amount"}
             customSelected={pumpCustomSelected}
             showEditCustom={pumpCustomSelected}

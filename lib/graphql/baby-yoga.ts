@@ -145,6 +145,7 @@ export async function executeBabyGraphQLForTest(
     workspaceId:
       "workspaceId" in ctx ? (ctx.workspaceId ?? null) : "ws-1",
     workspaceMembershipVerified,
+    dbUnreachable: ctx.dbUnreachable ?? false,
     authMethod: ctx.authMethod ?? (userSub ? "session" : null),
     apiTokenId: ctx.apiTokenId ?? null,
     scopes: ctx.scopes ?? null,

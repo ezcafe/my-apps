@@ -69,6 +69,12 @@ describe("BabyDiaperKindControl", () => {
       dirtyDone,
       /data-face-slot="done"[^>]*absolute inset-0[^>]*items-center justify-center/,
     );
+    const dirtyChip = dirtyDone.match(
+      /data-diaper-kind="dirty"[^>]*class="([^"]+)"/,
+    )?.[1];
+    assert.ok(dirtyChip);
+    assert.match(dirtyChip!, /text-accent-foreground/);
+    assert.doesNotMatch(dirtyChip!, /text-foreground/);
     assert.match(
       dirtyDone,
       /data-diaper-kind="dirty"[^]*?data-face-slot="idle"[^>]*invisible/,

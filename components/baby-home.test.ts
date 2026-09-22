@@ -173,7 +173,8 @@ describe("BabyHomeContent", () => {
     );
     assert.match(markup, /Last feed was a bottle of/);
     assert.match(markup, /120 ml/);
-    assert.match(markup, /font-medium text-foreground tabular-nums/);
+    assert.match(markup, /font-medium tabular-nums/);
+    assert.match(markup, /text-foreground/);
     assert.doesNotMatch(markup, /Feed \(Formula 120 ml\) ·/);
     assert.doesNotMatch(markup, /120 ml · Feed/);
     assert.doesNotMatch(markup, /\d+\/\d+ today/);
@@ -269,7 +270,14 @@ describe("BabyHomeContent", () => {
       src,
       /SSR init is null; re-read localStorage after mount/,
     );
-    assert.match(src, /setPending\(readBabyQuickPending\(localStorage/);
+    assert.match(src, /readBabyQuickPending\(localStorage/);
+    assert.match(src, /setPending\(loaded\)/);
+    // Too-old pending cannot Retry — clear on mount (zombie chrome).
+    assert.match(src, /kind === "tooOld"/);
+    assert.match(src, /clearBabyQuickPending\(localStorage\)/);
+    // useState must not read localStorage (client hydrate would diverge from SSR).
+    assert.match(src, /Hydrate-safe: never read localStorage in useState/);
+    assert.match(src, /return emptyBabyCareTimerSlots\(babyId\);/);
   });
 
   it("sets inFlightRef before the first await in runQuick", async () => {

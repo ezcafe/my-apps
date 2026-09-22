@@ -27,6 +27,7 @@ function baseCtx(
     userSub: "user-1",
     workspaceId: "ws-1",
     workspaceMembershipVerified: true,
+    dbUnreachable: false,
     authMethod: "session",
     apiTokenId: null,
     scopes: null,
@@ -50,6 +51,20 @@ describe("baby GraphQL authz (context helpers)", () => {
           baseCtx({ workspaceMembershipVerified: false }),
         ),
       (e: unknown) => e instanceof Error && e.message === "FORBIDDEN",
+    );
+  });
+
+  it("requireBabyWorkspace throws SERVICE_UNAVAILABLE when dbUnreachable", () => {
+    assert.throws(
+      () =>
+        requireBabyWorkspace(
+          baseCtx({
+            workspaceId: null,
+            workspaceMembershipVerified: false,
+            dbUnreachable: true,
+          }),
+        ),
+      (e: unknown) => e instanceof Error && e.message === "SERVICE_UNAVAILABLE",
     );
   });
 });

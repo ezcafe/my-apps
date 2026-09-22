@@ -84,8 +84,9 @@ describe("baby i18n t()", () => {
     assert.equal(t("diaper.dry", "vi"), "Khô");
     assert.equal(t("home.done", "en"), "Done");
     assert.equal(t("home.done", "vi"), "Xong");
-    assert.equal(t("home.logged", "en"), "Logged");
-    assert.equal(t("home.logged", "vi"), "Đã ghi");
+    // Logged flash shares Done copy/styles.
+    assert.equal(t("home.logged", "en"), t("home.done", "en"));
+    assert.equal(t("home.logged", "vi"), t("home.done", "vi"));
     assert.equal(t("home.diaperTileWet", "en"), "Wet");
     assert.equal(t("home.diaperTileWet", "vi"), "Ướt");
     assert.equal(t("home.diaperTilePoop", "en"), "Poop");

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { BABY_HOME_SMALL_GRID_MIN_H } from "@/lib/baby-home-control-height";
+import { BABY_HOME_DONE_FACE_CLASS } from "@/lib/baby-home-done-flash";
 import {
   IconBabyDiaperDry,
   IconBabyDiaperMixed,
@@ -102,12 +103,12 @@ export function BabyDiaperKindControl({
               onPlan(planBabyDiaperKindTap(kind));
             }}
             className={cn(
-              "relative flex min-h-11 min-w-0 flex-row items-center justify-center gap-1 rounded-none px-1 text-center text-foreground fx-press fx-ripple transition-colors",
+              "relative flex min-h-11 min-w-0 flex-row items-center justify-center gap-1 rounded-none px-1 text-center fx-press fx-ripple transition-colors",
               TILE_EDGE[kind],
               "border-border",
               selected
                 ? "bg-accent text-accent-foreground hover:bg-accent-hover"
-                : "bg-surface hover:bg-secondary-hover",
+                : "bg-surface text-foreground hover:bg-secondary-hover",
               busy && "opacity-50",
             )}
           >
@@ -124,10 +125,7 @@ export function BabyDiaperKindControl({
               </span>
             </span>
             {showDone ? (
-              <span
-                data-face-slot="done"
-                className="absolute inset-0 flex items-center justify-center text-sm font-medium tabular-nums"
-              >
+              <span data-face-slot="done" className={BABY_HOME_DONE_FACE_CLASS}>
                 {doneText}
               </span>
             ) : null}

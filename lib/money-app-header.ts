@@ -1,4 +1,5 @@
 import type { BreadcrumbItem } from "@/components/ui/breadcrumb";
+import { isAppSectionNavItemActive } from "@/lib/app-section-nav";
 import {
   moneySectionPrimaryCta,
   type MoneySectionPrimaryCta,
@@ -38,9 +39,7 @@ const SETTINGS_CHILDREN: Array<{ segment: string; label: string }> = [
 ];
 
 function isTabActive(pathname: string, href: string, exact: boolean): boolean {
-  return exact
-    ? pathname === href
-    : pathname === href || pathname.startsWith(`${href}/`);
+  return isAppSectionNavItemActive(pathname, href, exact);
 }
 
 function settingsChildLabel(pathname: string): string | null {

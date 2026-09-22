@@ -19,6 +19,13 @@ describe("mapServiceError", () => {
         e.message === "Service temporarily unavailable" &&
         e.extensions?.code === "DB_UNAVAILABLE",
     );
+    assert.throws(
+      () => mapServiceError(new Error("SERVICE_UNAVAILABLE")),
+      (e: unknown) =>
+        e instanceof GraphQLError &&
+        e.message === "Service temporarily unavailable" &&
+        e.extensions?.code === "SERVICE_UNAVAILABLE",
+    );
   });
 
   it("masks unknown internal errors", () => {

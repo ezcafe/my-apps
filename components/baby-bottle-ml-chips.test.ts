@@ -44,7 +44,7 @@ describe("BabyBottleMlChips", () => {
         mls: [120, 90, 60],
         selectedMl: 120,
         doneFlash: true,
-        doneText: "Logged",
+        doneText: "Done",
         onSelectMl: () => {},
         onCustom: () => {},
         t: (key) =>
@@ -57,7 +57,14 @@ describe("BabyBottleMlChips", () => {
       }),
     );
     assert.match(html, /data-bottle-ml="120"[^>]*data-bottle-flash="done"/);
-    assert.match(html, /Logged/);
+    assert.match(html, /Done/);
+    // Done face: accent-foreground only (no leftover text-foreground → white/black skew).
+    const chip120 = html.match(
+      /data-bottle-ml="120"[^>]*class="([^"]+)"/,
+    )?.[1];
+    assert.ok(chip120);
+    assert.match(chip120!, /text-accent-foreground/);
+    assert.doesNotMatch(chip120!, /text-foreground/);
   });
 
   it("Done flashes on Custom only when customSelected, not on prepended ml", () => {
@@ -66,7 +73,7 @@ describe("BabyBottleMlChips", () => {
         mls: [150, 90, 120],
         selectedMl: 150,
         doneFlash: true,
-        doneText: "Logged",
+        doneText: "Done",
         customSelected: true,
         onSelectMl: () => {},
         onCustom: () => {},
@@ -84,7 +91,7 @@ describe("BabyBottleMlChips", () => {
       html,
       /data-bottle-ml="150"[^>]*data-bottle-flash="done"/,
     );
-    assert.match(html, /data-face-slot="done"[^>]*>Logged</);
+    assert.match(html, /data-face-slot="done"[^>]*>Done</);
     // Locked Done: absolute overlay + reserved idle value slot (no height jump).
     assert.match(
       html,
@@ -102,7 +109,7 @@ describe("BabyBottleMlChips", () => {
         mls: [120, 90, 60],
         selectedMl: 120,
         doneFlash: true,
-        doneText: "Logged",
+        doneText: "Done",
         onSelectMl: () => {},
         onCustom: () => {},
         t: (key) =>
@@ -131,7 +138,7 @@ describe("BabyBottleMlChips", () => {
         mls: [90, 120, 150],
         selectedMl: 90,
         doneFlash: true,
-        doneText: "Logged",
+        doneText: "Done",
         customSelected: false,
         onSelectMl: () => {},
         onCustom: () => {},

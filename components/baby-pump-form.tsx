@@ -324,7 +324,7 @@ export function BabyPumpForm() {
           mls={pumpChipMls}
           selectedMl={selectedPumpMl}
           doneFlash={doneMl != null}
-          doneText={t("home.logged")}
+          doneText={t("home.done")}
           disabled={pending}
           customSelected={pumpCustomSelected}
           showEditCustom={pumpCustomSelected}

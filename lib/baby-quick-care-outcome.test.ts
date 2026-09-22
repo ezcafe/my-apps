@@ -14,6 +14,7 @@ describe("classifyBabyQuickCareError", () => {
       "UNAUTHORIZED",
       "FORBIDDEN",
       "NOT_FOUND",
+      "SERVICE_UNAVAILABLE",
     ]);
     for (const code of BABY_QUICK_DEFINITE_NO_COMMIT_CODES) {
       assert.equal(

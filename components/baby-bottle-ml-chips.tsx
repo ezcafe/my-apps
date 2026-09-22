@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/cn";
 import { BABY_HOME_SMALL_GRID_MIN_H } from "@/lib/baby-home-control-height";
+import { BABY_HOME_DONE_FACE_CLASS } from "@/lib/baby-home-done-flash";
 
 export type BabyBottleMlChipsProps = {
   mls: number[];
@@ -95,12 +96,12 @@ export function BabyBottleMlChips({
               else onSelectMl(ml!);
             }}
             className={cn(
-              "relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-none px-1 text-center text-sm font-medium tabular-nums text-foreground fx-press fx-ripple transition-colors",
+              "relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-none px-1 text-center text-sm font-medium tabular-nums fx-press fx-ripple transition-colors",
               TILE_EDGE[index] ?? "",
               "border-border",
               selected
                 ? "bg-accent text-accent-foreground hover:bg-accent-hover"
-                : "bg-surface hover:bg-secondary-hover",
+                : "bg-surface text-foreground hover:bg-secondary-hover",
               busy && "opacity-50",
             )}
           >
@@ -116,7 +117,7 @@ export function BabyBottleMlChips({
               <span
                 data-face-slot="done"
                 data-bottle-flash-label=""
-                className="absolute inset-0 flex items-center justify-center text-sm font-medium"
+                className={BABY_HOME_DONE_FACE_CLASS}
               >
                 {doneText}
               </span>

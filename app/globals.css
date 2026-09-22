@@ -432,6 +432,13 @@ dialog::backdrop {
     z-index: 1;
   }
 
+  /* Done/Logged overlays use absolute inset-0 + flex center. Keep them
+     absolute — the rule above is more specific than Tailwind `.absolute`
+     and would otherwise force relative, pushing the flash off-center. */
+  .fx-ripple > [data-face-slot="done"] {
+    position: absolute;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .fx-ripple:active:not(:disabled)::after,
     .fx-ripple:active:not([aria-disabled="true"])::after {

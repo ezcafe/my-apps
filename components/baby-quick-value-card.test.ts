@@ -40,13 +40,13 @@ describe("BabyQuickValueCard markup", () => {
     assert.equal(buttons.length, 4); // log + more + less + custom
   });
 
-  it("shows doneText on the log face when set", () => {
+  it("shows doneText with Done face overlay (not muted inline)", () => {
     const html = renderToStaticMarkup(
       createElement(BabyQuickValueCard, {
         labelId: "bottle",
         label: "Bottle",
         valueText: "120 ml",
-        doneText: "Logged",
+        doneText: "Done",
         onMore: () => {},
         onLess: () => {},
         onSave: () => {},
@@ -54,8 +54,13 @@ describe("BabyQuickValueCard markup", () => {
         lessLabel: "Less",
       }),
     );
-    assert.match(html, /Logged/);
-    assert.doesNotMatch(html, /120 ml/);
+    assert.match(html, /data-face-slot="done"/);
+    assert.match(html, /data-done-flash/);
+    assert.match(html, /bg-accent/);
+    assert.match(html, />Done</);
+    assert.match(html, /120 ml/);
+    assert.match(html, /invisible/);
+    assert.doesNotMatch(html, /text-muted[^"]*"[^>]*>Done</);
   });
 
   it("uses aria-disabled while busy so a second tap still hits the handler", () => {

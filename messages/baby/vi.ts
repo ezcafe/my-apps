@@ -117,7 +117,8 @@ export const babyVi: Record<BabyMessageKey, string> = {
   "home.diaperTileDry": "Khô",
   "home.diaperSheetSave": "Lưu tã",
   "home.done": "Xong",
-  "home.logged": "Đã ghi",
+  /** Alias — bottle/pump flash uses Done styles/copy (`home.done`). */
+  "home.logged": "Xong",
   "home.lastMl": "{ml} ml",
   "home.formulaCustomUnder": "Tùy chọn",
   "home.nextIn": "lần tiếp theo trong {duration}",

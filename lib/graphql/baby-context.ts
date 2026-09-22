@@ -17,6 +17,8 @@ export type BabyGraphQLContext = {
   userSub: string | null;
   workspaceId: string | null;
   workspaceMembershipVerified: boolean;
+  /** True when Postgres was unreachable while resolving workspace — not a permission deny. */
+  dbUnreachable: boolean;
   authMethod: RequestAuthMethod | null;
   apiTokenId: string | null;
   scopes: ApiTokenScope[] | null;
@@ -34,7 +36,9 @@ export async function createBabyGraphQLContext(
     auth = preResolvedAuth ?? (await resolveRequestAuth(request));
   } catch (e) {
     if (isDbUnreachable(e)) {
-      return emptyCtx(requestId, responseHeaders, request);
+      return emptyCtx(requestId, responseHeaders, request, {
+        dbUnreachable: true,
+      });
     }
     throw e;
   }
@@ -49,6 +53,7 @@ export async function createBabyGraphQLContext(
       userSub: null,
       workspaceId: null,
       workspaceMembershipVerified: false,
+      dbUnreachable: false,
       authMethod: null,
       apiTokenId: null,
       scopes: null,
@@ -73,6 +78,7 @@ export async function createBabyGraphQLContext(
         userSub,
         workspaceId: null,
         workspaceMembershipVerified: false,
+        dbUnreachable: true,
         authMethod: auth.method,
         apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
         scopes: auth.method === "api_key" ? auth.scopes : null,
@@ -91,6 +97,7 @@ export async function createBabyGraphQLContext(
       userSub,
       workspaceId: null,
       workspaceMembershipVerified: false,
+      dbUnreachable: false,
       authMethod: auth.method,
       apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
       scopes: auth.method === "api_key" ? auth.scopes : null,
@@ -111,6 +118,7 @@ export async function createBabyGraphQLContext(
         userSub,
         workspaceId,
         workspaceMembershipVerified: false,
+        dbUnreachable: true,
         authMethod: auth.method,
         apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
         scopes: auth.method === "api_key" ? auth.scopes : null,
@@ -128,6 +136,7 @@ export async function createBabyGraphQLContext(
     userSub,
     workspaceId,
     workspaceMembershipVerified: ok,
+    dbUnreachable: false,
     authMethod: auth.method,
     apiTokenId: auth.method === "api_key" ? auth.apiTokenId : null,
     scopes: auth.method === "api_key" ? auth.scopes : null,
@@ -139,6 +148,7 @@ function emptyCtx(
   requestId: string,
   responseHeaders: Headers,
   request?: Request,
+  opts?: { dbUnreachable?: boolean },
 ): BabyGraphQLContext {
   return {
     requestId,
@@ -155,6 +165,7 @@ function emptyCtx(
     userSub: null,
     workspaceId: null,
     workspaceMembershipVerified: false,
+    dbUnreachable: opts?.dbUnreachable ?? false,
     authMethod: null,
     apiTokenId: null,
     scopes: null,
@@ -172,6 +183,10 @@ export function requireBabyWorkspace(ctx: BabyGraphQLContext): {
   workspaceId: string;
 } {
   const userSub = requireBabyAuth(ctx);
+  if (ctx.dbUnreachable) {
+    // Pre-commit only — client clears quick-care pending (definiteNoCommit).
+    throw new Error("SERVICE_UNAVAILABLE");
+  }
   if (!ctx.workspaceId || !ctx.workspaceMembershipVerified) {
     throw new Error("FORBIDDEN");
   }

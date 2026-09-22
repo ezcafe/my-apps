@@ -7,6 +7,7 @@ import {
 } from "react";
 import { cn } from "@/lib/cn";
 import { BABY_HOME_BIG_CONTROL_MIN_H } from "@/lib/baby-home-control-height";
+import { BABY_HOME_DONE_FACE_CLASS } from "@/lib/baby-home-done-flash";
 
 type BabyQuickValueCardProps = {
   labelId: string;
@@ -62,7 +63,6 @@ export const BabyQuickValueCard = forwardRef<
   saveRef,
 ) {
   const busy = Boolean(disabled);
-  const faceValue = doneText ?? valueText;
   const showDone = Boolean(doneText);
   const segment =
     "flex items-center justify-center rounded-none border-0 border-b border-border bg-surface text-foreground transition-colors fx-press fx-ripple hover:bg-secondary-hover";
@@ -72,6 +72,7 @@ export const BabyQuickValueCard = forwardRef<
       role="group"
       aria-labelledby={labelId}
       data-layout="b1-bottle"
+      data-done-flash={showDone || undefined}
       className={cn(
         "flex h-full min-h-20 flex-col gap-0 overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface",
         className,
@@ -81,32 +82,45 @@ export const BabyQuickValueCard = forwardRef<
         ref={saveRef}
         type="button"
         aria-disabled={busy || undefined}
+        data-done-flash={showDone || undefined}
         onClick={() => {
           if (busy) return;
           onSave();
         }}
         className={cn(
           segment,
-          "min-h-20 w-full flex-col gap-1 px-2 py-3",
+          "relative min-h-20 w-full flex-col gap-1 overflow-hidden px-2 py-3",
+          showDone &&
+            "border-transparent bg-accent text-accent-foreground hover:bg-accent-hover",
           busy && "opacity-50",
         )}
       >
-        {icon}
-        <span id={labelId} className="text-sm font-medium">
+        {icon ? (
+          <span className={cn(showDone && "invisible")} aria-hidden={showDone || undefined}>
+            {icon}
+          </span>
+        ) : null}
+        <span
+          id={labelId}
+          className={cn("text-sm font-medium", showDone && "invisible")}
+        >
           {label}
         </span>
         <span
           className={cn(
-            "tabular-nums",
-            showDone
-              ? "text-sm font-medium text-muted"
-              : "text-lg font-semibold",
+            "tabular-nums text-lg font-semibold",
+            showDone && "invisible",
           )}
         >
-          {faceValue}
+          {valueText}
         </span>
         {!showDone && subtitle ? (
           <span className="text-xs text-muted">{subtitle}</span>
+        ) : null}
+        {showDone ? (
+          <span data-face-slot="done" className={BABY_HOME_DONE_FACE_CLASS}>
+            {doneText}
+          </span>
         ) : null}
       </button>
       <div
@@ -158,7 +172,7 @@ export const BabyQuickValueCard = forwardRef<
         </div>
       ) : null}
       <p aria-live="polite" className="sr-only">
-        {faceValue}
+        {doneText ?? valueText}
       </p>
     </div>
   );
@@ -260,10 +274,7 @@ export function BabyQuickSimpleCard({
         </span>
       ) : null}
       {showDone ? (
-        <span
-          data-face-slot="done"
-          className="absolute inset-0 flex items-center justify-center text-sm font-medium"
-        >
+        <span data-face-slot="done" className={BABY_HOME_DONE_FACE_CLASS}>
           {doneText}
         </span>
       ) : null}

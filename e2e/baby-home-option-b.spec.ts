@@ -984,6 +984,20 @@ test.describe("Baby Care home Option B", () => {
     await expect(
       bottleGroup(page).locator('[data-bottle-ml="90"][data-bottle-flash="done"]'),
     ).toBeVisible();
+    const loggedCentered = await bottleMlChip(page, 90).evaluate((btn) => {
+      const done = btn.querySelector('[data-face-slot="done"]');
+      if (!done) return { ok: false, reason: "missing done slot" };
+      const cs = getComputedStyle(done);
+      if (cs.position !== "absolute") {
+        return { ok: false, reason: `position=${cs.position}` };
+      }
+      const b = btn.getBoundingClientRect();
+      const d = done.getBoundingClientRect();
+      const dx = Math.abs(b.x + b.width / 2 - (d.x + d.width / 2));
+      const dy = Math.abs(b.y + b.height / 2 - (d.y + d.height / 2));
+      return { ok: dx <= 4 && dy <= 4, dx, dy, reason: "offset" };
+    });
+    expect(loggedCentered.ok, JSON.stringify(loggedCentered)).toBe(true);
     const body = mocks.quickCareBodies[0] as {
       action: { kind: string; amountMl: number };
     };
@@ -1681,6 +1695,20 @@ test.describe("Baby Care home Option B", () => {
       "done",
     );
     await expect(diaperKindTile(page, "wet")).toContainText(/Done|Xong/);
+    const centered = await diaperKindTile(page, "wet").evaluate((btn) => {
+      const done = btn.querySelector('[data-face-slot="done"]');
+      if (!done) return { ok: false, reason: "missing done slot" };
+      const cs = getComputedStyle(done);
+      if (cs.position !== "absolute") {
+        return { ok: false, reason: `position=${cs.position}` };
+      }
+      const b = btn.getBoundingClientRect();
+      const d = done.getBoundingClientRect();
+      const dx = Math.abs(b.x + b.width / 2 - (d.x + d.width / 2));
+      const dy = Math.abs(b.y + b.height / 2 - (d.y + d.height / 2));
+      return { ok: dx <= 4 && dy <= 4, dx, dy, reason: "offset" };
+    });
+    expect(centered.ok, JSON.stringify(centered)).toBe(true);
     await page.clock.fastForward(2100);
     await expect(diaperGroup(page)).not.toHaveAttribute("data-done-kind");
     await expect(diaperKindTile(page, "wet")).toContainText(/Wet|Ướt/);
@@ -1742,6 +1770,21 @@ test.describe("Baby Care home Option B", () => {
     await breastL(page).click();
     await expect(breastL(page)).toHaveAttribute("data-done-flash", "true");
     await expect(breastL(page)).toContainText(/Done|Xong/);
+    // Done/Logged must sit in the button center (fx-ripple must not force relative).
+    const centered = await breastL(page).evaluate((btn) => {
+      const done = btn.querySelector('[data-face-slot="done"]');
+      if (!done) return { ok: false, reason: "missing done slot" };
+      const cs = getComputedStyle(done);
+      if (cs.position !== "absolute") {
+        return { ok: false, reason: `position=${cs.position}` };
+      }
+      const b = btn.getBoundingClientRect();
+      const d = done.getBoundingClientRect();
+      const dx = Math.abs(b.x + b.width / 2 - (d.x + d.width / 2));
+      const dy = Math.abs(b.y + b.height / 2 - (d.y + d.height / 2));
+      return { ok: dx <= 4 && dy <= 4, dx, dy, reason: "offset" };
+    });
+    expect(centered.ok, JSON.stringify(centered)).toBe(true);
     await page.clock.fastForward(2100);
     await expect(breastL(page)).not.toHaveAttribute("data-done-flash");
     await expect(breastL(page).getByText(/tap to start|chạm để bắt đầu/i)).toBeVisible();
@@ -2229,7 +2272,7 @@ test.describe("Baby Care home Option B", () => {
       .click();
     expect(mocks.quickCareCount()).toBe(1);
 
-    // Too old → Open Activities + Discard only under owner (no Try again; no page strip).
+    // Too old on remount → auto-cleared (Retry gone; no zombie recovery chrome).
     await page.unroute("**/api/graphql/baby");
     await page.evaluate(
       ({ key, value }) => {
@@ -2251,23 +2294,22 @@ test.describe("Baby Care home Option B", () => {
     await installBabyHomeMocks(page, { status: defaultStatus() });
     await page.reload();
     await expect(page.getByTestId("baby-home")).toBeVisible();
-    await expect(pendingRecoveryUnder(page, "diaper")).toBeVisible();
-    await expect(pendingTooOldTitle(page)).toBeVisible();
-    await expect(
-      pendingRecoveryUnder(page, "diaper").getByRole("link", {
-        name: /open activities|mở hoạt động/i,
-      }),
-    ).toHaveAttribute("href", "/baby/activities");
-    await expect(
-      pendingRecoveryUnder(page, "diaper").getByRole("button", {
-        name: /try again|thử lại/i,
-      }),
-    ).toHaveCount(0);
-    // Old page-level bordered strip is gone — only under-owner recovery.
-    await expect(page.getByTestId("baby-home-pending-recovery")).toHaveCount(1);
+    await expect(page.getByTestId("baby-home-pending-recovery")).toHaveCount(0);
+    await expect(pendingTooOldTitle(page)).toHaveCount(0);
+    expect(
+      await page.evaluate(
+        (key) => window.localStorage.getItem(key),
+        BABY_QUICK_PENDING_STORAGE_KEY,
+      ),
+    ).toBeNull();
 
     // Definite clear vs keep-unknown (assert UI contract).
-    for (const code of ["NOT_FOUND", "UNAUTHORIZED", "FORBIDDEN"] as const) {
+    for (const code of [
+      "NOT_FOUND",
+      "UNAUTHORIZED",
+      "FORBIDDEN",
+      "SERVICE_UNAVAILABLE",
+    ] as const) {
       await page.unroute("**/api/graphql/baby");
       const m = await installBabyHomeMocks(page, {
         status: defaultStatus(),
@@ -2353,7 +2395,7 @@ test.describe("Baby Care home Option B", () => {
     await expect(breastL(page).getByText(/\d+:\d{2}/)).toBeVisible();
   });
 
-  test("home pending too-old Open Activities goes to /baby/activities", async ({
+  test("home pending too-old is cleared on remount (no zombie recovery)", async ({
     page,
   }) => {
     await installBabyHomeMocks(page, { status: defaultStatus() });
@@ -2377,20 +2419,14 @@ test.describe("Baby Care home Option B", () => {
     );
     await page.reload();
     await expect(page.getByTestId("baby-home")).toBeVisible();
-    await expect(pendingRecoveryUnder(page, "diaper")).toBeVisible();
-    await expect(pendingTooOldTitle(page)).toBeVisible();
-
-    const link = pendingRecoveryUnder(page, "diaper").getByRole("link", {
-      name: /open activities|mở hoạt động/i,
-    });
-    await expect(link).toHaveAttribute("href", "/baby/activities");
-    await Promise.all([
-      page.waitForURL(/\/baby\/activities/),
-      link.click(),
-    ]);
-    await expect(
-      page.getByRole("heading", { name: /activities|hoạt động/i }),
-    ).toBeVisible();
+    await expect(page.getByTestId("baby-home-pending-recovery")).toHaveCount(0);
+    await expect(pendingTooOldTitle(page)).toHaveCount(0);
+    expect(
+      await page.evaluate(
+        (key) => window.localStorage.getItem(key),
+        BABY_QUICK_PENDING_STORAGE_KEY,
+      ),
+    ).toBeNull();
   });
 
   test("fail-closed localStorage blocks BabyQuickCare", async ({ page }) => {
