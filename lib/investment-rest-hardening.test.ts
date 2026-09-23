@@ -10,6 +10,7 @@ const invCtx = {
     workspaceId: "00000000-0000-4000-8000-000000000001",
     apiTokenId: "tok-1",
     apiTokenAppKey: "investment" as const,
+    apiTokenApps: [] as const,
     scopes: ["read", "write"] as ("read" | "write")[],
   },
 };

@@ -9,6 +9,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { workspace } from "@/db/schema/workspace";
+import type { ShareableWorkspaceAppKey } from "@/lib/workspace-shareable-apps";
 
 export const API_TOKEN_SCOPES = ["read", "write"] as const;
 export type ApiTokenScope = (typeof API_TOKEN_SCOPES)[number];
@@ -21,8 +22,13 @@ export const apiToken = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspace.id, { onDelete: "cascade" }),
-    /** Product area; v1 tokens are Money-only */
+    /**
+     * Prefix / legacy product key. Settings shareable tokens stay `money` (`mny_`).
+     * Access for Money/Baby is `apps`.
+     */
     appKey: text("app_key").notNull().default("money"),
+    /** Money/Baby grants; null → derive from app_key for money|baby rows. */
+    apps: jsonb("apps").$type<ShareableWorkspaceAppKey[]>(),
     name: text("name").notNull(),
     /** First 12 characters of the full token (includes `mny_` prefix) */
     keyPrefix: text("key_prefix").notNull(),

@@ -64,6 +64,7 @@ export async function POST(req: Request) {
     const { token, item } = await createApiTokenForUser(userSub, {
       name: parsed.data.name,
       workspaceId: parsed.data.workspaceId,
+      apps: parsed.data.apps,
       appKey: parsed.data.appKey,
       scopes,
       expiresAt,

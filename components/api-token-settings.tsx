@@ -10,9 +10,11 @@ import { Select } from "@/components/ui/select";
 import { useNotify } from "@/components/notification-provider";
 import type { ApiTokenListItem } from "@/lib/api-token-service";
 import type { ApiTokenScope } from "@/db/schema/api-token";
-import type { ApiTokenAppKey } from "@/lib/api-auth";
-import { API_TOKEN_APP_KEYS } from "@/lib/api-token-app-keys";
 import { MoneyStatusEmphasis, MoneyStatusStrip } from "@/lib/money-status-strip";
+import {
+  SHAREABLE_WORKSPACE_APP_KEYS,
+  type ShareableWorkspaceAppKey,
+} from "@/lib/workspace-shareable-apps";
 
 type WorkspaceRow = {
   id: string;
@@ -21,9 +23,14 @@ type WorkspaceRow = {
   isDefault: boolean;
 };
 
+const APP_LABELS: Record<ShareableWorkspaceAppKey, string> = {
+  money: "Money",
+  baby: "Baby Care",
+};
+
 function TokenCreateForm({
-  appKey,
-  setAppKey,
+  apps,
+  toggleApp,
   name,
   setName,
   workspaceId,
@@ -34,8 +41,8 @@ function TokenCreateForm({
   creating,
   createToken,
 }: {
-  appKey: ApiTokenAppKey;
-  setAppKey: (key: ApiTokenAppKey) => void;
+  apps: Record<ShareableWorkspaceAppKey, boolean>;
+  toggleApp: (key: ShareableWorkspaceAppKey) => void;
   name: string;
   setName: (name: string) => void;
   workspaceId: string;
@@ -46,20 +53,26 @@ function TokenCreateForm({
   creating: boolean;
   createToken: () => void;
 }) {
+  const anyApp = SHAREABLE_WORKSPACE_APP_KEYS.some((k) => apps[k]);
   return (
     <div className="space-y-4 rounded-[var(--radius-sm)] bg-background p-4">
       <div className="grid gap-3">
-        <Field label="App">
-          <Select
-            value={appKey}
-            onChange={(e) => setAppKey(e.target.value as ApiTokenAppKey)}
-          >
-            {API_TOKEN_APP_KEYS.map((key) => (
-              <option key={key} value={key}>
-                {key.charAt(0).toUpperCase() + key.slice(1)}
-              </option>
+        <Field label="Apps">
+          <div className="flex flex-col gap-2">
+            {SHAREABLE_WORKSPACE_APP_KEYS.map((key) => (
+              <div
+                key={key}
+                className="flex items-center gap-2 text-sm text-foreground"
+              >
+                <Checkbox
+                  checked={apps[key]}
+                  onChange={() => toggleApp(key)}
+                  ariaLabel={APP_LABELS[key]}
+                />
+                <span>{APP_LABELS[key]}</span>
+              </div>
             ))}
-          </Select>
+          </div>
         </Field>
         <Field label="Name" required>
           <Input
@@ -95,7 +108,7 @@ function TokenCreateForm({
       <Button
         type="button"
         variant="primary"
-        disabled={creating || !workspaceId}
+        disabled={creating || !workspaceId || !anyApp}
         onClick={() => void createToken()}
       >
         {creating ? "Creating…" : "Create token"}
@@ -132,8 +145,9 @@ function TokenList({
           <div>
             <p className="text-sm font-medium text-foreground">{t.name}</p>
             <p className="mt-1 font-mono text-sm text-muted">
-              {t.keyPrefix}… · {t.appKey} · {workspaceName(t.workspaceId)} ·{" "}
-              {t.scopes.join(", ")}
+              {t.keyPrefix}… ·{" "}
+              {(t.apps?.length ? t.apps : [t.appKey]).join(", ")} ·{" "}
+              {workspaceName(t.workspaceId)} · {t.scopes.join(", ")}
             </p>
             <p className="mt-1 text-sm text-muted">
               Created {new Date(t.createdAt).toLocaleString()}
@@ -167,18 +181,26 @@ export function ApiTokenSettings({
   initialTokens: ApiTokenListItem[];
 }) {
   const notify = useNotify();
-  const [appKey, setAppKey] = useState<ApiTokenAppKey>("money");
+  const [apps, setApps] = useState<Record<ShareableWorkspaceAppKey, boolean>>({
+    money: true,
+    baby: false,
+  });
   const [workspaces, setWorkspaces] = useState(initialWorkspaces);
   const [tokens, setTokens] = useState(initialTokens);
-  const defaultWs =
-    workspaces.find((w) => w.isDefault) ?? workspaces[0];
+  const defaultWs = workspaces.find((w) => w.isDefault) ?? workspaces[0];
   const [name, setName] = useState("");
   const [workspaceId, setWorkspaceId] = useState(defaultWs?.id ?? "");
+
+  const listApp: ShareableWorkspaceAppKey = apps.money
+    ? "money"
+    : apps.baby
+      ? "baby"
+      : "money";
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const res = await fetch(`/api/workspace/list?app=${appKey}`, {
+      const res = await fetch(`/api/workspace/list?app=${listApp}`, {
         credentials: "include",
       });
       if (!res.ok) return;
@@ -192,7 +214,8 @@ export function ApiTokenSettings({
     return () => {
       cancelled = true;
     };
-  }, [appKey]);
+  }, [listApp]);
+
   const [writeScope, setWriteScope] = useState(true);
   const [creating, setCreating] = useState(false);
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
@@ -200,6 +223,10 @@ export function ApiTokenSettings({
 
   const workspaceName = (id: string) =>
     workspaces.find((w) => w.id === id)?.name ?? id.slice(0, 8);
+
+  const toggleApp = (key: ShareableWorkspaceAppKey) => {
+    setApps((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const refreshTokens = async () => {
     const res = await fetch("/api/tokens", { credentials: "include" });
@@ -210,8 +237,9 @@ export function ApiTokenSettings({
   };
 
   const createToken = async () => {
-    if (!name.trim() || !workspaceId) {
-      notify.error("Name and workspace are required");
+    const selected = SHAREABLE_WORKSPACE_APP_KEYS.filter((k) => apps[k]);
+    if (!name.trim() || !workspaceId || selected.length === 0) {
+      notify.error("Name, workspace, and at least one app are required");
       return;
     }
     setCreating(true);
@@ -226,7 +254,7 @@ export function ApiTokenSettings({
         body: JSON.stringify({
           name: name.trim(),
           workspaceId,
-          appKey,
+          apps: selected,
           scopes,
         }),
       });
@@ -281,8 +309,8 @@ export function ApiTokenSettings({
   };
 
   const createFormProps = {
-    appKey,
-    setAppKey,
+    apps,
+    toggleApp,
     name,
     setName,
     workspaceId,
@@ -305,12 +333,13 @@ export function ApiTokenSettings({
       ) : null}
       {!embedded ? (
         <p className="text-sm text-muted">
-          Personal tokens for Postman, cron jobs, and scripts. Each token is bound
-          to one workspace for Money, Savings, or Investment. Send{" "}
+          Personal Bearer tokens for Postman, scripts, and Watch apps. Each token
+          is bound to one workspace. Toggle <strong>Money</strong> and/or{" "}
+          <strong>Baby Care</strong> access, then send{" "}
           <code className="rounded-[var(--radius-sm)] bg-muted-surface px-1 py-0.5 font-mono text-sm">
-            Authorization: Bearer mny_|sav_|inv_…
+            Authorization: Bearer mny_…
           </code>{" "}
-          on GraphQL and REST requests.
+          on GraphQL requests for the apps you enabled.
         </p>
       ) : null}
 

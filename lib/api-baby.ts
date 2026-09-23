@@ -11,16 +11,14 @@ import {
 } from "@/lib/api-http";
 import {
   hasWriteScope,
+  resolveBabyWorkspaceId,
   resolveRequestAuth,
   type ResolvedRequestAuth,
   verifyBabyWorkspaceAccess,
 } from "@/lib/api-auth";
 import type { ApiTokenScope } from "@/db/schema/api-token";
 import { setActiveWorkspaceCookie } from "@/lib/workspace-context";
-import {
-  BABY_APP_KEY,
-  getBabyWorkspaceIdForUser,
-} from "@/lib/workspace-baby";
+import { BABY_APP_KEY } from "@/lib/workspace-baby";
 
 export {
   unauthorized,
@@ -39,19 +37,6 @@ export type BabyRequestContext = {
   workspaceId: string;
   auth: ResolvedRequestAuth;
 };
-
-async function resolveBabyWorkspaceId(
-  auth: ResolvedRequestAuth,
-): Promise<string | null> {
-  if (!auth.userSub) return null;
-  // Baby MVP is session-only; API tokens stay Money-scoped.
-  if (auth.method === "api_key") return null;
-  try {
-    return await getBabyWorkspaceIdForUser(auth.userSub);
-  } catch {
-    return null;
-  }
-}
 
 export async function requireBabyContext(
   request?: Request,

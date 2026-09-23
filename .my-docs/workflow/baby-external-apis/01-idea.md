@@ -18,10 +18,10 @@ An external app cannot reliably call Baby Care over HTTP with a personal API tok
 
 Done means:
 
-1. A caregiver can create a **Baby-scoped** personal API token (workspace-bound, read/write scopes) in Settings.
-2. An external client can call Baby GraphQL (and any agreed thin REST) with `Authorization: Bearer baby_…` (or chosen prefix).
-3. Docs (`docs/API.md`, Help content, OpenAPI/schema export if applicable) show how to authenticate and call Baby.
-4. Session cookie callers keep working; API tokens cannot manage other apps’ data.
+1. A caregiver can create a **personal API token** for one workspace and **toggle Money and/or Baby** access in Settings (one secret).
+2. An external client can call Money and/or Baby GraphQL with that Bearer token when the matching app is granted.
+3. Docs (`docs/API.md`, `docs/BABY_API.md`, Help) show how to authenticate and which apps the token unlocks.
+4. Session cookie callers keep working; tokens cannot manage other users’ data; grants are least-privilege per app.
 
 ## Metric
 

@@ -17,7 +17,7 @@ Session cookie from Pocket ID / NextAuth after signing in at `/login`.
 ### Automation / Postman
 
 1. Sign in to the app and open **Settings → API tokens**.
-2. Create a token (bound to one workspace for Money, Savings, or Investment). Copy the secret once (`mny_…`, `sav_…`, or `inv_…`).
+2. Create a token (bound to one workspace). Toggle **Money** and/or **Baby Care** app access. Copy the secret once (`mny_…`; legacy `sav_…` / `inv_…` still exist for older apps).
 3. Send on every request:
 
 ```http
@@ -44,6 +44,7 @@ Each token is tied to a single `workspace_id` and `appKey` at creation. You do n
 | App | Endpoint |
 |-----|----------|
 | Money | `POST /api/graphql` (aliases: `/savings`, `/investment`, `/loans`) |
+| Baby Care | `POST /api/graphql/baby` — see [`docs/BABY_API.md`](BABY_API.md) (session or Bearer `mny_…` with Baby app grant) |
 
 **POST only.** Cookie/session requests require a matching `Origin` (CSRF). Bearer API tokens skip Origin checks. Auth is resolved once per request (shared with rate limiting).
 

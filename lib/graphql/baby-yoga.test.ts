@@ -22,6 +22,7 @@ function baseCtx(
       workspaceId: null,
       apiTokenId: null,
       apiTokenAppKey: null,
+      apiTokenApps: null,
       scopes: null,
     },
     userSub: "user-1",

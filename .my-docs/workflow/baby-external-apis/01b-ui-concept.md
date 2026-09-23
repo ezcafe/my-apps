@@ -1,6 +1,6 @@
 # UI concept (UI/UX designer): baby-external-apis
 
-**Result:** pending — waiting for real Settings screenshot
+**Result:** done — real Settings screenshot captured (dark)
 **Updated:** 2026-09-22
 **Has UI:** yes
 
@@ -39,23 +39,24 @@
 
 | Surface | Variant (light / dark / mobile) | File path | Source (screenshot / prior-ui-ref / concept-draft) | Shown at Gate A2? | Confirmed at Gate B? (text ok) |
 |---------|---------------------------------|-----------|-----------------------------------------------------|-------------------|-------------------------------|
-| Settings → API tokens | light | `.my-docs/workflow/baby-external-apis/ui-refs/01-settings-api-tokens-light.png` | **pending screenshot** | yes | |
+| Settings → API tokens | dark | `.my-docs/workflow/baby-external-apis/ui-refs/01-settings-api-tokens-dark.png` | screenshot (user, 2026-09-22) | yes | |
 
-**Blocker:** `localhost:3000` was not serving; no auth storage state found. Do **not** invent a mock with GenerateImage for this existing surface.
+**Baseline (today):** App select shows **Money** only; Create token disabled until Workspace is set; Active tokens empty.
 
-**Capture plan:** With app running and signed in, screenshot `#settings-api-tokens` on `/settings` (light). After Build, re-capture with Baby visible in the App select.
+**After Build:** Re-capture with **Money / Baby checkboxes** (not App dropdown).
 
 ## Layout concept (plain words)
 
-- **Hierarchy / eye flow:** Section title “API tokens” → create form (App, Name, Workspace, scopes) → token list.
+- **Hierarchy / eye flow:** Section title “API tokens” → create form (App grants, Name, Workspace, scopes) → token list.
 - **Core vs secondary:** Create + list/revoke dominant; Help link secondary.
-- **Only visual change for this feature:** App dropdown includes **Baby** (and keeps Money). No new page.
+- **Visual change for this feature:** Replace App **dropdown** with **Money / Baby checkboxes** (same labels as workspace member grants). No new page.
 
 | Component / pattern | Where it already lives | Use for |
 |---------------------|------------------------|---------|
 | `ApiTokenSettings` | `components/api-token-settings.tsx` | Whole surface |
+| Member app checkboxes | `components/workspace-members-panel.tsx` | Grant toggle UX/labels |
 | `SettingsSection` | `components/settings/settings-section.tsx` | Section chrome |
-| `Select` / `Field` / `Button` | `components/ui/*` | Form controls |
+| `Select` / `Field` / `Button` | `components/ui/*` | Remaining form controls |
 
 ## States
 

@@ -1,13 +1,13 @@
 import type { ApiTokenScope } from "@/db/schema/api-token";
 import {
   hasWriteScope,
+  resolveBabyWorkspaceId,
   resolveRequestAuth,
   type RequestAuthMethod,
   type ResolvedRequestAuth,
   verifyBabyWorkspaceAccess,
 } from "@/lib/api-auth";
 import { isDbUnreachable } from "@/lib/db-errors";
-import { getBabyWorkspaceIdForUser } from "@/lib/workspace-baby";
 
 export type BabyGraphQLContext = {
   requestId: string;
@@ -63,11 +63,7 @@ export async function createBabyGraphQLContext(
 
   let workspaceId: string | null = null;
   try {
-    if (auth.method === "api_key") {
-      workspaceId = null;
-    } else {
-      workspaceId = await getBabyWorkspaceIdForUser(userSub);
-    }
+    workspaceId = await resolveBabyWorkspaceId(auth);
   } catch (e) {
     if (isDbUnreachable(e)) {
       return {
@@ -160,6 +156,7 @@ function emptyCtx(
       workspaceId: null,
       apiTokenId: null,
       apiTokenAppKey: null,
+      apiTokenApps: null,
       scopes: null,
     },
     userSub: null,

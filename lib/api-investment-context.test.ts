@@ -22,6 +22,7 @@ describe("requireInvestmentContext with mocked auth", () => {
             workspaceId: "ws-1",
             apiTokenId: "tok-1",
             apiTokenAppKey: appKey,
+            apiTokenApps: appKey === "money" ? ["money"] : [],
             scopes: ["read", "write"],
           }) satisfies ResolvedRequestAuth,
         resolveInvestmentWorkspaceId: async () => "ws-1",

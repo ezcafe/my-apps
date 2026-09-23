@@ -18,6 +18,7 @@ describe("tokens/timezone GraphQL transport JSON errors", () => {
           workspaceId: null,
           apiTokenId: null,
           apiTokenAppKey: null,
+      apiTokenApps: null,
           scopes: null,
         }),
       },

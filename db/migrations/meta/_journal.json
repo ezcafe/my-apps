@@ -302,6 +302,13 @@
       "when": 1779836000000,
       "tag": "0042_http_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1779836100000,
+      "tag": "0043_api_token_apps",
+      "breakpoints": true
     }
   ]
 }

@@ -24,6 +24,7 @@ describe("GraphQL investment resolve still accepts money key (regression)", () =
       workspaceId: "ws-money-key",
       apiTokenId: "tok-1",
       apiTokenAppKey: "money",
+      apiTokenApps: ["money"],
       scopes: ["read", "write"],
     };
     const id = await resolveInvestmentWorkspaceId(auth);
@@ -37,6 +38,7 @@ describe("GraphQL investment resolve still accepts money key (regression)", () =
       workspaceId: "ws-inv-key",
       apiTokenId: "tok-2",
       apiTokenAppKey: "investment",
+      apiTokenApps: [],
       scopes: ["read", "write"],
     };
     const id = await resolveInvestmentWorkspaceId(auth);
@@ -50,6 +52,7 @@ describe("GraphQL investment resolve still accepts money key (regression)", () =
       workspaceId: "ws-sav",
       apiTokenId: "tok-3",
       apiTokenAppKey: "savings",
+      apiTokenApps: [],
       scopes: ["read", "write"],
     };
     const id = await resolveInvestmentWorkspaceId(auth);

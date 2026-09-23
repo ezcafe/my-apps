@@ -30,6 +30,7 @@ describe("idempotency route smokes (stubbed handlers)", () => {
         workspaceId: "00000000-0000-4000-8000-000000000001",
         apiTokenId: null,
         apiTokenAppKey: null,
+      apiTokenApps: null,
         scopes: null,
       },
     };

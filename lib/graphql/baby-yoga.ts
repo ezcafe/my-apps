@@ -126,6 +126,7 @@ export async function executeBabyGraphQLForTest(
         workspaceId: null,
         apiTokenId: null,
         apiTokenAppKey: null,
+      apiTokenApps: null,
         scopes: null,
       }
     : {
@@ -134,6 +135,7 @@ export async function executeBabyGraphQLForTest(
         workspaceId: null,
         apiTokenId: null,
         apiTokenAppKey: null,
+      apiTokenApps: null,
         scopes: null,
       };
   const contextValue: BabyGraphQLContext = {

@@ -12,6 +12,12 @@ import { getWorkspaceIdForUser } from "@/lib/workspace";
 import { getSavingsWorkspaceIdForUser } from "@/lib/workspace-savings";
 import { getInvestmentWorkspaceIdForUser } from "@/lib/workspace-investment";
 import { isDbUnreachable } from "@/lib/db-errors";
+import {
+  apiTokenHasAppGrant,
+  resolveTokenApps,
+} from "@/lib/api-token-grants";
+import type { ShareableWorkspaceAppKey } from "@/lib/workspace-shareable-apps";
+import { getBabyWorkspaceIdForUser } from "@/lib/workspace-baby";
 
 const scryptAsync = promisify(scrypt);
 
@@ -35,6 +41,7 @@ export type ResolvedRequestAuth =
       workspaceId: null;
       apiTokenId: null;
       apiTokenAppKey: null;
+      apiTokenApps: null;
       scopes: null;
     }
   | {
@@ -43,6 +50,8 @@ export type ResolvedRequestAuth =
       workspaceId: string;
       apiTokenId: string;
       apiTokenAppKey: ApiTokenAppKey;
+      /** Money/Baby grants (empty for sav/inv-only legacy). */
+      apiTokenApps: ShareableWorkspaceAppKey[];
       scopes: ApiTokenScope[];
     }
   | {
@@ -51,6 +60,7 @@ export type ResolvedRequestAuth =
       workspaceId: null;
       apiTokenId: null;
       apiTokenAppKey: null;
+      apiTokenApps: null;
       scopes: null;
     };
 
@@ -118,6 +128,7 @@ type ApiTokenRow = {
   userSub: string;
   workspaceId: string;
   appKey: string;
+  apps: ShareableWorkspaceAppKey[] | null;
   scopes: ApiTokenScope[];
 };
 
@@ -135,6 +146,7 @@ async function findActiveTokenBySecret(
       userSub: apiToken.userSub,
       workspaceId: apiToken.workspaceId,
       appKey: apiToken.appKey,
+      apps: apiToken.apps,
       keyHash: apiToken.keyHash,
       scopes: apiToken.scopes,
       expiresAt: apiToken.expiresAt,
@@ -162,6 +174,7 @@ async function findActiveTokenBySecret(
             userSub: apiToken.userSub,
             workspaceId: apiToken.workspaceId,
             appKey: apiToken.appKey,
+            apps: apiToken.apps,
             keyHash: apiToken.keyHash,
             scopes: apiToken.scopes,
             expiresAt: apiToken.expiresAt,
@@ -189,6 +202,7 @@ async function findActiveTokenBySecret(
       userSub: row.userSub,
       workspaceId: row.workspaceId,
       appKey: row.appKey,
+      apps: row.apps ?? null,
       scopes: row.scopes,
     };
   }
@@ -219,6 +233,7 @@ export async function resolveRequestAuth(
           workspaceId: null,
           apiTokenId: null,
           apiTokenAppKey: null,
+      apiTokenApps: null,
           scopes: null,
         };
       }
@@ -235,6 +250,10 @@ export async function resolveRequestAuth(
         workspaceId: row.workspaceId,
         apiTokenId: row.id,
         apiTokenAppKey: tokenAppKey,
+        apiTokenApps: resolveTokenApps({
+          appKey: row.appKey,
+          apps: row.apps,
+        }),
         scopes: row.scopes,
       };
     } catch (e) {
@@ -245,6 +264,7 @@ export async function resolveRequestAuth(
         workspaceId: null,
         apiTokenId: null,
         apiTokenAppKey: null,
+      apiTokenApps: null,
         scopes: null,
       };
     }
@@ -259,6 +279,7 @@ export async function resolveRequestAuth(
       workspaceId: null,
       apiTokenId: null,
       apiTokenAppKey: null,
+      apiTokenApps: null,
       scopes: null,
     };
   }
@@ -269,6 +290,7 @@ export async function resolveRequestAuth(
     workspaceId: null,
     apiTokenId: null,
     apiTokenAppKey: null,
+      apiTokenApps: null,
     scopes: null,
   };
 }
@@ -290,6 +312,7 @@ export async function resolveMoneyWorkspaceId(
 
   if (auth.method === "api_key") {
     if (auth.apiTokenAppKey !== "money") return null;
+    if (!apiTokenHasAppGrant(auth.apiTokenApps, "money")) return null;
     return auth.workspaceId;
   }
 
@@ -311,13 +334,14 @@ export async function resolveSavingsWorkspaceId(
 ): Promise<string | null> {
   if (!auth.userSub) return null;
   if (auth.method === "api_key") {
+    if (auth.apiTokenAppKey === "savings") return auth.workspaceId;
     if (
-      auth.apiTokenAppKey !== "savings" &&
-      auth.apiTokenAppKey !== "money"
+      auth.apiTokenAppKey === "money" &&
+      apiTokenHasAppGrant(auth.apiTokenApps, "money")
     ) {
-      return null;
+      return auth.workspaceId;
     }
-    return auth.workspaceId;
+    return null;
   }
   try {
     return await getSavingsWorkspaceIdForUser(auth.userSub);
@@ -331,16 +355,34 @@ export async function resolveInvestmentWorkspaceId(
 ): Promise<string | null> {
   if (!auth.userSub) return null;
   if (auth.method === "api_key") {
+    if (auth.apiTokenAppKey === "investment") return auth.workspaceId;
     if (
-      auth.apiTokenAppKey !== "investment" &&
-      auth.apiTokenAppKey !== "money"
+      auth.apiTokenAppKey === "money" &&
+      apiTokenHasAppGrant(auth.apiTokenApps, "money")
     ) {
-      return null;
+      return auth.workspaceId;
     }
-    return auth.workspaceId;
+    return null;
   }
   try {
     return await getInvestmentWorkspaceIdForUser(auth.userSub);
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveBabyWorkspaceId(
+  auth: ResolvedRequestAuth,
+): Promise<string | null> {
+  if (!auth.userSub) return null;
+
+  if (auth.method === "api_key") {
+    if (!apiTokenHasAppGrant(auth.apiTokenApps, "baby")) return null;
+    return auth.workspaceId;
+  }
+
+  try {
+    return await getBabyWorkspaceIdForUser(auth.userSub);
   } catch {
     return null;
   }

@@ -6,10 +6,15 @@ import {
   hashApiTokenForStorage,
   apiTokenLookupHash,
   API_TOKEN_PREFIX_LENGTH,
-  type ApiTokenAppKey,
 } from "@/lib/api-auth";
+import {
+  normalizeTokenAppsInput,
+  primaryAppKeyForTokenApps,
+  resolveTokenApps,
+} from "@/lib/api-token-grants";
 import { writeAuditEvent } from "@/lib/audit-log";
 import { assertWorkspaceAppAccess } from "@/lib/workspace-app-access";
+import type { ShareableWorkspaceAppKey } from "@/lib/workspace-shareable-apps";
 
 export type ApiTokenListItem = {
   id: string;
@@ -17,11 +22,38 @@ export type ApiTokenListItem = {
   keyPrefix: string;
   workspaceId: string;
   appKey: string;
+  apps: ShareableWorkspaceAppKey[];
   scopes: ApiTokenScope[];
   lastUsedAt: string | null;
   expiresAt: string | null;
   createdAt: string;
 };
+
+function toListItem(r: {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  workspaceId: string;
+  appKey: string;
+  apps: ShareableWorkspaceAppKey[] | null;
+  scopes: ApiTokenScope[];
+  lastUsedAt: Date | null;
+  expiresAt: Date | null;
+  createdAt: Date;
+}): ApiTokenListItem {
+  return {
+    id: r.id,
+    name: r.name,
+    keyPrefix: r.keyPrefix,
+    workspaceId: r.workspaceId,
+    appKey: r.appKey,
+    apps: resolveTokenApps({ appKey: r.appKey, apps: r.apps }),
+    scopes: r.scopes,
+    lastUsedAt: r.lastUsedAt?.toISOString() ?? null,
+    expiresAt: r.expiresAt?.toISOString() ?? null,
+    createdAt: r.createdAt.toISOString(),
+  };
+}
 
 export async function listApiTokensForUser(
   userSub: string,
@@ -33,6 +65,7 @@ export async function listApiTokensForUser(
       keyPrefix: apiToken.keyPrefix,
       workspaceId: apiToken.workspaceId,
       appKey: apiToken.appKey,
+      apps: apiToken.apps,
       scopes: apiToken.scopes,
       lastUsedAt: apiToken.lastUsedAt,
       expiresAt: apiToken.expiresAt,
@@ -42,17 +75,7 @@ export async function listApiTokensForUser(
     .where(and(eq(apiToken.userSub, userSub), isNull(apiToken.revokedAt)))
     .orderBy(desc(apiToken.createdAt));
 
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    keyPrefix: r.keyPrefix,
-    workspaceId: r.workspaceId,
-    appKey: r.appKey,
-    scopes: r.scopes,
-    lastUsedAt: r.lastUsedAt?.toISOString() ?? null,
-    expiresAt: r.expiresAt?.toISOString() ?? null,
-    createdAt: r.createdAt.toISOString(),
-  }));
+  return rows.map(toListItem);
 }
 
 export async function createApiTokenForUser(
@@ -60,17 +83,28 @@ export async function createApiTokenForUser(
   input: {
     name: string;
     workspaceId: string;
-    appKey: ApiTokenAppKey;
+    apps?: ShareableWorkspaceAppKey[];
+    /** Legacy single-app body field. */
+    appKey?: string;
     scopes: ApiTokenScope[];
     expiresAt: Date | null;
   },
 ): Promise<{ token: string; item: ApiTokenListItem }> {
-  const member = await assertWorkspaceAppAccess(userSub, input.workspaceId, "money");
-  if (!member) {
-    throw new Error("FORBIDDEN");
+  const apps = normalizeTokenAppsInput(input.apps, input.appKey);
+
+  for (const app of apps) {
+    const member = await assertWorkspaceAppAccess(
+      userSub,
+      input.workspaceId,
+      app,
+    );
+    if (!member) {
+      throw new Error("FORBIDDEN");
+    }
   }
 
-  const secret = await generateApiTokenSecret(input.appKey);
+  const storedAppKey = primaryAppKeyForTokenApps(apps);
+  const secret = await generateApiTokenSecret(storedAppKey);
   const keyHash = await hashApiTokenForStorage(secret);
   const keyPrefix = secret.slice(0, API_TOKEN_PREFIX_LENGTH);
   const keyLookup = apiTokenLookupHash(secret);
@@ -80,7 +114,8 @@ export async function createApiTokenForUser(
     .values({
       userSub,
       workspaceId: input.workspaceId,
-      appKey: input.appKey,
+      appKey: storedAppKey,
+      apps,
       name: input.name,
       keyPrefix,
       keyHash,
@@ -94,6 +129,7 @@ export async function createApiTokenForUser(
       keyPrefix: apiToken.keyPrefix,
       workspaceId: apiToken.workspaceId,
       appKey: apiToken.appKey,
+      apps: apiToken.apps,
       scopes: apiToken.scopes,
       lastUsedAt: apiToken.lastUsedAt,
       expiresAt: apiToken.expiresAt,
@@ -105,22 +141,12 @@ export async function createApiTokenForUser(
     action: "api_token.created",
     userSub,
     workspaceId: row.workspaceId,
-    detail: { tokenId: row.id, scopes: row.scopes },
+    detail: { tokenId: row.id, scopes: row.scopes, apps },
   });
 
   return {
     token: secret,
-    item: {
-      id: row.id,
-      name: row.name,
-      keyPrefix: row.keyPrefix,
-      workspaceId: row.workspaceId,
-      appKey: row.appKey,
-      scopes: row.scopes,
-      lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
-      expiresAt: row.expiresAt?.toISOString() ?? null,
-      createdAt: row.createdAt.toISOString(),
-    },
+    item: toListItem(row),
   };
 }
 

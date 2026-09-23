@@ -2011,10 +2011,10 @@ export const apiHelpSections: ApiHelpSection[] = [
     id: "token",
     title: "1. Create an API Token",
     description:
-      "Sign in to the web app, then generate a token bound to your target workspace. Copy the secret immediately upon creation — it begins with mny_ and is shown only once.",
+      "Sign in to the web app, then generate a token bound to your target workspace. Toggle Money and/or Baby Care. Copy the secret immediately — it begins with mny_ and is shown only once.",
     bullets: [
-      "Go to Settings → API tokens and select your workspace",
-      "Enable write scope if you need to create transactions, loans, or investments",
+      "Go to Settings → API tokens; enable Money and/or Baby Care",
+      "Enable write scope if you need to create transactions, loans, investments, or baby care events",
       "Token routes (/api/tokens) require a browser session; tokens cannot create other tokens",
     ],
   },
