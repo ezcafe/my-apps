@@ -5,7 +5,11 @@ import { describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { BabyHomeContent } from "@/components/baby-home";
-import { babyAgeInDays, babyFeedGuideForAge } from "@/lib/baby-age-guide";
+import {
+  babyAgeInDays,
+  babyBreastSessionGuideForAge,
+  babyFeedGuideForAge,
+} from "@/lib/baby-age-guide";
 import { t } from "@/lib/baby-i18n";
 import {
   BABY_QUICK_PENDING_RETRY_MAX_AGE_MS,
@@ -666,7 +670,7 @@ describe("BabyHomeContent", () => {
     const clock = new Date("2026-09-12T12:00:00.000Z").getTime();
     const markup = renderToStaticMarkup(
       createElement(BabyHomeContent, {
-        status: { ...emptyStatus, birthDate: "2026-01-01", feedsToday: 0 },
+        status: { ...emptyStatus, birthDate: "2026-09-01", feedsToday: 0 },
         statusLoading: false,
         statusError: false,
         onRetryStatus: () => {},
@@ -701,13 +705,15 @@ describe("BabyHomeContent", () => {
       markup.indexOf('data-section-footer="breast"'),
       markup.indexOf('data-section-footer="bottle"'),
     );
-    const ageDays = babyAgeInDays("2026-01-01", new Date(clock))!;
-    const band = babyFeedGuideForAge(ageDays);
+    const ageDays = babyAgeInDays("2026-09-01", new Date(clock))!;
+    const breast = babyBreastSessionGuideForAge(ageDays)!;
+    const bottle = babyFeedGuideForAge(ageDays);
+    assert.notEqual(breast.feedsMin, bottle.feedsMin);
     // Marked «min»/«max» render as strong numbers in the footer.
     assert.match(
       breastFooter,
       new RegExp(
-        `>${band.feedsMin}<[\\s\\S]*–[\\s\\S]*>${band.feedsMax}<[\\s\\S]*feeds a day`,
+        `>${breast.feedsMin}<[\\s\\S]*–[\\s\\S]*>${breast.feedsMax}<[\\s\\S]*feeds a day`,
       ),
     );
     assert.match(markup, /data-testid="baby-care-guidelines"/);
@@ -725,37 +731,32 @@ describe("BabyHomeContent", () => {
     assert.match(markup, /Room Temperature|Newborn Stage/i);
   });
 
-  it("EN/VI nap blend keys match full design table", () => {
+  it("EN/VI nap blend keys match five essay stages", () => {
     const table = [
       [
         "home.header.nap.blend0to1Mo",
-        "At this age, about «16–18 hours» of sleep a day, with «4–6 naps».",
-        "Ở tuổi này, khoảng «16–18 giờ» ngủ mỗi ngày, với «4–6 giấc».",
+        "At this age, about «16–18 hours» of sleep a day, with short naps day and night.",
+        "Ở tuổi này, khoảng «16–18 giờ» ngủ mỗi ngày, nhiều giấc ngắn cả ngày đêm.",
       ],
       [
-        "home.header.nap.blend1to2Mo",
-        "At this age, about «15–16 hours» of sleep a day, with «3–5 naps».",
-        "Ở tuổi này, khoảng «15–16 giờ» ngủ mỗi ngày, với «3–5 giấc».",
+        "home.header.nap.blend1to3Mo",
+        "At this age, about «14–16 hours» of sleep a day, with «3–4 naps».",
+        "Ở tuổi này, khoảng «14–16 giờ» ngủ mỗi ngày, với «3–4 giấc».",
       ],
       [
-        "home.header.nap.blend3to4Mo",
-        "At this age, about «14–15 hours» of sleep a day, with «3–4 naps».",
-        "Ở tuổi này, khoảng «14–15 giờ» ngủ mỗi ngày, với «3–4 giấc».",
+        "home.header.nap.blend3to6Mo",
+        "At this age, about «14–15 hours» of sleep a day, with «3 naps».",
+        "Ở tuổi này, khoảng «14–15 giờ» ngủ mỗi ngày, với «3 giấc».",
       ],
       [
-        "home.header.nap.blend5to6Mo",
-        "At this age, about «14 hours» of sleep a day, with «2–3 naps».",
-        "Ở tuổi này, khoảng «14 giờ» ngủ mỗi ngày, với «2–3 giấc».",
+        "home.header.nap.blend6to12Mo",
+        "At this age, about «12–14 hours» of sleep a day, with «2 naps».",
+        "Ở tuổi này, khoảng «12–14 giờ» ngủ mỗi ngày, với «2 giấc».",
       ],
       [
-        "home.header.nap.blend7to12Mo",
-        "At this age, about «13–14 hours» of sleep a day, with «2 naps».",
-        "Ở tuổi này, khoảng «13–14 giờ» ngủ mỗi ngày, với «2 giấc».",
-      ],
-      [
-        "home.header.nap.blend1to3Y",
-        "At this age, about «12–13 hours» of sleep a day, with «1 nap».",
-        "Ở tuổi này, khoảng «12–13 giờ» ngủ mỗi ngày, với «1 giấc».",
+        "home.header.nap.blend12to24Mo",
+        "At this age, about «11–14 hours» of sleep a day, often «1 nap» after 15–18 months.",
+        "Ở tuổi này, khoảng «11–14 giờ» ngủ mỗi ngày, thường «1 giấc» sau 15–18 tháng.",
       ],
     ] as const;
     for (const [key, en, vi] of table) {

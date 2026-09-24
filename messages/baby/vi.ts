@@ -176,17 +176,15 @@ export const babyVi: Record<BabyMessageKey, string> = {
   "home.header.napNext": "Giấc ngủ tiếp theo còn khoảng «{duration}».",
   "home.header.napOverdue": "Đã quá hạn ngủ khoảng «{duration}».",
   "home.header.nap.blend0to1Mo":
-    "Ở tuổi này, khoảng «16–18 giờ» ngủ mỗi ngày, với «4–6 giấc».",
-  "home.header.nap.blend1to2Mo":
-    "Ở tuổi này, khoảng «15–16 giờ» ngủ mỗi ngày, với «3–5 giấc».",
-  "home.header.nap.blend3to4Mo":
-    "Ở tuổi này, khoảng «14–15 giờ» ngủ mỗi ngày, với «3–4 giấc».",
-  "home.header.nap.blend5to6Mo":
-    "Ở tuổi này, khoảng «14 giờ» ngủ mỗi ngày, với «2–3 giấc».",
-  "home.header.nap.blend7to12Mo":
-    "Ở tuổi này, khoảng «13–14 giờ» ngủ mỗi ngày, với «2 giấc».",
-  "home.header.nap.blend1to3Y":
-    "Ở tuổi này, khoảng «12–13 giờ» ngủ mỗi ngày, với «1 giấc».",
+    "Ở tuổi này, khoảng «16–18 giờ» ngủ mỗi ngày, nhiều giấc ngắn cả ngày đêm.",
+  "home.header.nap.blend1to3Mo":
+    "Ở tuổi này, khoảng «14–16 giờ» ngủ mỗi ngày, với «3–4 giấc».",
+  "home.header.nap.blend3to6Mo":
+    "Ở tuổi này, khoảng «14–15 giờ» ngủ mỗi ngày, với «3 giấc».",
+  "home.header.nap.blend6to12Mo":
+    "Ở tuổi này, khoảng «12–14 giờ» ngủ mỗi ngày, với «2 giấc».",
+  "home.header.nap.blend12to24Mo":
+    "Ở tuổi này, khoảng «11–14 giờ» ngủ mỗi ngày, thường «1 giấc» sau 15–18 tháng.",
   "home.footer.breastFeeds": "Khoảng «{min}»–«{max}» lần bú mỗi ngày.",
   "home.footer.diaper.newborn":
     "Thay tã khoảng mỗi 2–3 tiếng, hoặc ngay khi bé đi nặng.",
@@ -200,6 +198,7 @@ export const babyVi: Record<BabyMessageKey, string> = {
   "home.footer.pump.m3_6": "Khoảng 120–180 ml/lần; 4–6 lần/ngày.",
   "home.footer.pump.m6_12": "Khoảng 150–220 ml/lần; 3–4 lần/ngày.",
   "home.footer.pump.m12_24": "Hút 1–2 lần/ngày nếu còn duy trì.",
+  "home.footer.milkDaily": "Khoảng «{min}»–«{max} ml» sữa mỗi ngày.",
   "home.chipMl": "{ml} ml",
   "home.timeline": "Dòng thời gian",
   "home.growth": "Cân đo",

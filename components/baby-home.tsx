@@ -38,8 +38,9 @@ import {
   BABY_BOTTLE_CHIPS_NO_BIRTH_SNAPS,
   babyAgeInDays,
   babyCareGuideStageForAge,
+  babyBreastSessionGuideForAge,
   babyFeedGuideForAge,
-  babyFormulaSnapList,
+  babyBottleSnapsForBand,
   babySleepGuideForAge,
   babySuggestedBottleMl,
   buildBabyBottleChipMls,
@@ -404,7 +405,7 @@ export function BabyHomeContent({
   const bottleChipMlsBase = buildBabyBottleChipMls({
     recentBottleMl: status?.recentBottleMl ?? [],
     snaps: birthDate
-      ? babyFormulaSnapList(band)
+      ? babyBottleSnapsForBand(band)
       : [...BABY_BOTTLE_CHIPS_NO_BIRTH_SNAPS],
     limit: 3,
   });
@@ -1208,13 +1209,16 @@ export function BabyHomeContent({
       ].join(" ")
     : null;
 
-  const breastFooterTip =
-    ageDays != null &&
-    Number.isFinite(band.feedsMax) &&
-    band.feedsMax !== Number.POSITIVE_INFINITY
-      ? fillBabyHomeTemplate(t("home.footer.breastFeeds"), {
-          min: String(band.feedsMin),
-          max: String(band.feedsMax),
+  const breastSessions = babyBreastSessionGuideForAge(ageDays);
+  const breastFooterTip = breastSessions
+    ? fillBabyHomeTemplate(t("home.footer.breastFeeds"), {
+        min: String(breastSessions.feedsMin),
+        max: String(breastSessions.feedsMax),
+      })
+    : careStage === "m12_24"
+      ? fillBabyHomeTemplate(t("home.footer.milkDaily"), {
+          min: "350",
+          max: "500",
         })
       : null;
 

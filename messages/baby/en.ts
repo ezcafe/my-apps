@@ -173,17 +173,15 @@ export const babyEn = {
   "home.header.napNext": "Next nap is in about «{duration}».",
   "home.header.napOverdue": "Nap is about «{duration} overdue».",
   "home.header.nap.blend0to1Mo":
-    "At this age, about «16–18 hours» of sleep a day, with «4–6 naps».",
-  "home.header.nap.blend1to2Mo":
-    "At this age, about «15–16 hours» of sleep a day, with «3–5 naps».",
-  "home.header.nap.blend3to4Mo":
-    "At this age, about «14–15 hours» of sleep a day, with «3–4 naps».",
-  "home.header.nap.blend5to6Mo":
-    "At this age, about «14 hours» of sleep a day, with «2–3 naps».",
-  "home.header.nap.blend7to12Mo":
-    "At this age, about «13–14 hours» of sleep a day, with «2 naps».",
-  "home.header.nap.blend1to3Y":
-    "At this age, about «12–13 hours» of sleep a day, with «1 nap».",
+    "At this age, about «16–18 hours» of sleep a day, with short naps day and night.",
+  "home.header.nap.blend1to3Mo":
+    "At this age, about «14–16 hours» of sleep a day, with «3–4 naps».",
+  "home.header.nap.blend3to6Mo":
+    "At this age, about «14–15 hours» of sleep a day, with «3 naps».",
+  "home.header.nap.blend6to12Mo":
+    "At this age, about «12–14 hours» of sleep a day, with «2 naps».",
+  "home.header.nap.blend12to24Mo":
+    "At this age, about «11–14 hours» of sleep a day, often «1 nap» after 15–18 months.",
   "home.footer.breastFeeds": "About «{min}»–«{max}» feeds a day.",
   "home.footer.diaper.newborn":
     "Change about every 2–3 hours, or right after a poop.",
@@ -197,6 +195,7 @@ export const babyEn = {
   "home.footer.pump.m3_6": "About 120–180 ml/session; 4–6 times/day.",
   "home.footer.pump.m6_12": "About 150–220 ml/session; 3–4 times/day.",
   "home.footer.pump.m12_24": "Pump 1–2 times/day if still pumping.",
+  "home.footer.milkDaily": "About «{min}»–«{max} ml» of milk a day.",
   "home.chipMl": "{ml} ml",
   "home.timeline": "Timeline",
   "home.growth": "Growth",

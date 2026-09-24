@@ -23,63 +23,54 @@ export const BABY_FEED_GUIDE_FALLBACK: BabyFeedGuideBand = {
 };
 
 /**
- * Upper day bound (inclusive) → band.
- * ageDays 0 on birth calendar day. Caregiver “1–2 days” → 0–2.
- * Post-12mo bands kept so toddlers do not jump to newborn ml.
+ * Upper day bound (inclusive) → bottle ml / bottle feeds (essay-aligned).
+ * ageDays 0 on birth calendar day.
+ * feedsMin/Max = bottle “n/N today” only — not breast sessions.
+ * Post-12mo: per-feed chip band (not daily milk 350–500).
  */
 const FEED_GUIDE_BANDS: Array<{ maxDay: number; band: BabyFeedGuideBand }> = [
   {
-    maxDay: 2,
+    maxDay: 30,
     band: {
-      labelKey: "guide.band0to2Days",
-      mlMin: 5,
-      mlMax: 15,
-      feedsMin: 8,
-      feedsMax: 12,
-    },
-  },
-  {
-    maxDay: 7,
-    band: {
-      labelKey: "guide.band3to7Days",
+      labelKey: "guide.bandNewborn",
       mlMin: 30,
       mlMax: 60,
-      feedsMin: 8,
-      feedsMax: 12,
+      feedsMin: 7,
+      feedsMax: 8,
     },
   },
   {
-    maxDay: 28,
+    maxDay: 60,
     band: {
-      labelKey: "guide.band1to4Weeks",
-      mlMin: 60,
-      mlMax: 90,
+      labelKey: "guide.band1to2Months",
+      mlMin: 90,
+      mlMax: 120,
       feedsMin: 6,
       feedsMax: 8,
     },
   },
   {
-    maxDay: 91,
+    maxDay: 90,
     band: {
-      labelKey: "guide.band1to3Months",
-      mlMin: 90,
+      labelKey: "guide.band2to3Months",
+      mlMin: 120,
       mlMax: 150,
       feedsMin: 6,
       feedsMax: 8,
     },
   },
   {
-    maxDay: 183,
+    maxDay: 182,
     band: {
       labelKey: "guide.band3to6Months",
-      mlMin: 120,
-      mlMax: 180,
+      mlMin: 150,
+      mlMax: 210,
       feedsMin: 5,
       feedsMax: 6,
     },
   },
   {
-    maxDay: 365,
+    maxDay: 364,
     band: {
       labelKey: "guide.band6to12Months",
       mlMin: 180,
@@ -89,37 +80,65 @@ const FEED_GUIDE_BANDS: Array<{ maxDay: number; band: BabyFeedGuideBand }> = [
     },
   },
   {
-    maxDay: 548,
+    maxDay: Number.POSITIVE_INFINITY,
     band: {
-      labelKey: "guide.band12to18Months",
+      labelKey: "guide.band12to24Months",
       mlMin: 120,
       mlMax: 180,
       feedsMin: 2,
       feedsMax: 3,
     },
   },
-  {
-    maxDay: 730,
-    band: {
-      labelKey: "guide.band18to24Months",
-      mlMin: 120,
-      mlMax: 180,
-      feedsMin: 1,
-      feedsMax: 2,
-    },
-  },
-  {
-    maxDay: Number.POSITIVE_INFINITY,
-    band: {
-      labelKey: "guide.bandOver24Months",
-      mlMin: 120,
-      mlMax: 180,
-      feedsMin: 1,
-      feedsMax: 2,
-    },
-  },
 ];
 
+/** Essay breast sessions/day — separate from bottle feedsMin/Max. */
+export type BabyBreastSessionGuide = {
+  feedsMin: number;
+  feedsMax: number;
+};
+
+/**
+ * Breast on-demand session ranges by care-guide stage.
+ * null when essay has no clear session count (milk as supplement).
+ */
+export function babyBreastSessionGuideForAge(
+  ageDays: number | null,
+): BabyBreastSessionGuide | null {
+  const stage = babyCareGuideStageForAge(ageDays);
+  switch (stage) {
+    case "newborn":
+      return { feedsMin: 8, feedsMax: 12 };
+    case "m1_3":
+      return { feedsMin: 6, feedsMax: 8 };
+    case "m3_6":
+      return { feedsMin: 5, feedsMax: 6 };
+    default:
+      return null;
+  }
+}
+
+/** Essay bottle ml edges for chips: min, mid(~10), max — shared fixture with Watch. */
+export const ESSAY_BOTTLE_ML_FIXTURES: Record<
+  string,
+  { day: number; mlMin: number; mlMax: number; snaps: readonly number[] }
+> = {
+  newborn: { day: 0, mlMin: 30, mlMax: 60, snaps: [30, 50, 60] },
+  m1_3a: { day: 45, mlMin: 90, mlMax: 120, snaps: [90, 110, 120] },
+  m1_3b: { day: 75, mlMin: 120, mlMax: 150, snaps: [120, 140, 150] },
+  m3_6: { day: 120, mlMin: 150, mlMax: 210, snaps: [150, 180, 210] },
+  m6_12: { day: 200, mlMin: 180, mlMax: 240, snaps: [180, 210, 240] },
+  m12_24: { day: 400, mlMin: 120, mlMax: 180, snaps: [120, 150, 180] },
+};
+
+/** Three chip snaps from a bottle band (min, mid rounded 10, max). */
+export function babyBottleSnapsForBand(band: BabyFeedGuideBand): number[] {
+  const mid = babyFormulaDefaultMl(band);
+  const out: number[] = [];
+  for (const ml of [band.mlMin, mid, band.mlMax]) {
+    if (!out.includes(ml)) out.push(ml);
+  }
+  return out.slice(0, 3);
+}
 /**
  * Whole LOCAL calendar days between birthday and today in the caregiver's
  * timezone. Returns null for missing, malformed, impossible, or future dates.
@@ -211,8 +230,8 @@ export type BabySleepGuideBand = {
 };
 
 /**
- * Inclusive maxDay → sleep blend. ageDays 0 on birth day.
- * Past 1–3y keeps the last toddler band (no null / label-only).
+ * Inclusive maxDay → sleep blend (five essay stages).
+ * Past 12–24m keeps the last toddler band.
  */
 const SLEEP_GUIDE_BANDS: Array<{ maxDay: number; band: BabySleepGuideBand }> = [
   {
@@ -225,46 +244,37 @@ const SLEEP_GUIDE_BANDS: Array<{ maxDay: number; band: BabySleepGuideBand }> = [
     },
   },
   {
-    maxDay: 60,
+    maxDay: 90,
     band: {
-      labelKey: "guide.sleep1to2Mo",
-      blendKey: "home.header.nap.blend1to2Mo",
+      labelKey: "guide.sleep1to3Mo",
+      blendKey: "home.header.nap.blend1to3Mo",
       napMinMin: 20,
       napMaxMin: 120,
     },
   },
   {
-    maxDay: 122,
+    maxDay: 182,
     band: {
-      labelKey: "guide.sleep3to4Mo",
-      blendKey: "home.header.nap.blend3to4Mo",
+      labelKey: "guide.sleep3to6Mo",
+      blendKey: "home.header.nap.blend3to6Mo",
       napMinMin: 30,
       napMaxMin: 120,
     },
   },
   {
-    maxDay: 183,
+    maxDay: 364,
     band: {
-      labelKey: "guide.sleep5to6Mo",
-      blendKey: "home.header.nap.blend5to6Mo",
-      napMinMin: 30,
-      napMaxMin: 120,
-    },
-  },
-  {
-    maxDay: 365,
-    band: {
-      labelKey: "guide.sleep7to12Mo",
-      blendKey: "home.header.nap.blend7to12Mo",
+      labelKey: "guide.sleep6to12Mo",
+      blendKey: "home.header.nap.blend6to12Mo",
       napMinMin: 45,
       napMaxMin: 120,
     },
   },
   {
-    maxDay: 1095,
+    maxDay: Number.POSITIVE_INFINITY,
     band: {
-      labelKey: "guide.sleep1to3Y",
-      blendKey: "home.header.nap.blend1to3Y",
+      labelKey: "guide.sleep12to24Mo",
+      blendKey: "home.header.nap.blend12to24Mo",
       napMinMin: 60,
       napMaxMin: 180,
     },

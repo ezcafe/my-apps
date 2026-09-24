@@ -3,8 +3,11 @@ import { describe, it } from "node:test";
 import {
   BABY_BOTTLE_CHIPS_NO_BIRTH_SNAPS,
   BABY_FEED_GUIDE_FALLBACK,
+  ESSAY_BOTTLE_ML_FIXTURES,
   babyAgeInDays,
   babyAgeInMonthsFloor,
+  babyBreastSessionGuideForAge,
+  babyBottleSnapsForBand,
   babyCareGuideStageForAge,
   babyFeedGuideForAge,
   babyFormulaDefaultMl,
@@ -48,8 +51,8 @@ describe("babyAgeInDays", () => {
   });
 });
 
-describe("babyFeedGuideForAge", () => {
-  it("maps design day cuts and feedsMin/feedsMax per band", () => {
+describe("babyFeedGuideForAge — essay bottle bands", () => {
+  it("maps essay day cuts and bottle feedsMin/feedsMax", () => {
     const cases: Array<{
       day: number;
       mlMin: number;
@@ -57,20 +60,18 @@ describe("babyFeedGuideForAge", () => {
       feedsMin: number;
       feedsMax: number;
     }> = [
-      { day: 0, mlMin: 5, mlMax: 15, feedsMin: 8, feedsMax: 12 },
-      { day: 2, mlMin: 5, mlMax: 15, feedsMin: 8, feedsMax: 12 },
-      { day: 3, mlMin: 30, mlMax: 60, feedsMin: 8, feedsMax: 12 },
-      { day: 7, mlMin: 30, mlMax: 60, feedsMin: 8, feedsMax: 12 },
-      { day: 8, mlMin: 60, mlMax: 90, feedsMin: 6, feedsMax: 8 },
-      { day: 28, mlMin: 60, mlMax: 90, feedsMin: 6, feedsMax: 8 },
-      { day: 29, mlMin: 90, mlMax: 150, feedsMin: 6, feedsMax: 8 },
-      { day: 91, mlMin: 90, mlMax: 150, feedsMin: 6, feedsMax: 8 },
-      { day: 92, mlMin: 120, mlMax: 180, feedsMin: 5, feedsMax: 6 },
-      { day: 183, mlMin: 120, mlMax: 180, feedsMin: 5, feedsMax: 6 },
-      { day: 184, mlMin: 180, mlMax: 240, feedsMin: 3, feedsMax: 4 },
-      { day: 365, mlMin: 180, mlMax: 240, feedsMin: 3, feedsMax: 4 },
-      { day: 366, mlMin: 120, mlMax: 180, feedsMin: 2, feedsMax: 3 },
-      { day: 900, mlMin: 120, mlMax: 180, feedsMin: 1, feedsMax: 2 },
+      { day: 0, mlMin: 30, mlMax: 60, feedsMin: 7, feedsMax: 8 },
+      { day: 30, mlMin: 30, mlMax: 60, feedsMin: 7, feedsMax: 8 },
+      { day: 45, mlMin: 90, mlMax: 120, feedsMin: 6, feedsMax: 8 },
+      { day: 60, mlMin: 90, mlMax: 120, feedsMin: 6, feedsMax: 8 },
+      { day: 75, mlMin: 120, mlMax: 150, feedsMin: 6, feedsMax: 8 },
+      { day: 90, mlMin: 120, mlMax: 150, feedsMin: 6, feedsMax: 8 },
+      { day: 120, mlMin: 150, mlMax: 210, feedsMin: 5, feedsMax: 6 },
+      { day: 182, mlMin: 150, mlMax: 210, feedsMin: 5, feedsMax: 6 },
+      { day: 200, mlMin: 180, mlMax: 240, feedsMin: 3, feedsMax: 4 },
+      { day: 364, mlMin: 180, mlMax: 240, feedsMin: 3, feedsMax: 4 },
+      { day: 365, mlMin: 120, mlMax: 180, feedsMin: 2, feedsMax: 3 },
+      { day: 900, mlMin: 120, mlMax: 180, feedsMin: 2, feedsMax: 3 },
     ];
     for (const c of cases) {
       const band = babyFeedGuideForAge(c.day);
@@ -83,6 +84,42 @@ describe("babyFeedGuideForAge", () => {
 
   it("uses fallback for null age", () => {
     assert.deepEqual(babyFeedGuideForAge(null), BABY_FEED_GUIDE_FALLBACK);
+  });
+
+  it("ESSAY_BOTTLE_ML_FIXTURES match guide bands (cross-app checklist)", () => {
+    for (const [name, fx] of Object.entries(ESSAY_BOTTLE_ML_FIXTURES)) {
+      const band = babyFeedGuideForAge(fx.day);
+      assert.equal(band.mlMin, fx.mlMin, `${name} mlMin`);
+      assert.equal(band.mlMax, fx.mlMax, `${name} mlMax`);
+      assert.deepEqual(
+        babyBottleSnapsForBand(band),
+        [...fx.snaps],
+        `${name} snaps`,
+      );
+    }
+  });
+});
+
+describe("babyBreastSessionGuideForAge", () => {
+  it("uses essay breast counts — not bottle feeds", () => {
+    assert.deepEqual(babyBreastSessionGuideForAge(0), {
+      feedsMin: 8,
+      feedsMax: 12,
+    });
+    const bottle = babyFeedGuideForAge(0);
+    assert.equal(bottle.feedsMin, 7);
+    assert.equal(bottle.feedsMax, 8);
+    assert.notEqual(bottle.feedsMin, babyBreastSessionGuideForAge(0)!.feedsMin);
+    assert.deepEqual(babyBreastSessionGuideForAge(45), {
+      feedsMin: 6,
+      feedsMax: 8,
+    });
+    assert.deepEqual(babyBreastSessionGuideForAge(120), {
+      feedsMin: 5,
+      feedsMax: 6,
+    });
+    assert.equal(babyBreastSessionGuideForAge(200), null);
+    assert.equal(babyBreastSessionGuideForAge(400), null);
   });
 });
 
@@ -112,30 +149,24 @@ describe("babySuggestedBottleMl", () => {
   });
 
   it("uses kg × 150 ÷ feedsDayMid under 6 months", () => {
-    // day 30 → 90–150, feeds 6–8, mid feeds = 7
-    // 4.2 * 150 / 7 = 90 → round10 = 90
     assert.equal(
-      babySuggestedBottleMl({ ageDays: 30, weightKg: 4.2 }),
+      babySuggestedBottleMl({ ageDays: 45, weightKg: 4.2 }),
       90,
     );
-    // 5.5 * 150 / 7 ≈ 117.86 → 120, clamped in 90–150
     assert.equal(
-      babySuggestedBottleMl({ ageDays: 30, weightKg: 5.5 }),
+      babySuggestedBottleMl({ ageDays: 45, weightKg: 5.5 }),
       120,
     );
   });
 
   it("clamps weight×150 below mlMin and above mlMax", () => {
-    // day 30 band 90–150, feeds mid 7
-    // 3.0 * 150 / 7 ≈ 64.3 → round10 60 → clamp to 90
     assert.equal(
-      babySuggestedBottleMl({ ageDays: 30, weightKg: 3 }),
+      babySuggestedBottleMl({ ageDays: 45, weightKg: 3 }),
       90,
     );
-    // 8.0 * 150 / 7 ≈ 171.4 → round10 170 → clamp to 150
     assert.equal(
-      babySuggestedBottleMl({ ageDays: 30, weightKg: 8 }),
-      150,
+      babySuggestedBottleMl({ ageDays: 45, weightKg: 8 }),
+      120,
     );
   });
 
@@ -158,23 +189,18 @@ describe("babySleepGuideForAge", () => {
     assert.equal(babySleepGuideForAge(null), null);
   });
 
-  it("maps inclusive maxDay boundaries from design", () => {
+  it("maps five essay sleep stages", () => {
     const cases: Array<{ day: number; blendKey: string }> = [
       { day: 0, blendKey: "home.header.nap.blend0to1Mo" },
       { day: 30, blendKey: "home.header.nap.blend0to1Mo" },
-      { day: 31, blendKey: "home.header.nap.blend1to2Mo" },
-      { day: 60, blendKey: "home.header.nap.blend1to2Mo" },
-      { day: 61, blendKey: "home.header.nap.blend3to4Mo" },
-      { day: 122, blendKey: "home.header.nap.blend3to4Mo" },
-      { day: 123, blendKey: "home.header.nap.blend5to6Mo" },
-      { day: 183, blendKey: "home.header.nap.blend5to6Mo" },
-      { day: 184, blendKey: "home.header.nap.blend7to12Mo" },
-      { day: 365, blendKey: "home.header.nap.blend7to12Mo" },
-      { day: 366, blendKey: "home.header.nap.blend1to3Y" },
-      { day: 1095, blendKey: "home.header.nap.blend1to3Y" },
-      // Past 1–3y keeps last toddler band
-      { day: 1096, blendKey: "home.header.nap.blend1to3Y" },
-      { day: 2000, blendKey: "home.header.nap.blend1to3Y" },
+      { day: 31, blendKey: "home.header.nap.blend1to3Mo" },
+      { day: 90, blendKey: "home.header.nap.blend1to3Mo" },
+      { day: 91, blendKey: "home.header.nap.blend3to6Mo" },
+      { day: 182, blendKey: "home.header.nap.blend3to6Mo" },
+      { day: 183, blendKey: "home.header.nap.blend6to12Mo" },
+      { day: 364, blendKey: "home.header.nap.blend6to12Mo" },
+      { day: 365, blendKey: "home.header.nap.blend12to24Mo" },
+      { day: 2000, blendKey: "home.header.nap.blend12to24Mo" },
     ];
     for (const c of cases) {
       const band = babySleepGuideForAge(c.day);
