@@ -309,6 +309,20 @@
       "when": 1779836100000,
       "tag": "0043_api_token_apps",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1779836200000,
+      "tag": "0044_watch_pairing_code",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1779836300000,
+      "tag": "0045_watch_pairing_grants",
+      "breakpoints": true
     }
   ]
 }

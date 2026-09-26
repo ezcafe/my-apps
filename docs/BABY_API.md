@@ -53,12 +53,17 @@ There is **no** Baby REST resource tree for care logging. Use GraphQL.
 | Bearer `mny_…` with **Baby Care** app grant | **Yes** | Settings → API tokens → toggle Baby (and/or Money) |
 | Bearer without Baby grant | **No** | Money-only token cannot call Baby GraphQL |
 
-### Create a token for Watch
+### Create a token (pairing — preferred)
 
-1. Sign in → **Settings → API tokens**.
-2. Check **Baby Care** (and **Money** if you want one secret for both).
-3. Pick workspace, name, write scope → **Create token**.
-4. Copy `mny_…` once into the Watch / Keychain.
+1. Sign in on a laptop → **Settings → API tokens**.
+2. Under **Device pairing**, select apps (**Money** and/or **Baby Care**), optionally allow write, then tap **Generate code** (short code, ~10 minutes).
+3. **Watch:** connect screen → enter the code → **Save & connect**.  
+   **Scripts / this laptop:** tap **Reveal on this device** to get `mny_…` once (same one-time code).
+4. Redeem is `POST /api/watch/pair/redeem` → `{ baseURL, token }`. Token name looks like **API pairing · …**; prior tokens are not auto-revoked (use the list to revoke).
+
+### Advanced: paste URL & token on Watch
+
+If you already have a Bearer token (e.g. revealed above), on Watch use **Advanced: paste URL & token**.
 
 ```http
 Authorization: Bearer mny_<secret>
@@ -67,10 +72,12 @@ Authorization: Bearer mny_<secret>
 - Token is bound to one `workspace_id`.
 - Mutations need the **write** scope.
 - Session GraphQL still needs matching `Origin` (CSRF). Bearer skips Origin checks.
+- Pairing mint: `POST /api/watch/pair` with `{ "apps": ["baby"], "scopes": ["read","write"] }` (session, same-origin). Redeem: `POST /api/watch/pair/redeem` (public, rate-limited). Grants come from the code row, not the redeem body.
+- `POST /api/tokens` still exists for automation; Settings UI uses pairing only.
 
 ### Implication for Apple Watch
 
-Use a personal `mny_` token with the Baby grant enabled. Do not rely on session cookies from the Watch alone.
+Prefer **pairing code** so you do not type long URLs or secrets on the Watch. Do not rely on session cookies from the Watch alone.
 
 ---
 

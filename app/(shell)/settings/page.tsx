@@ -4,6 +4,7 @@ import { listApiTokensForUser } from "@/lib/api-token-service";
 import { fetchWorkspacesForUser } from "@/lib/workspace-list";
 import { SettingsSection } from "@/components/settings/settings-section";
 import { ApiTokenSettings } from "@/components/api-token-settings";
+import { WatchPairingSettings } from "@/components/watch-pairing-settings";
 import { CoreShellPage } from "@/components/core-shell-page";
 import { DateFormatSettings } from "@/components/date-format-settings";
 import { WeatherCitySettings } from "@/components/kiosk/weather-city-settings";
@@ -163,16 +164,19 @@ export default async function SettingsPage() {
               </>
             }
           >
-            <ApiTokenSettings
-              embedded
-              initialWorkspaces={workspaces.map((w) => ({
-                id: w.id,
-                name: w.name,
-                kind: w.kind,
-                isDefault: w.isDefault,
-              }))}
-              initialTokens={apiTokens}
-            />
+            <div className="space-y-4">
+              <WatchPairingSettings />
+              <ApiTokenSettings
+                embedded
+                initialWorkspaces={workspaces.map((w) => ({
+                  id: w.id,
+                  name: w.name,
+                  kind: w.kind,
+                  isDefault: w.isDefault,
+                }))}
+                initialTokens={apiTokens}
+              />
+            </div>
           </SettingsSection>
         }
         dangerZoneContent={<WorkspaceResetSettings workspaces={workspaces} />}

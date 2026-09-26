@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { apiToken, type ApiTokenScope } from "@/db/schema/api-token";
 import {
@@ -175,4 +175,37 @@ export async function revokeApiTokenForUser(
     });
   }
   return ok;
+}
+
+/** Soft-revoke unrevoked tokens with an exact name in one workspace. */
+export async function revokeApiTokensByNameForUser(
+  userSub: string,
+  workspaceId: string,
+  name: string,
+  options?: { excludeTokenId?: string },
+): Promise<number> {
+  const conds = [
+    eq(apiToken.userSub, userSub),
+    eq(apiToken.workspaceId, workspaceId),
+    eq(apiToken.name, name),
+    isNull(apiToken.revokedAt),
+  ];
+  if (options?.excludeTokenId) {
+    conds.push(ne(apiToken.id, options.excludeTokenId));
+  }
+  const result = await db
+    .update(apiToken)
+    .set({ revokedAt: new Date() })
+    .where(and(...conds))
+    .returning({ id: apiToken.id });
+
+  if (result.length > 0) {
+    await writeAuditEvent({
+      action: "api_token.revoked",
+      userSub,
+      workspaceId,
+      detail: { byName: name, count: result.length },
+    });
+  }
+  return result.length;
 }

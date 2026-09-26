@@ -25,7 +25,7 @@ export function resolveCoreAppHeader(pathname: string): CoreAppHeaderResolved {
       title: "API help",
       breadcrumbs: [],
       meta: "Quick start for REST and GraphQL with bearer tokens.",
-      cta: { href: "/settings#settings-api-tokens", label: "Create token" },
+      cta: { href: "/settings#settings-api-tokens", label: "Device pairing" },
     };
   }
 
