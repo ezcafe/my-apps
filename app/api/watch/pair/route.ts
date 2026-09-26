@@ -68,6 +68,7 @@ export async function POST(req: Request) {
   try {
     const result = await mintWatchPairingCodeForUser(userSub, {
       workspaceId: parsed.data.workspaceId,
+      name: parsed.data.name,
       apps: parsed.data.apps,
       scopes: parsed.data.scopes,
     });

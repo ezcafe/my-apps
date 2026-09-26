@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  APP_NAV_GROUP_LABELS,
+  APP_NAV_GROUP_ORDER,
   APP_SECTION_NAV,
   appSectionItemsByGroup,
   resolveAppSectionFromPath,
   visibleAppSectionItems,
+  type AppNavGroup,
 } from "@/lib/app-section-nav";
 
 describe("resolveAppSectionFromPath", () => {
@@ -114,6 +117,71 @@ describe("appSectionItemsByGroup", () => {
     assert.deepEqual(
       groups.map(({ group }) => group),
       ["browse", "review", "capture", "configure"],
+    );
+  });
+
+  it("labels cover every AppNavGroup", () => {
+    for (const group of APP_NAV_GROUP_ORDER) {
+      assert.equal(typeof APP_NAV_GROUP_LABELS[group], "string");
+      assert.ok(APP_NAV_GROUP_LABELS[group].length > 0);
+    }
+    const labelKeys = Object.keys(APP_NAV_GROUP_LABELS) as AppNavGroup[];
+    assert.deepEqual(labelKeys.slice().sort(), [...APP_NAV_GROUP_ORDER].sort());
+  });
+
+  it("groups baby items in APP_NAV_GROUP_ORDER without empty groups", () => {
+    const items = visibleAppSectionItems("baby", () => true);
+    const groups = appSectionItemsByGroup(items);
+    assert.deepEqual(
+      groups.map(({ group }) => group),
+      ["browse", "review", "capture", "configure"],
+    );
+    assert.deepEqual(
+      groups.map(({ group, items: rows }) => [group, rows.map((r) => r.href)]),
+      [
+        ["browse", ["/baby"]],
+        ["review", ["/baby/insights", "/baby/activities"]],
+        [
+          "capture",
+          [
+            "/baby/feed",
+            "/baby/pump",
+            "/baby/sleep",
+            "/baby/diaper",
+            "/baby/growth",
+          ],
+        ],
+        ["configure", ["/baby/settings"]],
+      ],
+    );
+  });
+
+  it("groups money with optional tabs hidden and omits empty groups", () => {
+    const items = visibleAppSectionItems("money", (key) => key == null);
+    const groups = appSectionItemsByGroup(items);
+    assert.deepEqual(
+      groups.map(({ group }) => group),
+      ["browse", "review", "capture", "configure"],
+    );
+    assert.deepEqual(
+      groups.map(({ group, items: rows }) => [group, rows.map((r) => r.label)]),
+      [
+        ["browse", ["Spending"]],
+        ["review", ["Insights"]],
+        ["capture", ["Add transaction"]],
+        ["configure", ["Settings"]],
+      ],
+    );
+  });
+
+  it("omits empty groups when a group has no items", () => {
+    const onlyBrowse = APP_SECTION_NAV.loans.items.filter(
+      (item) => item.group === "browse",
+    );
+    const groups = appSectionItemsByGroup(onlyBrowse);
+    assert.deepEqual(
+      groups.map(({ group }) => group),
+      ["browse"],
     );
   });
 });

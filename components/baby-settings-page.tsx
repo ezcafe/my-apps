@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBabyLocale } from "@/components/baby-locale-provider";
 import { useNotify } from "@/components/notification-provider";
+import { SettingsPageLayout } from "@/components/settings/settings-page-layout";
 import { SettingsSection } from "@/components/settings/settings-section";
+import {
+  BABY_SETTINGS_CATEGORIES,
+  type BabySettingsCategoryId,
+} from "@/components/settings/settings-types";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -15,12 +20,10 @@ import {
   babyProfileQueryOptions,
   invalidateBabyQueries,
 } from "@/lib/baby-query-options";
-import { cn } from "@/lib/cn";
 import {
   quickPickChipCls,
   quickPickGroupCls,
 } from "@/lib/money-quick-pick-chip-cls";
-import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
 
 const LINK_Q = /* GraphQL */ `
   query BabyTelegramLink {
@@ -80,6 +83,26 @@ export function BabySettingsPage({
   });
 
   const linked = linkQuery.data?.babyTelegramLink;
+
+  const categories = useMemo(() => {
+    const labels: Record<BabySettingsCategoryId, string> = {
+      profile: t("settings.babyProfile"),
+      language: t("settings.language"),
+      telegram: t("telegram.link"),
+    };
+    const descriptions: Record<BabySettingsCategoryId, string> = {
+      profile: t("settings.birthDateHint"),
+      language: t("settings.language"),
+      telegram: t("settings.modelB"),
+    };
+    return BABY_SETTINGS_CATEGORIES.filter(
+      (cat) => telegramEnabled || cat.id !== "telegram",
+    ).map((cat) => ({
+      ...cat,
+      label: labels[cat.id],
+      description: descriptions[cat.id],
+    }));
+  }, [t, telegramEnabled]);
 
   function link() {
     startTransition(async () => {
@@ -141,110 +164,120 @@ export function BabySettingsPage({
   const todayIso = new Date().toISOString().slice(0, 10);
 
   return (
-    <div
-      className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK, "fx-fade-in")}
-    >
-      <SettingsSection id="baby-profile" title={t("settings.babyProfile")}>
-        <Field
-          label={t("settings.birthDate")}
-          hint={birthError ? undefined : t("settings.birthDateHint")}
-          error={birthError ?? undefined}
-        >
-          <Input
-            type="date"
-            max={todayIso}
-            value={birthDate}
-            onChange={(e) => {
-              setBirthDraft(e.target.value);
-              setBirthError(null);
-            }}
-          />
-        </Field>
-        <Button
-          type="button"
-          size="lg"
-          disabled={pending}
-          onClick={saveBirthDate}
-        >
-          {t("common.save")}
-        </Button>
-      </SettingsSection>
-      <SettingsSection id="baby-language" title={t("settings.language")}>
-        <div
-          role="radiogroup"
-          aria-label={t("settings.language")}
-          className={quickPickGroupCls}
-        >
-          <button
-            type="button"
-            role="radio"
-            aria-checked={locale === "en"}
-            onClick={() => setLocale("en")}
-            className={quickPickChipCls(locale === "en")}
+    <SettingsPageLayout<BabySettingsCategoryId>
+      categories={categories}
+      idPrefix="baby-settings"
+      searchPlaceholder={t("settings.searchPlaceholder")}
+      sections={{
+        profile: (
+          <SettingsSection
+            id="baby-settings-profile"
+            title={t("settings.babyProfile")}
           >
-            {t("settings.langEn")}
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={locale === "vi"}
-            onClick={() => setLocale("vi")}
-            className={quickPickChipCls(locale === "vi")}
+            <Field
+              label={t("settings.birthDate")}
+              hint={birthError ? undefined : t("settings.birthDateHint")}
+              error={birthError ?? undefined}
+            >
+              <Input
+                type="date"
+                max={todayIso}
+                value={birthDate}
+                onChange={(e) => {
+                  setBirthDraft(e.target.value);
+                  setBirthError(null);
+                }}
+              />
+            </Field>
+            <Button
+              type="button"
+              size="lg"
+              disabled={pending}
+              onClick={saveBirthDate}
+            >
+              {t("common.save")}
+            </Button>
+          </SettingsSection>
+        ),
+        language: (
+          <SettingsSection
+            id="baby-settings-language"
+            title={t("settings.language")}
           >
-            {t("settings.langVi")}
-          </button>
-        </div>
-      </SettingsSection>
-
-      {!telegramEnabled ? (
-        <p className="text-muted">{t("telegram.off")}</p>
-      ) : (
-        <SettingsSection
-          id="baby-telegram"
-          title={t("telegram.link")}
-          description={t("settings.modelB")}
-        >
-          {linked ? (
-            <div className="space-y-3">
-              <p className="text-foreground">
-                {t("settings.linkedChat")}{" "}
-                <span className="font-medium">{linked.chatId}</span>
-              </p>
-              <p className="text-sm text-muted">
-                {linked.confirmedAt
-                  ? t("settings.confirmed")
-                  : t("settings.pendingConfirmHint")}
-              </p>
-              <Button
+            <div
+              role="radiogroup"
+              aria-label={t("settings.language")}
+              className={quickPickGroupCls}
+            >
+              <button
                 type="button"
-                variant="danger"
-                size="lg"
-                disabled={pending}
-                onClick={unlink}
+                role="radio"
+                aria-checked={locale === "en"}
+                onClick={() => setLocale("en")}
+                className={quickPickChipCls(locale === "en")}
               >
-                {t("telegram.unlink")}
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-end gap-3">
-              <Field label={t("settings.chatId")} className="w-56">
-                <Input
-                  value={chatId}
-                  onChange={(e) => setChatId(e.target.value)}
-                />
-              </Field>
-              <Button
+                {t("settings.langEn")}
+              </button>
+              <button
                 type="button"
-                size="lg"
-                disabled={pending || !chatId.trim()}
-                onClick={link}
+                role="radio"
+                aria-checked={locale === "vi"}
+                onClick={() => setLocale("vi")}
+                className={quickPickChipCls(locale === "vi")}
               >
-                {t("telegram.link")}
-              </Button>
+                {t("settings.langVi")}
+              </button>
             </div>
-          )}
-        </SettingsSection>
-      )}
-    </div>
+          </SettingsSection>
+        ),
+        telegram: telegramEnabled ? (
+          <SettingsSection
+            id="baby-settings-telegram"
+            title={t("telegram.link")}
+            description={t("settings.modelB")}
+          >
+            {linked ? (
+              <div className="space-y-3">
+                <p className="text-foreground">
+                  {t("settings.linkedChat")}{" "}
+                  <span className="font-medium">{linked.chatId}</span>
+                </p>
+                <p className="text-sm text-muted">
+                  {linked.confirmedAt
+                    ? t("settings.confirmed")
+                    : t("settings.pendingConfirmHint")}
+                </p>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="lg"
+                  disabled={pending}
+                  onClick={unlink}
+                >
+                  {t("telegram.unlink")}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-end gap-3">
+                <Field label={t("settings.chatId")} className="w-56">
+                  <Input
+                    value={chatId}
+                    onChange={(e) => setChatId(e.target.value)}
+                  />
+                </Field>
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={pending || !chatId.trim()}
+                  onClick={link}
+                >
+                  {t("telegram.link")}
+                </Button>
+              </div>
+            )}
+          </SettingsSection>
+        ) : null,
+      }}
+    />
   );
 }

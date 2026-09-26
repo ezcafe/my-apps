@@ -79,18 +79,25 @@ export default async function SettingsPage() {
           <SettingsSection
             id="settings-appearance"
             title="Appearance"
-            description="Light, dark, or match your OS."
+            description="Theme and how dates appear across the app."
           >
-            <ThemeSettings embedded />
-          </SettingsSection>
-        }
-        dateFormatContent={
-          <SettingsSection
-            id="settings-date-format"
-            title="Date format"
-            description="How dates appear across the app."
-          >
-            <DateFormatSettings embedded />
+            <div className="space-y-8">
+              <ThemeSettings embedded />
+              <div
+                id="settings-date-format"
+                className="space-y-4 border-t border-border pt-8"
+              >
+                <div className="space-y-1">
+                  <h3 className="text-sm font-medium text-foreground">
+                    Date format
+                  </h3>
+                  <p className="text-sm text-muted">
+                    How dates appear across the app.
+                  </p>
+                </div>
+                <DateFormatSettings embedded />
+              </div>
+            </div>
           </SettingsSection>
         }
         kioskContent={

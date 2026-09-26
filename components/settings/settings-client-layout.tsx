@@ -9,7 +9,6 @@ import { SettingsPageLayout } from "./settings-page-layout";
 
 type Props = {
   appearanceContent: ReactNode;
-  dateFormatContent: ReactNode;
   kioskContent: ReactNode;
   accountContent: ReactNode;
   workspacesContent: ReactNode;
@@ -20,7 +19,6 @@ type Props = {
 
 export function SettingsClientLayout({
   appearanceContent,
-  dateFormatContent,
   kioskContent,
   accountContent,
   workspacesContent,
@@ -36,7 +34,6 @@ export function SettingsClientLayout({
       idPrefix="settings"
       sections={{
         appearance: appearanceContent,
-        "date-format": dateFormatContent,
         kiosk: kioskContent,
         account: accountContent,
         workspaces: workspacesContent,

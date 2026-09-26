@@ -39,7 +39,7 @@ export default function InvestmentSettingsLoading() {
             <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
           </div>
 
-          {/* Instruments Section */}
+          {/* Instruments Section — single pane matches SettingsPageLayout */}
           <section className="space-y-4">
             <div className="border-b border-border/70 pb-3 space-y-1.5">
               <Skeleton className="h-7 w-52 rounded-[var(--radius-sm)]" />
@@ -48,20 +48,6 @@ export default function InvestmentSettingsLoading() {
             <div className="grid grid-cols-1 gap-px overflow-hidden rounded-[var(--radius-sm)] bg-border sm:grid-cols-2">
               <Skeleton className="h-16 rounded-none bg-background" />
               <Skeleton className="h-16 rounded-none bg-background" />
-            </div>
-          </section>
-
-          {/* Cash & Ledger Accounts Section */}
-          <section className="space-y-4">
-            <div className="border-b border-border/70 pb-3 space-y-1.5">
-              <Skeleton className="h-7 w-48 rounded-[var(--radius-sm)]" />
-              <Skeleton className="h-4 w-80 max-w-full rounded-[var(--radius-sm)]" />
-            </div>
-            <div className="rounded-[var(--radius-md)] border border-border bg-background p-5">
-              <div className="space-y-4">
-                <Skeleton className="h-8 w-32 rounded-[var(--radius-sm)]" />
-                <Skeleton className="h-20 w-full rounded-[var(--radius-sm)]" />
-              </div>
             </div>
           </section>
         </div>

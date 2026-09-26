@@ -23,28 +23,6 @@ function IconPalette(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function IconCalendar(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden {...props}>
-      <rect
-        x="3"
-        y="4"
-        width="14"
-        height="13"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M3 8h14M7 2.5v3M13 2.5v3"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 function IconUser(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 20 20" fill="none" aria-hidden {...props}>
@@ -255,7 +233,6 @@ function IconBell(props: SVGProps<SVGSVGElement>) {
 const DEFAULT_CATEGORY_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   // App
   appearance: IconPalette,
-  "date-format": IconCalendar,
   account: IconUser,
   workspaces: IconWorkspaces,
   "api-tokens": IconKey,
@@ -269,6 +246,10 @@ const DEFAULT_CATEGORY_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElemen
   instruments: IconTrendingUp,
   // Loans
   notifications: IconBell,
+  // Baby
+  profile: IconUser,
+  language: IconPalette,
+  telegram: IconBell,
 };
 
 type Props<T extends string = string> = {

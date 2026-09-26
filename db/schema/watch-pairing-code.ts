@@ -24,6 +24,7 @@ export const watchPairingCode = pgTable(
       .notNull()
       .references(() => workspace.id, { onDelete: "cascade" }),
     codeHash: text("code_hash").notNull(),
+    tokenName: text("token_name").notNull(),
     apps: jsonb("apps").$type<ShareableWorkspaceAppKey[]>().notNull(),
     scopes: jsonb("scopes").$type<ApiTokenScope[]>().notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),

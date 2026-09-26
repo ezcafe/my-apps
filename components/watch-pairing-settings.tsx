@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { useNotify } from "@/components/notification-provider";
 import {
   SHAREABLE_WORKSPACE_APP_KEYS,
@@ -25,6 +26,7 @@ export function WatchPairingSettings() {
   const [minted, setMinted] = useState<MintData | null>(null);
   const [codeUsed, setCodeUsed] = useState(false);
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
+  const [name, setName] = useState("");
   const [apps, setApps] = useState<Record<ShareableWorkspaceAppKey, boolean>>({
     money: false,
     baby: true,
@@ -32,13 +34,19 @@ export function WatchPairingSettings() {
   const [writeScope, setWriteScope] = useState(true);
 
   const anyApp = SHAREABLE_WORKSPACE_APP_KEYS.some((k) => apps[k]);
+  const canGenerate = anyApp && name.trim().length > 0;
 
   const toggleApp = (key: ShareableWorkspaceAppKey) => {
     setApps((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const generate = async () => {
+    const trimmed = name.trim();
     const selected = SHAREABLE_WORKSPACE_APP_KEYS.filter((k) => apps[k]);
+    if (!trimmed) {
+      notify.error("Name is required");
+      return;
+    }
     if (selected.length === 0) {
       notify.error("Select at least one app");
       return;
@@ -50,6 +58,7 @@ export function WatchPairingSettings() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: trimmed,
           apps: selected,
           scopes: writeScope ? ["read", "write"] : ["read"],
         }),
@@ -116,11 +125,22 @@ export function WatchPairingSettings() {
       <div>
         <h3 className="text-sm font-medium text-foreground">Device pairing</h3>
         <p className="mt-1 text-sm text-muted">
-          Generate a short code for Apple Watch, scripts, or other tools. Choose
-          which apps the token may access, then enter the code on the device — or
-          reveal the Bearer token on this laptop.
+          Generate a short code for Apple Watch, scripts, or other tools. Name
+          the token, choose apps, then enter the code on the device — or reveal
+          the Bearer token on this laptop.
         </p>
       </div>
+
+      <Field label="Name" required>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Apple Watch, Postman"
+          maxLength={120}
+          required
+          data-testid="watch-pairing-name"
+        />
+      </Field>
 
       <Field label="Apps">
         <div className="flex flex-col gap-2">
@@ -164,8 +184,8 @@ export function WatchPairingSettings() {
             Expires {new Date(minted.expiresAt).toLocaleString()}
           </p>
           <p className="text-sm text-muted">
-            One-time use: Reveal on this device <em>or</em> enter on Watch — first
-            wins.
+            One-time use: Reveal on this device <em>or</em> enter on Watch —
+            first wins.
           </p>
           {codeUsed ? (
             <p className="text-sm text-muted" data-testid="watch-pairing-used">
@@ -188,7 +208,7 @@ export function WatchPairingSettings() {
       <Button
         type="button"
         onClick={() => void generate()}
-        disabled={busy || !anyApp}
+        disabled={busy || !canGenerate}
         data-testid="watch-pairing-generate"
       >
         {busy ? "Generating…" : minted ? "Generate new code" : "Generate code"}

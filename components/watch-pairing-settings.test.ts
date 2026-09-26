@@ -16,8 +16,9 @@ describe("WatchPairingSettings source", () => {
     assert.match(src, /data-testid="watch-pairing-generate"/);
   });
 
-  it("includes app pickers, one-time warning, and Reveal control", () => {
+  it("includes name field, app pickers, one-time warning, and Reveal control", () => {
     assert.match(src, /Device pairing/);
+    assert.match(src, /data-testid="watch-pairing-name"/);
     assert.match(src, /One-time use/);
     assert.match(src, /data-testid="watch-pairing-reveal"/);
     assert.match(src, /\/api\/watch\/pair\/redeem/);

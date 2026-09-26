@@ -399,6 +399,20 @@ test.describe("Baby Care smoke", () => {
     ).toBeVisible();
   });
 
+  test("hamburger shows task group labels and Other apps", async ({ page }) => {
+    await gotoBabyHome(page);
+    await openAppMenu(page);
+    const panel = appMenuPanel(page);
+    await expect(panel.getByText("Browse", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Other apps", { exact: true })).toBeVisible();
+    await expect(
+      panel.getByRole("link", { name: /^activities$|^hoạt động$/i }),
+    ).toBeVisible();
+    await expect(
+      panel.getByRole("link", { name: /^log feed$|^ghi bú$/i }),
+    ).toBeVisible();
+  });
+
   test("insights page shows filters and growth then timeline", async ({
     page,
   }) => {

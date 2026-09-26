@@ -56,10 +56,10 @@ There is **no** Baby REST resource tree for care logging. Use GraphQL.
 ### Create a token (pairing — preferred)
 
 1. Sign in on a laptop → **Settings → API tokens**.
-2. Under **Device pairing**, select apps (**Money** and/or **Baby Care**), optionally allow write, then tap **Generate code** (short code, ~10 minutes).
+2. Under **Device pairing**, enter a **Name**, select apps (**Money** and/or **Baby Care**), optionally allow write, then tap **Generate code** (short code, ~10 minutes).
 3. **Watch:** connect screen → enter the code → **Save & connect**.  
    **Scripts / this laptop:** tap **Reveal on this device** to get `mny_…` once (same one-time code).
-4. Redeem is `POST /api/watch/pair/redeem` → `{ baseURL, token }`. Token name looks like **API pairing · …**; prior tokens are not auto-revoked (use the list to revoke).
+4. Redeem is `POST /api/watch/pair/redeem` → `{ baseURL, token }`. The token uses the **Name** you entered; prior tokens are not auto-revoked (use the list to revoke).
 
 ### Advanced: paste URL & token on Watch
 
@@ -72,7 +72,7 @@ Authorization: Bearer mny_<secret>
 - Token is bound to one `workspace_id`.
 - Mutations need the **write** scope.
 - Session GraphQL still needs matching `Origin` (CSRF). Bearer skips Origin checks.
-- Pairing mint: `POST /api/watch/pair` with `{ "apps": ["baby"], "scopes": ["read","write"] }` (session, same-origin). Redeem: `POST /api/watch/pair/redeem` (public, rate-limited). Grants come from the code row, not the redeem body.
+- Pairing mint: `POST /api/watch/pair` with `{ "name": "Apple Watch", "apps": ["baby"], "scopes": ["read","write"] }` (session, same-origin). Redeem: `POST /api/watch/pair/redeem` (public, rate-limited). Grants and name come from the code row, not the redeem body.
 - `POST /api/tokens` still exists for automation; Settings UI uses pairing only.
 
 ### Implication for Apple Watch

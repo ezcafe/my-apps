@@ -3,7 +3,6 @@ import type { ShareableWorkspaceAppKey } from "@/lib/workspace-shareable-apps";
 import {
   WATCH_PAIR_TTL_MS,
   WatchPairError,
-  formatApiPairingTokenName,
   hashWatchPairCode,
   isValidWatchPairCodeShape,
   normalizeWatchPairCode,
@@ -21,6 +20,7 @@ export type RedeemPairResult = {
 
 export type MintPairInput = {
   workspaceId?: string;
+  name: string;
   apps: ShareableWorkspaceAppKey[];
   scopes?: ApiTokenScope[];
 };
@@ -42,6 +42,7 @@ export type WatchPairingDeps = {
     userSub: string;
     workspaceId: string;
     codeHash: string;
+    tokenName: string;
     apps: ShareableWorkspaceAppKey[];
     scopes: ApiTokenScope[];
     expiresAt: Date;
@@ -50,6 +51,7 @@ export type WatchPairingDeps = {
     id: string;
     userSub: string;
     workspaceId: string;
+    tokenName: string;
     apps: ShareableWorkspaceAppKey[];
     scopes: ApiTokenScope[];
     expiresAt: Date;
@@ -72,6 +74,10 @@ export async function mintWatchPairingCode(
   input: MintPairInput,
   deps: WatchPairingDeps,
 ): Promise<MintPairResult> {
+  const tokenName = input.name.trim();
+  if (!tokenName) {
+    throw new WatchPairError("BAD_REQUEST", "Name is required");
+  }
   const apps = input.apps;
   if (!apps.length) {
     throw new WatchPairError("BAD_REQUEST", "Select at least one app");
@@ -98,6 +104,7 @@ export async function mintWatchPairingCode(
     userSub,
     workspaceId,
     codeHash: hashWatchPairCode(normalized),
+    tokenName,
     apps,
     scopes,
     expiresAt,
@@ -136,7 +143,7 @@ export async function redeemWatchPairingCode(
     row.workspaceId,
     row.apps,
     row.scopes,
-    formatApiPairingTokenName(deps.now()),
+    row.tokenName,
   );
   return {
     baseURL: deps.publicOrigin().replace(/\/$/, ""),

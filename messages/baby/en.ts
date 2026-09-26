@@ -505,6 +505,8 @@ export const babyEn = {
   "settings.language": "Language",
   "settings.langEn": "English",
   "settings.langVi": "Tiếng Việt",
+  "settings.searchPlaceholder":
+    "Search Baby settings (e.g. birthday, language, telegram)…",
   "settings.chatId": "Chat id",
   "settings.modelB": "One family chat per workspace (Telegram model B).",
   "settings.linkedChat": "Linked chat:",

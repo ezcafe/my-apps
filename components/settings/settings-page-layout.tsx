@@ -11,6 +11,8 @@ import { SettingsSearchBar } from "./settings-search-bar";
 import { SettingsSidebar } from "./settings-sidebar";
 import {
   filterSettingsCategories,
+  parseSettingsCategoryFromHash,
+  resolveVisibleSettingsCategories,
   type SettingsCategoryMeta,
 } from "./settings-types";
 import { Button } from "@/components/ui/button";
@@ -42,31 +44,28 @@ export function SettingsPageLayout<T extends string = string>({
   const fallbackDefault = defaultCategory || categories[0]?.id;
 
   const [activeCategory, setActiveCategory] = useState<T | "all">(() => {
-    if (typeof window !== "undefined" && window.location.hash) {
-      const rawHash = window.location.hash.replace(/^#/, "");
-      // Support both `#id` and `#${idPrefix}-id`
-      const normalizedHash = rawHash.startsWith(`${idPrefix}-`)
-        ? rawHash.slice(idPrefix.length + 1)
-        : rawHash;
-      if (categories.some((cat) => cat.id === normalizedHash)) {
-        return normalizedHash as T;
-      }
+    if (typeof window !== "undefined") {
+      const fromHash = parseSettingsCategoryFromHash(
+        window.location.hash,
+        idPrefix,
+        categories,
+      );
+      if (fromHash) return fromHash;
     }
     return fallbackDefault;
   });
 
-  // Scroll to initial hash target on mount if present
-  useEffect(() => {
-    const rawHash = window.location.hash.replace(/^#/, "");
-    if (rawHash) {
-      const target =
-        document.getElementById(rawHash) ||
-        document.getElementById(`${idPrefix}-${rawHash}`);
-      if (target) {
-        target.scrollIntoView({ behavior: "smooth" });
-      }
+  const [lastConcreteCategory, setLastConcreteCategory] = useState<T>(() => {
+    if (typeof window !== "undefined") {
+      const fromHash = parseSettingsCategoryFromHash(
+        window.location.hash,
+        idPrefix,
+        categories,
+      );
+      if (fromHash) return fromHash;
     }
-  }, [idPrefix]);
+    return fallbackDefault as T;
+  });
 
   const isSearching = searchQuery.trim().length > 0;
 
@@ -75,30 +74,71 @@ export function SettingsPageLayout<T extends string = string>({
     [searchQuery, categories],
   );
 
+  const visibleCategories = useMemo(
+    () =>
+      resolveVisibleSettingsCategories({
+        isSearching,
+        matchingCategories,
+        activeCategory,
+        categories,
+        fallbackCategoryId: lastConcreteCategory,
+      }),
+    [
+      isSearching,
+      matchingCategories,
+      activeCategory,
+      categories,
+      lastConcreteCategory,
+    ],
+  );
+
   const handleSelectCategory = useCallback(
     (id: T | "all") => {
       setActiveCategory(id);
       if (id !== "all") {
+        setLastConcreteCategory(id);
+        setSearchQuery("");
         window.history.replaceState(null, "", `#${idPrefix}-${id}`);
-        const el =
-          document.getElementById(`${idPrefix}-${id}`) ||
-          document.getElementById(id);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
       }
     },
     [idPrefix],
   );
 
-  const hasMatches = matchingCategories.length > 0;
+  const clearSearch = useCallback(() => {
+    setSearchQuery("");
+    setActiveCategory(lastConcreteCategory);
+    window.history.replaceState(
+      null,
+      "",
+      `#${idPrefix}-${lastConcreteCategory}`,
+    );
+  }, [idPrefix, lastConcreteCategory]);
+
+  // Sync hash → category on browser back/forward
+  useEffect(() => {
+    const onHashChange = () => {
+      const fromHash = parseSettingsCategoryFromHash(
+        window.location.hash,
+        idPrefix,
+        categories,
+      );
+      if (fromHash) {
+        setActiveCategory(fromHash);
+        setLastConcreteCategory(fromHash);
+        setSearchQuery("");
+      }
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [categories, idPrefix]);
+
+  const hasMatches = visibleCategories.length > 0;
 
   return (
     <div className={cn(SHELL_FULL_SPAN, "space-y-6", className)}>
       {topAlert}
 
       <div className="flex flex-col md:flex-row gap-6 md:gap-8 lg:gap-10 items-start">
-        {/* Left Sticky Navigation Sidebar */}
         <SettingsSidebar
           categories={categories}
           activeCategory={activeCategory}
@@ -107,36 +147,36 @@ export function SettingsPageLayout<T extends string = string>({
           isSearching={isSearching}
         />
 
-        {/* Center/Main Settings Content Area */}
         <div className="flex-1 min-w-0 w-full space-y-8">
-          {/* Optional Header Extra (e.g., active workspace badge, subtitle) */}
           {headerExtra}
 
-          {/* Top Search bar aligned with center content column */}
           <div className="w-full max-w-2xl">
             <SettingsSearchBar
               value={searchQuery}
               onChange={(q) => {
                 setSearchQuery(q);
-                if (q.trim() && activeCategory !== "all") {
-                  setActiveCategory("all");
+                if (q.trim()) {
+                  if (activeCategory !== "all") {
+                    setActiveCategory("all");
+                  }
+                } else {
+                  setActiveCategory(lastConcreteCategory);
                 }
               }}
               placeholder={searchPlaceholder}
             />
           </div>
 
-          {/* Search Result Summary / Clear button */}
           {isSearching && (
             <div className="flex items-center justify-between pb-2 border-b border-border text-xs text-muted">
               <span>
                 {hasMatches
-                  ? `Showing ${matchingCategories.length} matching section${matchingCategories.length === 1 ? "" : "s"}`
+                  ? `Showing ${visibleCategories.length} matching section${visibleCategories.length === 1 ? "" : "s"}`
                   : `No settings matching "${searchQuery}"`}
               </span>
               <button
                 type="button"
-                onClick={() => setSearchQuery("")}
+                onClick={clearSearch}
                 className="text-accent hover:underline font-medium"
               >
                 Clear filter
@@ -150,20 +190,17 @@ export function SettingsPageLayout<T extends string = string>({
                 No matching settings found
               </p>
               <p className="text-sm text-muted max-w-sm mx-auto">
-                We couldn&apos;t find any settings matching &ldquo;{searchQuery}&rdquo;.
+                We couldn&apos;t find any settings matching &ldquo;{searchQuery}
+                &rdquo;.
               </p>
               <div className="pt-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setSearchQuery("")}
-                >
+                <Button variant="secondary" size="sm" onClick={clearSearch}>
                   Clear search
                 </Button>
               </div>
             </div>
           ) : (
-            matchingCategories.map((cat) => {
+            visibleCategories.map((cat) => {
               const content = sections[cat.id];
               if (!content) return null;
               return (

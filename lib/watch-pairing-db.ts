@@ -75,6 +75,7 @@ export function defaultWatchPairingDeps(): WatchPairingDeps {
           id: watchPairingCode.id,
           userSub: watchPairingCode.userSub,
           workspaceId: watchPairingCode.workspaceId,
+          tokenName: watchPairingCode.tokenName,
           apps: watchPairingCode.apps,
           scopes: watchPairingCode.scopes,
           expiresAt: watchPairingCode.expiresAt,

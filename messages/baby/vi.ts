@@ -510,6 +510,8 @@ export const babyVi: Record<BabyMessageKey, string> = {
   "settings.language": "Ngôn ngữ",
   "settings.langEn": "English",
   "settings.langVi": "Tiếng Việt",
+  "settings.searchPlaceholder":
+    "Tìm cài đặt Baby (vd. sinh nhật, ngôn ngữ, telegram)…",
   "settings.chatId": "Mã chat",
   "settings.modelB": "Một nhóm gia đình mỗi workspace (Telegram mô hình B).",
   "settings.linkedChat": "Chat đã liên kết:",

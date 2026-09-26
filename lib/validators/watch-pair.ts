@@ -8,6 +8,7 @@ const apiTokenScopeSchema = z.enum(API_TOKEN_SCOPES);
 export const watchPairMintSchema = z
   .object({
     workspaceId: z.string().uuid().optional(),
+    name: z.string().trim().min(1, "Name is required").max(120),
     apps: z.array(shareableAppSchema).min(1, "Select at least one app"),
     scopes: z
       .array(apiTokenScopeSchema)

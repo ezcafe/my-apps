@@ -25,8 +25,10 @@ import {
 import { resolveMoneyAppHeader } from "@/lib/money-app-header";
 import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import {
+  APP_NAV_GROUP_LABELS,
   APP_SECTION_NAV,
   APP_SECTION_ORDER,
+  appSectionItemsByGroup,
   resolveAppSectionFromPath,
   visibleAppSectionItems,
   isAppSectionNavItemActive,
@@ -457,29 +459,36 @@ function AppSectionNavPanel({
   appKey,
   isTabVisible,
   onNavigate,
-  showAppHeading = true,
+  showAppHeading = false,
 }: {
   appKey: AppSectionKey;
   isTabVisible: (key: MoneyOptionalSectionTabKey | undefined) => boolean;
   onNavigate: () => void;
+  /** When groups are labeled, keep false to avoid a second app title. */
   showAppHeading?: boolean;
 }) {
   const config = APP_SECTION_NAV[appKey];
   const items = visibleAppSectionItems(appKey, isTabVisible);
+  const groups = appSectionItemsByGroup(items);
 
   return (
     <nav className="flex flex-col" aria-label={`${config.label} sections`}>
       {showAppHeading ? <MenuSectionLabel>{config.label}</MenuSectionLabel> : null}
-      {items.map(({ href, label, icon, exact }) => (
-        <MoneyAppMenuNavLink
-          key={href}
-          href={href}
-          label={label}
-          icon={icon}
-          exact={exact}
-          onNavigate={onNavigate}
-        />
-      ))}
+      {groups.flatMap(({ group, items: groupItems }) => [
+        <MenuSectionLabel key={`label-${group}`}>
+          {APP_NAV_GROUP_LABELS[group]}
+        </MenuSectionLabel>,
+        ...groupItems.map(({ href, label, icon, exact }) => (
+          <MoneyAppMenuNavLink
+            key={href}
+            href={href}
+            label={label}
+            icon={icon}
+            exact={exact}
+            onNavigate={onNavigate}
+          />
+        )),
+      ])}
     </nav>
   );
 }
@@ -504,6 +513,7 @@ function OtherAppsJumpLinks({
 
   return (
     <nav className="flex flex-col" aria-label="Other apps">
+      <MenuSectionLabel>Other apps</MenuSectionLabel>
       {others.map((appKey) => {
         const config = APP_SECTION_NAV[appKey];
         const Icon = moneySectionTabIcons[appSwitcherIcon[appKey]];
@@ -593,7 +603,8 @@ function MoneyMenuAuth({ onNavigate }: { onNavigate: () => void }) {
 }
 
 /**
- * Context-first app hamburger: current app grouped by task, other apps as jump links.
+ * Context-first app hamburger: current app grouped by task (Browse / Review /
+ * Capture / Configure), other apps under an Other apps label, workspace footer.
  * Page actions sit at the top when registered. Config: {@link APP_SECTION_NAV}.
  */
 export function MoneyAppMenu() {

@@ -4,7 +4,6 @@ import type { ApiTokenScope } from "@/db/schema/api-token";
 import type { ShareableWorkspaceAppKey } from "@/lib/workspace-shareable-apps";
 import {
   WatchPairError,
-  formatApiPairingTokenName,
   hashWatchPairCode,
   isValidWatchPairCodeShape,
   normalizeWatchPairCode,
@@ -21,6 +20,7 @@ type Row = {
   userSub: string;
   workspaceId: string;
   codeHash: string;
+  tokenName: string;
   apps: ShareableWorkspaceAppKey[];
   scopes: ApiTokenScope[];
   expiresAt: Date;
@@ -42,7 +42,6 @@ function makeFake(opts?: {
   let now = opts?.now ?? new Date("2026-09-26T12:00:00.000Z");
   let nextCode = opts?.code ?? "AB7K2Q";
   let assertOk = opts?.assertOk ?? true;
-  let revokeCalls = 0;
 
   const deps: WatchPairingDeps = {
     now: () => now,
@@ -59,6 +58,7 @@ function makeFake(opts?: {
         userSub: row.userSub,
         workspaceId: row.workspaceId,
         codeHash: row.codeHash,
+        tokenName: row.tokenName,
         apps: row.apps,
         scopes: row.scopes,
         expiresAt: row.expiresAt,
@@ -72,6 +72,7 @@ function makeFake(opts?: {
             id: r.id,
             userSub: r.userSub,
             workspaceId: r.workspaceId,
+            tokenName: r.tokenName,
             apps: r.apps,
             scopes: r.scopes,
             expiresAt: r.expiresAt,
@@ -99,12 +100,6 @@ function makeFake(opts?: {
     deps,
     rows,
     created,
-    get revokeCalls() {
-      return revokeCalls;
-    },
-    bumpRevoke: () => {
-      revokeCalls += 1;
-    },
     setAssertOk: (v: boolean) => {
       assertOk = v;
     },
@@ -117,7 +112,10 @@ function makeFake(opts?: {
   };
 }
 
-const babyMint = { apps: ["baby"] as ShareableWorkspaceAppKey[] };
+const babyMint = {
+  name: "My Watch",
+  apps: ["baby"] as ShareableWorkspaceAppKey[],
+};
 
 describe("watch-pairing-codes", () => {
   it("normalizes trim and uppercase", () => {
@@ -136,28 +134,32 @@ describe("watch-pairing-codes", () => {
       hashWatchPairCode(normalizeWatchPairCode(" ab7k2q ")),
     );
   });
-
-  it("formatApiPairingTokenName includes prefix", () => {
-    assert.match(
-      formatApiPairingTokenName(new Date("2026-09-26T12:00:00.000Z")),
-      /^API pairing · /,
-    );
-  });
 });
 
 describe("watchPairMintSchema", () => {
   it("rejects empty apps", () => {
-    const r = watchPairMintSchema.safeParse({ apps: [] });
+    const r = watchPairMintSchema.safeParse({ name: "x", apps: [] });
+    assert.equal(r.success, false);
+  });
+
+  it("rejects missing name", () => {
+    const r = watchPairMintSchema.safeParse({ apps: ["baby"] });
+    assert.equal(r.success, false);
+  });
+
+  it("rejects blank name", () => {
+    const r = watchPairMintSchema.safeParse({ name: "   ", apps: ["baby"] });
     assert.equal(r.success, false);
   });
 
   it("rejects unknown app key", () => {
-    const r = watchPairMintSchema.safeParse({ apps: ["notes"] });
+    const r = watchPairMintSchema.safeParse({ name: "x", apps: ["notes"] });
     assert.equal(r.success, false);
   });
 
   it("accepts money with read-only scopes", () => {
     const r = watchPairMintSchema.safeParse({
+      name: "Script",
       apps: ["money"],
       scopes: ["read"],
     });
@@ -166,10 +168,23 @@ describe("watchPairMintSchema", () => {
 });
 
 describe("watch-pairing-service", () => {
+  it("mint rejects empty name", async () => {
+    const f = makeFake();
+    await assert.rejects(
+      () =>
+        mintWatchPairingCode(
+          "user-1",
+          { name: "  ", apps: ["baby"] },
+          f.deps,
+        ),
+      (e: unknown) => e instanceof WatchPairError && e.code === "BAD_REQUEST",
+    );
+  });
+
   it("mint rejects empty apps", async () => {
     const f = makeFake();
     await assert.rejects(
-      () => mintWatchPairingCode("user-1", { apps: [] }, f.deps),
+      () => mintWatchPairingCode("user-1", { name: "x", apps: [] }, f.deps),
       (e: unknown) => e instanceof WatchPairError && e.code === "BAD_REQUEST",
     );
   });
@@ -192,13 +207,18 @@ describe("watch-pairing-service", () => {
     assert.equal(f.rows[1]!.consumedAt, null);
   });
 
-  it("mint stores apps and scopes", async () => {
+  it("mint stores name apps and scopes", async () => {
     const f = makeFake({ code: "MONEY1" });
     await mintWatchPairingCode(
       "user-1",
-      { apps: ["money", "baby"], scopes: ["read"] },
+      {
+        name: "Laptop script",
+        apps: ["money", "baby"],
+        scopes: ["read"],
+      },
       f.deps,
     );
+    assert.equal(f.rows[0]!.tokenName, "Laptop script");
     assert.deepEqual(f.rows[0]!.apps, ["money", "baby"]);
     assert.deepEqual(f.rows[0]!.scopes, ["read"]);
   });
@@ -216,11 +236,11 @@ describe("watch-pairing-service", () => {
     );
   });
 
-  it("redeem uses stored apps/scopes and does not auto-revoke", async () => {
+  it("redeem uses stored name apps and scopes", async () => {
     const f = makeFake({ code: "AB7K2Q" });
     await mintWatchPairingCode(
       "user-1",
-      { apps: ["money"], scopes: ["read", "write"] },
+      { name: "Postman", apps: ["money"], scopes: ["read", "write"] },
       f.deps,
     );
     const first = await redeemWatchPairingCode(" ab7k2q ", f.deps);
@@ -228,8 +248,7 @@ describe("watch-pairing-service", () => {
     assert.equal(first.token, "mny_watch_user-1_ws-1");
     assert.deepEqual(f.created[0]!.apps, ["money"]);
     assert.deepEqual(f.created[0]!.scopes, ["read", "write"]);
-    assert.match(f.created[0]!.name, /^API pairing · /);
-    assert.equal(f.revokeCalls, 0);
+    assert.equal(f.created[0]!.name, "Postman");
     await assert.rejects(
       () => redeemWatchPairingCode("AB7K2Q", f.deps),
       (e: unknown) => e instanceof WatchPairError && e.code === "CONSUMED",

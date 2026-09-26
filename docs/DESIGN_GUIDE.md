@@ -42,9 +42,9 @@ This app is **long navigation** ([Pencil & Paper Navigation Assessment Framework
 | Concept | Practice in this app |
 |---------|----------------------|
 | **Navigation budget** | Every page hop costs reorientation. Prefer fewer, clearer destinations; do not add a nav item for a one-off action — use heading CTAs, drawers, or inline expansion instead. |
-| **Context-first menu** | [`MoneyAppMenu`](../components/money-section-tabs.tsx) detects the active app from the pathname and shows **that app’s nav items first**. Other apps appear as compact jump links to their home route — not a second copy of all their pages. |
-| **Clean hierarchy** | Items are ordered by job (Review → Capture → Browse → Configure) without noisy intermediate subtitle headers. Source of truth: [`APP_SECTION_NAV`](../lib/app-section-nav.ts). |
-| **Item order** | Insights → primary capture action → main browse surface → optional ledgers → configure. Match page titles (“Spending”, “Loans”, “Investments”) — not generic “Overview”. |
+| **Context-first menu** | [`MoneyAppMenu`](../components/money-section-tabs.tsx) detects the active app from the pathname and shows **that app’s nav items first**, grouped by task. Other apps appear under an **Other apps** label as compact jump links to their home route — not a second copy of all their pages. |
+| **Clean hierarchy** | Items are ordered by job (**Browse → Review → Capture → Configure**) with **task-group labels** in the hamburger (`APP_NAV_GROUP_LABELS` via `appSectionItemsByGroup`). Source of truth: [`APP_SECTION_NAV`](../lib/app-section-nav.ts). Do not add a second app-title heading above those groups. |
+| **Item order** | Within each app: browse surfaces → review (Insights / Activities) → capture actions → configure. Match page titles (“Spending”, “Loans”, “Investments”) — not generic “Overview”. |
 | **Low-value cuts** | Optional Money ledgers (Bills, Savings, Import) stay **off by default** ([`money-section-tab-visibility.ts`](../lib/money-section-tab-visibility.ts)); enable in Money settings. Do not add nav rent for empty shells or single-action pages. |
 | **Labeled essentials** | Workspace footer links (API help, Settings, Sign in/out) use **icon + text** rows — never icon-only in the menu panel. Hamburger trigger stays icon-only (`fx-hit-40`). |
 | **Wide vs deep** | Nested routes (loan detail, settings child, instrument create) use **breadcrumbs**, not extra hamburger rows. Do not mirror folder depth in the menu. |

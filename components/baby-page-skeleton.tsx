@@ -526,43 +526,58 @@ export function BabyGrowthPageSkeleton() {
 /** @deprecated Prefer BabyGrowthPageSkeleton */
 export const BabyMeasurePageSkeleton = BabyGrowthPageSkeleton;
 
-/** Flat language + optional telegram SettingsSection chrome. */
+/** Sidebar + search + one pane — matches SettingsPageLayout / App Settings. */
 export function BabySettingsSkeleton({
   telegramEnabled = false,
 }: {
   telegramEnabled?: boolean;
 }) {
+  const navCount = telegramEnabled ? 3 : 2;
   return (
     <div
-      className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK, "fx-fade-in")}
+      className={cn(SHELL_FULL_SPAN, "space-y-6", "fx-fade-in")}
+      aria-busy
+      aria-label="Loading baby settings"
       aria-hidden
     >
-      <section className="space-y-4">
-        <div className="border-b border-border/70 pb-3">
-          <Skeleton className="h-7 w-28 rounded-[var(--radius-sm)]" />
+      <div className="flex flex-col md:flex-row gap-6 md:gap-8 lg:gap-10 items-start">
+        <aside className="w-full md:w-52 lg:w-56 shrink-0 md:sticky md:top-6 md:self-start">
+          <div className="flex md:hidden w-full overflow-x-auto pb-1 gap-1.5">
+            {Array.from({ length: navCount }, (_, i) => (
+              <Skeleton
+                key={`baby-cat-pill-${i}`}
+                className="h-7 w-28 shrink-0 rounded-[var(--radius-sm)]"
+              />
+            ))}
+          </div>
+          <div className="hidden md:flex flex-col gap-1 w-full">
+            {Array.from({ length: navCount }, (_, i) => (
+              <Skeleton
+                key={`baby-cat-item-${i}`}
+                className="h-9 w-full rounded-[var(--radius-sm)]"
+              />
+            ))}
+          </div>
+        </aside>
+
+        <div className="flex-1 min-w-0 w-full space-y-8">
+          <div className="w-full max-w-2xl">
+            <Skeleton className="h-10 w-full rounded-[var(--radius-md)]" />
+          </div>
+
+          <section className="space-y-4">
+            <div className="border-b border-border/70 pb-3 space-y-1.5">
+              <Skeleton className="h-7 w-36 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-4 w-64 max-w-full rounded-[var(--radius-sm)]" />
+            </div>
+            <div className="space-y-3 pt-1">
+              <Skeleton className="h-4 w-24 rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-10 w-full max-w-xs rounded-[var(--radius-sm)]" />
+              <Skeleton className="h-12 w-28 rounded-[var(--radius-md)]" />
+            </div>
+          </section>
         </div>
-        <div className="pt-1">
-          <div className="flex gap-2">
-            <Skeleton className="h-11 w-28 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-11 w-28 rounded-[var(--radius-sm)]" />
-          </div>
-        </div>
-      </section>
-      {telegramEnabled ? (
-        <section className="space-y-4">
-          <div className="border-b border-border/70 pb-3">
-            <Skeleton className="h-7 w-40 rounded-[var(--radius-sm)]" />
-            <Skeleton className="mt-1 h-4 w-3/4 rounded-[var(--radius-sm)]" />
-          </div>
-          <div className="space-y-3 pt-1">
-            <Skeleton className="h-5 w-48 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-4 w-64 rounded-[var(--radius-sm)]" />
-            <Skeleton className="h-14 w-40 rounded-[var(--radius-md)]" />
-          </div>
-        </section>
-      ) : (
-        <Skeleton className="h-5 w-36 rounded-[var(--radius-sm)]" />
-      )}
+      </div>
     </div>
   );
 }
