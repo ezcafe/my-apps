@@ -5,10 +5,12 @@ import {
   LOAN_DETAIL_QUERY,
   LOANS_BOOTSTRAP_QUERY,
   LOANS_DUE_QUERY,
+  LOANS_INSTALLMENTS_QUERY,
   LOANS_INSIGHTS_ATF_QUERY,
   LOANS_INSIGHTS_MORE_QUERY,
   LOANS_LIST_QUERY,
 } from "@/lib/loans-gql-documents";
+import type { LoansInstallmentsQueryInput } from "@/lib/validators/loans";
 
 export type LoansBootstrapData = {
   workspaceId: string;
@@ -133,6 +135,8 @@ export const loansKeys = {
     [...loansKeys.all, "insightsAtf", from, to] as const,
   insightsMore: (from: string, to: string) =>
     [...loansKeys.all, "insightsMore", from, to] as const,
+  installments: (query: LoansInstallmentsQueryInput) =>
+    [...loansKeys.all, "installments", query] as const,
 };
 
 export function loansBootstrapQueryOptions() {
@@ -180,6 +184,54 @@ export function loansDueQueryOptions() {
         loansDueInstallments: DueInstallment[];
       }>(LOANS_DUE_QUERY);
       return data.loansDueInstallments;
+    },
+  });
+}
+
+export type LoansInstallmentListItem = {
+  scheduleInstallmentId: string;
+  loanId: string;
+  loanName: string;
+  installmentNumber: number;
+  dueDate: string;
+  paymentMinor: number;
+  principalMinor: number;
+  interestMinor: number;
+  balanceAfterMinor: number;
+  status: string;
+  paidAt: string | null;
+  currency: string;
+};
+
+export function loansInstallmentsQueryOptions(
+  query: LoansInstallmentsQueryInput = {},
+) {
+  return queryOptions({
+    queryKey: loansKeys.installments(query),
+    queryFn: async () => {
+      const data = await loansGraphQLRequest<{
+        loansInstallments: {
+          items: Array<
+            Omit<LoansInstallmentListItem, "paymentMinor" | "principalMinor" | "interestMinor" | "balanceAfterMinor"> & {
+              paymentMinor: unknown;
+              principalMinor: unknown;
+              interestMinor: unknown;
+              balanceAfterMinor: unknown;
+            }
+          >;
+          nextCursor: string | null;
+        };
+      }>(LOANS_INSTALLMENTS_QUERY, { query });
+      return {
+        items: data.loansInstallments.items.map((row) => ({
+          ...row,
+          paymentMinor: gqlMinor(row.paymentMinor),
+          principalMinor: gqlMinor(row.principalMinor),
+          interestMinor: gqlMinor(row.interestMinor),
+          balanceAfterMinor: gqlMinor(row.balanceAfterMinor),
+        })),
+        nextCursor: data.loansInstallments.nextCursor,
+      };
     },
   });
 }

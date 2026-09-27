@@ -30,6 +30,7 @@ import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import { loansInsightsDefaultRange } from "@/lib/money-first-load-filters";
 import { MoneyStatusEmphasis, MoneyStatusStrip } from "@/lib/money-status-strip";
+import { daysUntilDue, isDueSoon, isOverdue } from "@/lib/loans-due";
 import { getLoansTodayIso } from "@/lib/loans-today";
 import {
   loansInsightsAtfQueryOptions,
@@ -46,28 +47,6 @@ const FILTER_OPTIONS: { value: LoanFilter; label: string }[] = [
   { value: "active", label: "Active" },
   { value: "paid_off", label: "Paid off" },
 ];
-
-function daysUntilDue(dueDate: string, todayIso: string): number {
-  const due = new Date(`${dueDate}T12:00:00`);
-  const today = new Date(`${todayIso}T12:00:00`);
-  return Math.round(
-    (due.getTime() - today.getTime()) / (24 * 60 * 60 * 1000),
-  );
-}
-
-function isOverdue(loan: LoanListItem, todayIso: string): boolean {
-  return (
-    loan.status !== "paid_off" &&
-    Boolean(loan.nextDueDate) &&
-    daysUntilDue(loan.nextDueDate!, todayIso) < 0
-  );
-}
-
-function isDueSoon(loan: LoanListItem, todayIso: string): boolean {
-  if (loan.status === "paid_off" || !loan.nextDueDate) return false;
-  const days = daysUntilDue(loan.nextDueDate, todayIso);
-  return days >= 0 && days <= 7;
-}
 
 function matchesFilter(
   loan: LoanListItem,

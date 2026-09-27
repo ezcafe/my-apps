@@ -27,9 +27,25 @@ import {
 import { AnalyticsPeriodChip } from "@/components/analytics-period-chip";
 import { useSetAppHeader } from "@/components/app-header-override";
 import { LoansInsightsStats } from "@/components/loans-insights-stats";
+import {
+  LoansInsightsUrgencyStrip,
+  LoansInsightsUrgencyStripSkeleton,
+} from "@/components/loans-insights-urgency-strip";
 import { LoansRemainingByLoanCard } from "@/components/loan-chart-cards/remaining-by-loan-card";
 import { LoansPaidPrincipalInterestCard } from "@/components/loan-chart-cards/paid-principal-interest-card";
+import { LoansChartDrilldownModal } from "@/components/loans-chart-drilldown-modal";
 import { useLoansWorkspace } from "@/components/loans-workspace-provider";
+import { ChartLegendList } from "@/components/charts/chart-legend-list";
+import {
+  loanProgressSeriesColors,
+  type LoanProgressSeriesKey,
+} from "@/components/charts/loan-progress-colors";
+import { useTheme } from "@/components/theme-provider";
+import { toggleSetKey } from "@/lib/chart-legend-toggle";
+import {
+  loansDrilldownForPaidInRange,
+  type LoansChartDrilldownPayload,
+} from "@/lib/loans-chart-drilldown";
 import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
 import { formatMinor, formatCompactMinor } from "@/lib/format-money";
@@ -37,8 +53,11 @@ import { loansInsightsDefaultRange } from "@/lib/money-first-load-filters";
 import {
   loansInsightsAtfQueryOptions,
   loansInsightsMoreQueryOptions,
+  loansListQueryOptions,
   type LoansInsightsMore,
 } from "@/lib/loans-query-options";
+import { countLoansDueUrgency } from "@/lib/loans-due";
+import { getLoansTodayIso } from "@/lib/loans-today";
 import { useInViewOnce } from "@/lib/use-in-view-once";
 import { MoneyQueryErrorAlert } from "@/components/money-feedback";
 
@@ -68,6 +87,8 @@ export function LoansInsightsDashboard() {
   const [applied, setApplied] = useState(pageDefault);
   const [isFilterPending, startFilterTransition] = useTransition();
   const [moreInsights, setMoreInsights] = useState(false);
+  const [chartDrilldown, setChartDrilldown] =
+    useState<LoansChartDrilldownPayload | null>(null);
 
   const dirty = draft.from !== applied.from || draft.to !== applied.to;
   const handleApply = useCallback(() => {
@@ -85,6 +106,10 @@ export function LoansInsightsDashboard() {
     ...loansInsightsAtfQueryOptions(applied.from, applied.to),
     enabled: workspaceReady,
   });
+  const listQuery = useQuery({
+    ...loansListQueryOptions(),
+    enabled: workspaceReady,
+  });
   const moreQuery = useQuery({
     ...loansInsightsMoreQueryOptions(applied.from, applied.to),
     enabled: moreInsights && workspaceReady,
@@ -93,13 +118,19 @@ export function LoansInsightsDashboard() {
   const formatY = (minor: number) => formatCompactMinor(minor, currency);
   const atf = atfQuery.data;
   const empty = atf != null && atf.summary.loanCount === 0;
+  const todayIso = getLoansTodayIso();
+  const urgency = useMemo(
+    () => countLoansDueUrgency(listQuery.data ?? [], todayIso),
+    [listQuery.data, todayIso],
+  );
+  const urgencyReady = listQuery.isSuccess || listQuery.isError;
 
   useSetAppHeader({
     meta: "Payoff progress, balance trends, and loan metrics for the selected range.",
   });
 
   if (!workspaceReady && !atfQuery.data && !atfQuery.error) {
-    return <FeatureInsightsPageSkeleton />;
+    return <FeatureInsightsPageSkeleton showUrgencyStrip />;
   }
 
   return (
@@ -118,6 +149,15 @@ export function LoansInsightsDashboard() {
         toDate={applied.to}
         dirty={dirty}
       />
+
+      {urgencyReady ? (
+        <LoansInsightsUrgencyStrip
+          overdue={urgency.overdue}
+          dueSoon={urgency.dueSoon}
+        />
+      ) : workspaceReady ? (
+        <LoansInsightsUrgencyStripSkeleton />
+      ) : null}
 
       {atfQuery.isError ? (
         <MoneyQueryErrorAlert
@@ -160,6 +200,7 @@ export function LoansInsightsDashboard() {
               ready
               slices={atf.remainingByLoan}
               currency={currency}
+              onDrilldown={setChartDrilldown}
             />
             <LoansPaidPrincipalInterestCard
               ready
@@ -168,6 +209,7 @@ export function LoansInsightsDashboard() {
               formatValue={formatY}
               periodFrom={atf.range.from}
               periodTo={atf.range.to}
+              onDrilldown={setChartDrilldown}
             />
           </div>
 
@@ -209,10 +251,19 @@ export function LoansInsightsDashboard() {
               moreError={moreQuery.error}
               onRetryMore={() => void moreQuery.refetch()}
               currency={currency}
+              rangeFrom={applied.from}
+              rangeTo={applied.to}
+              onDrilldown={setChartDrilldown}
             />
           )}
         </section>
       ) : null}
+
+      <LoansChartDrilldownModal
+        open={Boolean(chartDrilldown)}
+        onClose={() => setChartDrilldown(null)}
+        drill={chartDrilldown}
+      />
     </div>
   );
 }
@@ -223,15 +274,52 @@ function LoansMoreInsights({
   moreError,
   onRetryMore,
   currency,
+  rangeFrom,
+  rangeTo,
+  onDrilldown,
 }: {
   more: LoansInsightsMore | undefined;
   moreReady: boolean;
   moreError: Error | null;
   onRetryMore: () => void;
   currency: string;
+  rangeFrom: string;
+  rangeTo: string;
+  onDrilldown: (payload: LoansChartDrilldownPayload) => void;
 }) {
   const { ref: chartRef, isInView: chartInView } = useInViewOnce();
+  const { resolved, style } = useTheme();
   const formatY = (minor: number) => formatCompactMinor(minor, currency);
+  const [hiddenSeries, setHiddenSeries] = useState(
+    () => new Set<LoanProgressSeriesKey>(),
+  );
+  const colors = loanProgressSeriesColors(resolved, style);
+  const lastPoint = more?.combinedChart[more.combinedChart.length - 1];
+  const legendItems = useMemo(
+    () =>
+      (
+        [
+          { key: "actual" as const, label: "Paid" },
+          { key: "scheduled" as const, label: "Scheduled" },
+          { key: "projected" as const, label: "Projected" },
+        ] as const
+      ).map(({ key, label }) => ({
+        key,
+        label,
+        color: colors[key],
+        valueText: formatCompactMinor(
+          lastPoint
+            ? key === "actual"
+              ? lastPoint.actualCumulativeMinor
+              : key === "scheduled"
+                ? lastPoint.scheduledCumulativeMinor
+                : lastPoint.projectedCumulativeMinor
+            : 0,
+          currency,
+        ),
+      })),
+    [colors, lastPoint, currency],
+  );
 
   return (
     <>
@@ -255,11 +343,40 @@ function LoansMoreInsights({
         <p className="mb-2 text-xs text-muted">
           Scheduled, paid, and projected principal across all loans.
         </p>
-        <AnalyticsChartContainer>
+        <AnalyticsChartContainer
+          legendLayout="compact"
+          legend={
+            moreReady && more && more.combinedChart.length > 0 ? (
+              <ChartLegendList
+                items={legendItems}
+                hiddenKeys={hiddenSeries}
+                onToggle={(key) =>
+                  setHiddenSeries((s) =>
+                    toggleSetKey(s, key as LoanProgressSeriesKey),
+                  )
+                }
+                showValues={false}
+              />
+            ) : undefined
+          }
+        >
           {!chartInView || !moreReady || !more ? (
             <DeferredChartLoading ariaLabel="Loading combined payoff chart" />
           ) : more.combinedChart.length > 0 ? (
-            <LoanProgressChart data={more.combinedChart} formatY={formatY} />
+            <LoanProgressChart
+              data={more.combinedChart}
+              formatY={formatY}
+              hiddenSeries={hiddenSeries}
+              onItemClick={() => {
+                onDrilldown(
+                  loansDrilldownForPaidInRange({
+                    from: rangeFrom,
+                    to: rangeTo,
+                    title: "Paid installments in range",
+                  }),
+                );
+              }}
+            />
           ) : (
             <AnalyticsEmptyState
               title="No schedule to chart"

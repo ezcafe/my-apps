@@ -35,6 +35,11 @@ import { toggleSetKey } from "@/lib/chart-legend-toggle";
 import { SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { loanDetailQueryOptions, type LoanDetail } from "@/lib/loans-query-options";
 import { cn } from "@/lib/cn";
+import { LoansChartDrilldownModal } from "@/components/loans-chart-drilldown-modal";
+import {
+  loansDrilldownForProgressPoint,
+  type LoansChartDrilldownPayload,
+} from "@/lib/loans-chart-drilldown";
 
 const AnalyticsChartContainer = dynamic(
   () =>
@@ -106,6 +111,8 @@ function LoanPayoffProgressCard({ loan }: { loan: LoanDetail }) {
   const [hiddenSeries, setHiddenSeries] = useState(
     () => new Set<LoanProgressSeriesKey>(),
   );
+  const [chartDrilldown, setChartDrilldown] =
+    useState<LoansChartDrilldownPayload | null>(null);
   const colors = loanProgressSeriesColors(resolved, style);
   const lastPoint = loan.chart[loan.chart.length - 1];
 
@@ -136,35 +143,52 @@ function LoanPayoffProgressCard({ loan }: { loan: LoanDetail }) {
   );
 
   return (
-    <Card
-      className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
-    >
-      <h2 className="mb-2 font-display text-lg font-medium">Payoff progress</h2>
-      <p className="mb-2 text-sm text-muted">
-        Solid: principal paid to date. Dashed: scheduled. Dotted: projected.
-      </p>
-      <AnalyticsChartContainer
-        legendLayout="compact"
-        legend={
-          loan.chart.length > 0 ? (
-            <ChartLegendList
-              items={legendItems}
-              hiddenKeys={hiddenSeries}
-              onToggle={(key) =>
-                setHiddenSeries((s) => toggleSetKey(s, key as LoanProgressSeriesKey))
-              }
-              showValues={false}
-            />
-          ) : undefined
-        }
+    <>
+      <Card
+        className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
       >
-        <LoanProgressChart
-          data={loan.chart}
-          formatY={(minor) => formatCompactMinor(minor, loan.currency)}
-          hiddenSeries={hiddenSeries}
-        />
-      </AnalyticsChartContainer>
-    </Card>
+        <h2 className="mb-2 font-display text-lg font-medium">Payoff progress</h2>
+        <p className="mb-2 text-sm text-muted">
+          Solid: principal paid to date. Dashed: scheduled. Dotted: projected.
+        </p>
+        <AnalyticsChartContainer
+          legendLayout="compact"
+          legend={
+            loan.chart.length > 0 ? (
+              <ChartLegendList
+                items={legendItems}
+                hiddenKeys={hiddenSeries}
+                onToggle={(key) =>
+                  setHiddenSeries((s) =>
+                    toggleSetKey(s, key as LoanProgressSeriesKey),
+                  )
+                }
+                showValues={false}
+              />
+            ) : undefined
+          }
+        >
+          <LoanProgressChart
+            data={loan.chart}
+            formatY={(minor) => formatCompactMinor(minor, loan.currency)}
+            hiddenSeries={hiddenSeries}
+            onItemClick={(item) => {
+              setChartDrilldown(
+                loansDrilldownForProgressPoint({
+                  loanId: loan.id,
+                  label: item.label,
+                }),
+              );
+            }}
+          />
+        </AnalyticsChartContainer>
+      </Card>
+      <LoansChartDrilldownModal
+        open={Boolean(chartDrilldown)}
+        onClose={() => setChartDrilldown(null)}
+        drill={chartDrilldown}
+      />
+    </>
   );
 }
 

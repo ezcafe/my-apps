@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en" data-style="quiet">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Insights UX — proposed chrome deltas</title>
+  <style>
+    :root {
+      --background: #fafafa;
+      --foreground: #1a1a1a;
+      --muted: #6b6b6b;
+      --surface: #ffffff;
+      --border: #e5e5e5;
+      --muted-surface: #f5f5f5;
+      --accent: #0d9488;
+      --destructive: #dc2626;
+      --radius-md: 0.5rem;
+      --radius-sm: 0.375rem;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--foreground);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .page { max-width: 1120px; margin: 0 auto; padding: 24px 20px 48px; }
+    .banner {
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      margin-bottom: 20px;
+      background: var(--muted-surface);
+    }
+    h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.02em; }
+    .lead { color: var(--muted); margin: 0 0 28px; max-width: 42rem; }
+    .panels {
+      display: grid;
+      gap: 32px;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .panel h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0;
+    }
+    .title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .title-row h3 { font-size: 1.125rem; font-weight: 600; margin: 0; }
+    .meta { font-size: 13px; color: var(--muted); margin: 0; }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .filter-btn {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      font-size: 14px;
+      color: var(--foreground);
+    }
+    .filter-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 500;
+    }
+    .filter-btn.active {
+      border-color: var(--foreground);
+      font-weight: 600;
+    }
+    .chip-period {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      padding: 4px 0;
+    }
+    .kpi-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+    .kpi .label { font-size: 14px; font-weight: 500; color: var(--muted); margin: 0; }
+    .kpi .value {
+      margin: 8px 0 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi .delta {
+      margin: 4px 0 0;
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .delta.up-bad { color: var(--destructive); }
+    .delta.down-good { color: var(--accent); }
+    .delta.flat { color: var(--muted); }
+    .urgency {
+      border: 1px solid color-mix(in oklab, #f59e0b 32%, var(--border));
+      background: color-mix(in oklab, #f59e0b 12%, var(--surface));
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 20px;
+      align-items: baseline;
+    }
+    .urgency.quiet {
+      border-color: var(--border);
+      background: var(--surface);
+    }
+    .urgency .u-label { font-size: 13px; color: var(--muted); }
+    .urgency .u-value { font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .urgency a {
+      margin-left: auto;
+      color: var(--accent);
+      font-weight: 500;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .chart-stub {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: var(--radius-md);
+      min-height: 120px;
+      padding: 12px 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .chart-stub strong { color: var(--foreground); display: block; margin-bottom: 4px; }
+    .new { outline: 2px solid color-mix(in oklab, var(--accent) 45%, transparent); outline-offset: 2px; }
+    .legend {
+      margin-top: 28px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .legend span {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border: 2px solid color-mix(in oklab, var(--accent) 45%, transparent);
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p class="banner">
+      Gate A2 proposed look — chrome deltas only on existing Insights stack
+      (filters → period → KPIs → charts). Teal outline = new this pass. Match real
+      app size, positions, texts, chrome.
+    </p>
+    <h1>Insights</h1>
+    <p class="lead">
+      Three panels = Money / Baby / Loans. Same clean-minimal tokens and card
+      chrome as live Insights. Not a redesign.
+    </p>
+
+    <div class="panels">
+      <!-- Money -->
+      <section class="panel" aria-label="Money Insights proposed">
+        <h2>Money · /money/insights</h2>
+        <div class="title-row">
+          <h3>Insights</h3>
+        </div>
+        <p class="meta">Income, spending, and category trends for the selected range.</p>
+        <div class="filters">
+          <button type="button" class="filter-btn">Ledger</button>
+          <button type="button" class="filter-btn">Sep 1 – Sep 27</button>
+          <button type="button" class="filter-btn">More</button>
+          <button type="button" class="filter-btn primary">Apply</button>
+        </div>
+        <div class="chip-period">Showing Sep 1 – Sep 27</div>
+        <div class="kpi-grid">
+          <div class="kpi new">
+            <p class="label">Expenses</p>
+            <p class="value" style="color:#b91c1c">$2.4k</p>
+            <p class="delta up-bad"><span aria-hidden="true">↑</span> 12% vs prior month</p>
+          </div>
+          <div class="kpi">
+            <p class="label">Net</p>
+            <p class="value" style="color:var(--accent)">$410</p>
+          </div>
+          <div class="kpi">
+            <p class="label">Income</p>
+            <p class="value" style="color:var(--accent)">$2.8k</p>
+          </div>
+          <div class="kpi">
+            <p class="label">Savings rate</p>
+            <p class="value" style="color:var(--accent)">14.6%</p>
+          </div>
+        </div>
+        <div class="chart-stub">
+          <strong>Spend by category</strong>
+          Existing ATF chart (unchanged)
+        </div>
+      </section>
+
+      <!-- Baby -->
+      <section class="panel" aria-label="Baby Insights proposed">
+        <h2>Baby · /baby/insights</h2>
+        <div class="title-row">
+          <h3>Insights</h3>
+        </div>
+        <p class="meta">Activities live on the Activities page.</p>
+        <div class="filters">
+          <button type="button" class="filter-btn">Sep 20 – Sep 27</button>
+          <button type="button" class="filter-btn active new">Care</button>
+          <button type="button" class="filter-btn new">Growth</button>
+          <button type="button" class="filter-btn primary">Apply</button>
+          <button type="button" class="filter-btn">Reset</button>
+        </div>
+        <div class="chip-period">Showing Sep 20 – Sep 27 · Sleep</div>
+        <div class="chart-stub">
+          <strong>Hydration Monitor</strong>
+          Existing default chart (unchanged)
+        </div>
+        <div class="chart-stub">
+          <strong>Night Rest</strong>
+          Existing default chart (unchanged)
+        </div>
+      </section>
+
+      <!-- Loans -->
+      <section class="panel" aria-label="Loans Insights proposed">
+        <h2>Loans · /loans/insights</h2>
+        <div class="title-row">
+          <h3>Insights</h3>
+        </div>
+        <p class="meta">Payoff progress, balance trends, and loan metrics for the selected range.</p>
+        <div class="filters">
+          <button type="button" class="filter-btn">Sep 1 – Sep 27</button>
+          <button type="button" class="filter-btn primary">Apply</button>
+        </div>
+        <div class="chip-period">Showing Sep 1 – Sep 27</div>
+        <div class="urgency new">
+          <div>
+            <div class="u-label">Overdue</div>
+            <div class="u-value">1 loan</div>
+          </div>
+          <div>
+            <div class="u-label">Due this week</div>
+            <div class="u-value">2</div>
+          </div>
+          <a href="#">View loans</a>
+        </div>
+        <div class="kpi-grid">
+          <div class="kpi">
+            <p class="label">Remaining</p>
+            <p class="value" style="color:#b91c1c">$18.2k</p>
+          </div>
+          <div class="kpi">
+            <p class="label">Monthly obligation</p>
+            <p class="value" style="color:#b91c1c">$640</p>
+          </div>
+          <div class="kpi">
+            <p class="label">Weighted APR</p>
+            <p class="value">6.25%</p>
+          </div>
+          <div class="kpi">
+            <p class="label">Next due</p>
+            <p class="value">Sep 30</p>
+          </div>
+        </div>
+        <div class="chart-stub">
+          <strong>Remaining by loan</strong>
+          Existing ATF chart (unchanged)
+        </div>
+      </section>
+    </div>
+
+    <p class="legend"><span></span> New this pass — keep everything else matching live Insights chrome.</p>
+  </div>
+</body>
+</html>

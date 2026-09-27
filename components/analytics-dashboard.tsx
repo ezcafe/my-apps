@@ -974,6 +974,24 @@ export function AnalyticsDashboard({
     | undefined) ?? null;
   const atfPieSpend = atfQuery.data?.moneyAnalyticsAtf.pieSpend;
 
+  // Same overview query as charts (shared RQ cache) — column drives Expenses MoM.
+  const overviewQuery = useQuery({
+    ...moneyAnalyticsOverviewQueryOptions(
+      activeWorkspaceId,
+      analyticsFilterQuery,
+    ),
+    enabled:
+      Boolean(activeWorkspaceId) &&
+      !workspaceSyncPending &&
+      lookupsReady,
+  });
+  const overviewColumn = useMemo(() => {
+    const overview = overviewQuery.data?.moneyAnalyticsOverview as
+      | MoneyAnalyticsOverviewPayload
+      | undefined;
+    return overview?.column ?? [];
+  }, [overviewQuery.data?.moneyAnalyticsOverview]);
+
   if (!workspaceReady && !bootstrapQuery.data && !bootstrapQuery.error) {
     return <MoneyAnalyticsPageSkeleton />;
   }
@@ -1026,6 +1044,7 @@ export function AnalyticsDashboard({
         <section aria-label="Summary metrics">
           <AnalyticsStats
             stats={atfSummary.stats}
+            column={overviewColumn}
             range={atfSummary.range}
             currency={defaultCurrency}
             showPeriodCaption={false}

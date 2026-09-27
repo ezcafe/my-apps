@@ -363,6 +363,12 @@ export const babyEn = {
   "insights.filterCareAria": "Filter by care or measurement type",
   "insights.filterCareOther": "Other types",
   "insights.filterCareEmpty": "No types",
+  "insights.filterMenuCare": "Care",
+  "insights.filterMenuGrowth": "Growth",
+  "insights.filterGrowthLegend": "Growth kinds",
+  "insights.filterGrowthAria": "Filter by growth measurement type",
+  "insights.filterGrowthOther": "Other kinds",
+  "insights.filterGrowthEmpty": "No kinds",
   "insights.hydrationTitle": "Hydration Monitor",
   "insights.hydrationPurpose":
     "Wet diapers vs feeds — a light check when wet counts look low.",

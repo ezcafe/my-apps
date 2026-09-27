@@ -122,6 +122,35 @@ export const moneyFinanceTypeDefs = /* GraphQL */ `
     moneyCategoryId: ID
   }
 
+  input LoansInstallmentsQueryInput {
+    loanId: ID
+    from: String
+    to: String
+    status: String
+    limit: Int
+    cursor: ID
+  }
+
+  type LoansInstallmentListItem {
+    scheduleInstallmentId: ID!
+    loanId: ID!
+    loanName: String!
+    installmentNumber: Int!
+    dueDate: String!
+    paymentMinor: BigInt!
+    principalMinor: BigInt!
+    interestMinor: BigInt!
+    balanceAfterMinor: BigInt!
+    status: String!
+    paidAt: String
+    currency: String!
+  }
+
+  type LoansInstallmentsConnection {
+    items: [LoansInstallmentListItem!]!
+    nextCursor: ID
+  }
+
   type LoansInsightsSummary {
     remainingMinor: BigInt!
     monthlyObligationMinor: BigInt!
@@ -459,6 +488,7 @@ export const moneyFinanceTypeDefs = /* GraphQL */ `
     loans: [LoanListItem!]!
     loan(id: ID!): LoanDetail!
     loansDueInstallments: [LoanDueInstallment!]!
+    loansInstallments(query: LoansInstallmentsQueryInput): LoansInstallmentsConnection!
     loansInsightsAtf(from: String!, to: String!): LoansInsightsAtf!
     loansInsightsMore(from: String!, to: String!): LoansInsightsMore!
     investmentBootstrap: InvestmentBootstrapPayload!

@@ -48,15 +48,15 @@ function countFilterTriggerPlaceholders(html: string): number {
   return (html.match(/h-11 w-20 shrink-0/g) ?? []).length;
 }
 
-describe("BabyInsightsPageSkeleton date-only", () => {
-  it("renders one filter trigger placeholder (no care/growth chips)", () => {
+describe("BabyInsightsPageSkeleton Care + Growth filters", () => {
+  it("renders three filter trigger placeholders (date + Care + Growth)", () => {
     const insights = renderToStaticMarkup(
       createElement(BabyInsightsPageSkeleton),
     );
     const activities = renderToStaticMarkup(
       createElement(BabyActivitiesPageSkeleton),
     );
-    assert.equal(countFilterTriggerPlaceholders(insights), 1);
+    assert.equal(countFilterTriggerPlaceholders(insights), 3);
     assert.equal(countFilterTriggerPlaceholders(activities), 2);
   });
 });
@@ -102,7 +102,7 @@ describe("InsightsDateRangeFiltersBar date-only chrome", () => {
     );
   }
 
-  it("omits Care types when multiSelectFilters is empty (Insights wiring)", () => {
+  it("omits Care types when multiSelectFilters is empty", () => {
     const dateOnly = renderBar([]);
     assert.match(dateOnly, /aria-label="Insights filters"/);
     assert.doesNotMatch(dateOnly, /Care types/i);
@@ -111,7 +111,7 @@ describe("InsightsDateRangeFiltersBar date-only chrome", () => {
     const withCare: InsightsMultiSelectFilter[] = [
       {
         id: "care",
-        label: "Care types",
+        label: "Care",
         legend: "Care",
         ariaLabel: "Care types",
         items: [{ id: "feed", label: "Feed" }],
@@ -120,6 +120,6 @@ describe("InsightsDateRangeFiltersBar date-only chrome", () => {
       },
     ];
     const withChips = renderBar(withCare);
-    assert.match(withChips, /Care types/);
+    assert.match(withChips, />Care</);
   });
 });

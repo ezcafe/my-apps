@@ -77,3 +77,28 @@ export const loanPushSubscriptionSaveSchema = z.object({
 export const loanPushSubscriptionDeleteSchema = z.object({
   endpoint: z.string().url(),
 });
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const loansInstallmentsQuerySchema = z
+  .object({
+    loanId: z.string().uuid().optional(),
+    from: isoDate.optional(),
+    to: isoDate.optional(),
+    status: z.enum(["pending", "paid", "skipped"]).optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    cursor: z.string().uuid().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.from && data.to && data.from > data.to) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "from must be on or before to",
+        path: ["from"],
+      });
+    }
+  });
+
+export type LoansInstallmentsQueryInput = z.infer<
+  typeof loansInstallmentsQuerySchema
+>;

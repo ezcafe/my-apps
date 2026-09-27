@@ -3,17 +3,23 @@
 import { Group } from "@visx/group";
 import { scaleBand, scaleLinear } from "@visx/scale";
 import { Bar } from "@visx/shape";
-import { ChartViewportFallback } from "@/components/analytics-chart-card-shared";
+import { useMemo, useState } from "react";
+import {
+  AnalyticsChartContainer,
+  ChartViewportFallback,
+} from "@/components/analytics-chart-card-shared";
 import {
   CHART_CARD_HEIGHT_HALF,
   CHART_CARD_LAYOUT,
 } from "@/components/analytics-chart-layout";
 import { ChartParentSize } from "@/components/charts/chart-parent-size";
+import { ChartLegendList } from "@/components/charts/chart-legend-list";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { useTheme } from "@/components/theme-provider";
 import { Card } from "@/components/ui/card";
 import type { BabyCareCountDay } from "@/lib/baby-care-counts";
 import { cn } from "@/lib/cn";
+import { toggleSetKey } from "@/lib/chart-legend-toggle";
 
 type SeriesKey = "feed" | "sleep" | "diaper";
 
@@ -40,50 +46,63 @@ export function BabyCareCountChart({
   const colors = SERIES.map((_, i) =>
     colorByIndex(resolved, i === 0 ? 0 : i + 1, style),
   );
+  const [hidden, setHidden] = useState(() => new Set<SeriesKey>());
+
+  const legendItems = useMemo(
+    () =>
+      SERIES.map((key, i) => ({
+        key,
+        label: seriesLabels[key],
+        color: colors[i]!,
+        valueText: String(days.reduce((s, d) => s + d[key], 0)),
+      })),
+    [days, seriesLabels, colors],
+  );
+
+  const hasData = ready && days.length > 0;
 
   return (
     <Card
-      className={cn(CHART_CARD_LAYOUT, CHART_CARD_HEIGHT_HALF, "p-4")}
+      className={cn(CHART_CARD_LAYOUT, CHART_CARD_HEIGHT_HALF, "min-w-0 p-4")}
       data-testid="baby-care-count-chart"
     >
       <p className="mb-2 shrink-0 text-sm font-medium text-foreground">{label}</p>
-      {!ready || days.length === 0 ? (
+      {!hasData ? (
         <p className="text-sm text-muted">{emptyLabel}</p>
       ) : (
         <>
-          <div className="relative h-[11.5rem] min-h-[11.5rem] w-full min-w-0 overflow-hidden">
-            <div className="absolute inset-0 min-h-0 min-w-0">
-              <ChartParentSize>
-                {({ width, height }) =>
-                  width < 10 || height < 10 ? (
-                    <ChartViewportFallback ariaLabel={label} />
-                  ) : (
-                    <BabyCareCountChartInner
-                      width={width}
-                      height={height}
-                      days={days}
-                      colors={colors}
-                      ariaLabel={label}
-                    />
-                  )
+          <AnalyticsChartContainer
+            legendLayout="compact"
+            legend={
+              <ChartLegendList
+                items={legendItems}
+                hiddenKeys={hidden}
+                onToggle={(key) =>
+                  setHidden((s) => toggleSetKey(s, key as SeriesKey))
                 }
-              </ChartParentSize>
-            </div>
-          </div>
-          <ul className="mt-2 flex flex-wrap gap-3 text-xs text-muted">
-            {SERIES.map((key, i) => (
-              <li key={key} className="inline-flex items-center gap-1.5">
-                <span
-                  className="inline-block size-2.5 rounded-[var(--radius-sm)]"
-                  style={{ backgroundColor: colors[i] }}
-                  aria-hidden
-                />
-                {seriesLabels[key]}
-              </li>
-            ))}
-          </ul>
+                showValues={false}
+              />
+            }
+          >
+            <ChartParentSize>
+              {({ width, height }) =>
+                width < 10 || height < 10 ? (
+                  <ChartViewportFallback ariaLabel={label} />
+                ) : (
+                  <BabyCareCountChartInner
+                    width={width}
+                    height={height}
+                    days={days}
+                    colors={colors}
+                    ariaLabel={label}
+                    hidden={hidden}
+                  />
+                )
+              }
+            </ChartParentSize>
+          </AnalyticsChartContainer>
           {partialNote ? (
-            <p className="mt-2 text-xs text-muted">{partialNote}</p>
+            <p className="mt-2 shrink-0 text-xs text-muted">{partialNote}</p>
           ) : null}
         </>
       )}
@@ -97,16 +116,19 @@ function BabyCareCountChartInner({
   days,
   colors,
   ariaLabel,
+  hidden,
 }: {
   width: number;
   height: number;
   days: BabyCareCountDay[];
   colors: string[];
   ariaLabel: string;
+  hidden: Set<SeriesKey>;
 }) {
   const margin = { top: 8, right: 8, bottom: 28, left: 28 };
   const innerW = Math.max(0, width - margin.left - margin.right);
   const innerH = Math.max(0, height - margin.top - margin.bottom);
+  const visible = SERIES.filter((key) => !hidden.has(key));
 
   const xScale = scaleBand({
     domain: days.map((d) => d.day),
@@ -114,13 +136,13 @@ function BabyCareCountChartInner({
     padding: 0.2,
   });
   const group = scaleBand({
-    domain: SERIES,
+    domain: visible,
     range: [0, xScale.bandwidth()],
     padding: 0.1,
   });
   const maxY = Math.max(
     1,
-    ...days.flatMap((d) => [d.feed, d.sleep, d.diaper]),
+    ...days.flatMap((d) => visible.map((key) => d[key])),
   );
   const yScale = scaleLinear({
     domain: [0, maxY],
@@ -132,7 +154,8 @@ function BabyCareCountChartInner({
     <svg width={width} height={height} role="img" aria-label={ariaLabel}>
       <Group left={margin.left} top={margin.top}>
         {days.map((day) =>
-          SERIES.map((key, i) => {
+          visible.map((key) => {
+            const seriesIndex = SERIES.indexOf(key);
             const x0 = xScale(day.day) ?? 0;
             const x = x0 + (group(key) ?? 0);
             const value = day[key];
@@ -144,7 +167,7 @@ function BabyCareCountChartInner({
                 y={yScale(value) ?? 0}
                 width={group.bandwidth()}
                 height={Math.max(0, barH)}
-                fill={colors[i]}
+                fill={colors[seriesIndex]}
                 opacity={0.9}
                 rx={4}
               />

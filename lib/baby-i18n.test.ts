@@ -173,7 +173,13 @@ describe("baby i18n t()", () => {
     assert.doesNotMatch(t("vaccine.title", "vi"), /Ghi vắc-xin/i);
     assert.notEqual(t("insights.kpiFeeds", "vi"), "insights.kpiFeeds");
     assert.equal(t("insights.filterCare", "en"), "Care types");
+    assert.equal(t("insights.filterMenuCare", "en"), "Care");
+    assert.equal(t("insights.filterMenuGrowth", "en"), "Growth");
     assert.notEqual(t("insights.filterCare", "vi"), "insights.filterCare");
+    assert.notEqual(
+      t("insights.filterMenuCare", "vi"),
+      "insights.filterMenuCare",
+    );
     assert.equal(t("insights.nightRestTitle", "en"), "Night Rest");
     assert.match(t("insights.nightRestPurpose", "en"), /not efficiency/i);
     assert.doesNotMatch(t("insights.nightRestTitle", "en"), /efficiency/i);

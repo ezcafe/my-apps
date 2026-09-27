@@ -15,6 +15,11 @@ import {
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
 
+import {
+  loansDrilldownForPaidInRange,
+  type LoansChartDrilldownPayload,
+} from "@/lib/loans-chart-drilldown";
+
 const DivergingBarChart = dynamic(
   () =>
     import("@/components/charts/diverging-bar-chart").then((m) => ({
@@ -31,6 +36,7 @@ export const LoansPaidPrincipalInterestCard = memo(
     formatValue,
     periodFrom,
     periodTo,
+    onDrilldown,
   }: {
     ready: boolean;
     principalMinor: number;
@@ -38,6 +44,7 @@ export const LoansPaidPrincipalInterestCard = memo(
     formatValue: (minor: number) => string;
     periodFrom?: string;
     periodTo?: string;
+    onDrilldown?: (payload: LoansChartDrilldownPayload) => void;
   }) {
     const { formatPeriod } = useFormatDate();
     const hasData = principalMinor > 0 || interestMinor > 0;
@@ -62,6 +69,15 @@ export const LoansPaidPrincipalInterestCard = memo(
               incomeMinor={principalMinor}
               expenseMinor={interestMinor}
               formatValue={formatValue}
+              onItemClick={() => {
+                if (!onDrilldown || !periodFrom || !periodTo) return;
+                onDrilldown(
+                  loansDrilldownForPaidInRange({
+                    from: periodFrom,
+                    to: periodTo,
+                  }),
+                );
+              }}
             />
           ) : (
             <AnalyticsEmptyState

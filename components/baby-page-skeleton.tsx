@@ -1,6 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import {
+  CHART_CARD_HEIGHT_HALF,
+  CHART_CARD_LAYOUT,
+} from "@/components/analytics-chart-layout";
+import {
   Table,
   TableBody,
   TableCell,
@@ -582,11 +586,40 @@ export function BabySettingsSkeleton({
   );
 }
 
-export function BabyGrowthChartSkeleton() {
+export function BabyGrowthChartSkeleton({
+  showLegend = false,
+}: {
+  /** Match AnalyticsChartContainer legend slot (hydration / care counts). */
+  showLegend?: boolean;
+} = {}) {
   return (
-    <Card className="flex h-[280px] min-h-[280px] max-h-[280px] flex-col p-4" aria-hidden>
-      <Skeleton className="mb-3 h-5 w-28 rounded-[var(--radius-sm)]" />
-      <Skeleton className="min-h-0 flex-1 w-full rounded-[var(--radius-sm)]" />
+    <Card
+      className={cn(
+        "min-w-0 p-4",
+        CHART_CARD_LAYOUT,
+        CHART_CARD_HEIGHT_HALF,
+      )}
+      aria-hidden
+    >
+      <Skeleton className="mb-2 h-5 w-28 rounded-[var(--radius-sm)]" />
+      <Skeleton className="mb-2 h-4 w-40 max-w-full rounded-[var(--radius-sm)]" />
+      <div
+        className={
+          showLegend
+            ? "grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] gap-2 md:grid-rows-1 md:[grid-template-columns:minmax(0,5.5rem)_minmax(0,1fr)] md:gap-3"
+            : "min-h-0 flex-1"
+        }
+      >
+        {showLegend ? (
+          <Skeleton className="order-2 h-12 w-full rounded-[var(--radius-sm)] md:order-1 md:h-full md:min-h-0" />
+        ) : null}
+        <Skeleton
+          className={cn(
+            "h-full min-h-0 w-full rounded-[var(--radius-sm)]",
+            showLegend && "order-1 md:order-2",
+          )}
+        />
+      </div>
     </Card>
   );
 }
@@ -704,7 +737,7 @@ export function BabyInsightsPageSkeleton() {
         data-skeleton="insights-activities-cue"
         className="h-4 w-64 max-w-full rounded-[var(--radius-sm)]"
       />
-      <MoneyAnalyticsFiltersBarSkeleton triggerCount={1} />
+      <MoneyAnalyticsFiltersBarSkeleton triggerCount={3} />
       <AnalyticsPeriodChipSkeleton />
       <section
         className="grid gap-4"

@@ -135,7 +135,7 @@ export function AnalyticsChartDrilldownModal({
       labelledBy={modalTitleId}
       className="w-[min(100vw-2rem,42rem)] max-h-[min(100dvh-2rem,36rem)] overflow-hidden p-0"
     >
-      <div className="flex max-h-[min(100dvh-2rem,36rem)] flex-col">
+      <div className="flex h-full max-h-[min(100dvh-2rem,36rem)] min-h-0 flex-col">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3">
           <div className="min-w-0">
             <h2 id={modalTitleId} className="font-display text-lg font-medium">
@@ -152,9 +152,9 @@ export function AnalyticsChartDrilldownModal({
           </Button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-auto p-3">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
           {listQuery.isLoading ? (
-            <Table maxHeight="100%">
+            <Table maxHeight="100%" className="min-h-0 flex-1">
               <TableBody>
                 {Array.from({ length: 5 }, (_, i) => (
                   <TableRow key={`drilldown-skel-${i}`}>
@@ -174,7 +174,7 @@ export function AnalyticsChartDrilldownModal({
           ) : rows.length === 0 ? (
             <p className="p-1 text-sm text-muted">No transactions in this slice.</p>
           ) : (
-            <Table className="min-w-[28rem]">
+            <Table maxHeight="100%" className="min-h-0 min-w-[28rem] flex-1">
               <TableHeader>
                 <TableRow>
                   <TableHead

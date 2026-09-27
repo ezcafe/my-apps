@@ -19,6 +19,11 @@ import {
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
 
+import {
+  investmentDrilldownForKind,
+  type InvestmentChartDrilldownPayload,
+} from "@/lib/investment-chart-drilldown";
+
 const PieByCategoryChart = dynamic(
   () =>
     import("@/components/charts/pie-chart").then((m) => ({
@@ -31,10 +36,16 @@ export const InvestmentAllocationCard = memo(function InvestmentAllocationCard({
   ready,
   slices,
   currency,
+  rangeFrom,
+  rangeTo,
+  onDrilldown,
 }: {
   ready: boolean;
-  slices: Array<{ label: string; valueMinor: number }>;
+  slices: Array<{ label: string; kind?: string | null; valueMinor: number }>;
   currency: string;
+  rangeFrom?: string;
+  rangeTo?: string;
+  onDrilldown?: (payload: InvestmentChartDrilldownPayload) => void;
 }) {
   const { resolved, style } = useTheme();
   const [hidden, setHidden] = useState(() => new Set<string>());
@@ -77,12 +88,27 @@ export const InvestmentAllocationCard = memo(function InvestmentAllocationCard({
           <DeferredChartLoading ariaLabel="Loading allocation chart" />
         ) : hasData ? (
           <PieByCategoryChart
-            data={slices}
+            data={slices.map((s) => ({
+              label: s.label,
+              valueMinor: s.valueMinor,
+              categoryId: s.kind ?? s.label,
+            }))}
             hiddenLabels={hidden}
             hoveredLabel={hovered}
             formatValue={(minor) => formatCompactMinor(minor, currency)}
             centerTotalMinor={total}
             centerLabel="Notional"
+            onItemClick={(item) => {
+              if (!onDrilldown) return;
+              const kind = item.categoryId ?? item.label;
+              onDrilldown(
+                investmentDrilldownForKind({
+                  kindLabel: kind,
+                  from: rangeFrom,
+                  to: rangeTo,
+                }),
+              );
+            }}
           />
         ) : (
           <AnalyticsEmptyState

@@ -378,7 +378,12 @@ export function MoneyAnalyticsPageSkeleton() {
 }
 
 /** Insights with date-range filter chrome (investments / loans). */
-export function FeatureInsightsPageSkeleton() {
+export function FeatureInsightsPageSkeleton({
+  showUrgencyStrip = false,
+}: {
+  /** Loans Insights: reserve space for overdue / due-this-week strip before KPIs. */
+  showUrgencyStrip?: boolean;
+} = {}) {
   return (
     <div
       className={cn(SHELL_FULL_SPAN, SHELL_DASHBOARD_STACK)}
@@ -391,6 +396,23 @@ export function FeatureInsightsPageSkeleton() {
         triggerCount={FEATURE_INSIGHTS_FILTER_TRIGGER_COUNT}
       />
       <AnalyticsPeriodChipSkeleton />
+      {showUrgencyStrip ? (
+        <div
+          aria-hidden
+          data-testid="loans-insights-urgency-skeleton"
+          className="flex flex-wrap items-baseline gap-x-5 gap-y-3 rounded-[var(--radius-md)] border border-border bg-surface px-3.5 py-3"
+        >
+          <div className="space-y-1.5">
+            <Skeleton className="h-3.5 w-14 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-5 w-10 rounded-[var(--radius-sm)]" />
+          </div>
+          <div className="space-y-1.5">
+            <Skeleton className="h-3.5 w-20 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-5 w-8 rounded-[var(--radius-sm)]" />
+          </div>
+          <Skeleton className="ms-auto h-4 w-20 rounded-[var(--radius-sm)]" />
+        </div>
+      ) : null}
       <section aria-label="Summary metrics">
         <AnalyticsStatsSkeleton showPeriodLine={false} />
       </section>

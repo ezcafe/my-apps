@@ -11,6 +11,7 @@ import {
   loansInsightsMore,
   updateLoan,
 } from "@/lib/loans-services/loans";
+import { listLoansInstallments } from "@/lib/loans-services/installments-list";
 import {
   markLoanInstallmentPaid,
   payLoanInstallmentWithTransaction,
@@ -106,6 +107,20 @@ export const loansResolvers = {
       return runInWorkspace(workspaceId, () =>
         listDueInstallments(workspaceId),
       );
+    },
+    loansInstallments: async (
+      _: unknown,
+      args: { query?: Record<string, unknown> | null },
+      ctx: LoansGraphQLContext,
+    ) => {
+      const { workspaceId } = requireLoansWorkspace(ctx);
+      try {
+        return await runInWorkspace(workspaceId, () =>
+          listLoansInstallments(workspaceId, args.query ?? {}),
+        );
+      } catch (e) {
+        mapServiceError(e);
+      }
     },
   },
   Mutation: {

@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { memo, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import {
   AnalyticsChartContainer,
@@ -19,6 +18,10 @@ import {
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import {
+  loansDrilldownForLoanRemaining,
+  type LoansChartDrilldownPayload,
+} from "@/lib/loans-chart-drilldown";
 
 const PieByCategoryChart = dynamic(
   () =>
@@ -32,12 +35,13 @@ export const LoansRemainingByLoanCard = memo(function LoansRemainingByLoanCard({
   ready,
   slices,
   currency,
+  onDrilldown,
 }: {
   ready: boolean;
   slices: Array<{ id: string; label: string; valueMinor: number }>;
   currency: string;
+  onDrilldown?: (payload: LoansChartDrilldownPayload) => void;
 }) {
-  const router = useRouter();
   const { resolved, style } = useTheme();
   const [hidden, setHidden] = useState(() => new Set<string>());
   const [hovered, setHovered] = useState<string | null>(null);
@@ -60,7 +64,9 @@ export const LoansRemainingByLoanCard = memo(function LoansRemainingByLoanCard({
       className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
     >
       <h2 className="mb-2 font-display text-lg font-medium">Remaining by loan</h2>
-      <p className="mb-2 text-xs text-muted">Tap a slice to open the loan.</p>
+      <p className="mb-2 text-xs text-muted">
+        Tap a slice to see installments.
+      </p>
       <AnalyticsChartContainer
         legend={
           ready && hasData ? (
@@ -91,7 +97,13 @@ export const LoansRemainingByLoanCard = memo(function LoansRemainingByLoanCard({
             centerLabel="Owed"
             onItemClick={(item) => {
               const id = item.categoryId;
-              if (id) router.push(`/loans/${id}`);
+              if (!id || !onDrilldown) return;
+              onDrilldown(
+                loansDrilldownForLoanRemaining({
+                  loanId: id,
+                  label: item.label,
+                }),
+              );
             }}
           />
         ) : (

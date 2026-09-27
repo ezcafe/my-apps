@@ -29,6 +29,8 @@ import { useSetAppHeader } from "@/components/app-header-override";
 import { InvestmentInsightsStats } from "@/components/investment-insights-stats";
 import { InvestmentResultsOverTimeCard } from "@/components/investment-chart-cards/results-over-time-card";
 import { InvestmentAllocationCard } from "@/components/investment-chart-cards/allocation-card";
+import { InvestmentChartDrilldownModal } from "@/components/investment-chart-drilldown-modal";
+import type { InvestmentChartDrilldownPayload } from "@/lib/investment-chart-drilldown";
 import { useInvestmentWorkspace } from "@/components/investment-workspace-provider";
 import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import { cn } from "@/lib/cn";
@@ -74,6 +76,8 @@ export function InvestmentInsightsDashboard() {
   const [applied, setApplied] = useState(pageDefault);
   const [isFilterPending, startFilterTransition] = useTransition();
   const [moreInsights, setMoreInsights] = useState(false);
+  const [chartDrilldown, setChartDrilldown] =
+    useState<InvestmentChartDrilldownPayload | null>(null);
 
   const dirty = draft.from !== applied.from || draft.to !== applied.to;
   const handleApply = useCallback(() => {
@@ -172,11 +176,15 @@ export function InvestmentInsightsDashboard() {
               ready
               series={atf.series}
               formatY={formatY}
+              onDrilldown={setChartDrilldown}
             />
             <InvestmentAllocationCard
               ready
               slices={atf.allocation}
               currency={defaultCurrency}
+              rangeFrom={applied.from}
+              rangeTo={applied.to}
+              onDrilldown={setChartDrilldown}
             />
           </div>
 
@@ -222,6 +230,12 @@ export function InvestmentInsightsDashboard() {
           )}
         </section>
       ) : null}
+
+      <InvestmentChartDrilldownModal
+        open={Boolean(chartDrilldown)}
+        onClose={() => setChartDrilldown(null)}
+        drill={chartDrilldown}
+      />
     </div>
   );
 }

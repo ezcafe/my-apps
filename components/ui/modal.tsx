@@ -121,7 +121,9 @@ export function Modal({
             </div>
           </>
         ) : (
-          <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
+          // Bare = full-bleed: no padding and no scroll here. Children own
+          // chrome padding and the single scroll region (e.g. table).
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-0">
             {children}
           </div>
         )}

@@ -112,6 +112,28 @@ export const LOANS_DUE_QUERY = /* GraphQL */ `
   }
 `;
 
+export const LOANS_INSTALLMENTS_QUERY = /* GraphQL */ `
+  query LoansInstallments($query: LoansInstallmentsQueryInput) {
+    loansInstallments(query: $query) {
+      items {
+        scheduleInstallmentId
+        loanId
+        loanName
+        installmentNumber
+        dueDate
+        paymentMinor
+        principalMinor
+        interestMinor
+        balanceAfterMinor
+        status
+        paidAt
+        currency
+      }
+      nextCursor
+    }
+  }
+`;
+
 export const LOANS_INSIGHTS_ATF_QUERY = /* GraphQL */ `
   query LoansInsightsAtf($from: String!, $to: String!) {
     loansInsightsAtf(from: $from, to: $to) {

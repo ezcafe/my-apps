@@ -367,6 +367,12 @@ export const babyVi: Record<BabyMessageKey, string> = {
   "insights.filterCareAria": "Lọc theo loại chăm sóc hoặc cân đo",
   "insights.filterCareOther": "Loại khác",
   "insights.filterCareEmpty": "Không có loại",
+  "insights.filterMenuCare": "Chăm sóc",
+  "insights.filterMenuGrowth": "Cân đo",
+  "insights.filterGrowthLegend": "Loại cân đo",
+  "insights.filterGrowthAria": "Lọc theo loại cân đo",
+  "insights.filterGrowthOther": "Loại khác",
+  "insights.filterGrowthEmpty": "Không có loại",
   "insights.hydrationTitle": "Theo dõi nước",
   "insights.hydrationPurpose":
     "Tã ướt so với lần bú — cảnh báo nhẹ khi số tã ướt thấp.",

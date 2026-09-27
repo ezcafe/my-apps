@@ -22,8 +22,22 @@ export type LoanProgressChartPoint = {
   projectedCumulativeMinor: number;
 };
 
+export type LoanProgressItemClickPayload = {
+  label: string;
+  series: LoanProgressSeriesKey;
+  index: number;
+};
+
 export type { LoanProgressSeriesKey } from "@/components/charts/loan-progress-colors";
 export { loanProgressSeriesColors } from "@/components/charts/loan-progress-colors";
+
+/** True when a series point may fire onItemClick (not hidden). */
+export function loanProgressClickAllowed(
+  series: LoanProgressSeriesKey,
+  hiddenSeries?: Set<LoanProgressSeriesKey>,
+): boolean {
+  return !hiddenSeries?.has(series);
+}
 
 function xTickIndices(length: number, maxTicks: number): number[] {
   if (length <= 0) return [];
@@ -87,11 +101,13 @@ export function LoanProgressChart({
   formatY,
   hiddenSeries,
   animate = true,
+  onItemClick,
 }: {
   data: LoanProgressChartPoint[];
   formatY: (minor: number) => string;
   hiddenSeries?: Set<LoanProgressSeriesKey>;
   animate?: boolean;
+  onItemClick?: (item: LoanProgressItemClickPayload) => void;
 }) {
   const { resolved, style } = useTheme();
   const clipId = useId().replace(/:/g, "");
@@ -126,6 +142,7 @@ export function LoanProgressChart({
               clipPathId={`loan-progress-clip-${clipId}`}
               animate={animate}
               tooltipApi={tooltipApi}
+              onItemClick={onItemClick}
             />
           )}
         </ChartParentSize>
@@ -148,6 +165,7 @@ function LoanProgressInner({
   clipPathId,
   animate,
   tooltipApi,
+  onItemClick,
 }: {
   width: number;
   height: number;
@@ -162,6 +180,7 @@ function LoanProgressInner({
     moveTooltip: (p: ChartTooltipPayload) => void;
     hideTooltip: () => void;
   };
+  onItemClick?: (item: LoanProgressItemClickPayload) => void;
 }) {
   const xDomain = useMemo(() => data.map((d) => d.label), [data]);
   const visibleMeta = SERIES_META.filter((s) => !hiddenSeries?.has(s.key));
@@ -335,7 +354,7 @@ function LoanProgressInner({
                 cy={p.y}
                 r={8}
                 fill="transparent"
-                className="cursor-default"
+                className={onItemClick ? "cursor-pointer" : "cursor-default"}
                 onPointerEnter={(ev) =>
                   tooltipApi.showTooltip(
                     pointerPayload(
@@ -355,6 +374,17 @@ function LoanProgressInner({
                   )
                 }
                 onPointerLeave={() => tooltipApi.hideTooltip()}
+                onClick={() => {
+                  if (!onItemClick) return;
+                  if (!loanProgressClickAllowed(series.key, hiddenSeries)) {
+                    return;
+                  }
+                  onItemClick({
+                    label: p.key,
+                    series: series.key,
+                    index: i,
+                  });
+                }}
               />
             )),
           )}

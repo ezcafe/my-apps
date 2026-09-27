@@ -14,6 +14,10 @@ import {
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
 import type { InvestmentPortfolioPoint } from "@/lib/investment-query-options";
+import {
+  investmentDrilldownForDate,
+  type InvestmentChartDrilldownPayload,
+} from "@/lib/investment-chart-drilldown";
 
 const LineChart = dynamic(
   () =>
@@ -28,10 +32,12 @@ export const InvestmentResultsOverTimeCard = memo(
     ready,
     series,
     formatY,
+    onDrilldown,
   }: {
     ready: boolean;
     series: InvestmentPortfolioPoint[];
     formatY: (minor: number) => string;
+    onDrilldown?: (payload: InvestmentChartDrilldownPayload) => void;
   }) {
     const hasData = series.some((p) => p.totalMinor !== 0);
     const lineData = series.map((p) => ({ date: p.date, netMinor: p.totalMinor }));
@@ -48,7 +54,15 @@ export const InvestmentResultsOverTimeCard = memo(
           {!ready ? (
             <DeferredChartLoading ariaLabel="Loading results chart" />
           ) : hasData ? (
-            <LineChart data={lineData} formatY={formatY} animate />
+            <LineChart
+              data={lineData}
+              formatY={formatY}
+              animate
+              onItemClick={(item) => {
+                if (!onDrilldown) return;
+                onDrilldown(investmentDrilldownForDate({ date: item.date }));
+              }}
+            />
           ) : (
             <AnalyticsEmptyState
               title="No results in this range"

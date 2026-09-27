@@ -102,6 +102,14 @@ test.describe("Loans e2e", () => {
       page.getByRole("heading", { level: 1, name: "Insights" }),
     ).toBeVisible();
 
+    const urgency = page.getByTestId("loans-insights-urgency");
+    await expect(urgency).toBeVisible();
+    await expect(urgency.getByText("Overdue")).toBeVisible();
+    await expect(urgency.getByText("Due this week")).toBeVisible();
+    await expect(
+      urgency.getByRole("link", { name: /view loans/i }),
+    ).toHaveAttribute("href", "/loans");
+
     // Button accessible name includes hint text — match title substring.
     for (const title of LOANS_MORE_TITLES) {
       await expect(

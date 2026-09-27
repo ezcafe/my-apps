@@ -23,8 +23,7 @@ import {
 import {
   babyInsightsFiltersDirty,
   emptyBabyInsightsChips,
-  filterGrowthByMergedChips,
-  growthKindVisibleInMergedChips,
+  filterGrowthByKindChips,
   type BabyInsightsCareChip,
   type BabyInsightsChipSelection,
   type BabyInsightsFilterState,
@@ -35,6 +34,8 @@ import {
   babyInsightsDefaultRange,
 } from "@/lib/baby-insights-default-range";
 import {
+  applyBabyInsightsToolbarMultiSelect,
+  babyInsightsCareGrowthMultiSelects,
   babyInsightsDateRangeFilterLabels,
   babyInsightsPeriodChipLabels,
 } from "@/lib/baby-insights-chrome-labels";
@@ -59,6 +60,8 @@ import {
 import { cn } from "@/lib/cn";
 import type { BabyMessageKey } from "@/messages/baby/en";
 import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
+import { BabyChartDrilldownModal } from "@/components/baby-chart-drilldown-modal";
+import type { BabyChartDrilldownPayload } from "@/lib/baby-chart-drilldown";
 
 function kindLabelKey(kind: string): BabyMessageKey {
   if (kind === "weight") return "growth.weight";
@@ -100,7 +103,7 @@ const InsightsDateRangeFiltersBar = dynamic(
       default: m.InsightsDateRangeFiltersBar,
     })),
   {
-    loading: () => <MoneyAnalyticsFiltersBarSkeleton triggerCount={1} />,
+    loading: () => <MoneyAnalyticsFiltersBarSkeleton triggerCount={3} />,
   },
 );
 
@@ -117,7 +120,7 @@ const BabyCareCountChart = dynamic(
     import("@/components/baby-care-count-chart").then((m) => ({
       default: m.BabyCareCountChart,
     })),
-  { ssr: false, loading: () => <BabyGrowthChartSkeleton /> },
+  { ssr: false, loading: () => <BabyGrowthChartSkeleton showLegend /> },
 );
 
 const BabyHydrationChart = dynamic(
@@ -125,7 +128,7 @@ const BabyHydrationChart = dynamic(
     import("@/components/baby-hydration-chart").then((m) => ({
       default: m.BabyHydrationChart,
     })),
-  { ssr: false, loading: () => <BabyGrowthChartSkeleton /> },
+  { ssr: false, loading: () => <BabyGrowthChartSkeleton showLegend /> },
 );
 
 const BabyNightRestChart = dynamic(
@@ -151,6 +154,8 @@ export function BabyInsightsDashboard() {
   const [applied, setApplied] = useState(pageDefault);
   const [isFilterPending, startFilterTransition] = useTransition();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [chartDrilldown, setChartDrilldown] =
+    useState<BabyChartDrilldownPayload | null>(null);
   /** After first series settle, keep filter chrome mounted on range changes (Loans pattern). */
   const [hasSettledSeriesOnce, setHasSettledSeriesOnce] = useState(false);
 
@@ -240,8 +245,8 @@ export function BabyInsightsDashboard() {
   );
 
   const filteredGrowth = useMemo(
-    () => filterGrowthByMergedChips(growthEntries, applied.chips),
-    [growthEntries, applied.chips],
+    () => filterGrowthByKindChips(growthEntries, applied.chips.growthKinds),
+    [growthEntries, applied.chips.growthKinds],
   );
 
   const series = seriesQuery.data?.babyInsightsSeries;
@@ -341,7 +346,8 @@ export function BabyInsightsDashboard() {
   }, [series?.careCountDays, careTypes]);
 
   function growthKindSelected(kind: BabyInsightsGrowthChip): boolean {
-    return growthKindVisibleInMergedChips(kind, applied.chips);
+    const selected = applied.chips.growthKinds;
+    return selected.length === 0 || selected.includes(kind);
   }
 
   const showWeightChart = growthKindSelected("weight");
@@ -362,7 +368,7 @@ export function BabyInsightsDashboard() {
     return <BabyInsightsPageSkeleton />;
   }
 
-  const animationKey = `${applied.fromDate}-${applied.toDate}-${applied.chips.careTypes.join(",")}`;
+  const animationKey = `${applied.fromDate}-${applied.toDate}-${applied.chips.careTypes.join(",")}-${applied.chips.growthKinds.join(",")}`;
   const careCountFromSeries = Boolean(series?.careCountDays);
   const careCountEmptyLabel = t("insights.emptyCareCount");
   const hasMoreGrowth = Boolean(growthQuery.hasNextPage);
@@ -414,6 +420,22 @@ export function BabyInsightsDashboard() {
         applying={isFilterPending}
         dirty={dirty}
         labels={filterLabels}
+        multiSelectFilters={babyInsightsCareGrowthMultiSelects(
+          draft.chips,
+          t,
+        ).map((filter) => ({
+          ...filter,
+          onChange: (nextIds: string[]) => {
+            setDraft((d) => ({
+              ...d,
+              chips: applyBabyInsightsToolbarMultiSelect(
+                d.chips,
+                filter.id,
+                nextIds,
+              ),
+            }));
+          },
+        }))}
       />
 
       <AnalyticsPeriodChip
@@ -446,6 +468,7 @@ export function BabyInsightsDashboard() {
           feedsLegendLabel={t("insights.hydrationFeedsLegend")}
           days={hydrationDays}
           ready={hydrationReady}
+          onDrilldown={setChartDrilldown}
         />
         <BabyNightRestChart
           label={t("insights.nightRestTitle")}
@@ -764,6 +787,11 @@ export function BabyInsightsDashboard() {
         ) : null}
       </section>
 
+      <BabyChartDrilldownModal
+        open={Boolean(chartDrilldown)}
+        onClose={() => setChartDrilldown(null)}
+        drill={chartDrilldown}
+      />
     </div>
   );
 }

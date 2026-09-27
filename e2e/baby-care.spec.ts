@@ -2209,10 +2209,32 @@ test.describe("Baby Care insights charts", () => {
       page.getByTestId("baby-night-rest-chart").getByText(/^efficiency %$/i),
     ).toHaveCount(0);
 
-    // Date/period only — no care/growth chip filter chrome on Insights.
+    // Care + Growth multi-selects on Insights date toolbar (chrome labels Care / Growth).
+    const filters = page.getByRole("region", { name: /insights filters/i });
+    const careOrFilter = filters.getByRole("button", {
+      name: /^(care|chăm sóc|filter)\b/i,
+    });
+    await expect(careOrFilter.first()).toBeVisible({ timeout: 15_000 });
     await expect(
-      page.getByRole("button", { name: /^(care types|loại chăm sóc)\b/i }),
-    ).toHaveCount(0);
+      filters.getByRole("button", { name: /^(growth|cân đo)\b/i }),
+    ).toBeVisible();
+
+    const chromeLabel = (await careOrFilter.first().innerText()).toLowerCase();
+    if (chromeLabel.startsWith("filter")) {
+      await careOrFilter.first().click();
+      await page.getByRole("button", { name: /^sleep$|^ngủ$/i }).click();
+      await page
+        .getByRole("button", { name: /apply filters|áp dụng bộ lọc/i })
+        .click();
+    } else {
+      await careOrFilter.first().click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByRole("button", { name: /^sleep$|^ngủ$/i }).click();
+      await filters.getByRole("button", { name: /^apply$|^áp dụng$/i }).click();
+    }
+
+    const period = page.getByText(/^showing\b|^đang xem\b/i);
+    await expect(period).toContainText(/Sleep|Ngủ/i);
 
     await expect(page.getByTestId("baby-more-insights")).toBeVisible();
     await expect(page.getByTestId("baby-activity-log")).toHaveCount(0);

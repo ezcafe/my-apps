@@ -20,7 +20,13 @@ export type AnalyticsStatsPayload = {
   savingsRatePct: number | null;
 };
 
-type ColumnRow = { month: string; expenseMinor: number; incomeMinor: number };
+export type AnalyticsColumnRow = {
+  month: string;
+  expenseMinor: number;
+  incomeMinor: number;
+};
+
+type ColumnRow = AnalyticsColumnRow;
 
 export type AnalyticsStatCardId = "income" | "expense" | "net" | "savings";
 
@@ -31,7 +37,8 @@ const DEFAULT_CARD_ORDER: AnalyticsStatCardId[] = [
   "savings",
 ];
 
-function expenseMomTrend(column: ColumnRow[]) {
+/** MoM expense change from calendar months with expense > 0. Null when < 2 months. */
+export function expenseMomTrend(column: ColumnRow[]) {
   const withExpense = column.filter((m) => m.expenseMinor > 0);
   if (withExpense.length < 2) return null;
   const last = withExpense[withExpense.length - 1]!;
