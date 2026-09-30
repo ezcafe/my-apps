@@ -62,7 +62,7 @@ export function TransactionEditModal({
       className="w-[min(100vw-2rem,72rem)] max-h-[calc(100dvh-2rem)] p-0"
     >
       {transactionId ? (
-        <div className="px-4 py-4">
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4">
           <h2 id={labelledBy} className="sr-only">
             Edit transaction
           </h2>

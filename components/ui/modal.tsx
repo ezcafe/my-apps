@@ -14,6 +14,16 @@ const subscribeNoop = () => () => {};
 const getServerMounted = () => false;
 const getClientMounted = () => true;
 
+/** Layout branch for Modal chrome. Bare owns its own scroll; all others scroll. */
+export function resolveModalChromeMode(opts: {
+  bare?: boolean;
+  title?: string | null;
+}): "bare" | "titled-scroll" | "untitled-scroll" {
+  if (opts.bare) return "bare";
+  if (opts.title) return "titled-scroll";
+  return "untitled-scroll";
+}
+
 export function Modal({
   open,
   onClose,
@@ -30,7 +40,7 @@ export function Modal({
   title?: string | null;
   /** Use when `bare` and heading lives inside children */
   labelledBy?: string;
-  /** Full-bleed body (no built-in title row) */
+  /** Full-bleed body (no built-in title row). Children must own the scroll region. */
   bare?: boolean;
   children: ReactNode;
   className?: string;
@@ -76,8 +86,13 @@ export function Modal({
   // getByRole('dialog') must only see the open payment / confirm sheet).
   if (!mounted || !open) return null;
 
+  const chrome = resolveModalChromeMode({ bare, title });
   const ariaLabelledBy =
-    bare ? labelledBy : title ? "modal-dialog-title" : labelledBy;
+    chrome === "bare"
+      ? labelledBy
+      : chrome === "titled-scroll"
+        ? "modal-dialog-title"
+        : labelledBy;
 
   return createPortal(
     <dialog
@@ -95,37 +110,39 @@ export function Modal({
       aria-modal="true"
     >
       <div className="flex max-h-[inherit] min-h-0 min-w-0 w-full flex-col overflow-hidden rounded-[inherit]">
-        {!bare && title ? (
-          <>
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3.5 sm:px-6 sm:py-4">
-              <h2
-                id="modal-dialog-title"
-                className="text-lg font-medium tracking-tight"
-              >
-                {title}
-              </h2>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={onClose}
-                disabled={closeDisabled}
-                aria-label="Close"
-                iconOnly
-              >
-                ✕
-              </Button>
-            </div>
-            <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
-              {children}
-            </div>
-          </>
-        ) : (
+        {chrome === "bare" ? (
           // Bare = full-bleed: no padding and no scroll here. Children own
           // chrome padding and the single scroll region (e.g. table).
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-0">
             {children}
           </div>
+        ) : (
+          <>
+            {chrome === "titled-scroll" ? (
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3.5 sm:px-6 sm:py-4">
+                <h2
+                  id="modal-dialog-title"
+                  className="text-lg font-medium tracking-tight"
+                >
+                  {title}
+                </h2>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClose}
+                  disabled={closeDisabled}
+                  aria-label="Close"
+                  iconOnly
+                >
+                  ✕
+                </Button>
+              </div>
+            ) : null}
+            <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
+              {children}
+            </div>
+          </>
         )}
       </div>
     </dialog>,

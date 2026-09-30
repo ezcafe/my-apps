@@ -87,11 +87,9 @@ export function BabyInsightsEditModal({
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const labelledBy = "baby-insights-edit-modal-title";
-
   if (!row) {
     return (
-      <Modal open={false} onClose={onClose} labelledBy={labelledBy}>
+      <Modal open={false} onClose={onClose} title={t("insights.editTitle")}>
         {null}
       </Modal>
     );
@@ -103,6 +101,7 @@ export function BabyInsightsEditModal({
       : {};
   const titleKey = activityLogRowTitleKey(row);
   const displayTitle = titleKey ? t(titleKey) : row.title;
+  const modalTitle = `${t("insights.editTitle")} — ${displayTitle}`;
 
   async function saveCare(form: FormData) {
     const occurredAtLocal = String(form.get("occurredAt") ?? "");
@@ -246,11 +245,11 @@ export function BabyInsightsEditModal({
     <Modal
       open={open}
       onClose={onClose}
-      labelledBy={labelledBy}
+      title={modalTitle}
       className="w-[min(100vw-2rem,28rem)]"
     >
       <form
-        className="space-y-4 p-1"
+        className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
           setError(null);
@@ -266,9 +265,6 @@ export function BabyInsightsEditModal({
           });
         }}
       >
-        <h2 id={labelledBy} className="text-lg font-semibold text-foreground">
-          {t("insights.editTitle")} — {displayTitle}
-        </h2>
         <p className="text-sm text-muted">{row.summary}</p>
 
         {row.source === "care" ? (
