@@ -949,7 +949,7 @@ export function AnalyticsFiltersBar({
           bare
           labelledBy="analytics-filters-modal-heading"
         >
-          <div className="fx-fade-in max-h-[min(90dvh,52rem)] overflow-y-auto p-4 sm:p-6">
+          <div className="fx-fade-in min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <h3
@@ -1329,7 +1329,7 @@ export function InsightsDateRangeFiltersBar({
           bare
           labelledBy="insights-date-filters-modal-heading"
         >
-          <div className="fx-fade-in max-h-[min(90dvh,52rem)] overflow-y-auto p-4 sm:p-6">
+          <div className="fx-fade-in min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <h3
