@@ -46,6 +46,7 @@ import {
   minorToMajorInput,
   parseMajorToMinor,
 } from "@/lib/format-money";
+import { appendVndAmountSuffix } from "@/lib/vnd-amount-suffix";
 import { moneyGraphQLRequest } from "@/lib/gql-client";
 import {
   MONEY_SET_ACTIVE_WORKSPACE_MUTATION,
@@ -1179,8 +1180,53 @@ export function MoneyTransactionForm({
             placeholder={defaultCurrency === "VND" ? "25" : "24.99"}
             autoFocus={kind !== "loan"}
             aria-label="Amount"
-            recentSlot={
-              topAmounts.length > 0 && kind !== "loan" ? (
+            recentSlot={(() => {
+              if (kind === "loan") return null;
+              const amountChipClassName = cn(
+                "cursor-pointer rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-sm font-medium tabular-nums text-foreground underline decoration-transparent underline-offset-2 transition-[background-color,border-color,color,text-decoration-color] duration-200 hover:border-foreground/25 hover:bg-muted-surface hover:decoration-foreground/40 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
+              );
+              const showVndSuffix =
+                defaultCurrency === "VND" &&
+                /\d/.test(amountMajor);
+              if (showVndSuffix) {
+                return (
+                  <>
+                    <p className="text-sm text-muted">Tap to add zeros</p>
+                    <div
+                      role="group"
+                      aria-label="VND amount shortcuts"
+                      className="flex min-w-0 flex-wrap gap-1.5"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAmountMajor(
+                            appendVndAmountSuffix(amountMajor, "000"),
+                          )
+                        }
+                        title="Add 000"
+                        className={amountChipClassName}
+                      >
+                        000
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAmountMajor(
+                            appendVndAmountSuffix(amountMajor, "000000"),
+                          )
+                        }
+                        title="Add 000.000"
+                        className={amountChipClassName}
+                      >
+                        000.000
+                      </button>
+                    </div>
+                  </>
+                );
+              }
+              if (topAmounts.length === 0) return null;
+              return (
                 <>
                   <p className="text-sm text-muted">
                     Tap a recent amount to fill · last 90 days
@@ -1195,16 +1241,17 @@ export function MoneyTransactionForm({
                         a.amountMinor,
                         defaultCurrency,
                       );
-                      const formatted = formatMinor(a.amountMinor, defaultCurrency);
+                      const formatted = formatMinor(
+                        a.amountMinor,
+                        defaultCurrency,
+                      );
                       return (
                         <button
                           key={a.amountMinor}
                           type="button"
                           onClick={() => setAmountMajor(major)}
                           title={`Use ${formatted}`}
-                          className={cn(
-                            "cursor-pointer rounded-[var(--radius-sm)] border border-dashed border-border px-2.5 py-1 text-sm font-medium tabular-nums text-foreground underline decoration-transparent underline-offset-2 transition-[background-color,border-color,color,text-decoration-color] duration-200 hover:border-foreground/25 hover:bg-muted-surface hover:decoration-foreground/40 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring fx-press",
-                          )}
+                          className={amountChipClassName}
                         >
                           {formatted}
                         </button>
@@ -1212,8 +1259,8 @@ export function MoneyTransactionForm({
                     })}
                   </div>
                 </>
-              ) : null
-            }
+              );
+            })()}
           />
           ) : null}
 
