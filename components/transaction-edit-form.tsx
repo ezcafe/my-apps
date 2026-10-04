@@ -393,7 +393,7 @@ export function TransactionEditForm({
             <Skeleton className="h-4 w-10 rounded-[var(--radius-sm)]" />
           </header>
           <div
-            className="grid min-w-0 gap-4"
+            className="grid min-w-0 gap-4 [&>*]:col-span-full"
             style={{
               gridTemplateColumns:
                 "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))",
@@ -463,7 +463,7 @@ export function TransactionEditForm({
       <div>
         <h2 className="sr-only">Edit transaction</h2>
         <form
-          className="grid min-w-0 gap-4"
+          className="grid min-w-0 gap-4 [&>*]:col-span-full"
           style={{
             gridTemplateColumns:
               "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))",

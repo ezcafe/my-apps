@@ -89,9 +89,10 @@ Migrations create `money_app` (no `BYPASSRLS`) and `money_cron` (`BYPASSRLS`). P
 | `POST` | `/api/savings/activities` | Bearer `sav_` + write | Create savings activity |
 | `GET/PATCH/DELETE` | `/api/savings/activities/{id}` | Bearer `sav_` | Read/update/delete activity |
 | `GET` | `/api/investment/activities` | Bearer `inv_` + read | List investment activities (session: same-origin) |
-| `POST` | `/api/investment/activities` | Bearer `inv_` + write | Create investment activity (session: same-origin) |
+| `POST` | `/api/investment/activities` | Bearer `inv_` + write | Create investment activity (session: same-origin). Optional `Idempotency-Key` |
 | `GET/PATCH/DELETE` | `/api/investment/activities/{id}` | Bearer `inv_` | Read/update/delete (session: same-origin) |
 | `POST` | `/api/cron/investment-quotes` | `Bearer $CRON_SECRET` (required all envs) | Refresh Yahoo quotes for all instruments |
+| `POST` | `/api/cron/db-housekeeping` | `Bearer $CRON_SECRET` (required all envs) | Prune rate-limit rows, expired import previews, old baby quick-care replays |
 | `GET` | `/api/tokens` | Session only | List your tokens |
 | `POST` | `/api/tokens` | Session only | Create token |
 | `DELETE` | `/api/tokens/{id}` | Session only | Revoke token |

@@ -1,5 +1,6 @@
 "use client";
 
+import { jsonWithIdempotencyHeaders } from "@/lib/idempotency-client";
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MoneyUsageQuickPick } from "@/components/money-usage-quick-pick";
@@ -829,7 +830,7 @@ export function MoneyCsvImportWizard({
       }
       const ir = await fetch(moneyImportApiPath(kind), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: jsonWithIdempotencyHeaders(),
         credentials: "include",
         body: JSON.stringify({ rows }),
       });

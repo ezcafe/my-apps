@@ -25,14 +25,19 @@ describe("docs Tasks 7–9", () => {
     const doc = readFileSync(join(process.cwd(), "docs/ARCHITECTURE.md"), "utf8");
     assert.match(doc, /Idempotency-Key \(client contract\)/);
     assert.match(doc, /POST \/api\/money\/import\/commit/);
+    assert.match(doc, /POST \/api\/money\/import\/\[kind\]/);
     assert.match(doc, /POST \/api\/investment\/import\/commit/);
+    assert.match(doc, /POST \/api\/investment\/activities/);
     assert.match(doc, /POST \/api\/workspace\/members/);
+    assert.match(doc, /POST \/api\/workspace\/members\/remove/);
+    assert.match(doc, /POST \/api\/workspace\/reset/);
     assert.match(doc, /128/);
     assert.match(doc, /Idempotency-Replayed/);
     assert.match(doc, /idempotency_in_progress/);
     assert.match(doc, /idempotency_body_mismatch/);
     assert.match(doc, /unsafe to retry/);
     assert.match(doc, /24h TTL/);
+    assert.match(doc, /db-housekeeping/);
   });
 
   it("eslint.config.mjs still has array and SUM::int guards", () => {

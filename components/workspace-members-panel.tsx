@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { jsonWithIdempotencyHeaders } from "@/lib/idempotency-client";
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 import { SHAREABLE_WORKSPACE_APP_KEYS } from "@/lib/workspace-shareable-apps";
 
@@ -164,7 +165,7 @@ export function WorkspaceMembersPanel({
                       try {
                         const res = await fetch("/api/workspace/members/remove", {
                           method: "POST",
-                          headers: { "Content-Type": "application/json" },
+                          headers: jsonWithIdempotencyHeaders(),
                           credentials: "include",
                           body: JSON.stringify({
                             workspaceId,
@@ -209,7 +210,7 @@ export function WorkspaceMembersPanel({
           try {
             const res = await fetch("/api/workspace/members", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: jsonWithIdempotencyHeaders(),
               credentials: "include",
               body: JSON.stringify({
                 workspaceId,

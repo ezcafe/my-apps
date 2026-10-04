@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -60,6 +62,28 @@ describe("MoneyCategoryField", () => {
     assert.match(html, /Food/);
     assert.match(html, /Rent/);
   });
+
+  it("applies grid-column class on the wrapper grid item", () => {
+    const html = renderToStaticMarkup(
+      createElement(MoneyCategoryField, {
+        legend: "Category",
+        ariaLabel: "Category",
+        className: "[grid-column:1/-1]",
+        items: [{ id: "food", label: "Food", usageCount: 3 }],
+        selectedId: "food",
+        onSelect: () => {},
+        otherLabel: "Other",
+      }),
+    );
+    assert.match(
+      html,
+      /data-testid="money-category-field"[^>]*\[grid-column:1\/-1\]/,
+    );
+    assert.doesNotMatch(
+      html,
+      /<fieldset[^>]*\[grid-column:1\/-1\]/,
+    );
+  });
 });
 
 describe("MoneyMultiCategoryField", () => {
@@ -79,5 +103,23 @@ describe("MoneyMultiCategoryField", () => {
     );
     assert.match(html, /data-testid="money-multi-category-field"/);
     assert.match(html, /Cough/);
+  });
+});
+
+describe("money form auto-fit grids", () => {
+  it("forces full-span children so fields cannot pack side-by-side", () => {
+    const files = [
+      "components/money-transaction-form.tsx",
+      "components/transaction-edit-form.tsx",
+      "components/money-dashboard-skeleton.tsx",
+    ];
+    for (const rel of files) {
+      const src = readFileSync(resolve(process.cwd(), rel), "utf8");
+      assert.match(
+        src,
+        /\[&>\*\]:col-span-full/,
+        `${rel} should use [&>*]:col-span-full on the auto-fit form grid`,
+      );
+    }
   });
 });

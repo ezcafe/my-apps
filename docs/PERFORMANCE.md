@@ -19,7 +19,7 @@ Use this doc to verify regressions after changes that affect bundles, data fetch
    | Shared root + polyfill | ~168 kB | All routes |
    | `/login` | ~16 kB page + root | Static, no shell SessionProvider |
    | `/settings` | ~33 kB page + root | Shell + settings widgets |
-   | `/kiosk` | (measure after change) | Widget islands; LoanPayModal / insight stats are dynamic |
+   | `/kiosk` | page manifest ~20 kB; insight stats dynamic | 2026-10-04: Loans/Investment insight stats stay behind `next/dynamic` (no further slim). Re-check after widget changes with `npm run analyze` |
    | `/money/insights` | ~97 kB page + root | ATF card shells in initial chunk; visx charts stay separate dynamics |
 
 2. **Bundle analyzer** (optional treemap):
@@ -112,7 +112,16 @@ Expect fast 429s at `-c 500` when rate limit is hit; repeat requests should hit 
 - Pointing Compose PgBouncer at `money_app` (needs multi-user auth list)
 ## Database housekeeping jobs
 
-Schedule these jobs from a cron sidecar (or `pg_cron` when available):
+Prefer the app cron (same auth as other crons):
+
+```bash
+curl -sS -X POST "$AUTH_URL/api/cron/db-housekeeping" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+That route deletes stale `security_rate_limit` rows, expired `money_import_preview` rows, and old `baby_quick_care_request` rows (TTL via `BABY_QUICK_CARE_TTL_HOURS`, default 168).
+
+Equivalent SQL (manual / `pg_cron`):
 
 ```sql
 DELETE FROM security_rate_limit

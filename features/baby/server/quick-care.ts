@@ -21,6 +21,7 @@ import {
   rollUpFeedPayload,
   type BabyFeedLeg,
 } from "@/lib/baby-feed-session";
+import { pruneExpiredBabyQuickCareRequests } from "@/lib/baby-quick-care-prune";
 import { isPgUniqueViolation } from "@/lib/pg-unique";
 import { parseOrThrow } from "@/lib/parse-or-throw";
 import { babyQuickCareSchema } from "@/lib/validators/baby";
@@ -180,6 +181,12 @@ async function defaultStoreResult(
   requestId: string,
   result: BabyQuickCareStoredResult,
 ): Promise<void> {
+  // Best-effort prune OUTSIDE the insert (separate bypass tx OK).
+  try {
+    await pruneExpiredBabyQuickCareRequests();
+  } catch {
+    /* ignore prune failures */
+  }
   await db.insert(babyQuickCareRequest).values({
     workspaceId,
     babyId,

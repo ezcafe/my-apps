@@ -4,10 +4,16 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { httpIdempotency } from "@/db/schema/http-idempotency";
 import { badRequest, conflict } from "@/lib/api-http";
+import {
+  IDEMPOTENCY_KEY_MAX_LENGTH,
+  IDEMPOTENCY_REPLAYED_HEADER,
+} from "@/lib/idempotency-constants";
 
-export const IDEMPOTENCY_KEY_MAX_LENGTH = 128;
+export {
+  IDEMPOTENCY_KEY_MAX_LENGTH,
+  IDEMPOTENCY_REPLAYED_HEADER,
+} from "@/lib/idempotency-constants";
 export const IDEMPOTENCY_TTL_HOURS = 24;
-export const IDEMPOTENCY_REPLAYED_HEADER = "Idempotency-Replayed";
 /** Max expired completed rows deleted per prune call (claim-path best-effort). */
 export const IDEMPOTENCY_PRUNE_BATCH_SIZE = 500;
 

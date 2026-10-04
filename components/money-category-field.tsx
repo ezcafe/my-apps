@@ -35,11 +35,8 @@ export function MoneyCategoryField({
   ...props
 }: MoneyCategoryFieldProps) {
   return (
-    <div data-testid="money-category-field">
-      <MoneyUsageQuickPick
-        {...props}
-        className={cn("[grid-column:1/-1]", className)}
-      />
+    <div data-testid="money-category-field" className={cn(className)}>
+      <MoneyUsageQuickPick {...props} />
     </div>
   );
 }
@@ -71,7 +68,10 @@ export function MoneyMultiCategoryField({
   className,
 }: MoneyMultiCategoryFieldProps) {
   return (
-    <div data-testid="money-multi-category-field">
+    <div
+      data-testid="money-multi-category-field"
+      className={cn(className)}
+    >
       <MoneyUsageMultiQuickPick
         legend={legend}
         ariaLabel={ariaLabel}
@@ -82,7 +82,6 @@ export function MoneyMultiCategoryField({
         otherLabel={otherLabel}
         compact={compact}
         emptyMessage={emptyMessage}
-        className={cn("[grid-column:1/-1]", className)}
       />
     </div>
   );

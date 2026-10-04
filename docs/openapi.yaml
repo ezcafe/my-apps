@@ -261,9 +261,19 @@ paths:
       summary: Create investment activity
       security:
         - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+          description: Optional safe-retry key (same key + body replays first success)
       responses:
         "201":
           description: Created
+        "409":
+          description: Idempotency conflict (in progress or body mismatch)
   /api/investment/activities/{id}:
     get:
       summary: Get investment activity
@@ -314,3 +324,10 @@ paths:
       responses:
         "200":
           description: Refresh summary
+  /api/cron/db-housekeeping:
+    post:
+      summary: Prune rate-limit, import preview, and baby quick-care rows (cron secret)
+      security: []
+      responses:
+        "200":
+          description: Prune counts

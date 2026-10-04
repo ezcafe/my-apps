@@ -14,11 +14,16 @@ describe("idempotency route smokes (stubbed handlers)", () => {
   let claimCalls = 0;
   let sideEffectCalls = 0;
   let claimMode: "claimed" | "replay" = "claimed";
-  const replayBody = { data: { ok: true, once: 1 } };
+  let replayStatus = 200;
+  let replayBody: unknown = { data: { ok: true, once: 1 } };
 
   let POST_INV: typeof import("@/app/api/investment/import/commit/route").POST;
   let POST_MEMBERS: typeof import("@/app/api/workspace/members/route").POST;
   let POST_MONEY: typeof import("@/app/api/money/import/commit/route").POST;
+  let POST_MONEY_KIND: typeof import("@/app/api/money/import/[kind]/route").POST;
+  let POST_ACTIVITIES: typeof import("@/app/api/investment/activities/route").POST;
+  let POST_RESET: typeof import("@/app/api/workspace/reset/route").POST;
+  let POST_MEMBERS_REMOVE: typeof import("@/app/api/workspace/members/remove/route").POST;
 
   before(async () => {
     const invCtx = {
@@ -103,7 +108,7 @@ describe("idempotency route smokes (stubbed handlers)", () => {
           if (claimMode === "replay") {
             return {
               kind: "response" as const,
-              response: idem.idempotencyReplayResponse(200, replayBody),
+              response: idem.idempotencyReplayResponse(replayStatus, replayBody),
             };
           }
           return { kind: "proceed" as const, claimId: "claim-1" };
@@ -122,9 +127,33 @@ describe("idempotency route smokes (stubbed handlers)", () => {
         previewInvestmentStatement: async () => ({}),
       },
     });
+    mock.module("@/lib/investment-services/activities", {
+      namedExports: {
+        listInvestmentActivities: async () => [],
+        createInvestmentActivity: async () => {
+          sideEffectCalls += 1;
+          return { id: "act-1", type: "buy" };
+        },
+        getInvestmentActivity: async () => null,
+        updateInvestmentActivity: async () => null,
+        deleteInvestmentActivity: async () => false,
+      },
+    });
     mock.module("@/lib/workspace-context", {
       namedExports: {
         assertWorkspaceOwner: async () => true,
+      },
+    });
+    mock.module("@/lib/workspace-reset", {
+      namedExports: {
+        resetWorkspaceData: async () => {
+          sideEffectCalls += 1;
+        },
+      },
+    });
+    mock.module("@/lib/audit-log", {
+      namedExports: {
+        writeAuditEvent: async () => {},
       },
     });
     mock.module("@/lib/workspace-members", {
@@ -140,6 +169,12 @@ describe("idempotency route smokes (stubbed handlers)", () => {
             },
           };
         },
+        removeWorkspaceMember: async () => {
+          sideEffectCalls += 1;
+          return {
+            data: { ok: true as const },
+          };
+        },
         listWorkspaceMembersForOwner: async () => [],
         patchWorkspaceMemberApps: async () => ({ data: {} }),
       },
@@ -149,6 +184,14 @@ describe("idempotency route smokes (stubbed handlers)", () => {
         commitMoneyImport: async () => {
           sideEffectCalls += 1;
           return 1;
+        },
+      },
+    });
+    mock.module("@/lib/execute-money-csv-import", {
+      namedExports: {
+        executeMoneyCsvImport: async () => {
+          sideEffectCalls += 1;
+          return 2;
         },
       },
     });
@@ -186,7 +229,30 @@ describe("idempotency route smokes (stubbed handlers)", () => {
     ({ POST: POST_MONEY } = await import(
       "@/app/api/money/import/commit/route"
     ));
+    ({ POST: POST_MONEY_KIND } = await import(
+      "@/app/api/money/import/[kind]/route"
+    ));
+    ({ POST: POST_ACTIVITIES } = await import(
+      "@/app/api/investment/activities/route"
+    ));
+    ({ POST: POST_RESET } = await import("@/app/api/workspace/reset/route"));
+    ({ POST: POST_MEMBERS_REMOVE } = await import(
+      "@/app/api/workspace/members/remove/route"
+    ));
   });
+
+  const activityBody = JSON.stringify({
+    instrumentId: "00000000-0000-4000-8000-000000000001",
+    activityDate: "2026-08-22",
+    type: "buy",
+    quantity: "1",
+    openPrice: "10",
+  });
+  const workspaceId = "00000000-0000-4000-8000-000000000001";
+
+  const moneyKindCtx = {
+    params: Promise.resolve({ kind: "accounts" }),
+  };
 
   it("investmentImportCommit_idempotencyReplay: same key → one side effect + Idempotency-Replayed", async () => {
     claimCalls = 0;
@@ -334,5 +400,247 @@ describe("idempotency route smokes (stubbed handlers)", () => {
     assert.equal(sideEffectCalls, 1);
     const body = (await res.json()) as { data: { imported: number } };
     assert.equal(body.data.imported, 1);
+  });
+
+  it("money import kind: same key → one side effect + Idempotency-Replayed", async () => {
+    claimCalls = 0;
+    sideEffectCalls = 0;
+    claimMode = "claimed";
+    const body = JSON.stringify({ rows: [{ name: "Cash" }] });
+    const headers = {
+      authorization: "Bearer mny_test",
+      "content-type": "application/json",
+      "Idempotency-Key": "money-kind-replay-1",
+      origin: "http://localhost",
+    };
+
+    const first = await POST_MONEY_KIND(
+      new Request("http://localhost/api/money/import/accounts", {
+        method: "POST",
+        headers,
+        body,
+      }),
+      moneyKindCtx,
+    );
+    assert.equal(first.status, 200);
+    assert.equal(sideEffectCalls, 1);
+    assert.equal(first.headers.get(IDEMPOTENCY_REPLAYED_HEADER), null);
+    assert.deepEqual(await first.json(), { data: { created: 2 } });
+
+    claimMode = "replay";
+    const second = await POST_MONEY_KIND(
+      new Request("http://localhost/api/money/import/accounts", {
+        method: "POST",
+        headers,
+        body,
+      }),
+      moneyKindCtx,
+    );
+    assert.equal(second.status, 200);
+    assert.equal(sideEffectCalls, 1, "replay must not re-run side effect");
+    assert.equal(second.headers.get(IDEMPOTENCY_REPLAYED_HEADER), "true");
+    assert.deepEqual(await second.json(), replayBody);
+  });
+
+  it("money import kind: invalid body + key → 400 + no claim", async () => {
+    claimCalls = 0;
+    sideEffectCalls = 0;
+    claimMode = "claimed";
+    const res = await POST_MONEY_KIND(
+      new Request("http://localhost/api/money/import/accounts", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer mny_test",
+          "content-type": "application/json",
+          "Idempotency-Key": "money-kind-validate-1",
+          origin: "http://localhost",
+        },
+        body: JSON.stringify({ notRows: true }),
+      }),
+      moneyKindCtx,
+    );
+    assert.equal(res.status, 400);
+    assert.equal(claimCalls, 0);
+    assert.equal(sideEffectCalls, 0);
+  });
+
+  it("money import kind: Idempotency-Key > 128 → 400 + no claim", async () => {
+    claimCalls = 0;
+    sideEffectCalls = 0;
+    claimMode = "claimed";
+    const longKey = "k".repeat(IDEMPOTENCY_KEY_MAX_LENGTH + 1);
+    const res = await POST_MONEY_KIND(
+      new Request("http://localhost/api/money/import/accounts", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer mny_test",
+          "content-type": "application/json",
+          "Idempotency-Key": longKey,
+          origin: "http://localhost",
+        },
+        body: JSON.stringify({ rows: [{ name: "Cash" }] }),
+      }),
+      moneyKindCtx,
+    );
+    assert.equal(res.status, 400);
+    assert.equal(claimCalls, 0);
+    assert.equal(sideEffectCalls, 0);
+  });
+
+  it("money import kind: absent Idempotency-Key → success + no claim", async () => {
+    claimCalls = 0;
+    sideEffectCalls = 0;
+    claimMode = "claimed";
+    const res = await POST_MONEY_KIND(
+      new Request("http://localhost/api/money/import/accounts", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer mny_test",
+          "content-type": "application/json",
+          origin: "http://localhost",
+        },
+        body: JSON.stringify({ rows: [{ name: "Cash" }] }),
+      }),
+      moneyKindCtx,
+    );
+    assert.equal(res.status, 200);
+    assert.equal(claimCalls, 0);
+    assert.equal(sideEffectCalls, 1);
+    const body = (await res.json()) as { data: { created: number } };
+    assert.equal(body.data.created, 2);
+  });
+
+  it("investmentActivities_idempotencyReplay: same key → one create + Idempotency-Replayed", async () => {
+    claimCalls = 0;
+    sideEffectCalls = 0;
+    claimMode = "claimed";
+    replayStatus = 201;
+    replayBody = { data: { id: "act-1", type: "buy" } };
+    const headers = {
+      authorization: "Bearer inv_test",
+      "content-type": "application/json",
+      "Idempotency-Key": "inv-act-replay-1",
+      origin: "http://localhost",
+    };
+
+    const first = await POST_ACTIVITIES(
+      new Request("http://localhost/api/investment/activities", {
+        method: "POST",
+        headers,
+        body: activityBody,
+      }),
+    );
+    assert.equal(first.status, 201);
+    assert.equal(sideEffectCalls, 1);
+    assert.equal(first.headers.get(IDEMPOTENCY_REPLAYED_HEADER), null);
+
+    claimMode = "replay";
+    const second = await POST_ACTIVITIES(
+      new Request("http://localhost/api/investment/activities", {
+        method: "POST",
+        headers,
+        body: activityBody,
+      }),
+    );
+    assert.equal(second.status, 201);
+    assert.equal(sideEffectCalls, 1);
+    assert.equal(second.headers.get(IDEMPOTENCY_REPLAYED_HEADER), "true");
+    assert.deepEqual(await second.json(), replayBody);
+  });
+
+  it("investmentActivities: invalid body + key → 400 + no claim", async () => {
+    claimCalls = 0;
+    sideEffectCalls = 0;
+    claimMode = "claimed";
+    const res = await POST_ACTIVITIES(
+      new Request("http://localhost/api/investment/activities", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer inv_test",
+          "content-type": "application/json",
+          "Idempotency-Key": "inv-act-bad-1",
+          origin: "http://localhost",
+        },
+        body: JSON.stringify({ type: "buy" }),
+      }),
+    );
+    assert.equal(res.status, 400);
+    assert.equal(claimCalls, 0);
+    assert.equal(sideEffectCalls, 0);
+  });
+
+  it("workspaceReset_idempotencyReplay: same key → one side effect + Idempotency-Replayed", async () => {
+    claimCalls = 0;
+    sideEffectCalls = 0;
+    claimMode = "claimed";
+    replayStatus = 200;
+    replayBody = { ok: true, data: { workspaceId } };
+    const body = JSON.stringify({ workspaceId });
+    const headers = {
+      "content-type": "application/json",
+      "Idempotency-Key": "ws-reset-replay-1",
+      origin: "http://localhost",
+    };
+
+    const first = await POST_RESET(
+      new Request("http://localhost/api/workspace/reset", {
+        method: "POST",
+        headers,
+        body,
+      }),
+    );
+    assert.equal(first.status, 200);
+    assert.equal(sideEffectCalls, 1);
+
+    claimMode = "replay";
+    const second = await POST_RESET(
+      new Request("http://localhost/api/workspace/reset", {
+        method: "POST",
+        headers,
+        body,
+      }),
+    );
+    assert.equal(second.status, 200);
+    assert.equal(sideEffectCalls, 1);
+    assert.equal(second.headers.get(IDEMPOTENCY_REPLAYED_HEADER), "true");
+  });
+
+  it("workspaceMembersRemove_idempotencyReplay: same key → one side effect + Idempotency-Replayed", async () => {
+    claimCalls = 0;
+    sideEffectCalls = 0;
+    claimMode = "claimed";
+    replayStatus = 200;
+    replayBody = { data: { ok: true } };
+    const body = JSON.stringify({
+      workspaceId,
+      userSub: "member-sub-1",
+    });
+    const headers = {
+      "content-type": "application/json",
+      "Idempotency-Key": "members-remove-replay-1",
+      origin: "http://localhost",
+    };
+
+    const first = await POST_MEMBERS_REMOVE(
+      new Request("http://localhost/api/workspace/members/remove", {
+        method: "POST",
+        headers,
+        body,
+      }),
+    );
+    assert.equal(first.status, 200);
+    assert.equal(sideEffectCalls, 1);
+
+    claimMode = "replay";
+    const second = await POST_MEMBERS_REMOVE(
+      new Request("http://localhost/api/workspace/members/remove", {
+        method: "POST",
+        headers,
+        body,
+      }),
+    );
+    assert.equal(second.status, 200);
+    assert.equal(sideEffectCalls, 1);
+    assert.equal(second.headers.get(IDEMPOTENCY_REPLAYED_HEADER), "true");
   });
 });

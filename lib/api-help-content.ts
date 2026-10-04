@@ -1840,6 +1840,7 @@ export const apiHelpRestApiExamples: ApiHelpRestExample[] = [
     returns: "JSON { data: InvestmentActivityRow }",
     inputNotes: [
       "Requires instrumentId, activityDate, type (BUY, SELL, etc.), and amountMinor or unitPriceMinor/quantity.",
+      "Optional Idempotency-Key (max 128) for safe retries; absent key stays unsafe to retry.",
     ],
     codeSample: {
       id: "rest-invest-post-sample",
@@ -1848,6 +1849,7 @@ export const apiHelpRestApiExamples: ApiHelpRestExample[] = [
       body: `curl -sS -X POST "${API_HELP_BASE_URL_PLACEHOLDER}/api/investment/activities" \\
   -H "Authorization: Bearer mny_YOUR_TOKEN" \\
   -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: $(uuidgen)" \\
   -d '{
     "instrumentId": "00000000-0000-0000-0000-000000000601",
     "activityDate": "2025-01-20T10:00:00.000Z",

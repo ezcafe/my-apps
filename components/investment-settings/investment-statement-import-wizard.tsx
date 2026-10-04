@@ -29,6 +29,7 @@ import { MoneyStatusEmphasis, MoneyStatusStrip } from "@/lib/money-status-strip"
 import { ImportWizardStepProgress } from "@/components/import-wizard-step-progress";
 import type { StatementPlatform } from "@/lib/investment-statement-parsers";
 import type { StatementImportPreviewResponse } from "@/lib/investment-services/import-statement";
+import { jsonWithIdempotencyHeaders } from "@/lib/idempotency-client";
 import { invalidateInvestmentWorkspaceQueries } from "@/lib/investment-query-options";
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 
@@ -211,7 +212,7 @@ export function InvestmentStatementImportWizard() {
     try {
       const res = await fetch("/api/investment/import/commit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: jsonWithIdempotencyHeaders(),
         body: JSON.stringify({
           moneyAccountId: targetAccountId || undefined,
           autoCreateMissingInstruments: autoCreateInstruments,

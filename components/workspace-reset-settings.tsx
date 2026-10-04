@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { jsonWithIdempotencyHeaders } from "@/lib/idempotency-client";
 import { toUserFacingMessage } from "@/lib/user-facing-error";
 
 const CONFIRM_PHRASE = "RESET";
@@ -75,7 +76,7 @@ export function WorkspaceResetSettings({ workspaces, onResetComplete }: Props) {
             try {
               const res = await fetch("/api/workspace/reset", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: jsonWithIdempotencyHeaders(),
                 credentials: "include",
                 body: JSON.stringify({ workspaceId: activeWorkspace.id }),
               });

@@ -74,11 +74,11 @@ These tables have **no workspace RLS**. Writers must keep `userSub` / membership
 
 ## Idempotency-Key (client contract)
 
-Optional header on three hot mutating REST paths. Same key + same body within TTL replays the first success; missing header stays **unsafe to retry**.
+Optional header on hot mutating REST paths. Same key + same body within TTL replays the first success; missing header stays **unsafe to retry**.
 
 | Item | Rule |
 |------|------|
-| Routes | `POST /api/money/import/commit`, `POST /api/investment/import/commit`, `POST /api/workspace/members` |
+| Routes | `POST /api/money/import/commit`, `POST /api/money/import/[kind]` (legacy CSV wizard), `POST /api/investment/import/commit`, `POST /api/investment/activities`, `POST /api/workspace/members`, `POST /api/workspace/members/remove`, `POST /api/workspace/reset` |
 | Header | Optional `Idempotency-Key` |
 | Max length | **128** Unicode code points (trim, then count) |
 | Absent key | Request runs once with no durable store — **unsafe to retry** (may double-apply) |
@@ -86,6 +86,16 @@ Optional header on three hot mutating REST paths. Same key + same body within TT
 | Conflicts | `409` with `code` `idempotency_in_progress` or `idempotency_body_mismatch` |
 | Auth on replay | Route re-runs live session/token auth (and members **owner** check) before claim/replay. Product accepts **24h TTL** without an extra membership re-check beyond those route gates. |
 | Replay body | Stored body is minimized (counts / ids; members omit email). Do not log `response_body`. |
+
+## Database housekeeping cron
+
+`POST /api/cron/db-housekeeping` (`Bearer $CRON_SECRET`) runs:
+
+1. Delete `security_rate_limit` rows with `bucket_start` older than 1 hour.
+2. Delete expired `money_import_preview` rows (`pruneExpiredImportPreviews`).
+3. Delete `baby_quick_care_request` rows older than `BABY_QUICK_CARE_TTL_HOURS` (default **168** / 7 days), batched.
+
+Schedule from the same cron sidecar as other `/api/cron/*` jobs. See [PERFORMANCE.md](./PERFORMANCE.md).
 
 ## Further reading
 

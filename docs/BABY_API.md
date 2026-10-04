@@ -478,7 +478,7 @@ Full SDL: [`lib/graphql/baby-typeDefs.ts`](../lib/graphql/baby-typeDefs.ts).
 1. **Auth gate** — Create a Settings API token with **Baby Care** checked; store `mny_…` on device.  
 2. **Wire** — `POST /api/graphql/baby`, JSON GraphQL, `Authorization: Bearer mny_…`.  
 3. **MVP ops** — `babyHomeQuickStatus` + `babyQuickCare` only.  
-4. **Idempotency** — Persist `clientRequestId` until success or definite no-commit.  
+4. **Idempotency** — Persist `clientRequestId` until success or definite no-commit. Server stores replays in `baby_quick_care_request` and prunes rows older than `BABY_QUICK_CARE_TTL_HOURS` (default **168** / 7 days) via claim-path best-effort and `POST /api/cron/db-housekeeping`.  
 5. **Timers** — Keep breast/pump start times on-device; send `durationSec` on stop.  
 6. **Open nap** — Disable Start (or show End) when `openSleep != null`.  
 7. **Timestamps** — Always ISO with offset when backdating.  

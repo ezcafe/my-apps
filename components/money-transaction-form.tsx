@@ -1057,7 +1057,7 @@ export function MoneyTransactionForm({
       <div>
         <h2 className="sr-only">{cardTitle}</h2>
         <form
-          className="grid min-w-0 gap-4"
+          className="grid min-w-0 gap-4 [&>*]:col-span-full"
           style={{
             gridTemplateColumns:
               "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))",
