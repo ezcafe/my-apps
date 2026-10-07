@@ -25,3 +25,11 @@ _Avoid_: per-device message, Telegram chat history
 **Wallet issue token**:
 A short-lived secret in a QR URL that lets another device download the signed-in user’s pass without sharing a session cookie.
 _Avoid_: public unauthenticated issue, permanent share link
+
+**Channel readiness**:
+A caregiver-safe explanation of why the Apple enable gate is on or off (and optional cert renew cue), shown so operators can fix setup without seeing secrets.
+_Avoid_: raw env dump, PEM preview, admin-only debug panel
+
+**Wallet UI status**:
+The Settings-facing Apple Wallet state for the signed-in user: not linked, pending (pass issued, no device registered yet), active (at least one device registered), or fail (ephemeral request error).
+_Avoid_: DB subscriber status alone, Telegram link state

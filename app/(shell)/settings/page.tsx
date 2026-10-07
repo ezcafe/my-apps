@@ -18,7 +18,19 @@ import { isDbUnreachable } from "@/lib/db-errors";
 import { DEFAULT_KIOSK_WIDGETS } from "@/lib/kiosk/widget-registry";
 import { getUserPreferences } from "@/lib/user-preferences-service";
 import { SettingsClientLayout } from "@/components/settings/settings-client-layout";
+import { diagnoseAppleWallet } from "@/lib/apple-wallet/config";
 import { loadAppleWalletSettingsProps } from "@/lib/apple-wallet/settings-loader";
+
+function appleWalletFallbackProps() {
+  const d = diagnoseAppleWallet();
+  return {
+    appleEnabled: d.enabled,
+    healthyForAdd: d.healthyForAdd,
+    reasons: d.reasons,
+    signerValidTo: d.signerValidTo,
+    status: "not_linked" as const,
+  };
+}
 
 async function loadSettingsDbData(userSub: string) {
   try {
@@ -50,7 +62,7 @@ async function loadSettingsDbData(userSub: string) {
         apiTokens: [],
         weatherCity: null,
         kioskWidgets: [...DEFAULT_KIOSK_WIDGETS],
-        appleWallet: { appleEnabled: false, status: "not_linked" as const },
+        appleWallet: appleWalletFallbackProps(),
         dbUnavailable: true as const,
       };
     }
@@ -77,7 +89,7 @@ export default async function SettingsPage() {
         apiTokens: [],
         weatherCity: null,
         kioskWidgets: [],
-        appleWallet: { appleEnabled: false, status: "not_linked" as const },
+        appleWallet: appleWalletFallbackProps(),
         dbUnavailable: false as const,
       };
 
@@ -207,6 +219,9 @@ export default async function SettingsPage() {
         appleWalletContent={
           <AppleWalletSettings
             appleEnabled={appleWallet.appleEnabled}
+            healthyForAdd={appleWallet.healthyForAdd}
+            reasons={[...appleWallet.reasons]}
+            signerValidTo={appleWallet.signerValidTo}
             status={appleWallet.status}
           />
         }

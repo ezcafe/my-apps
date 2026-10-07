@@ -12,6 +12,7 @@ export default function HelpLoading() {
         <Skeleton className="h-6 w-28 rounded-[var(--radius-sm)]" />
         <Skeleton className="h-6 w-24 rounded-[var(--radius-sm)]" />
         <Skeleton className="h-6 w-32 rounded-[var(--radius-sm)]" />
+        <Skeleton className="h-6 w-28 rounded-[var(--radius-sm)]" />
       </div>
 
       {/* 1. Quick Start Section */}
@@ -126,6 +127,20 @@ export default function HelpLoading() {
             </Card>
           ))}
         </div>
+      </div>
+
+      {/* 5. Apple Wallet — mirrors live #apple-wallet section */}
+      <div className="space-y-4">
+        <div>
+          <Skeleton className="h-6 w-36 rounded-[var(--radius-sm)]" />
+          <Skeleton className="mt-1.5 h-4 w-80 max-w-full rounded-[var(--radius-sm)]" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-72 max-w-full rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-4 w-64 max-w-full rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-4 w-60 max-w-full rounded-[var(--radius-sm)]" />
+        </div>
+        <Skeleton className="h-4 w-96 max-w-full rounded-[var(--radius-sm)]" />
       </div>
     </div>
   );

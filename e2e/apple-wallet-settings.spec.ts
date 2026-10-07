@@ -6,7 +6,7 @@ import {
 } from "./helpers/shell";
 
 /**
- * Shell `/settings` Apple Wallet category (optional Task 7 e2e).
+ * Shell `/settings` Apple Wallet category.
  * Auth-gated — skip without E2E_STORAGE_STATE (same as money/loans).
  *
  * Apple on/off is server env (`APPLE_*` + HTTPS BASE_URL). There is no
@@ -16,6 +16,8 @@ import {
 
 const APPLE_OFF_BLOCKED =
   "blocked: Apple Wallet disabled on e2e webServer (need APPLE_* + HTTPS BASE_URL); no appleEnabled mock hook";
+
+const SETUP_GUIDE_HREF = "/help#apple-wallet";
 
 async function openAppleWalletSection(page: Page): Promise<Locator> {
   test.setTimeout(180_000);
@@ -52,7 +54,9 @@ test.describe("Apple Wallet settings", () => {
     "needs E2E_STORAGE_STATE — /settings redirects to /login without a session",
   );
 
-  test("Apple off: no Add or QR CTA; unavailable copy", async ({ page }) => {
+  test("Apple off: readiness copy + setup link; no secrets in DOM", async ({
+    page,
+  }) => {
     const section = await openAppleWalletSection(page);
     if (await appleEnabledInSection(section)) {
       test.skip(
@@ -61,9 +65,15 @@ test.describe("Apple Wallet settings", () => {
       );
     }
 
+    const readiness = section.getByTestId("apple-wallet-readiness");
+    await expect(readiness).toBeVisible();
+    await expect(readiness).toContainText(
+      /Public URL must use HTTPS|PassKit certificates missing on server/i,
+    );
     await expect(
-      section.getByText(/Apple Wallet is unavailable/i),
-    ).toBeVisible();
+      section.getByRole("link", { name: "Apple Wallet setup guide" }),
+    ).toHaveAttribute("href", SETUP_GUIDE_HREF);
+
     await expect(
       section.getByRole("button", { name: "Add to Apple Wallet" }),
     ).toHaveCount(0);
@@ -71,11 +81,13 @@ test.describe("Apple Wallet settings", () => {
       0,
     );
     await expect(section.getByTestId("apple-wallet-status")).toHaveCount(0);
+
+    const bodyText = await section.innerText();
+    expect(bodyText).not.toMatch(/APPLE_SIGNER/);
+    expect(bodyText).not.toMatch(/BEGIN CERTIFICATE/);
   });
 
-  test("Apple on: Add first, status second, QR secondary", async ({
-    page,
-  }) => {
+  test("Apple on + healthy: Add visible", async ({ page }) => {
     const section = await openAppleWalletSection(page);
     if (!(await appleEnabledInSection(section))) {
       test.skip(true, APPLE_OFF_BLOCKED);
@@ -90,13 +102,20 @@ test.describe("Apple Wallet settings", () => {
     await expect(status).toContainText(/^Status:/);
     await expect(qrSummary).toBeVisible();
 
-    // DOM order: Add → status → QR details (Gate A).
+    // DOM order: readiness → Add → status → QR details.
     const order = await section.evaluate((root) => {
+      const readinessEl = root.querySelector(
+        '[data-testid="apple-wallet-readiness"]',
+      );
       const addEl = root.querySelector('button[type="submit"]');
       const statusEl = root.querySelector('[data-testid="apple-wallet-status"]');
       const detailsEl = root.querySelector("details");
-      if (!addEl || !statusEl || !detailsEl) return null;
+      if (!readinessEl || !addEl || !statusEl || !detailsEl) return null;
       return {
+        readinessBeforeAdd: Boolean(
+          readinessEl.compareDocumentPosition(addEl) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        ),
         addBeforeStatus: Boolean(
           addEl.compareDocumentPosition(statusEl) &
             Node.DOCUMENT_POSITION_FOLLOWING,
@@ -107,6 +126,7 @@ test.describe("Apple Wallet settings", () => {
         ),
       };
     });
+    expect(order?.readinessBeforeAdd).toBe(true);
     expect(order?.addBeforeStatus).toBe(true);
     expect(order?.statusBeforeQr).toBe(true);
 

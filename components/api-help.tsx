@@ -523,6 +523,12 @@ export function ApiHelp() {
         >
           Schema & Security
         </a>
+        <a
+          href="#apple-wallet"
+          className="rounded-[var(--radius-sm)] border border-border bg-muted-surface px-2.5 py-1 text-xs font-medium text-foreground hover:bg-card transition-colors"
+        >
+          Apple Wallet
+        </a>
       </div>
 
       {/* 1. Quick Start Section */}
@@ -677,6 +683,26 @@ export function ApiHelp() {
             </Card>
           ))}
         </div>
+      </SettingsSection>
+
+      {/* Thin Apple Wallet checklist — Settings links here via /help#apple-wallet */}
+      <SettingsSection
+        id="apple-wallet"
+        title="Apple Wallet"
+        description="Caregiver checklist for Baby Care lock-screen passes. Full deployer steps live in the repo runbook."
+      >
+        <ul className="list-inside list-disc space-y-1.5 text-sm text-muted">
+          <li>Public URL must use HTTPS (PassKit web service)</li>
+          <li>PassKit certificates and keys must be set on the server</li>
+          <li>Renew the signer certificate before it expires</li>
+        </ul>
+        <p className="mt-3 text-sm text-muted">
+          Deployers: see{" "}
+          <code className="rounded-[var(--radius-sm)] bg-muted-surface px-1.5 py-0.5 text-xs text-foreground">
+            docs/setup-apple-wallet.md
+          </code>{" "}
+          in the repository (not served as an app route).
+        </p>
       </SettingsSection>
     </CoreShellPage>
   );

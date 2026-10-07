@@ -4,27 +4,46 @@ import {
   appleWalletRegistration,
   appleWalletSubscriber,
 } from "@/db/schema/apple-wallet";
-import { isAppleWalletEnabled } from "@/lib/apple-wallet/config";
+import { diagnoseAppleWallet } from "@/lib/apple-wallet/config";
+import type { AppleWalletReasonCode } from "@/lib/apple-wallet/constants";
 import { walletStatusFrom, type WalletUiStatus } from "@/lib/apple-wallet/status";
 import { getBabyWorkspaceIdForUser } from "@/lib/workspace-baby";
 
 export type AppleWalletSettingsLoader = {
   appleEnabled: boolean;
+  healthyForAdd: boolean;
+  reasons: AppleWalletReasonCode[];
+  signerValidTo: string | null;
   status: WalletUiStatus;
 };
 
 export async function loadAppleWalletSettingsProps(
   userSub: string | undefined,
+  env: NodeJS.ProcessEnv = process.env,
 ): Promise<AppleWalletSettingsLoader> {
-  const appleEnabled = isAppleWalletEnabled();
+  const diagnosis = diagnoseAppleWallet(env);
+  const {
+    enabled: appleEnabled,
+    healthyForAdd,
+    reasons,
+    signerValidTo,
+  } = diagnosis;
+
+  const readiness = {
+    appleEnabled,
+    healthyForAdd,
+    reasons,
+    signerValidTo,
+  };
+
   if (!userSub || !appleEnabled) {
-    return { appleEnabled, status: "not_linked" };
+    return { ...readiness, status: "not_linked" };
   }
 
   try {
     const workspaceId = await getBabyWorkspaceIdForUser(userSub);
     if (!workspaceId) {
-      return { appleEnabled, status: "not_linked" };
+      return { ...readiness, status: "not_linked" };
     }
 
     const [sub] = await withBypassRls(() =>
@@ -45,7 +64,7 @@ export async function loadAppleWalletSettingsProps(
     );
 
     if (!sub) {
-      return { appleEnabled, status: "not_linked" };
+      return { ...readiness, status: "not_linked" };
     }
 
     const [reg] = await withBypassRls(() =>
@@ -56,7 +75,7 @@ export async function loadAppleWalletSettingsProps(
     );
 
     return {
-      appleEnabled,
+      ...readiness,
       status: walletStatusFrom(
         { status: "active" },
         Number(reg?.n ?? 0),
@@ -64,6 +83,6 @@ export async function loadAppleWalletSettingsProps(
       ),
     };
   } catch {
-    return { appleEnabled, status: "not_linked" };
+    return { ...readiness, status: "not_linked" };
   }
 }
