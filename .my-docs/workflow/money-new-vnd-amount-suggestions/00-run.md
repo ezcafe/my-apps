@@ -1,6 +1,6 @@
 # Workflow run: money-new-vnd-amount-suggestions
 
-**Status:** gate-c
+**Status:** done
 
 **Mode:** simple — clear one-surface UI tweak on money/new amount suggestions for VND
 
@@ -10,7 +10,7 @@
 
 **SPM plan:** none
 
-**Last stage:** lite test · success
+**Last stage:** Gate C — commit + push main (no PR/merge asked)
 
 ## Resolved models
 
@@ -55,7 +55,7 @@
 
 - [x] Gate A — skipped — simple mode bootstrap
 - [x] Gate B — auto · user-first Option 1 (append VND zeros) · digest posted
-- [ ] Gate C — Commit / push / PR / merge approved — always blocking
+- [x] Gate C — commit + push to main approved (PR/merge not requested)
 
 ## Notes
 
@@ -86,3 +86,4 @@
 - **13:39** · done · Review (lite) · adversarial + quality clean · SPM none
 - **13:39** · done · lite test · success · no new e2e planned
 - **13:39** · paused · Gate C — blocking — Approve commit + push + PR + merge?
+- **13:41** · done · Gate C — commit `ad837ef` + push `origin/main` · PR/merge not asked

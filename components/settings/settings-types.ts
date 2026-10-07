@@ -21,6 +21,7 @@ export type SettingsCategoryId =
   | "account"
   | "workspaces"
   | "api-tokens"
+  | "apple-wallet"
   | "danger-zone";
 
 export const SETTINGS_CATEGORIES: SettingsCategoryMeta<SettingsCategoryId>[] = [
@@ -72,6 +73,23 @@ export const SETTINGS_CATEGORIES: SettingsCategoryMeta<SettingsCategoryId>[] = [
     label: "API tokens",
     description: "Personal access tokens for scripts, automation, and API access.",
     keywords: ["api", "token", "tokens", "bearer", "auth", "postman", "keys", "scripts", "automation", "permissions", "scopes"],
+  },
+  {
+    id: "apple-wallet",
+    label: "Apple Wallet",
+    description: "Baby Care lock-screen updates via Apple Wallet PassKit.",
+    keywords: [
+      "apple",
+      "wallet",
+      "passkit",
+      "pass",
+      "iphone",
+      "lock screen",
+      "notification",
+      "qr",
+      "pkpass",
+      "baby care",
+    ],
   },
   {
     id: "danger-zone",

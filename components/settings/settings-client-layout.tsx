@@ -13,6 +13,7 @@ type Props = {
   accountContent: ReactNode;
   workspacesContent: ReactNode;
   apiTokensContent: ReactNode;
+  appleWalletContent: ReactNode;
   dangerZoneContent: ReactNode;
   dbUnavailableAlert?: ReactNode;
 };
@@ -23,6 +24,7 @@ export function SettingsClientLayout({
   accountContent,
   workspacesContent,
   apiTokensContent,
+  appleWalletContent,
   dangerZoneContent,
   dbUnavailableAlert,
 }: Props) {
@@ -30,7 +32,7 @@ export function SettingsClientLayout({
     <SettingsPageLayout<SettingsCategoryId>
       categories={SETTINGS_CATEGORIES}
       topAlert={dbUnavailableAlert}
-      searchPlaceholder="Search settings (e.g. appearance, tokens, workspaces)…"
+      searchPlaceholder="Search settings (e.g. appearance, tokens, wallet)…"
       idPrefix="settings"
       sections={{
         appearance: appearanceContent,
@@ -38,6 +40,7 @@ export function SettingsClientLayout({
         account: accountContent,
         workspaces: workspacesContent,
         "api-tokens": apiTokensContent,
+        "apple-wallet": appleWalletContent,
         "danger-zone": dangerZoneContent,
       }}
     />

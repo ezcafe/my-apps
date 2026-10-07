@@ -5,6 +5,7 @@ import { fetchWorkspacesForUser } from "@/lib/workspace-list";
 import { SettingsSection } from "@/components/settings/settings-section";
 import { ApiTokenSettings } from "@/components/api-token-settings";
 import { WatchPairingSettings } from "@/components/watch-pairing-settings";
+import { AppleWalletSettings } from "@/components/apple-wallet-settings";
 import { CoreShellPage } from "@/components/core-shell-page";
 import { DateFormatSettings } from "@/components/date-format-settings";
 import { WeatherCitySettings } from "@/components/kiosk/weather-city-settings";
@@ -17,14 +18,20 @@ import { isDbUnreachable } from "@/lib/db-errors";
 import { DEFAULT_KIOSK_WIDGETS } from "@/lib/kiosk/widget-registry";
 import { getUserPreferences } from "@/lib/user-preferences-service";
 import { SettingsClientLayout } from "@/components/settings/settings-client-layout";
+import { loadAppleWalletSettingsProps } from "@/lib/apple-wallet/settings-loader";
 
 async function loadSettingsDbData(userSub: string) {
   try {
-    const [{ workspaces, defaultWorkspaceId }, apiTokens, preferences] =
-      await Promise.all([
+    const [
+      { workspaces, defaultWorkspaceId },
+      apiTokens,
+      preferences,
+      appleWallet,
+    ] = await Promise.all([
       fetchWorkspacesForUser(userSub, "money"),
       listApiTokensForUser(userSub),
       getUserPreferences(userSub),
+      loadAppleWalletSettingsProps(userSub),
     ]);
     return {
       workspaces,
@@ -32,6 +39,7 @@ async function loadSettingsDbData(userSub: string) {
       apiTokens,
       weatherCity: preferences.weatherCity,
       kioskWidgets: preferences.kioskWidgets,
+      appleWallet,
       dbUnavailable: false as const,
     };
   } catch (e) {
@@ -42,6 +50,7 @@ async function loadSettingsDbData(userSub: string) {
         apiTokens: [],
         weatherCity: null,
         kioskWidgets: [...DEFAULT_KIOSK_WIDGETS],
+        appleWallet: { appleEnabled: false, status: "not_linked" as const },
         dbUnavailable: true as const,
       };
     }
@@ -52,7 +61,15 @@ async function loadSettingsDbData(userSub: string) {
 export default async function SettingsPage() {
   const session = await auth();
   const userSub = session?.user?.id;
-  const { workspaces, defaultWorkspaceId, apiTokens, weatherCity, kioskWidgets, dbUnavailable } = userSub
+  const {
+    workspaces,
+    defaultWorkspaceId,
+    apiTokens,
+    weatherCity,
+    kioskWidgets,
+    appleWallet,
+    dbUnavailable,
+  } = userSub
     ? await loadSettingsDbData(userSub)
     : {
         workspaces: [],
@@ -60,6 +77,7 @@ export default async function SettingsPage() {
         apiTokens: [],
         weatherCity: null,
         kioskWidgets: [],
+        appleWallet: { appleEnabled: false, status: "not_linked" as const },
         dbUnavailable: false as const,
       };
 
@@ -185,6 +203,12 @@ export default async function SettingsPage() {
               />
             </div>
           </SettingsSection>
+        }
+        appleWalletContent={
+          <AppleWalletSettings
+            appleEnabled={appleWallet.appleEnabled}
+            status={appleWallet.status}
+          />
         }
         dangerZoneContent={<WorkspaceResetSettings workspaces={workspaces} />}
       />

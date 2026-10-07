@@ -254,6 +254,56 @@ describe("maybeNotifyBabyCareCreated", () => {
     );
     assert.equal(sends, 0);
   });
+
+  it("maybeNotifyBabyCareCreated calls wallet notify when Apple enabled", async () => {
+    const walletArgs: Array<[string, string]> = [];
+    let telegramSends = 0;
+    await maybeNotifyBabyCareCreated(
+      {
+        workspaceId: "ws-1",
+        kind: "feed",
+        summary: "Bottle 120ml",
+        source: "web",
+      },
+      {
+        isTelegramEnabled: () => true,
+        getLink: async () => ({ chatId: "1", confirmedAt: new Date() }),
+        send: async () => {
+          telegramSends += 1;
+          return { ok: true };
+        },
+        isAppleWalletEnabled: () => true,
+        sendWalletCareNotify: async (workspaceId, careSummary) => {
+          walletArgs.push([workspaceId, careSummary]);
+        },
+      },
+    );
+    assert.equal(telegramSends, 1);
+    assert.deepEqual(walletArgs, [["ws-1", "Bottle 120ml"]]);
+
+    walletArgs.length = 0;
+    await maybeNotifyBabyCareCreated(
+      {
+        workspaceId: "ws-1",
+        kind: "feed",
+        summary: "Bottle 120ml",
+        source: "web",
+      },
+      {
+        isTelegramEnabled: () => true,
+        getLink: async () => ({ chatId: "1", confirmedAt: new Date() }),
+        send: async () => {
+          telegramSends += 1;
+          return { ok: true };
+        },
+        isAppleWalletEnabled: () => false,
+        sendWalletCareNotify: async (workspaceId, careSummary) => {
+          walletArgs.push([workspaceId, careSummary]);
+        },
+      },
+    );
+    assert.deepEqual(walletArgs, []);
+  });
 });
 
 describe("scheduleNotifyBabyCareCreated", () => {
@@ -333,5 +383,66 @@ describe("maybeNotifyBabyCareCreatedMany", () => {
     );
     assert.equal(linkReads, 1);
     assert.deepEqual(sends, ["Breast", "Diaper"]);
+  });
+
+  it("wallet notify once per step with summaries; Apple off → zero wallet calls", async () => {
+    const walletArgs: Array<[string, string]> = [];
+    await maybeNotifyBabyCareCreatedMany(
+      [
+        {
+          workspaceId: "ws-1",
+          kind: "feed",
+          summary: "Breast",
+          source: "web",
+        },
+        {
+          workspaceId: "ws-1",
+          kind: "diaper",
+          summary: "Diaper",
+          source: "web",
+        },
+      ],
+      {
+        isTelegramEnabled: () => false,
+        getLink: async () => null,
+        send: async () => ({ ok: true }),
+        isAppleWalletEnabled: () => true,
+        sendWalletCareNotify: async (workspaceId, careSummary) => {
+          walletArgs.push([workspaceId, careSummary]);
+        },
+      },
+    );
+    assert.deepEqual(walletArgs, [
+      ["ws-1", "Breast"],
+      ["ws-1", "Diaper"],
+    ]);
+
+    walletArgs.length = 0;
+    await maybeNotifyBabyCareCreatedMany(
+      [
+        {
+          workspaceId: "ws-1",
+          kind: "feed",
+          summary: "Breast",
+          source: "web",
+        },
+        {
+          workspaceId: "ws-1",
+          kind: "diaper",
+          summary: "Diaper",
+          source: "web",
+        },
+      ],
+      {
+        isTelegramEnabled: () => false,
+        getLink: async () => null,
+        send: async () => ({ ok: true }),
+        isAppleWalletEnabled: () => false,
+        sendWalletCareNotify: async (workspaceId, careSummary) => {
+          walletArgs.push([workspaceId, careSummary]);
+        },
+      },
+    );
+    assert.deepEqual(walletArgs, []);
   });
 });

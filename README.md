@@ -221,6 +221,7 @@ Prefer Compose on a server. `pnpm run build && pnpm start` is only useful if you
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — shell vs feature layers, Money bootstrap
 - [`docs/ADDING_A_FEATURE.md`](docs/ADDING_A_FEATURE.md) — shipping a new product area
 - [`docs/DESIGN_GUIDE.md`](docs/DESIGN_GUIDE.md) — UI tokens and primitives (mandatory for UI work)
+- [`docs/setup-apple-wallet.md`](docs/setup-apple-wallet.md) — Apple Wallet / PassKit certs + HTTPS for Baby Care lock-screen notify
 - [`docs/API.md`](docs/API.md) / [`docs/openapi.yaml`](docs/openapi.yaml) — personal Bearer tokens (`mny_…`); create them under **Settings → API tokens**
 - [`features/money/README.md`](features/money/README.md) — Money server/client conventions
 

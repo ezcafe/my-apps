@@ -44,11 +44,12 @@ describe("db housekeeping cron", () => {
     }
   });
 
-  it("housekeeping module deletes rate_limit + calls import + baby prunes", () => {
+  it("housekeeping module deletes rate_limit + calls import + baby prunes + apple issue tokens", () => {
     const src = readFileSync(join(process.cwd(), "lib/db-housekeeping.ts"), "utf8");
     assert.match(src, /DELETE FROM security_rate_limit/);
     assert.match(src, /pruneExpiredImportPreviews/);
     assert.match(src, /pruneExpiredBabyQuickCareRequests/);
+    assert.match(src, /pruneAppleWalletIssueTokens/);
     assert.match(src, /runDbHousekeeping/);
   });
 

@@ -69,6 +69,11 @@ These tables have **no workspace RLS**. Writers must keep `userSub` / membership
 | `user_preferences` | `0035_user_preferences` — PK `user_sub` |
 | `workspace*` (`workspace`, `workspace_member`, grants, …) | membership / owner checks in app code |
 | `http_idempotency` | `0042_http_idempotency` — filter by `workspace_id` + `user_sub`; 24h TTL; do not log `response_body`; store redacted replay bodies (ids/counts; members omit email) |
+| `apple_wallet_channel_state` | `0047_apple_wallet` — workspace latest Wallet text; PassKit WS has no RLS session |
+| `apple_wallet_subscriber` | `0047_apple_wallet` — one serial per `(workspace_id, user_sub)`; filter by membership / ApplePass |
+| `apple_wallet_device` | `0047_apple_wallet` — deviceLibraryId → push token |
+| `apple_wallet_registration` | `0047_apple_wallet` — device ↔ serial; cascade from device/subscriber |
+| `apple_wallet_issue_token` | `0047_apple_wallet` — single-use QR issue tokens; prune via db-housekeeping |
 
 **Not on this list:** `money_import_preview` — it has workspace RLS (`0034_security_perf_hardening` / preview path). Cron/system bypass uses `withBypassRls` separately (`security_rate_limit`, etc.).
 
@@ -94,6 +99,7 @@ Optional header on hot mutating REST paths. Same key + same body within TTL repl
 1. Delete `security_rate_limit` rows with `bucket_start` older than 1 hour.
 2. Delete expired `money_import_preview` rows (`pruneExpiredImportPreviews`).
 3. Delete `baby_quick_care_request` rows older than `BABY_QUICK_CARE_TTL_HOURS` (default **168** / 7 days), batched.
+4. Delete `apple_wallet_issue_token` rows that are expired or already consumed.
 
 Schedule from the same cron sidecar as other `/api/cron/*` jobs. See [PERFORMANCE.md](./PERFORMANCE.md).
 

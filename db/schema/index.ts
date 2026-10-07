@@ -8,3 +8,4 @@ export * from "./user-preferences";
 export * from "./baby";
 export * from "./http-idempotency";
 export * from "./watch-pairing-code";
+export * from "./apple-wallet";

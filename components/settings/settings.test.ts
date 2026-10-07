@@ -57,6 +57,15 @@ describe("Settings search and category filtering", () => {
     assert.equal(matchingCategories[0].id, "danger-zone");
   });
 
+  it("finds Apple Wallet by keyword", () => {
+    const { matchingCategories } = filterSettingsCategories(
+      "passkit",
+      SETTINGS_CATEGORIES,
+    );
+    assert.equal(matchingCategories.length, 1);
+    assert.equal(matchingCategories[0].id, "apple-wallet");
+  });
+
   it("filters by category keywords (e.g. weather -> kiosk)", () => {
     const { matchingCategories } = filterSettingsCategories("weather", SETTINGS_CATEGORIES);
     assert.equal(matchingCategories.length, 1);
