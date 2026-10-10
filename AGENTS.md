@@ -100,3 +100,12 @@ sql<number>`count(*)::int`
 ```
 
 ESLint (`eslint.config.mjs` → `no-restricted-syntax`) flags both the array-bind pattern and `sql` templates that contain both `SUM` and `)::int`. Keep those rules on.
+
+## Cursor Cloud specific instructions
+
+- **Node**: `.nvmrc` is `24.18.1`, installed at `/usr/local/node`. A shell may resolve `node` to an older binary first. Use `export PATH="/usr/local/node/bin:$PATH"` before `pnpm` commands.
+- **Postgres**: local PostgreSQL 16 on `localhost:5432`. User, password, and database are `money`. Do not use `pnpm run docker:db` here; Docker is not part of this environment.
+- **Boot**: the environment start script starts Postgres, creates `.env` when it is missing, pushes the Drizzle schema, and runs `pnpm dev` on port 3000. Check `/tmp/cursor/start-user/start-user.log` if the app is not up.
+- **Schema**: `pnpm run db:migrate` fails on a fresh database because `db/migrations/0047_apple_wallet.sql` adds a foreign key before the unique index it needs. Local setup uses `drizzle-kit push`, then `CREATE UNIQUE INDEX IF NOT EXISTS apple_wallet_subscriber_serial_uq`, then push again.
+- **Sign-in**: Pocket ID is optional for boot. `/login`, `/baby`, and `/api/health` work without it. Set `AUTH_POCKET_ID_ISSUER`, `AUTH_POCKET_ID_ID`, and `AUTH_POCKET_ID_SECRET` in `.env` to sign in.
+- **Checks**: `pnpm test` (live database tests skip unless `DATABASE_URL` is exported), `pnpm typecheck`. `pnpm lint` currently reports existing React hook issues on this revision.
