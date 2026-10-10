@@ -28,6 +28,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/cn";
+import { MONEY_COLD_FORM_EMPTY } from "@/lib/money-cold-path-copy";
 import {
   moneyQuickPickChipCls,
   moneyQuickPickGroupCls,
@@ -530,7 +531,7 @@ export function TransactionEditForm({
               otherLabel="Select other category"
               emptyCountsAsOther
               emptySelectedOnOther={categoryEmptyOnOther}
-              emptyMessage="No categories yet. Add one in Settings."
+              emptyMessage={MONEY_COLD_FORM_EMPTY.categories}
             />
           ) : null}
 
@@ -543,7 +544,7 @@ export function TransactionEditForm({
             selectedId={accountId}
             onSelect={setAccountId}
             otherLabel="Other account"
-            emptyMessage="No accounts yet. Add one in Settings."
+            emptyMessage={MONEY_COLD_FORM_EMPTY.accounts}
             renderPickerRow={(item) =>
               formatMinor(
                 accountBalanceById.get(item.id) ?? 0,
@@ -603,7 +604,7 @@ export function TransactionEditForm({
             onSelect={setMerchantId}
             otherLabel="Select other merchant"
             allowEmpty
-            emptyMessage="No merchants yet. Add one in Settings."
+            emptyMessage={MONEY_COLD_FORM_EMPTY.merchants}
           />
 
           <fieldset className="grid min-w-0 gap-2 text-sm [grid-column:1/-1]">

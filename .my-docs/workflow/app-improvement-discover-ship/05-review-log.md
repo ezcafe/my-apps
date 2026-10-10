@@ -1,8 +1,8 @@
 # Code review log: app-improvement-discover-ship
 
-**Updated:** 2026-10-04  
-**SPM plan:** api + security  
-**Draft:** Safe retry Idempotency (Decision 6 Option 1)
+**Updated:** 2026-10-10  
+**SPM plan:** none (copy-only #3; Has API/DB no)  
+**Draft:** Money cold-path copy (+ #1/#2/#4 already on main)
 
 ## Adversarial test review
 
@@ -11,8 +11,7 @@
 
 | Severity | Finding | Status |
 |----------|---------|--------|
-| — | Helper, wiring source, Money `[kind]` replay/absent/too-long/invalid-body covered | — |
-| Enhancement | No dedicated unit that asserts 409 surfaces as error in UI | accept — existing `!res.ok` throw paths |
+| — | Cold-path constants + wiring source + kiosk/prune verify covered | — |
 
 ## Quality review
 
@@ -21,11 +20,11 @@
 
 | Check | Pass? | Note |
 |-------|-------|------|
-| Design / tasks match | yes | Helper + 3 clients + `[kind]` + ARCHITECTURE |
-| Gate A / grill | yes | Spender trust S/M slice |
-| Client bundle | yes | `idempotency-constants` — no postgres in client |
-| Skeleton / UI chrome | N/A | no layout change |
-| Error on 409 | yes | existing `!res.ok` paths |
+| Design / tasks match | yes | Module + presets + Insights + forms |
+| Gate A / grill | yes | Spender orientation S |
+| Empty ≠ error | yes | Action-first descriptions |
+| Skeleton / UI chrome | N/A | copy-only |
+| Help ApiHelp | yes | out of scope per Design |
 
 ### Findings
 
@@ -33,17 +32,13 @@ None Critical/Major/Enhancement open.
 
 ## Merged SPM
 
-See `05-lens-api.md` + `05-lens-security.md`. Parent merge (2 lenses):
+**SPM plan:** none — skipped lenses after Quality clean.
 
-| Severity | Lens | Finding | Status |
-|----------|------|---------|--------|
-| — | api | Contract matches Design; additive header; kind in route id | clean |
-| — | security | Auth before claim; no response body logging; validate-before-claim | clean |
-
-**Merged SPM Result:** clean  
+**Merged SPM Result:** N/A  
 **Fix ask:** none
 
 ## Round notes
 
-- main-thread fallback — Adversarial + Quality + API + Security lenses (Task usage limit)
+- Expanded batch: remaining Build was #3 only
 - Smoke-pass before review
+- main-thread review

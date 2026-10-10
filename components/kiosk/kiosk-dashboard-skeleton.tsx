@@ -23,8 +23,9 @@ export function KioskDashboardSkeleton() {
           />
           <div className="min-w-0 @[32rem]:text-end">
             <Skeleton className="h-4 w-16 rounded-[var(--radius-sm)] @[32rem]:ms-auto" />
-            <Skeleton className="mt-2 h-9 w-20 rounded-[var(--radius-sm)] @[32rem]:ms-auto" />
-            <Skeleton className="mt-2 h-4 w-32 rounded-[var(--radius-sm)] @[32rem]:ms-auto" />
+            <Skeleton className="mt-1 h-9 w-20 rounded-[var(--radius-sm)] @[32rem]:ms-auto" />
+            <Skeleton className="mt-0.5 h-4 w-32 rounded-[var(--radius-sm)] @[32rem]:ms-auto" />
+            <Skeleton className="mt-0.5 h-4 w-28 rounded-[var(--radius-sm)] @[32rem]:ms-auto" />
           </div>
         </div>
       </Card>

@@ -50,7 +50,7 @@ const shellNavItemsSource: ShellNavItem[] = [
     href: "/kiosk",
     order: -1,
     icon: "home",
-    activeMatch: "exact",
+    activeMatch: "prefix",
   },
   {
     kind: "feature",

@@ -107,7 +107,7 @@ Wrap page bodies in [`SHELL_DASHBOARD_STACK`](../lib/shell-layout.ts) (`flex fle
 
 `/kiosk` is a **status board**, not a Money home dashboard. Stack **context strip → metrics band → action list**:
 
-1. **Context strip** — today + weather in one full-width card (no section heading).
+1. **Context strip** — today + weather (temp, condition, PM2.5) in one full-width card; the weather side links to `/kiosk/weather` (no section heading).
 2. **Metrics band** — enabled summary cards (`net`, `bills`, `savings`) in `repeat(auto-fit, minmax(min(100%,14rem),1fr))`. Labels live **inside** the card — no outer section heading.
 3. **Insight bands** *(optional)* — loan / investment KPI grids full-width under metrics; still no outer heading.
 4. **Action list** — loan payments due as a flat divide-y list with a thin title + one deep link (“All loans”). Not wrapped in a Card.

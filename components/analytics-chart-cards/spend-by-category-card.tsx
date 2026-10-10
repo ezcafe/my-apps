@@ -16,6 +16,7 @@ import { ChartLegendList } from "@/components/charts/chart-legend-list";
 import { colorByIndex } from "@/components/charts/chart-colors";
 import { toggleSetKey } from "@/lib/chart-legend-toggle";
 import { formatCompactMinor } from "@/lib/format-money";
+import { MONEY_COLD_INSIGHTS_SPEND_EMPTY } from "@/lib/money-cold-path-copy";
 import type { MoneyAnalyticsDistributionPayload } from "@/lib/money-services/analytics";
 import {
   categoryIdForDrilldown,
@@ -135,8 +136,8 @@ export const SpendByCategoryCard = memo(function SpendByCategoryCard({
             />
           ) : (
             <AnalyticsEmptyState
-              title="No category spend in this range"
-              description="Add expenses or adjust filters for this range."
+              title={MONEY_COLD_INSIGHTS_SPEND_EMPTY.title}
+              description={MONEY_COLD_INSIGHTS_SPEND_EMPTY.description}
               minHeightClass="min-h-0"
               className={CHART_SLOT_CLASS}
               {...CHART_EMPTY_TRANSACTION_ACTIONS}

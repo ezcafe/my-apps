@@ -1,38 +1,30 @@
 # TDD test-case review: app-improvement-discover-ship
 
 **Result:** ok  
-**Round:** 1  
-**Updated:** 2026-10-04  
+**Round:** 1 (expanded #3)  
+**Updated:** 2026-10-10  
 **Prereq:** `03a-design-review-log.md` Result **clean**
 
 ## Planned / existing test cases reviewed
 
 | Task | Scenario type | Test case | Covered? |
 |------|---------------|-----------|----------|
-| 1 | real | Helper mints non-empty key ≤128 + Content-Type + Idempotency-Key | yes |
-| 1 | edge | Optional header merge keeps key | yes |
-| 2 | real | Investment commit + members POST source includes Idempotency-Key | yes |
-| 3 | real | Same key + body → one write + Idempotency-Replayed | yes |
-| 3 | edge | Absent key → success, no claim | yes |
-| 3 | edge | Key >128 → 400, no claim | yes |
-| 3 | edge | Invalid body → 400 before claim | yes |
-| 4 | real | Money wizard fetch includes Idempotency-Key | yes |
-| 4 | edge | 409 → error path (manual/source note OK; unit optional) | yes — acceptance; soft if hard to unit |
+| 1 | real | PERFORMANCE kiosk measured; housekeeping prune present | yes — verify / existing tests |
+| 2 | real | Spending cold copy non-empty + action-first | yes |
+| 2 | real | Form account empty mentions Settings/Accounts | yes |
+| 2 | real | Insights fallback mentions add/transaction | yes |
+| 3 | real | Presets / table / spend card / form wire constants | yes |
+| 3 | edge | No layout/href regression (source/acceptance) | yes — soft |
 
 ## Gaps / Fix ask
 
-None blocking. Optional Enhancement: one unit that maps 409 body to “not success” if a thin response helper is extracted — not required if wizards keep existing `!res.ok` throw.
-
-## Concurrency / double-submit
-
-- Client: busy flags where present + new key per attempt.
-- Server: claim/replay on Money `[kind]`; Investment/members already server-ready.
+None blocking.
 
 ## Auto-approve for Gate B?
 
-**Yes** for test-case plan quality — human still owns Gate B (HITL blocking) for design + tasks + tests approve.
+**Yes** for test-case plan quality — human still owns Gate B (HITL blocking) for design + tasks + tests approve on the expanded remaining slice.
 
 ## Round notes
 
-- Planned tests in `04-tasks.md` match Design contracts.
-- main-thread fallback — TDD test-case review.
+- Planned tests match Design #3 contracts.
+- main-thread fallback.

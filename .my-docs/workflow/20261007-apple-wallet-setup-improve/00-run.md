@@ -1,6 +1,6 @@
 # Workflow run: 20261007-apple-wallet-setup-improve
 
-**Status:** gate-c
+**Status:** done
 
 **Mode:** full — invent which Apple Wallet setup/ops/product improvements matter; multi-surface (certs, PassKit WS, issue auth, settings, notify)
 
@@ -22,7 +22,7 @@
 | main-thread fallbacks | |
 | deferred Enhancements count | Task 5 deferred + design-review Enhancements |
 
-**Last stage:** Full test success · Gate C blocking
+**Last stage:** Gate C · stop without git
 
 ## Resolved models
 
@@ -41,12 +41,12 @@
 - **Prior run:** `.my-docs/workflow/apple-wallet-notifications/` (Status done; Gate C declined git)
 - **Branch:** `main`
 - **Started:** 2026-10-07T13:25:00Z
-- **Last stage:** Full test failure — stale e2e auth
+- **Last stage:** Gate C · stop without git
 - **Has UI:** yes
 - **Has API:** no
 - **Has DB:** no
 - **HITL Gate B:** blocking — approved Option 1 · Tasks 1–4 · Task 5 deferred
-- **HITL Gate C:** blocking
+- **HITL Gate C:** blocking — human chose stop without git
 - **04a:** run — planned unit + e2e in 04-tasks
 
 ## Orchestrator card (parent — avoid re-ingest)
@@ -54,20 +54,20 @@
 | Field | Value |
 |-------|-------|
 | Phase | merge |
-| Next step | Gate C — blocking · commit / push / PR / merge? |
-| Task description | (paused — Gate C) |
-| Stage id | merge |
-| stages.md section | my-dev-flow-merge |
+| Next step | none — pipeline stopped at Gate C (no git) |
+| Task description | — |
+| Stage id | — |
+| stages.md section | — |
 | Model tier | — |
-| Prereq Result | full test success · review clean |
-| Artifact to check | `06-test-log.md` |
+| Prereq Result | full test success · review clean · Gate C stop |
+| Artifact to check | — |
 | Main-thread fallback | none |
 
 ## Gates
 
 - [x] Gate A — Day-to-day + 80/20 (auto when `01a` Result ok)
 - [x] Gate B — Design + tasks (+ tests if planned) approved — HITL: blocking · Option 1 · Tasks 1–4 (Task 5 deferred)
-- [ ] Gate C — Commit / push / PR / merge — **always blocking**
+- [x] Gate C — Commit / push / PR / merge — **declined** (stop without git)
 
 ## Notes
 
@@ -109,3 +109,4 @@
 - **06:12** · paused · e2e still /login · `e2e/.auth/user.json` mtime still 2026-09-07 (jar not rewritten)
 - **06:19** · done · Full test Round 2 · success · e2e 1 pass / 3 skip (Apple off) · jar refreshed
 - **06:19** · paused · Gate C — blocking — Approve commit + push + PR + merge?
+- **06:23** · done · Gate C · stop without git · pipeline done

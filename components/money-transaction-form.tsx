@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { MONEY_COLD_FORM_EMPTY } from "@/lib/money-cold-path-copy";
 import { presentClientError, queryErrorMessage, toUserFacingMessage } from "@/lib/user-facing-error";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
@@ -449,19 +450,19 @@ export function MoneyTransactionForm({
       ? "Loading accounts..."
       : formLookupsQuery.isError
         ? "Couldn’t load accounts."
-        : "No accounts yet. Add one in Settings.";
+        : MONEY_COLD_FORM_EMPTY.accounts;
   const categoryEmptyMessage =
     !workspaceReady || workspaceStateQuery.isLoading || workspaceSyncPending
       ? "Loading categories..."
       : formLookupsQuery.isError
         ? "Couldn’t load categories."
-        : "No categories yet. Add one in Settings.";
+        : MONEY_COLD_FORM_EMPTY.categories;
   const merchantEmptyMessage =
     !workspaceReady || workspaceStateQuery.isLoading || workspaceSyncPending
       ? "Loading merchants..."
       : formLookupsQuery.isError
         ? "Couldn’t load merchants."
-        : "No merchants yet. Add one in Settings.";
+        : MONEY_COLD_FORM_EMPTY.merchants;
   const accounts = useMemo(
     () => (workspaceSyncPending ? [] : loadedAccounts),
     [workspaceSyncPending, loadedAccounts],

@@ -26,10 +26,13 @@ function IconPlus(props: SVGProps<SVGSVGElement>) {
 export function CoreShellPage({
   children,
   description,
+  meta,
 }: {
   children: ReactNode;
   /** AboutDisclosure body beside the title (e.g. extended API help intro). */
   description?: ReactNode;
+  /** When set, replaces pathname-derived meta (e.g. weather day city + date). */
+  meta?: string;
 }) {
   const pathname = usePathname();
   const resolved = resolveCoreAppHeader(pathname);
@@ -37,7 +40,7 @@ export function CoreShellPage({
   return (
     <ShellMainPage
       title={resolved.title}
-      meta={resolved.meta}
+      meta={meta ?? resolved.meta}
       breadcrumbs={resolved.breadcrumbs}
       description={description}
       actions={

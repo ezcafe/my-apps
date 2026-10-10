@@ -33,3 +33,11 @@ _Avoid_: raw env dump, PEM preview, admin-only debug panel
 **Wallet UI status**:
 The Settings-facing Apple Wallet state for the signed-in user: not linked, pending (pass issued, no device registered yet), active (at least one device registered), or fail (ephemeral request error).
 _Avoid_: DB subscriber status alone, Telegram link state
+
+**Kiosk weather block**:
+The weather half of the kiosk context strip: current temperature, condition, and PM2.5. It opens the weather day page.
+_Avoid_: weather widget, location line, weather card
+
+**Weather day page**:
+A page with hourly temperature, PM2.5, and rain for one calendar day in the saved city's local time.
+_Avoid_: forecast page, weather detail drawer, multi-day forecast

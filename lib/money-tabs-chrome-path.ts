@@ -23,7 +23,7 @@ export function isBabyChromePath(pathname: string): boolean {
  * in-page button menu (Money, Investments, Loans, Baby, Help, Settings).
  */
 export function hidesShellRailChrome(pathname: string): boolean {
-  if (pathname === "/kiosk") return true;
+  if (pathname === "/kiosk" || pathname.startsWith("/kiosk/")) return true;
   if (isMoneyTabsChromePath(pathname)) return true;
   if (isInvestmentsChromePath(pathname)) return true;
   if (isLoansChromePath(pathname)) return true;

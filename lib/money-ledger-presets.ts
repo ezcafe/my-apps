@@ -4,6 +4,11 @@ import {
 } from "@/lib/analytics-default-filters";
 import { buildQuery } from "@/lib/analytics-build-query";
 import {
+  MONEY_COLD_LEDGER_BILLS_EMPTY,
+  MONEY_COLD_LEDGER_SAVINGS_EMPTY,
+  MONEY_COLD_LEDGER_SPENDING_EMPTY,
+} from "@/lib/money-cold-path-copy";
+import {
   MONEY_SEED_BILLS,
   MONEY_SEED_NECESSITIES,
 } from "@/lib/money-seed-defaults";
@@ -70,9 +75,8 @@ export const MONEY_LEDGER_SPENDING: MoneyLedgerPreset = {
   title: "Spending",
   description: "Checking, cash, and credit activity this month.",
   emptyState: {
-    title: "Nothing in this range",
-    description:
-      "Widen the date range or add a transaction.",
+    title: MONEY_COLD_LEDGER_SPENDING_EMPTY.title,
+    description: MONEY_COLD_LEDGER_SPENDING_EMPTY.description,
     icon: "wallet",
     accentChartIndex: 0,
     primaryAction: { href: "/money/new", label: "Add transaction" },
@@ -87,9 +91,8 @@ export const MONEY_LEDGER_BILLS: MoneyLedgerPreset = {
   title: "Bills",
   description: "Expenses in your Bills category.",
   emptyState: {
-    title: "No bills this month",
-    description:
-      "Categorize an expense as Bills, or widen the date range.",
+    title: MONEY_COLD_LEDGER_BILLS_EMPTY.title,
+    description: MONEY_COLD_LEDGER_BILLS_EMPTY.description,
     icon: "bills",
     accentChartIndex: 5,
     primaryAction: { href: "/money/new", label: "Add bill expense" },
@@ -114,9 +117,8 @@ export const MONEY_LEDGER_SAVINGS: MoneyLedgerPreset = {
   title: "Savings",
   description: "Deposits, withdrawals, and interest on savings accounts.",
   emptyState: {
-    title: "No savings activity",
-    description:
-      "Record a transfer or widen the date range.",
+    title: MONEY_COLD_LEDGER_SAVINGS_EMPTY.title,
+    description: MONEY_COLD_LEDGER_SAVINGS_EMPTY.description,
     icon: "savings",
     accentChartIndex: 3,
     primaryAction: { href: "/money/new", label: "Record a transfer" },

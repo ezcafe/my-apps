@@ -10,6 +10,7 @@ import { TransactionEditModal } from "@/components/transaction-edit-modal";
 import { TransactionSelectionBar } from "@/components/transaction-selection-bar";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
+import { MONEY_COLD_INSIGHTS_TRANSACTIONS_EMPTY } from "@/lib/money-cold-path-copy";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 import { MoneyLedgerMobileCardsSkeleton } from "@/components/money-analytics-skeleton";
 import { Alert } from "@/components/ui/alert";
@@ -427,8 +428,8 @@ export function AnalyticsTransactionsTable({
 
   const defaultEmptyState = {
     icon: "table" as const,
-    title: "No transactions for this view",
-    description: "Adjust filters or add transactions on the ledger.",
+    title: MONEY_COLD_INSIGHTS_TRANSACTIONS_EMPTY.title,
+    description: MONEY_COLD_INSIGHTS_TRANSACTIONS_EMPTY.description,
     action:
       variant === "standalone"
         ? { href: "/money/new", label: "Add transaction" }

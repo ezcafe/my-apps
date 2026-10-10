@@ -18,6 +18,8 @@ describe("chrome paths", () => {
     assert.equal(isBabyChromePath("/baby"), true);
     assert.equal(isBabyChromePath("/baby/settings"), true);
     assert.equal(hidesShellRailChrome("/kiosk"), true);
+    assert.equal(hidesShellRailChrome("/kiosk/weather"), true);
+    assert.equal(hidesShellRailChrome("/kioskx"), false);
     assert.equal(hidesShellRailChrome("/money"), true);
     assert.equal(hidesShellRailChrome("/investments"), true);
     assert.equal(hidesShellRailChrome("/investments/instruments"), true);

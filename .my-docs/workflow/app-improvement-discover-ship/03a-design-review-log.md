@@ -1,46 +1,18 @@
 # Design review log: app-improvement-discover-ship
 
 **Result:** clean  
-**Round:** 2  
-**Updated:** 2026-10-04  
-**Has API:** yes · **Has DB:** no  
-**Ship pick:** Decision 6 → backlog #1 Safe retry Idempotency
+**Round:** 1 (expanded batch 2026-10-10)  
+**Updated:** 2026-10-10  
+**Has API:** no (remaining) · **Has DB:** no (remaining)  
+**Ship pick:** Decision 6 → 2+3+4A + P1; remaining Build = #3
 
-## API contract review (Has API = yes)
+## API contract review
 
-**Result:** clean  
-**Skill:** api-and-interface-design (main-thread — Task usage limit)  
-**Updated:** 2026-10-04
+**Result:** skipped — Has API = no for remaining slice
 
-### Contract under review
+## DB design review
 
-- Additive optional `Idempotency-Key` on `POST /api/money/import/[kind]`
-- Client opt-in on Investment commit + workspace members POST + Money wizard (existing server contracts)
-
-### Checks
-
-| Check | Pass? | Note |
-|-------|-------|------|
-| Additive / non-breaking | yes | Absent key unchanged |
-| Typed I/O + edge validate | yes | `{ rows }` before claim; raw body for hash |
-| Idempotency | yes | Same library + 409 codes; route id includes kind |
-| Auth / workspace | yes | Existing requireMoneyContext / RLS |
-| Error shape | yes | 400 / 409 via existing helpers |
-| Sequence covers failures | yes | Replay + 409 alts |
-| Tasks catch mistakes | yes | Task 3 route tests + ARCHITECTURE row |
-
-### Findings
-
-| Severity | Finding | Status |
-|----------|---------|--------|
-| Major | Need raw body + validate-before-claim + kind in route id | **fixed** in `03-design` / Task 3 |
-| Enhancement | Client 409 handling | **fixed** in Design + Task 4 |
-| — | No open Critical/Major/Enhancement | — |
-
-## DB design review (Has DB = no)
-
-**Result:** skipped  
-**Has DB:** no — reuse `http_idempotency` only
+**Result:** skipped — Has DB = no; #4 prune already shipped
 
 ## General design review
 
@@ -50,19 +22,18 @@
 
 | Check | Pass? | Note |
 |-------|-------|------|
-| Gate A #1/#2 | yes | Ranked backlog + ship criteria; #1 is spender trust |
-| Grill locks | yes | Spender-first; tokens demoted; S/M; no Gate C paperwork |
-| Decision 6 | yes | Backlog #1 locked |
-| System design / patterns | yes | Overview + shared library + client helper |
-| Sequence + OWASP | yes | |
-| UI / skeleton | yes | No layout change; N/A skeleton OK |
-| Tasks TDD-ready | yes | Tasks 1–4 red-first |
+| Gate A #1/#2 | yes | Spender orientation; S copy-only |
+| Grill locks | yes | Spender-first; tokens not in batch; S/M; no Gate C paperwork |
+| Expanded Decision 6 | yes | A+P1; #1/#2/#4 verified done |
+| System design / patterns | yes | Shared copy module + existing empty primitive |
+| UI / skeleton | yes | Copy-only; skeleton N/A |
+| Tasks TDD-ready | yes | Tasks 2–3 red-first |
 
 ### Findings
 
 | Severity | Area | Finding | Status |
 |----------|------|---------|--------|
-| — | — | None open after Round 1 Fix ask applied | — |
+| — | — | None open | — |
 
 ## Fix ask for my-design-subflow
 
@@ -70,7 +41,5 @@ None — clean.
 
 ## Round notes
 
-- Round 1 (API): needs update — raw body, validate-before-claim, kind in `actor.route`, 409 client behavior, sequence alts.
-- Design update applied to `03-design.md` + `04-tasks.md`.
-- Round 2: API + general **clean**. DB skipped. Ready for 04a → Gate B.
-- main-thread fallback — API contract review + design-review — Task usage limit.
+- Re-verify found #2 and #4 already on `main` — Design scopes remaining Build to #3 only.
+- main-thread design-review.

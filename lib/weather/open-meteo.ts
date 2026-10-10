@@ -1,3 +1,8 @@
+import {
+  buildWeatherDay,
+  type WeatherDay,
+} from "@/lib/weather/weather-day";
+
 /** WMO weather interpretation codes → plain labels. */
 export function weatherCodeLabel(code: number): string {
   if (code === 0) return "Clear";
@@ -33,6 +38,7 @@ export type WeatherSnapshot = {
   weatherCode: number;
   label: string;
   locationLabel: string;
+  pm25: number | null;
 };
 
 type GeocodeApiResponse = {
@@ -47,16 +53,35 @@ type GeocodeApiResponse = {
 
 type ForecastApiResponse = {
   current?: {
+    time?: string;
     temperature_2m?: number;
     weather_code?: number;
+  };
+  hourly?: {
+    time?: string[];
+    temperature_2m?: (number | null)[];
+    precipitation?: (number | null)[];
+    precipitation_probability?: (number | null)[];
+  };
+};
+
+type AqApiResponse = {
+  current?: {
+    time?: string;
+    pm2_5?: number;
+  };
+  hourly?: {
+    time?: string[];
+    pm2_5?: (number | null)[];
   };
 };
 
 const WEATHER_CACHE_TTL_MS = 15 * 60 * 1000;
-const weatherCache = new Map<
+const snapshotCache = new Map<
   string,
   { expiresAt: number; snapshot: WeatherSnapshot }
 >();
+const dayCache = new Map<string, { expiresAt: number; day: WeatherDay }>();
 
 function cacheKey(lat: number, lon: number): string {
   return `${lat.toFixed(4)},${lon.toFixed(4)}`;
@@ -76,6 +101,90 @@ function citySearchId(hit: {
   longitude: number;
 }): string {
   return `${hit.name}|${hit.latitude}|${hit.longitude}`;
+}
+
+function isForecastHost(url: string): boolean {
+  return url.includes("api.open-meteo.com/v1/forecast");
+}
+
+function isAqHost(url: string): boolean {
+  return url.includes("air-quality-api.open-meteo.com/v1/air-quality");
+}
+
+function finitePm25(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.round(value);
+}
+
+async function parseJsonResponse<T>(res: Response): Promise<T | null> {
+  try {
+    const text = await res.text();
+    if (!text.trim()) return null;
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchForecastSnapshot(
+  lat: number,
+  lon: number,
+): Promise<ForecastApiResponse | null> {
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+  url.searchParams.set("latitude", String(lat));
+  url.searchParams.set("longitude", String(lon));
+  url.searchParams.set("current", "temperature_2m,weather_code");
+  url.searchParams.set("timezone", "auto");
+
+  const res = await fetch(url, { next: { revalidate: 900 } });
+  if (!res.ok) return null;
+  return parseJsonResponse<ForecastApiResponse>(res);
+}
+
+async function fetchAqCurrent(lat: number, lon: number): Promise<AqApiResponse | null> {
+  const url = new URL("https://air-quality-api.open-meteo.com/v1/air-quality");
+  url.searchParams.set("latitude", String(lat));
+  url.searchParams.set("longitude", String(lon));
+  url.searchParams.set("current", "pm2_5");
+  url.searchParams.set("timezone", "auto");
+
+  const res = await fetch(url, { next: { revalidate: 900 } });
+  if (!res.ok) return null;
+  return parseJsonResponse<AqApiResponse>(res);
+}
+
+async function fetchForecastDay(
+  lat: number,
+  lon: number,
+): Promise<ForecastApiResponse | null> {
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+  url.searchParams.set("latitude", String(lat));
+  url.searchParams.set("longitude", String(lon));
+  url.searchParams.set("current", "temperature_2m,weather_code");
+  url.searchParams.set(
+    "hourly",
+    "temperature_2m,precipitation,precipitation_probability",
+  );
+  url.searchParams.set("forecast_days", "1");
+  url.searchParams.set("timezone", "auto");
+
+  const res = await fetch(url, { next: { revalidate: 900 } });
+  if (!res.ok) return null;
+  return parseJsonResponse<ForecastApiResponse>(res);
+}
+
+async function fetchAqDay(lat: number, lon: number): Promise<AqApiResponse | null> {
+  const url = new URL("https://air-quality-api.open-meteo.com/v1/air-quality");
+  url.searchParams.set("latitude", String(lat));
+  url.searchParams.set("longitude", String(lon));
+  url.searchParams.set("current", "pm2_5");
+  url.searchParams.set("hourly", "pm2_5");
+  url.searchParams.set("forecast_days", "1");
+  url.searchParams.set("timezone", "auto");
+
+  const res = await fetch(url, { next: { revalidate: 900 } });
+  if (!res.ok) return null;
+  return parseJsonResponse<AqApiResponse>(res);
 }
 
 export async function searchCities(
@@ -129,48 +238,95 @@ export async function fetchCurrentWeather(
   locationLabel: string,
 ): Promise<WeatherSnapshot | null> {
   const key = cacheKey(lat, lon);
-  const cached = weatherCache.get(key);
+  const cached = snapshotCache.get(key);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.snapshot;
   }
 
-  const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.searchParams.set("latitude", String(lat));
-  url.searchParams.set("longitude", String(lon));
-  url.searchParams.set("current", "temperature_2m,weather_code");
-  url.searchParams.set("timezone", "auto");
+  const [forecastResult, aqResult] = await Promise.allSettled([
+    fetchForecastSnapshot(lat, lon),
+    fetchAqCurrent(lat, lon),
+  ]);
 
-  const res = await fetch(url, { next: { revalidate: 900 } });
-  if (!res.ok) return null;
+  const forecast =
+    forecastResult.status === "fulfilled" ? forecastResult.value : null;
+  if (!forecast) return null;
 
-  let data: ForecastApiResponse;
-  try {
-    const text = await res.text();
-    if (!text.trim()) return null;
-    data = JSON.parse(text) as ForecastApiResponse;
-  } catch {
+  const tempC = forecast.current?.temperature_2m;
+  const weatherCode = forecast.current?.weather_code;
+  if (tempC == null || weatherCode == null || !Number.isFinite(tempC)) {
     return null;
   }
-  const tempC = data.current?.temperature_2m;
-  const weatherCode = data.current?.weather_code;
-  if (tempC == null || weatherCode == null) return null;
+
+  let pm25: number | null = null;
+  if (aqResult.status === "fulfilled" && aqResult.value) {
+    pm25 = finitePm25(aqResult.value.current?.pm2_5);
+  }
+  // Fail-soft: empty/unusable AQ JSON → pm25 null and do not cache (grill Q5).
+  const aqOk = pm25 != null;
 
   const snapshot: WeatherSnapshot = {
     tempC,
     weatherCode,
     label: weatherCodeLabel(weatherCode),
     locationLabel,
+    pm25,
   };
 
-  weatherCache.set(key, {
-    expiresAt: Date.now() + WEATHER_CACHE_TTL_MS,
-    snapshot,
-  });
+  if (aqOk) {
+    snapshotCache.set(key, {
+      expiresAt: Date.now() + WEATHER_CACHE_TTL_MS,
+      snapshot,
+    });
+  }
 
   return snapshot;
 }
 
+export async function fetchWeatherDay(
+  lat: number,
+  lon: number,
+  label: string,
+): Promise<WeatherDay | null> {
+  const key = cacheKey(lat, lon);
+  const cached = dayCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.day;
+  }
+
+  const [forecastResult, aqResult] = await Promise.allSettled([
+    fetchForecastDay(lat, lon),
+    fetchAqDay(lat, lon),
+  ]);
+
+  const forecast =
+    forecastResult.status === "fulfilled" ? forecastResult.value : null;
+  if (!forecast) return null;
+
+  const aqJson =
+    aqResult.status === "fulfilled" ? aqResult.value : null;
+
+  const day = buildWeatherDay(forecast, aqJson, label);
+  if (!day) return null;
+
+  if (day.aqAvailable) {
+    dayCache.set(key, {
+      expiresAt: Date.now() + WEATHER_CACHE_TTL_MS,
+      day,
+    });
+  }
+
+  return day;
+}
+
 /** Test helper — clears in-memory weather cache. */
 export function clearWeatherCacheForTests(): void {
-  weatherCache.clear();
+  snapshotCache.clear();
+  dayCache.clear();
 }
+
+/** Test helpers — host detection for URL-routed fakes. */
+export const __weatherFetchHostsForTests = {
+  isForecastHost,
+  isAqHost,
+};
