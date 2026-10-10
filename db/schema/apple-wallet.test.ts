@@ -131,6 +131,21 @@ describe("apple_wallet schema", () => {
     );
   });
 
+  it("migration SQL creates subscriber serial unique index before serial FK", () => {
+    const serialUq = migrationSql.indexOf(
+      'CREATE UNIQUE INDEX "apple_wallet_subscriber_serial_uq"',
+    );
+    const serialFk = migrationSql.indexOf(
+      'ADD CONSTRAINT "apple_wallet_registration_serial_fk"',
+    );
+    assert.ok(serialUq >= 0, "missing subscriber serial unique index");
+    assert.ok(serialFk >= 0, "missing registration serial FK");
+    assert.ok(
+      serialUq < serialFk,
+      "serial unique index must precede registration.serial_number FK",
+    );
+  });
+
   it("always-on: second (workspace,user) or serial insert conflicts", () => {
     const rows = new Map<
       string,

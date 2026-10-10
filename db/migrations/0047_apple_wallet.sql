@@ -41,6 +41,13 @@ CREATE TABLE "apple_wallet_issue_token" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+-- Unique indexes on subscriber must exist before registration.serial_number FK.
+CREATE UNIQUE INDEX "apple_wallet_subscriber_ws_user_uq" ON "apple_wallet_subscriber" USING btree ("workspace_id","user_sub");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "apple_wallet_subscriber_serial_uq" ON "apple_wallet_subscriber" USING btree ("serial_number");
+--> statement-breakpoint
+CREATE INDEX "apple_wallet_subscriber_ws_status_idx" ON "apple_wallet_subscriber" USING btree ("workspace_id","status");
+--> statement-breakpoint
 ALTER TABLE "apple_wallet_channel_state" ADD CONSTRAINT "apple_wallet_channel_state_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;
 --> statement-breakpoint
 ALTER TABLE "apple_wallet_subscriber" ADD CONSTRAINT "apple_wallet_subscriber_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;
@@ -50,12 +57,6 @@ ALTER TABLE "apple_wallet_registration" ADD CONSTRAINT "apple_wallet_registratio
 ALTER TABLE "apple_wallet_registration" ADD CONSTRAINT "apple_wallet_registration_serial_fk" FOREIGN KEY ("serial_number") REFERENCES "public"."apple_wallet_subscriber"("serial_number") ON DELETE cascade ON UPDATE no action;
 --> statement-breakpoint
 ALTER TABLE "apple_wallet_issue_token" ADD CONSTRAINT "apple_wallet_issue_token_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;
---> statement-breakpoint
-CREATE UNIQUE INDEX "apple_wallet_subscriber_ws_user_uq" ON "apple_wallet_subscriber" USING btree ("workspace_id","user_sub");
---> statement-breakpoint
-CREATE UNIQUE INDEX "apple_wallet_subscriber_serial_uq" ON "apple_wallet_subscriber" USING btree ("serial_number");
---> statement-breakpoint
-CREATE INDEX "apple_wallet_subscriber_ws_status_idx" ON "apple_wallet_subscriber" USING btree ("workspace_id","status");
 --> statement-breakpoint
 CREATE INDEX "apple_wallet_registration_serial_idx" ON "apple_wallet_registration" USING btree ("serial_number");
 --> statement-breakpoint
