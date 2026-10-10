@@ -2,6 +2,11 @@
 
 import { Card } from "@/components/ui/card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
+import {
+  chartExpenseColor,
+  chartIncomeColor,
+} from "@/components/charts/chart-income-expense-colors";
+import { useTheme } from "@/components/theme-provider";
 import { formatMinor, formatCompactMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import type { KioskLedgerSummaryWidget } from "@/lib/kiosk/load-kiosk-page";
@@ -17,8 +22,12 @@ export function KioskLedgerSummaryCard({
   currency: string;
   valueLabel?: string;
 }) {
+  const { resolved, style } = useTheme();
   const { formatPeriod } = useFormatDate();
-  const valuePositive = summary.netMinor >= 0;
+  const incomeColor = chartIncomeColor(resolved, style);
+  const expenseColor = chartExpenseColor(resolved, style);
+  const valueColor =
+    summary.netMinor >= 0 ? incomeColor : expenseColor;
   const period = formatPeriod(summary.range.from, summary.range.to);
   const animationKey = `${summary.range.from}-${summary.range.to}`;
 
@@ -32,9 +41,7 @@ export function KioskLedgerSummaryCard({
         <AnimatedNumber
           value={summary.netMinor}
           format={(n) => formatCompactMinor(Math.round(n), currency)}
-          className={
-            valuePositive ? "text-[var(--chart-3)]" : "text-[var(--destructive)]"
-          }
+          style={{ color: valueColor }}
           animationKey={animationKey}
         />
       </p>
@@ -47,13 +54,19 @@ export function KioskLedgerSummaryCard({
       >
         <div className="min-w-0">
           <dt className="text-sm text-muted">Income</dt>
-          <dd className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums text-[var(--chart-3)]">
+          <dd
+            className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums"
+            style={{ color: incomeColor }}
+          >
             {formatCompactMinor(summary.incomeMinor, currency)}
           </dd>
         </div>
         <div className="min-w-0">
           <dt className="text-sm text-muted">Expenses</dt>
-          <dd className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums text-[var(--destructive)]">
+          <dd
+            className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums"
+            style={{ color: expenseColor }}
+          >
             {formatCompactMinor(summary.expenseMinor, currency)}
           </dd>
         </div>

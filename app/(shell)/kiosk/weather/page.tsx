@@ -34,6 +34,11 @@ export default async function KioskWeatherPage() {
     );
   }
 
+  const stableMeta = formatWeatherDayMeta(
+    city,
+    new Date().toISOString().slice(0, 10),
+  );
+
   let day = null;
   try {
     day = await fetchWeatherDay(lat, lon, city);
@@ -43,10 +48,18 @@ export default async function KioskWeatherPage() {
 
   if (!day) {
     return (
-      <CoreShellPage meta={formatWeatherDayMeta(city, new Date().toISOString().slice(0, 10))}>
+      <CoreShellPage meta={stableMeta}>
         <AnalyticsEmptyState
           title="Weather is temporarily unavailable."
-          description="Try reloading the page in a few minutes."
+          description="Try reloading the page in a few minutes, or check your city in Settings."
+          primaryAction={{
+            href: "/kiosk/weather",
+            label: "Reload",
+          }}
+          secondaryAction={{
+            href: "/settings#settings-kiosk",
+            label: "Settings",
+          }}
         />
       </CoreShellPage>
     );

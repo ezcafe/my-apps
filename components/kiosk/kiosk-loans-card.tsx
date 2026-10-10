@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 import { LoanPayActions } from "@/components/loan-pay-actions";
 import { Alert } from "@/components/ui/alert";
 import { formatMinor } from "@/lib/format-money";
@@ -115,12 +116,13 @@ export function KioskLoansCard({
           ))}
         </div>
       ) : (
-        <div className="rounded-[var(--radius-sm)] border border-dashed border-border bg-background px-4 py-8 text-center">
-          <p className="font-medium text-foreground">No upcoming payments</p>
-          <p className="mt-1 text-sm text-muted">
-            Active loans with a due date will show up here.
-          </p>
-        </div>
+        <AnalyticsEmptyState
+          title="No upcoming payments"
+          description="Active loans with a due date will show up here."
+          icon="loan"
+          minHeightClass="min-h-[140px]"
+          primaryAction={{ href: "/loans", label: "All loans" }}
+        />
       )}
     </div>
   );

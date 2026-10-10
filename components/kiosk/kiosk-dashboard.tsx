@@ -1,4 +1,5 @@
 import dynamic from "next/dynamic";
+import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 import { Alert } from "@/components/ui/alert";
 import { KioskContextStrip } from "@/components/kiosk/kiosk-context-strip";
 import { KioskLedgerSummaryCard } from "@/components/kiosk/kiosk-ledger-summary-card";
@@ -72,19 +73,15 @@ export function KioskDashboard({ data }: { data: KioskPageData }) {
       ) : null}
 
       {enabledWidgets.length === 0 ? (
-        <div className="rounded-[var(--radius-sm)] border border-dashed border-border bg-background px-4 py-10 text-center">
-          <p className="font-medium text-foreground">No kiosk widgets enabled</p>
-          <p className="mt-1 text-sm text-muted">
-            Choose widgets in{" "}
-            <a
-              href="/settings#settings-kiosk"
-              className="font-medium text-accent underline-offset-4 hover:underline"
-            >
-              Settings → Kiosk
-            </a>
-            .
-          </p>
-        </div>
+        <AnalyticsEmptyState
+          title="No kiosk widgets enabled"
+          description="Choose widgets in Settings → Kiosk to build your glance board."
+          icon="wallet"
+          primaryAction={{
+            href: "/settings#settings-kiosk",
+            label: "Open Settings",
+          }}
+        />
       ) : null}
 
       {showWeather ? (
@@ -92,6 +89,22 @@ export function KioskDashboard({ data }: { data: KioskPageData }) {
           <KioskContextStrip
             weather={data.weather}
             weatherCity={data.weatherCity}
+          />
+        </section>
+      ) : null}
+
+      {showLoansPayments && loansDef ? (
+        <section
+          aria-labelledby="kiosk-loans-payments-heading"
+          className="space-y-3"
+        >
+          <KioskSectionHeading
+            id="kiosk-loans-payments-heading"
+            title={loansDef.label}
+            action={{ href: "/loans", label: "All loans" }}
+          />
+          <KioskLoansCard
+            loans={data.widgets.loansPayments ?? { overdue: [], upcoming: [] }}
           />
         </section>
       ) : null}
@@ -111,7 +124,11 @@ export function KioskDashboard({ data }: { data: KioskPageData }) {
                     currency={data.currency}
                   />
                 ) : (
-                  <KioskNetUnavailable key={widgetId} currency={data.currency} />
+                  <KioskNetUnavailable
+                    key={widgetId}
+                    title="Net"
+                    currency={data.currency}
+                  />
                 );
               case "bills.summary":
                 return data.widgets.billsSummary ? (
@@ -122,7 +139,11 @@ export function KioskDashboard({ data }: { data: KioskPageData }) {
                     currency={data.currency}
                   />
                 ) : (
-                  <KioskNetUnavailable key={widgetId} currency={data.currency} />
+                  <KioskNetUnavailable
+                    key={widgetId}
+                    title="Bills"
+                    currency={data.currency}
+                  />
                 );
               case "savings.summary":
                 return data.widgets.savingsSummary ? (
@@ -133,7 +154,11 @@ export function KioskDashboard({ data }: { data: KioskPageData }) {
                     currency={data.currency}
                   />
                 ) : (
-                  <KioskNetUnavailable key={widgetId} currency={data.currency} />
+                  <KioskNetUnavailable
+                    key={widgetId}
+                    title="Savings"
+                    currency={data.currency}
+                  />
                 );
               default:
                 return null;
@@ -156,7 +181,10 @@ export function KioskDashboard({ data }: { data: KioskPageData }) {
                     variant="page"
                   />
                 ) : (
-                  <KioskNetUnavailable currency={data.currency} />
+                  <KioskNetUnavailable
+                    title="Loans"
+                    currency={data.currency}
+                  />
                 )}
               </section>
             );
@@ -171,7 +199,10 @@ export function KioskDashboard({ data }: { data: KioskPageData }) {
                     variant="page"
                   />
                 ) : (
-                  <KioskNetUnavailable currency={data.currency} />
+                  <KioskNetUnavailable
+                    title="Investments"
+                    currency={data.currency}
+                  />
                 )}
               </section>
             );
@@ -179,22 +210,6 @@ export function KioskDashboard({ data }: { data: KioskPageData }) {
             return null;
         }
       })}
-
-      {showLoansPayments && loansDef ? (
-        <section
-          aria-labelledby="kiosk-loans-payments-heading"
-          className="space-y-3"
-        >
-          <KioskSectionHeading
-            id="kiosk-loans-payments-heading"
-            title={loansDef.label}
-            action={{ href: "/loans", label: "All loans" }}
-          />
-          <KioskLoansCard
-            loans={data.widgets.loansPayments ?? { overdue: [], upcoming: [] }}
-          />
-        </section>
-      ) : null}
     </div>
   );
 }

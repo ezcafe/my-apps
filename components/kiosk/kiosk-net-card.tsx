@@ -2,14 +2,25 @@
 
 import { Card } from "@/components/ui/card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
+import {
+  chartExpenseColor,
+  chartIncomeColor,
+} from "@/components/charts/chart-income-expense-colors";
+import { useTheme } from "@/components/theme-provider";
 import { formatMinor, formatCompactMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
 import type { KioskNetWidget } from "@/lib/kiosk/load-kiosk-page";
 
-export function KioskNetUnavailable({ currency }: { currency: string }) {
+export function KioskNetUnavailable({
+  currency,
+  title = "Net",
+}: {
+  currency: string;
+  title?: string;
+}) {
   return (
     <Card className="px-4 py-5">
-      <p className="text-sm font-medium text-muted">Net</p>
+      <p className="text-sm font-medium text-muted">{title}</p>
       <p className="mt-3 text-sm text-muted">
         Unavailable{currency ? ` · default currency ${currency}` : ""}.
       </p>
@@ -24,8 +35,11 @@ export function KioskNetCard({
   net: KioskNetWidget;
   currency: string;
 }) {
+  const { resolved, style } = useTheme();
   const { formatPeriod } = useFormatDate();
-  const netPositive = net.netMinor >= 0;
+  const incomeColor = chartIncomeColor(resolved, style);
+  const expenseColor = chartExpenseColor(resolved, style);
+  const netColor = net.netMinor >= 0 ? incomeColor : expenseColor;
   const period = formatPeriod(net.range.from, net.range.to);
   const animationKey = `${net.range.from}-${net.range.to}`;
 
@@ -39,9 +53,7 @@ export function KioskNetCard({
         <AnimatedNumber
           value={net.netMinor}
           format={(n) => formatCompactMinor(Math.round(n), currency)}
-          className={
-            netPositive ? "text-[var(--chart-3)]" : "text-[var(--destructive)]"
-          }
+          style={{ color: netColor }}
           animationKey={animationKey}
         />
       </p>
@@ -54,13 +66,19 @@ export function KioskNetCard({
       >
         <div className="min-w-0">
           <dt className="text-sm text-muted">Income</dt>
-          <dd className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums text-[var(--chart-3)]">
+          <dd
+            className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums"
+            style={{ color: incomeColor }}
+          >
             {formatCompactMinor(net.incomeMinor, currency)}
           </dd>
         </div>
         <div className="min-w-0">
           <dt className="text-sm text-muted">Expenses</dt>
-          <dd className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums text-[var(--destructive)]">
+          <dd
+            className="mt-1 font-display text-2xl font-semibold tracking-tight tabular-nums"
+            style={{ color: expenseColor }}
+          >
             {formatCompactMinor(net.expenseMinor, currency)}
           </dd>
         </div>

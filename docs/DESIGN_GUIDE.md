@@ -105,12 +105,12 @@ Wrap page bodies in [`SHELL_DASHBOARD_STACK`](../lib/shell-layout.ts) (`flex fle
 
 ### Kiosk glance pattern
 
-`/kiosk` is a **status board**, not a Money home dashboard. Stack **context strip → metrics band → action list**:
+`/kiosk` is a **status board**, not a Money home dashboard and not a widget builder. Stack **context strip → attention (action list) → metrics → optional insights**:
 
-1. **Context strip** — today + weather (temp, condition, PM2.5) in one full-width card; the weather side links to `/kiosk/weather` (no section heading).
-2. **Metrics band** — enabled summary cards (`net`, `bills`, `savings`) in `repeat(auto-fit, minmax(min(100%,14rem),1fr))`. Labels live **inside** the card — no outer section heading.
-3. **Insight bands** *(optional)* — loan / investment KPI grids full-width under metrics; still no outer heading.
-4. **Action list** — loan payments due as a flat divide-y list with a thin title + one deep link (“All loans”). Not wrapped in a Card.
+1. **Context strip** — today + weather (temp → PM2.5 → condition) in one full-width card; the weather side links to `/kiosk/weather` (no section heading).
+2. **Attention** — needs-me-now action list. Today: loan payments due (flat divide-y list + overdue `Alert` when rows exist; soft [`AnalyticsEmptyState`](../components/analytics-empty-state.tsx) when empty). Thin title + one deep link (“All loans”). Not wrapped in a Card. **Bills-due** joins this band only when an honest due signal exists later — never invent due from `bills.summary` month ledger totals.
+3. **Metrics band** — enabled summary cards (`net` first when on, then `bills` / `savings`) in `repeat(auto-fit, minmax(min(100%,14rem),1fr))`. Labels live **inside** the card — no outer section heading. Income/expense colors follow `chartIncomeColor` / `chartExpenseColor` (AnalyticsStats pattern).
+4. **Insight bands** *(optional / below fold)* — loan / investment KPI grids full-width under metrics when enabled in Settings; still no outer heading. Off by default; keep dense page variant (no compact kiosk variant).
 
 Do not double-title (section heading + in-card label). Keep secondary links rare (city setup only when weather needs it). Skeleton must mirror this stack with the same `@container` / auto-fit structure.
 
@@ -560,7 +560,7 @@ Wizard steps: render the step hint under the progress bar. Review/summary steps 
 - [ ] Feedback scale matches stakes (field / Alert / toast / Modal); error copy via `toUserFacingMessage`; success names the object.
 - [ ] Nested pages use location crumbs from the section origin; top-level sections have none.
 - [ ] Dashboards: metrics → optional chart → table; no extra viz “because we have the data.”
-- [ ] Kiosk: context strip → metrics band → action list; no double headings; skeleton matches `@container` / auto-fit.
+- [ ] Kiosk: context strip → attention (action list) → metrics → optional insights; no double headings; skeleton matches `@container` / auto-fit.
 - [ ] Skeleton/loading order matches live page stack (chip → filters → KPIs → content).
 - [ ] Verified light and dark via `/settings`.
 - [ ] `npm run lint` and `npm run build` pass.

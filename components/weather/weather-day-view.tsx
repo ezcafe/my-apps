@@ -38,7 +38,7 @@ export function WeatherDayView({ day }: { day: WeatherDay }) {
   return (
     <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,26rem),1fr))] gap-4">
       <Card className="min-w-0 px-4 py-5">
-        <p className="text-sm font-medium text-foreground">Temperature</p>
+        <p className="text-sm font-medium text-muted">Temperature</p>
         <p className="mt-2 font-display text-3xl font-semibold tabular-nums tracking-tight text-foreground">
           {formatTempNow(day.current.tempC)}
         </p>
@@ -57,7 +57,7 @@ export function WeatherDayView({ day }: { day: WeatherDay }) {
       </Card>
 
       <Card className="min-w-0 px-4 py-5">
-        <p className="text-sm font-medium text-foreground">PM2.5</p>
+        <p className="text-sm font-medium text-muted">PM2.5</p>
         {day.aqAvailable ? (
           <>
             <p className="mt-2 font-display text-3xl font-semibold tabular-nums tracking-tight text-foreground">
@@ -84,7 +84,7 @@ export function WeatherDayView({ day }: { day: WeatherDay }) {
       </Card>
 
       <Card className="min-w-0 px-4 py-5">
-        <p className="text-sm font-medium text-foreground">Rain</p>
+        <p className="text-sm font-medium text-muted">Rain</p>
         <p className="mt-2 font-display text-3xl font-semibold tabular-nums tracking-tight text-foreground">
           {formatRainTotal(day.rainTotalMm)}
         </p>

@@ -41,3 +41,7 @@ _Avoid_: weather widget, location line, weather card
 **Weather day page**:
 A page with hourly temperature, PM2.5, and rain for one calendar day in the saved city's local time.
 _Avoid_: forecast page, weather detail drawer, multi-day forecast
+
+**Kiosk attention**:
+Time-sensitive “needs me now” signals on the kiosk status board — loan overdue or due-soon, and bills-due when that signal exists — shown before calm money totals.
+_Avoid_: metrics band, insight band, bills month summary

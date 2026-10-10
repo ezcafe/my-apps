@@ -55,4 +55,16 @@ describe("WeatherDayView", () => {
     );
     assert.match(html, /0\.0 mm/);
   });
+
+  it("uses text-muted on KPI card labels", () => {
+    const html = renderToStaticMarkup(
+      createElement(WeatherDayView, { day: baseDay() }),
+    );
+    assert.match(
+      html,
+      /text-sm font-medium text-muted[^"]*">Temperature</,
+    );
+    assert.match(html, /text-sm font-medium text-muted[^"]*">PM2\.5</);
+    assert.match(html, /text-sm font-medium text-muted[^"]*">Rain</);
+  });
 });
