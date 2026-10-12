@@ -33,10 +33,11 @@ Set at least:
 | `AUTH_URL` / `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` |
 | `AUTH_POCKET_ID_ISSUER` | Your Pocket ID base URL |
 | `AUTH_POCKET_ID_ID` / `AUTH_POCKET_ID_SECRET` | OIDC client id and secret |
+| `CRON_SECRET` | Required for every `POST /api/cron/*`. Unset → `503` `CRON_SECRET not configured`. |
 
 In Pocket ID, add redirect URI `http://localhost:3000/api/auth/callback/pocket-id`.
 
-`CRON_SECRET` is optional locally. Recurrence `POST`s are accepted without a secret when it is unset.
+Every cron `POST` needs `Authorization: Bearer $CRON_SECRET` (same as production).
 
 ### 2. Database
 
@@ -79,12 +80,14 @@ ALLOW_BASELINE_DRIZZLE=1 pnpm run db:baseline -- --through 0023_money_tx_exclude
 pnpm run db:migrate
 ```
 
-### Recurrence (optional)
+### Recurrence (local verify)
 
-Create a template under **Money → Settings → Recurrence**, then:
+Create a template under **Money → Settings → Recurrence**, then (secret required):
 
 ```bash
-curl -sS -X POST http://localhost:3000/api/cron/money-recurrence
+curl -sS -X POST \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  http://localhost:3000/api/cron/money-recurrence
 ```
 
 The create form offers **Every 5 minutes (dev)** only when `NODE_ENV=development`.
@@ -113,7 +116,7 @@ Generate secrets, then edit `.env`:
 
 ```bash
 openssl rand -base64 32   # AUTH_SECRET
-openssl rand -base64 32   # CRON_SECRET (if you will schedule recurrence)
+openssl rand -base64 32   # CRON_SECRET (required for all /api/cron/*)
 ```
 
 | Variable | Production |
@@ -121,7 +124,7 @@ openssl rand -base64 32   # CRON_SECRET (if you will schedule recurrence)
 | `AUTH_SECRET` | Required. Compose will not start the app without it. |
 | `AUTH_POCKET_ID_ISSUER` / `AUTH_POCKET_ID_ID` / `AUTH_POCKET_ID_SECRET` | Required. Compose will not start the app without them. |
 | `AUTH_URL` and `NEXT_PUBLIC_APP_URL` | Public **HTTPS** origin, e.g. `https://app.example.com`. Do not leave `http://localhost:3000` behind a tunnel or OIDC redirects break. |
-| `CRON_SECRET` | Required in production for `POST /api/cron/money-recurrence` (route returns `401` if unset). |
+| `CRON_SECRET` | Required for every `POST /api/cron/*`. Unset → `503` `CRON_SECRET not configured`. Wrong or missing Bearer → `401 Unauthorized`. |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Override the Compose defaults (`money` / `money` / `money`) on a real server. |
 | `DATABASE_URL` | Host-oriented URL is fine in `.env`. Compose **overrides** it inside `app` and `migrate` to `…@pgbouncer:5432/…`. |
 
@@ -166,36 +169,53 @@ docker compose --env-file .env up --build -d
 
 The migrator runs again on each `up`. Do not use `db:push` against production.
 
-### 5. Recurring transactions
+### 5. Cron jobs (all features)
 
-Money posts due recurrence templates via `POST /api/cron/money-recurrence`. Each run creates **at most one transaction per template** and advances the schedule (missed slots are skipped, not backfilled).
+Schedule from the **host** (the app image has no cron). Every job is `POST` with `Authorization: Bearer $CRON_SECRET`. Set `APP_URL` to your public origin, or `http://127.0.0.1:3000` if the app is only reachable on the server. Prefer a root-only env file for `CRON_SECRET` if you do not want it in crontab.
 
-Verify:
+| Path | Purpose |
+|------|---------|
+| `/api/cron/money-recurrence` | Post due Money recurrence templates |
+| `/api/cron/loan-reminders` | Send due loan push reminders |
+| `/api/cron/investment-quotes` | Refresh Yahoo quotes for instruments |
+| `/api/cron/db-housekeeping` | Prune rate-limit rows, expired import previews, old baby quick-care rows |
 
-```bash
-curl -sS -X POST \
-  -H "Authorization: Bearer $CRON_SECRET" \
-  https://your-app.example/api/cron/money-recurrence
-```
-
-Expected body: `{ "processed": n, "generated": n, "errors": [] }`.
-
-Schedule from the **host** (the app image has no cron). Daily at 00:05 server time:
+Suggested crontab (edit times to fit your timezone; examples only):
 
 ```cron
 CRON_SECRET=your-generated-secret
 APP_URL=https://your-app.example
 
 5 0 * * * curl -sS -f -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/money-recurrence" >> /var/log/money-recurrence-cron.log 2>&1
+0 8 * * * curl -sS -f -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/loan-reminders" >> /var/log/loan-reminders-cron.log 2>&1
+0 18 * * * curl -sS -f -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/investment-quotes" >> /var/log/investment-quotes-cron.log 2>&1
+0 3 * * * curl -sS -f -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/db-housekeeping" >> /var/log/db-housekeeping-cron.log 2>&1
 ```
 
-If the hostname is only reachable on the server itself, use `http://127.0.0.1:3000` as `APP_URL`. Keep `CRON_SECRET` in a root-only env file if you do not want it in crontab.
+**Per-job notes**
+
+- **Money recurrence** — Each run creates **at most one transaction per template** and advances the schedule (missed slots are skipped, not backfilled). Success body: `{ "processed": n, "generated": n, "errors": [] }`.
+- **Loan reminders** — Needs VAPID / web-push config for `pushSent` to rise. Success body: `{ "dueCount", "installmentsMarked", "pushSent", "pushFailed" }`.
+- **Investment quotes** — Refreshes Yahoo quotes for active instruments. Success body: `{ "data": { "updated": n } }`.
+- **DB housekeeping** — Prunes stale operational rows. Details and manual SQL: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md). Success body includes `rateLimitDeleted`, `importPreviewsPruned`, `babyQuickCareDeleted`, `appleWalletIssueTokensDeleted`.
+
+Verify one job:
+
+```bash
+curl -sS -X POST \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  "$APP_URL/api/cron/money-recurrence"
+```
 
 | Symptom | Likely cause |
 |---------|----------------|
-| `401 Unauthorized` | Wrong or missing `CRON_SECRET` on the app or the curl |
-| `503 db_unavailable` | Postgres / PgBouncer not reachable |
-| `"generated": 0` | No active template with `nextRunAt <= now` |
+| `401 Unauthorized` | Wrong or missing Bearer token on the curl (app has `CRON_SECRET` set) |
+| `503` + `CRON_SECRET not configured` | `CRON_SECRET` unset in the app env |
+| `503` + `db_unavailable` | Postgres / PgBouncer not reachable (money, loans, housekeeping) |
+| `"generated": 0` | No active Money template with `nextRunAt <= now` |
+| `"pushSent": 0` | No due installments, or VAPID / push not configured |
+
+API inventory (all four paths): [`docs/API.md`](docs/API.md). Feature tips: [`features/loans/README.md`](features/loans/README.md), [`features/investment/README.md`](features/investment/README.md).
 
 ---
 
