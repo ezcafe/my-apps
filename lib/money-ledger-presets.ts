@@ -82,7 +82,9 @@ export const MONEY_LEDGER_SPENDING: MoneyLedgerPreset = {
     primaryAction: { href: "/money/new", label: "Add transaction" },
   },
   lockedQuery: {
-    kinds: ["expense", "income", "transfer"],
+    // Do not lock kinds here — locking all kinds blocked Direction filters
+    // (merge always rewrote user expense/income/transfer picks). Account-type
+    // exclusion is the spending-scope lock; empty kinds means Direction "All".
     excludeAccountTypes: ["savings", "investment", "loan"],
   },
 };

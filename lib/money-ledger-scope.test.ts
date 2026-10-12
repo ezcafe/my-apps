@@ -34,7 +34,17 @@ describe("buildMoneyAnalyticsFilterQuery", () => {
     const applied = defaultAnalyticsFilters();
     const q = buildMoneyAnalyticsFilterQuery(applied, "spending", []);
     assert.ok(q.includes("excludeAccountTypes=savings"));
-    assert.ok(q.includes("kinds=expense"));
+    assert.ok(!q.includes("kinds="));
+  });
+
+  it("keeps user Direction kinds on spending (does not force all kinds)", () => {
+    const applied = {
+      ...defaultAnalyticsFilters(),
+      kinds: ["expense" as const],
+    };
+    const q = buildMoneyAnalyticsFilterQuery(applied, "spending", []);
+    assert.deepEqual(new URLSearchParams(q).getAll("kinds"), ["expense"]);
+    assert.ok(q.includes("excludeAccountTypes=savings"));
   });
 });
 
@@ -79,7 +89,8 @@ describe("defaultFiltersForLedgerPreset", () => {
       accounts,
       categories,
     );
-    assert.deepEqual(filters.kinds, ["expense", "income", "transfer"]);
+    // Empty kinds = Direction "All"; excludeAccountTypes is the real spending lock.
+    assert.deepEqual(filters.kinds, []);
     assert.deepEqual(filters.accountIds, []);
   });
 
