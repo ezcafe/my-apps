@@ -46,6 +46,34 @@ describe("buildMoneyAnalyticsFilterQuery", () => {
     assert.deepEqual(new URLSearchParams(q).getAll("kinds"), ["expense"]);
     assert.ok(q.includes("excludeAccountTypes=savings"));
   });
+
+  it("keeps user Direction kinds on bills (does not force expense)", () => {
+    const applied = {
+      ...defaultAnalyticsFilters(),
+      kinds: ["income" as const],
+    };
+    const q = buildMoneyAnalyticsFilterQuery(applied, "bills", [
+      { id: "c-bills", name: "Bills", parentId: "c-nec" },
+      { id: "c-nec", name: "Necessities", parentId: null },
+    ]);
+    assert.deepEqual(new URLSearchParams(q).getAll("kinds"), ["income"]);
+    assert.ok(q.includes("categoryIds=c-bills"));
+  });
+
+  it("keeps user Direction kinds on savings / loans / investments", () => {
+    for (const scope of ["savings", "loans", "investments"] as const) {
+      const applied = {
+        ...defaultAnalyticsFilters(),
+        kinds: ["transfer" as const],
+      };
+      const q = buildMoneyAnalyticsFilterQuery(applied, scope, []);
+      assert.deepEqual(
+        new URLSearchParams(q).getAll("kinds"),
+        ["transfer"],
+        scope,
+      );
+    }
+  });
 });
 
 describe("defaultFiltersForLedgerPreset", () => {

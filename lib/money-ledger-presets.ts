@@ -57,8 +57,14 @@ export type MoneyLedgerPreset = {
     description: string;
     compareHint?: string;
   };
+  /**
+   * Initial Direction / kinds for the filter bar (first load + Reset).
+   * Not forced by {@link mergeLedgerPresetQuery} — user Direction picks win.
+   */
+  defaultKinds?: AnalyticsFiltersValue["kinds"];
   /** Always merged into the transactions query (user filters cannot override). */
   lockedQuery: Partial<{
+    /** Prefer {@link defaultKinds} so Direction filters can narrow the query. */
     kinds: AnalyticsFiltersValue["kinds"];
     accountTypes: string[];
     excludeAccountTypes: string[];
@@ -100,9 +106,10 @@ export const MONEY_LEDGER_BILLS: MoneyLedgerPreset = {
     primaryAction: { href: "/money/new", label: "Add bill expense" },
     secondaryAction: { href: "/money/settings/categories", label: "Manage categories" },
   },
-  lockedQuery: {
-    kinds: ["expense"],
-  },
+  // Expense is the default Direction only — locking it blocked user Direction picks
+  // (and Insights ledger scope=bills) the same way Spending used to.
+  defaultKinds: ["expense"],
+  lockedQuery: {},
   lockedCategorySeed: {
     parentName: MONEY_SEED_NECESSITIES,
     name: MONEY_SEED_BILLS,
@@ -303,9 +310,10 @@ export function resolveLedgerPresetCategoryIds(
 }
 
 /**
- * UI filter defaults that mirror a ledger page’s locked query so the filter bar
+ * UI filter defaults that mirror a ledger page’s scope so the filter bar
  * shows matching Accounts / Categories / Direction on first load and Reset.
- * Silent query locks in {@link mergeLedgerPresetQuery} still apply.
+ * Silent query locks in {@link mergeLedgerPresetQuery} still apply for
+ * account types / categories — not for {@link MoneyLedgerPreset.defaultKinds}.
  */
 export function defaultFiltersForLedgerPreset(
   preset: MoneyLedgerPreset | undefined,
@@ -318,7 +326,9 @@ export function defaultFiltersForLedgerPreset(
   if (!preset) return base;
 
   const { lockedQuery } = preset;
-  if (lockedQuery.kinds?.length) {
+  if (preset.defaultKinds?.length) {
+    base.kinds = [...preset.defaultKinds];
+  } else if (lockedQuery.kinds?.length) {
     base.kinds = [...lockedQuery.kinds];
   }
 
