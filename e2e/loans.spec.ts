@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   expectInsightsAtfReady,
   expectMoneyWorkspaceReady,
+  gotoAppPath,
   hasAuthStorage,
   openAppMenu,
   uniqueNote,
@@ -22,7 +23,7 @@ const LOANS_MORE_TITLES = [
 ] as const;
 
 async function openPayFlow(page: Page): Promise<void> {
-  await page.goto("/loans");
+  await gotoAppPath(page, "/loans");
   await expectMoneyWorkspaceReady(page);
   await expect(
     page.getByRole("heading", { level: 1, name: "Loans" }),
@@ -82,7 +83,9 @@ test.describe("Loans e2e", () => {
   );
 
   test("home shows Loans heading", async ({ page }) => {
-    await page.goto("/loans");
+    // Cold Loans compile can exceed default 60s; match Money gotoAppPath budget.
+    test.setTimeout(180_000);
+    await gotoAppPath(page, "/loans");
     await expectMoneyWorkspaceReady(page);
     await expect(
       page.getByRole("heading", { level: 1, name: "Loans" }),
@@ -95,7 +98,8 @@ test.describe("Loans e2e", () => {
   });
 
   test("insights More teasers expand", async ({ page }) => {
-    await page.goto("/loans/insights");
+    test.setTimeout(180_000);
+    await gotoAppPath(page, "/loans/insights");
     await expectMoneyWorkspaceReady(page);
     await expectInsightsAtfReady(page);
     await expect(
@@ -128,7 +132,8 @@ test.describe("Loans e2e", () => {
   });
 
   test("settings entry shows Loans settings", async ({ page }) => {
-    await page.goto("/loans/settings");
+    test.setTimeout(180_000);
+    await gotoAppPath(page, "/loans/settings");
     await expectMoneyWorkspaceReady(page);
     await expect(
       page.getByRole("heading", { level: 1, name: "Loans settings" }),
@@ -136,6 +141,7 @@ test.describe("Loans e2e", () => {
   });
 
   test("Pay records payment with unique note", async ({ page }) => {
+    test.setTimeout(180_000);
     await openPayFlow(page);
 
     // Named dialog: ignore any nested/closed floating panels that share role=dialog.

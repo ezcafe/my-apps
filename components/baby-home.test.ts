@@ -440,10 +440,20 @@ describe("BabyHomeContent", () => {
     assert.ok(breast >= 0 && bottle > breast && nap > bottle && diaper > nap);
     assert.ok(pump > diaper && status > pump && guidelines > status);
     assert.match(markup, /data-layout="home-row-breast-bottle"/);
+    assert.match(markup, /data-layout="home-row-nap-diaper"/);
     assert.match(markup, /data-layout="home-row-nap"/);
     assert.match(markup, /data-layout="home-row-diaper"/);
     assert.match(markup, /data-layout="home-row-pump"/);
-    // Nap/Diaper: fixed 2 cols (auto-fit + col-span-full footer blocks stretch).
+    // Outer Option B band: auto-fit so Nap|Diaper share a row on wide viewports.
+    const napDiaperBand = markup.slice(
+      markup.indexOf('data-layout="home-row-nap-diaper"'),
+      markup.indexOf('data-layout="home-row-pump"'),
+    );
+    assert.match(
+      napDiaperBand,
+      /repeat\(auto-fit, minmax\(min\(100%, 20rem\), 1fr\)\)/,
+    );
+    // Inner Nap/Diaper: fixed 2 cols for control + Custom time.
     const napRow = markup.slice(
       markup.indexOf('data-layout="home-row-nap"'),
       markup.indexOf('data-layout="home-row-diaper"'),
@@ -454,6 +464,12 @@ describe("BabyHomeContent", () => {
       markup.indexOf('data-layout="home-row-pump"'),
     );
     assert.match(diaperRow, /repeat\(2, minmax\(0, 1fr\)\)/);
+    // Pending recovery must live under data-section (e2e under-owner locators).
+    const diaperSection = markup.slice(
+      markup.indexOf('data-section="diaper"'),
+      markup.indexOf('data-section="diaper-custom-time"'),
+    );
+    assert.match(diaperSection, /data-section-footer="diaper"/);
     assert.match(markup, /data-testid="baby-home-header-pump"/);
     assert.match(markup, /data-testid="baby-care-chip-pump_l"/);
     assert.match(markup, /data-testid="baby-care-chip-pump_r"/);
@@ -890,7 +906,7 @@ describe("BabyHomeContent", () => {
       /ml\/session|times\/day|Pump about/,
     );
 
-    // Diaper unknown → shared col-span footer (same line as section tip row).
+    // Diaper unknown → footer under data-section="diaper" (e2e under-owner).
     const diaperRec = renderToStaticMarkup(
       createElement(
         BabyHomeContent,
@@ -903,13 +919,14 @@ describe("BabyHomeContent", () => {
       ),
     );
     assertRecoveryInSectionFooter(diaperRec, "diaper", "diaper");
-    const diaperFooter = diaperRec.slice(
-      diaperRec.indexOf('data-section-footer="diaper"'),
-      diaperRec.indexOf('data-layout="home-row-pump"'),
+    const diaperSection = diaperRec.slice(
+      diaperRec.indexOf('data-section="diaper"'),
+      diaperRec.indexOf('data-section="diaper-custom-time"'),
     );
-    assert.match(diaperFooter, /col-span-full/);
-    assert.match(diaperFooter, /flex flex-nowrap/);
-    assert.match(diaperFooter, /could not confirm/i);
+    assert.match(diaperSection, /data-section-footer="diaper"/);
+    assert.match(diaperSection, /baby-home-pending-recovery/);
+    assert.match(diaperSection, /flex flex-nowrap/);
+    assert.match(diaperSection, /could not confirm/i);
     assert.equal(countRecovery(diaperRec), 1);
 
     // Pump timed L orphaned sending → pump section footer.

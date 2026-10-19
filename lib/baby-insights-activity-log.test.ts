@@ -276,6 +276,21 @@ describe("pruneActivityLogSelectionToLoadedKeys", () => {
     assert.equal(next.has(orphan), false);
   });
 
+  it("keeps growth selection when vaccines later join loaded rows (show-more)", () => {
+    // Activities merges vaccines async; show-more must not clear a prior growth pick.
+    const selected = new Set(["growth:e2e-keep-0"]);
+    const loadedAfterVaccines = activityLogStillVisibleSelectionKeys([
+      { editTarget: { source: "vaccine", id: "v1" } },
+      { editTarget: { source: "growth", id: "e2e-keep-0" } },
+      { editTarget: { source: "growth", id: "e2e-keep-1" } },
+    ]);
+    const next = pruneActivityLogSelectionToLoadedKeys(
+      selected,
+      loadedAfterVaccines,
+    );
+    assert.deepEqual([...next], ["growth:e2e-keep-0"]);
+  });
+
   it("returns empty Set when selection is empty", () => {
     assert.equal(
       pruneActivityLogSelectionToLoadedKeys(new Set(), new Set(["care:x"]))

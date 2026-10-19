@@ -1,0 +1,8 @@
+{
+  "build_armed": false,
+  "gate_b_approved": "none",
+  "gate_c_approved": "none",
+  "parent_consent_ack_count": 0,
+  "provenance_kinds": [],
+  "waivers": []
+}

@@ -904,11 +904,15 @@ export function MoneyTransactionForm({
               : undefined,
           },
         });
-        await queryClient.invalidateQueries({ queryKey: loansKeys.all });
-        await invalidateMoneyWorkspaceQueries(queryClient);
         notify.success("Payment recorded", "The installment was posted to Money.");
         resetFormFields();
         onSuccess?.();
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: loansKeys.all }),
+          invalidateMoneyWorkspaceQueries(queryClient),
+        ]).catch(() => {
+          // Write already succeeded; lists refresh on next visit.
+        });
         return;
       }
 
@@ -973,11 +977,6 @@ export function MoneyTransactionForm({
           }
         : undefined;
 
-        await invalidateMoneyWorkspaceQueries(queryClient);
-      if (kind === "expense") {
-        await refetchMoneyFormBudgetStatus(queryClient, activeWorkspaceId);
-      }
-
       if (isRecurrenceMode) {
         notify.success(
           "Recurring transaction saved",
@@ -1000,6 +999,17 @@ export function MoneyTransactionForm({
 
       resetFormFields();
       onSuccess?.();
+      // Cache refresh after toast — do not gate success feedback on refetch.
+      void (async () => {
+        try {
+          await invalidateMoneyWorkspaceQueries(queryClient);
+          if (kind === "expense") {
+            await refetchMoneyFormBudgetStatus(queryClient, activeWorkspaceId);
+          }
+        } catch {
+          // Write already succeeded; lists refresh on next visit.
+        }
+      })();
     } catch (e: unknown) {
       notify.error(
         isRecurrenceMode

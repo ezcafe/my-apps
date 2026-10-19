@@ -152,15 +152,13 @@ export function BabyDiaperForm() {
 
       <BabyCustomTimeModal
         open={customTimeOpen}
-        fields="time+diaperKind"
+        fields="time"
         initialIso={customTimeIso}
         onClose={() => setCustomTimeOpen(false)}
-        onConfirm={({ iso, diaperKind }) => {
-          if (!diaperKind) return;
+        onConfirm={({ iso }) => {
           customTimeIsoRef.current = iso;
           setCustomTimeIso(iso);
           setCustomTimeOpen(false);
-          onPlan(planBabyDiaperKindTap(diaperKind));
         }}
         onClear={() => {
           customTimeIsoRef.current = null;

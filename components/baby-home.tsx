@@ -1473,185 +1473,187 @@ export function BabyHomeContent({
         </section>
       </div>
 
-      {/* Row 2: Nap + Custom(time); shared footer spans both columns */}
+      {/* Row 2: Nap | Diaper same band on wide viewports (Option B). */}
       <div
-        data-layout="home-row-nap"
-        className="grid gap-x-3 gap-y-2 [grid-template-rows:auto_auto_auto]"
+        data-layout="home-row-nap-diaper"
+        className="grid gap-x-3 gap-y-3"
         style={{
-          // Fixed 2 cols — auto-fit + col-span-full footer keeps empty tracks and blocks stretch.
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))",
         }}
       >
-        <section
-          aria-labelledby="baby-home-heading-nap"
-          data-section="nap"
-          className="row-span-2 grid min-w-0 grid-rows-subgrid gap-y-2"
-        >
-          <BabyHomeSectionHeading
-            testId="baby-home-header-nap"
-            headingId="baby-home-heading-nap"
-            lead={t("home.header.nap")}
-            bodyMarked={napBody}
-          />
-          {sleepFailClosed ? (
-            <div
-              data-testid="baby-care-chip-nap"
-              data-nap-shell="fail"
-              className={cn(
-                "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3 opacity-60",
-                BABY_HOME_BIG_CONTROL_MIN_H,
-              )}
-              aria-disabled
-            >
-              <IconBabySleep className="size-6" aria-hidden />
-              <span className="text-sm text-muted">{t("home.sleepStart")}</span>
-            </div>
-          ) : (
-            <BabyTimedCareChip
-              data-testid="baby-care-chip-nap"
-              labelId="baby-quick-sleep-label"
-              label={babyTimedCareChipLabel({
-                running: napOpen,
-                idleLabel: t("home.sleepStart"),
-                endTitle: t("home.sleepEnd"),
-                tapToStop: t("home.tapToStop"),
-              })}
-              running={napOpen}
-              elapsedText={
-                napOpen ? (
-                  <BabyBreastElapsedText
-                    startedAt={Date.parse(
-                      (openSleepOverride ?? status?.openSleep)!.occurredAt,
-                    )}
-                    frozenNow={nowMs}
-                  />
-                ) : undefined
-              }
-              tapToStart={t("home.tapToStart")}
-              tapToStop={t("home.tapToStop")}
-              disabled={savingOwner === "nap"}
-              doneText={sleepDone ? t("home.done") : null}
-              onPress={() => void runQuick({ kind: "SLEEP" })}
-              icon={<IconBabySleep className="size-6" />}
-            />
-          )}
-        </section>
-        <section
-          aria-label={t("home.customNap")}
-          data-section="nap-custom-time"
-          className="row-span-2 grid min-w-0 grid-rows-subgrid gap-y-2"
-        >
-          <div data-header-slot="empty" className="h-5" aria-hidden />
-          <BabyCustomTimeChip
-            data-testid="baby-care-chip-nap-custom-time"
-            label={t("home.customNap")}
-            valueText={
-              napCustomTimeIso
-                ? napCustomDurationMinutes != null
-                  ? `${babyHomeIsoToLocalInput(napCustomTimeIso).slice(11)} · ${napCustomDurationMinutes}m`
-                  : babyHomeIsoToLocalInput(napCustomTimeIso).slice(11)
-                : ""
-            }
-            selected={napCustomTimeIso != null}
-            disabled={savingOwner === "nap"}
-            onPress={() => setCustomTimeModal({ target: "nap" })}
-          />
-        </section>
         <div
-          data-section-footer="nap"
-          className="col-span-full min-w-0"
+          data-layout="home-row-nap"
+          className="grid gap-x-3 gap-y-2 [grid-template-rows:auto_auto_auto]"
+          style={{
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          }}
         >
-          {renderSectionFooter({
-            owners: ["nap"],
-            statusFail: sleepFailClosed ? (
-              <div
-                role="status"
-                aria-live="polite"
-                className="flex flex-nowrap items-center gap-x-3 overflow-x-auto"
-              >
-                <p className="shrink-0 text-sm text-muted">
-                  {t("home.napCheckFailed")}
-                </p>
-                <button
-                  type="button"
-                  className="min-h-11 shrink-0 rounded-[var(--radius-sm)] px-3 text-sm text-accent"
-                  onClick={onRetryStatus}
-                >
-                  {t("sleep.retryCheck")}
-                </button>
-              </div>
-            ) : null,
-            ageTip: napFooterTip ? (
-              <p className="text-sm text-muted">
-                {renderBabyHomeMarkedSentence(napFooterTip)}
-              </p>
-            ) : null,
-          })}
-        </div>
-      </div>
-
-      {/* Row 3: Diaper + Custom; shared footer spans both columns */}
-      <div
-        data-layout="home-row-diaper"
-        className="grid gap-x-3 gap-y-2 [grid-template-rows:auto_auto_auto]"
-        style={{
-          // Fixed 2 cols — auto-fit + col-span-full footer keeps empty tracks and blocks stretch.
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        }}
-      >
-        <section
-          aria-labelledby="baby-home-heading-diaper"
-          data-section="diaper"
-          className="row-span-2 grid min-w-0 grid-rows-subgrid gap-y-2"
-        >
-          <div className="flex items-start gap-2">
-            <IconBabyDiaper className="mt-0.5 size-5 shrink-0" aria-hidden />
+          <section
+            aria-labelledby="baby-home-heading-nap"
+            data-section="nap"
+            className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-2"
+          >
             <BabyHomeSectionHeading
-              testId="baby-home-header-diaper"
-              headingId="baby-home-heading-diaper"
-              lead={t("home.header.diaper")}
-              bodyMarked={diaperBody}
+              testId="baby-home-header-nap"
+              headingId="baby-home-heading-nap"
+              lead={t("home.header.nap")}
+              bodyMarked={napBody}
             />
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <BabyDiaperKindControl
-              disabled={savingOwner === "diaper"}
-              doneKind={diaperDoneKind}
-              doneText={t("home.done")}
-              onPlan={onDiaperPlan}
-              t={t}
+            {sleepFailClosed ? (
+              <div
+                data-testid="baby-care-chip-nap"
+                data-nap-shell="fail"
+                className={cn(
+                  "flex flex-col items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border p-3 opacity-60",
+                  BABY_HOME_BIG_CONTROL_MIN_H,
+                )}
+                aria-disabled
+              >
+                <IconBabySleep className="size-6" aria-hidden />
+                <span className="text-sm text-muted">{t("home.sleepStart")}</span>
+              </div>
+            ) : (
+              <BabyTimedCareChip
+                data-testid="baby-care-chip-nap"
+                labelId="baby-quick-sleep-label"
+                label={babyTimedCareChipLabel({
+                  running: napOpen,
+                  idleLabel: t("home.sleepStart"),
+                  endTitle: t("home.sleepEnd"),
+                  tapToStop: t("home.tapToStop"),
+                })}
+                running={napOpen}
+                elapsedText={
+                  napOpen ? (
+                    <BabyBreastElapsedText
+                      startedAt={Date.parse(
+                        (openSleepOverride ?? status?.openSleep)!.occurredAt,
+                      )}
+                      frozenNow={nowMs}
+                    />
+                  ) : undefined
+                }
+                tapToStart={t("home.tapToStart")}
+                tapToStop={t("home.tapToStop")}
+                disabled={savingOwner === "nap"}
+                doneText={sleepDone ? t("home.done") : null}
+                onPress={() => void runQuick({ kind: "SLEEP" })}
+                icon={<IconBabySleep className="size-6" />}
+              />
+            )}
+            <div data-section-footer="nap" className="min-w-0">
+              {renderSectionFooter({
+                owners: ["nap"],
+                statusFail: sleepFailClosed ? (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className="flex flex-nowrap items-center gap-x-3 overflow-x-auto"
+                  >
+                    <p className="shrink-0 text-sm text-muted">
+                      {t("home.napCheckFailed")}
+                    </p>
+                    <button
+                      type="button"
+                      className="min-h-11 shrink-0 rounded-[var(--radius-sm)] px-3 text-sm text-accent"
+                      onClick={onRetryStatus}
+                    >
+                      {t("sleep.retryCheck")}
+                    </button>
+                  </div>
+                ) : null,
+                ageTip: napFooterTip ? (
+                  <p className="text-sm text-muted">
+                    {renderBabyHomeMarkedSentence(napFooterTip)}
+                  </p>
+                ) : null,
+              })}
+            </div>
+          </section>
+          <section
+            aria-label={t("home.customNap")}
+            data-section="nap-custom-time"
+            className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-2"
+          >
+            <div data-header-slot="empty" className="h-5" aria-hidden />
+            <BabyCustomTimeChip
+              data-testid="baby-care-chip-nap-custom-time"
+              label={t("home.customNap")}
+              valueText={
+                napCustomTimeIso
+                  ? napCustomDurationMinutes != null
+                    ? `${babyHomeIsoToLocalInput(napCustomTimeIso).slice(11)} · ${napCustomDurationMinutes}m`
+                    : babyHomeIsoToLocalInput(napCustomTimeIso).slice(11)
+                  : ""
+              }
+              selected={napCustomTimeIso != null}
+              disabled={savingOwner === "nap"}
+              onPress={() => setCustomTimeModal({ target: "nap" })}
             />
-          </div>
-        </section>
-        <section
-          aria-label={t("home.customDiaper")}
-          data-section="diaper-custom-time"
-          className="row-span-2 grid min-w-0 grid-rows-subgrid gap-y-2"
-        >
-          <div data-header-slot="empty" className="h-5" aria-hidden />
-          <BabyCustomTimeChip
-            data-testid="baby-care-chip-diaper-custom-time"
-            label={t("home.customDiaper")}
-            valueText={
-              diaperCustomTimeIso
-                ? babyHomeIsoToLocalInput(diaperCustomTimeIso).slice(11)
-                : ""
-            }
-            selected={diaperCustomTimeIso != null}
-            disabled={savingOwner === "diaper"}
-            onPress={() => setCustomTimeModal({ target: "diaper" })}
-          />
-        </section>
+            <div aria-hidden className="min-h-0" />
+          </section>
+        </div>
+
         <div
-          data-section-footer="diaper"
-          className="col-span-full min-w-0"
+          data-layout="home-row-diaper"
+          className="grid gap-x-3 gap-y-2 [grid-template-rows:auto_auto_auto]"
+          style={{
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          }}
         >
-          {renderSectionFooter({
-            owners: ["diaper"],
-            ageTip: diaperFooterTip ? (
-              <p className="text-sm text-muted">{diaperFooterTip}</p>
-            ) : null,
-          })}
+          <section
+            aria-labelledby="baby-home-heading-diaper"
+            data-section="diaper"
+            className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-2"
+          >
+            <div className="flex items-start gap-2">
+              <IconBabyDiaper className="mt-0.5 size-5 shrink-0" aria-hidden />
+              <BabyHomeSectionHeading
+                testId="baby-home-header-diaper"
+                headingId="baby-home-heading-diaper"
+                lead={t("home.header.diaper")}
+                bodyMarked={diaperBody}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <BabyDiaperKindControl
+                disabled={savingOwner === "diaper"}
+                doneKind={diaperDoneKind}
+                doneText={t("home.done")}
+                onPlan={onDiaperPlan}
+                t={t}
+              />
+            </div>
+            <div data-section-footer="diaper" className="min-w-0">
+              {renderSectionFooter({
+                owners: ["diaper"],
+                ageTip: diaperFooterTip ? (
+                  <p className="text-sm text-muted">{diaperFooterTip}</p>
+                ) : null,
+              })}
+            </div>
+          </section>
+          <section
+            aria-label={t("home.customDiaper")}
+            data-section="diaper-custom-time"
+            className="row-span-3 grid min-w-0 grid-rows-subgrid gap-y-2"
+          >
+            <div data-header-slot="empty" className="h-5" aria-hidden />
+            <BabyCustomTimeChip
+              data-testid="baby-care-chip-diaper-custom-time"
+              label={t("home.customDiaper")}
+              valueText={
+                diaperCustomTimeIso
+                  ? babyHomeIsoToLocalInput(diaperCustomTimeIso).slice(11)
+                  : ""
+              }
+              selected={diaperCustomTimeIso != null}
+              disabled={savingOwner === "diaper"}
+              onPress={() => setCustomTimeModal({ target: "diaper" })}
+            />
+            <div aria-hidden className="min-h-0" />
+          </section>
         </div>
       </div>
 
@@ -1941,11 +1943,7 @@ export function BabyHomeContent({
       <BabyCustomTimeModal
         open={customTimeModal != null}
         fields={
-          customTimeModal?.target === "nap"
-            ? "time+duration"
-            : customTimeModal?.target === "diaper"
-              ? "time+diaperKind"
-              : "time"
+          customTimeModal?.target === "nap" ? "time+duration" : "time"
         }
         initialIso={
           customTimeModal?.target === "nap"
@@ -1958,7 +1956,7 @@ export function BabyHomeContent({
           customTimeModal?.target === "nap" ? napCustomDurationMinutes : null
         }
         onClose={() => setCustomTimeModal(null)}
-        onConfirm={({ iso, durationMinutes, diaperKind }) => {
+        onConfirm={({ iso, durationMinutes }) => {
           if (customTimeModal?.target === "nap") {
             setNapCustomTimeIso(iso);
             setNapCustomDurationMinutes(
@@ -1969,11 +1967,10 @@ export function BabyHomeContent({
             setCustomTimeModal(null);
             return;
           }
-          if (customTimeModal?.target === "diaper" && diaperKind) {
+          if (customTimeModal?.target === "diaper") {
             diaperCustomTimeIsoRef.current = iso;
             setDiaperCustomTimeIso(iso);
             setCustomTimeModal(null);
-            onDiaperPlan(planBabyDiaperKindTap(diaperKind));
             return;
           }
           setCustomTimeModal(null);

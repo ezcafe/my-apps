@@ -110,4 +110,14 @@ describe("babyGrowthChipWhenKindParamChanges", () => {
     assert.equal(kind, "weight");
     assert.equal(BABY_GROWTH_CAPTURE_HREF, "/baby/growth");
   });
+
+  it("clearing ?kind= does not force Weight over a manual chip pick", () => {
+    let appliedParam: string | null | undefined = "vaccine";
+    let kind: string = "head";
+    const next = babyGrowthChipWhenKindParamChanges(appliedParam, null);
+    appliedParam = null;
+    if (next != null) kind = next;
+    assert.equal(next, null);
+    assert.equal(kind, "head");
+  });
 });

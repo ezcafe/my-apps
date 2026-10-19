@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBabyLocale } from "@/components/baby-locale-provider";
 import { useNotify } from "@/components/notification-provider";
@@ -89,7 +89,7 @@ export function BabyGrowthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [pending, startTransition] = useTransition();
+  const [saving, setSaving] = useState(false);
   const [kind, setKind] = useState<BabyGrowthPageChip>(
     BABY_GROWTH_PAGE_DEFAULT_CHIP,
   );
@@ -129,6 +129,7 @@ export function BabyGrowthPage() {
   function selectKind(next: BabyGrowthPageChip) {
     setKind(selectBabyGrowthPageChip(kind, next));
     setUnit(defaultUnitForGrowthChip(next));
+    setValue("");
     setFieldError(null);
     if (next !== "temperature") {
       setSymptoms([]);
@@ -198,83 +199,91 @@ export function BabyGrowthPage() {
     }
     setFieldError(null);
 
-    startTransition(async () => {
-      await runBabyGrowthPageSaveThenStay({
-        kind,
-        mutate: async (mutationTarget) => {
-          if (mutationTarget === "vaccine") {
-            const mapped = growthVaccineCreateInput({ name, dose });
-            if (!mapped.ok) {
-              throw new Error(
-                mapped.reason === "name"
-                  ? t("vaccine.nameRequired")
-                  : t("growth.doseRequired"),
-              );
+    setSaving(true);
+    void (async () => {
+      try {
+        await runBabyGrowthPageSaveThenStay({
+          kind,
+          mutate: async (mutationTarget) => {
+            if (mutationTarget === "vaccine") {
+              const mapped = growthVaccineCreateInput({ name, dose });
+              if (!mapped.ok) {
+                throw new Error(
+                  mapped.reason === "name"
+                    ? t("vaccine.nameRequired")
+                    : t("growth.doseRequired"),
+                );
+              }
+              await babyGraphQLRequest(CREATE_VACCINE, {
+                input: mapped.input,
+              });
+              return;
             }
-            await babyGraphQLRequest(CREATE_VACCINE, {
-              input: mapped.input,
-            });
-            return;
-          }
 
-          if (!isBabyGrowthPageDbKind(kind)) return;
-          const dbKind: BabyGrowthPageDbKind = kind;
+            if (!isBabyGrowthPageDbKind(kind)) return;
+            const dbKind: BabyGrowthPageDbKind = kind;
 
-          let notes: string | null | undefined;
-          let valueText: string | null | undefined;
-          let valueNum: number | null | undefined;
-          let unitVal: string | null | undefined = unit.trim() || null;
+            let notes: string | null | undefined;
+            let valueText: string | null | undefined;
+            let valueNum: number | null | undefined;
+            let unitVal: string | null | undefined = unit.trim() || null;
 
-          if (dbKind === "medication" || dbKind === "vitamin") {
-            valueText = name.trim();
-            valueNum = value.trim() ? Number(value) : null;
-          } else if (dbKind === "temperature") {
-            valueNum = value.trim() ? Number(value) : null;
-            unitVal = valueNum != null ? unit.trim() || "°C" : null;
-            const notesResult = babyTempNotesForSave({
-              previousNotes: null,
-              symptoms,
-              symptomsTouched: true,
-            });
-            if (!notesResult.ok) {
-              throw new Error(t("growth.symptomsLoadError"));
+            if (dbKind === "medication" || dbKind === "vitamin") {
+              valueText = name.trim();
+              valueNum = value.trim() ? Number(value) : null;
+            } else if (dbKind === "temperature") {
+              valueNum = value.trim() ? Number(value) : null;
+              unitVal = valueNum != null ? unit.trim() || "°C" : null;
+              const notesResult = babyTempNotesForSave({
+                previousNotes: null,
+                symptoms,
+                symptomsTouched: true,
+              });
+              if (!notesResult.ok) {
+                throw new Error(t("growth.symptomsLoadError"));
+              }
+              notes = notesResult.notes;
+            } else {
+              valueNum = value.trim() ? Number(value) : null;
             }
-            notes = notesResult.notes;
-          } else {
-            valueNum = value.trim() ? Number(value) : null;
-          }
 
-          await babyGraphQLRequest(CREATE_GROWTH, {
-            input: {
-              kind: dbKind,
-              ...(valueNum != null ? { valueNum } : {}),
-              ...(valueText ? { valueText } : {}),
-              ...(unitVal ? { unit: unitVal } : {}),
-              ...(notes ? { notes } : {}),
-            },
-          });
-        },
-        onSuccess: async ({ mutationTarget, invalidateScope }) => {
-          resetForm();
-          // Drop sticky ?kind= so Weight reset is not undone by the kind effect.
-          appliedKindParamRef.current = null;
-          router.replace(BABY_GROWTH_CAPTURE_HREF);
-          await invalidateBabyQueries(queryClient, invalidateScope);
-          notify.success(
-            mutationTarget === "vaccine"
-              ? t("vaccine.saved")
-              : t("growth.saved"),
-          );
-        },
-        onError: (e) => {
-          notify.error(e instanceof Error ? e.message : t("common.failed"));
-        },
-        router,
-      });
-    });
+            await babyGraphQLRequest(CREATE_GROWTH, {
+              input: {
+                kind: dbKind,
+                ...(valueNum != null ? { valueNum } : {}),
+                ...(valueText ? { valueText } : {}),
+                ...(unitVal ? { unit: unitVal } : {}),
+                ...(notes ? { notes } : {}),
+              },
+            });
+          },
+          onSuccess: ({ mutationTarget, invalidateScope }) => {
+            // Clear busy before reset/navigation so the next kind can save.
+            setSaving(false);
+            resetForm();
+            // Drop sticky ?kind= so Weight reset is not undone by the kind effect.
+            appliedKindParamRef.current = null;
+            router.replace(BABY_GROWTH_CAPTURE_HREF);
+            void invalidateBabyQueries(queryClient, invalidateScope);
+            notify.success(
+              mutationTarget === "vaccine"
+                ? t("vaccine.saved")
+                : t("growth.saved"),
+            );
+          },
+          onError: (e) => {
+            setSaving(false);
+            notify.error(e instanceof Error ? e.message : t("common.failed"));
+          },
+          router,
+        });
+      } finally {
+        setSaving(false);
+      }
+    })();
   }
 
-  const saveDisabled = pending || Boolean(saveBlockedReason());
+  const saveDisabled = saving || Boolean(saveBlockedReason());
   const isMedOrVit = kind === "medication" || kind === "vitamin";
   const isVaccine = kind === "vaccine";
 
@@ -438,6 +447,9 @@ export function BabyGrowthPage() {
             disabled={saveDisabled}
             onClick={save}
             data-testid={isVaccine ? "baby-vaccine-save" : "baby-growth-save"}
+            data-saving={saving ? "1" : "0"}
+            data-kind={kind}
+            data-blocked={saveBlockedReason() ?? ""}
           >
             {isVaccine ? t("vaccine.add") : t("growth.add")}
           </Button>

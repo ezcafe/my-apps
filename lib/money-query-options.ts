@@ -118,10 +118,12 @@ export type MoneyFormBudgetStatusMaps = {
 };
 
 export async function invalidateMoneyWorkspaceQueries(queryClient: QueryClient) {
+  // Active-only: refetchType "all" refetches inactive analytics/investments
+  // and can hang Pay / add-tx before the success toast mounts (e2e "Saving…").
   await Promise.all([
     queryClient.invalidateQueries({
       queryKey: moneyRootQueryKey,
-      refetchType: "all",
+      refetchType: "active",
     }),
     invalidateInvestmentWorkspaceQueries(queryClient),
   ]);

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   expectInsightsAtfReady,
   expectMoneyWorkspaceReady,
+  gotoAppPath,
   hasAuthStorage,
   openAppMenu,
 } from "./helpers/shell";
@@ -20,13 +21,17 @@ const INVESTMENTS_MORE_TITLES = [
 ] as const;
 
 test.describe("Investments e2e", () => {
+  // gotoAppPath may wait through Next compile after a long baby suite.
+  test.describe.configure({ timeout: 180_000 });
+
   test.skip(
     !hasAuthStorage(),
     "needs E2E_STORAGE_STATE — Investments routes redirect to /login without a session",
   );
 
   test("home shows Investments heading", async ({ page }) => {
-    await page.goto("/investments");
+    test.setTimeout(180_000);
+    await gotoAppPath(page, "/investments");
     await expectMoneyWorkspaceReady(page);
     await expect(
       page.getByRole("heading", { level: 1, name: "Investments" }),
@@ -39,36 +44,40 @@ test.describe("Investments e2e", () => {
   });
 
   test("insights More teasers expand", async ({ page }) => {
-    await page.goto("/investments/insights");
+    test.setTimeout(240_000);
+    await gotoAppPath(page, "/investments/insights");
     await expectMoneyWorkspaceReady(page);
     await expectInsightsAtfReady(page);
     await expect(
       page.getByRole("heading", { level: 1, name: "Insights" }),
     ).toBeVisible();
 
+    // Wait for hydrated teasers (client mount) so click handlers are live.
+    const teasersRoot = page.locator("[data-insights-more-teasers]");
+    await expect(teasersRoot).toBeVisible({ timeout: 60_000 });
+
     // Seed must be non-empty ATF so More teasers render (hard-fail if empty).
-    // Button accessible name includes hint text — match title substring.
     for (const title of INVESTMENTS_MORE_TITLES) {
       await expect(
-        page.getByRole("button", { name: new RegExp(title, "i") }),
+        teasersRoot.getByRole("button", { name: new RegExp(title, "i") }),
         "Investments Insights empty — seed instruments/activity so More teasers appear",
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 60_000 });
     }
 
-    await page
-      .getByRole("button", {
-        name: new RegExp(INVESTMENTS_MORE_TITLES[0], "i"),
-      })
-      .click();
-    await expect
-      .soft(
-        page.getByRole("heading", { name: INVESTMENTS_MORE_TITLES[0] }),
-      )
-      .toBeVisible();
+    const firstTeaser = teasersRoot.getByRole("button", {
+      name: new RegExp(INVESTMENTS_MORE_TITLES[0], "i"),
+    });
+    await firstTeaser.click({ timeout: 30_000 });
+    // Expand heading can lag under webpack after a long suite.
+    const expanded = page.getByRole("heading", {
+      name: INVESTMENTS_MORE_TITLES[0],
+    });
+    await expect(expanded).toBeVisible({ timeout: 45_000 });
   });
 
   test("import entry shows Import statement", async ({ page }) => {
-    await page.goto("/investments/import");
+    test.setTimeout(180_000);
+    await gotoAppPath(page, "/investments/import");
     await expectMoneyWorkspaceReady(page);
     await expect(
       page.getByRole("heading", { level: 1, name: "Import statement" }),
@@ -76,7 +85,8 @@ test.describe("Investments e2e", () => {
   });
 
   test("settings entry shows Investments settings", async ({ page }) => {
-    await page.goto("/investments/settings");
+    test.setTimeout(180_000);
+    await gotoAppPath(page, "/investments/settings");
     await expectMoneyWorkspaceReady(page);
     await expect(
       page.getByRole("heading", { level: 1, name: "Investments settings" }),
@@ -84,7 +94,8 @@ test.describe("Investments e2e", () => {
   });
 
   test("new form opens without submit", async ({ page }) => {
-    await page.goto("/investments/new");
+    test.setTimeout(180_000);
+    await gotoAppPath(page, "/investments/new");
     await expectMoneyWorkspaceReady(page);
     await expect(
       page.getByRole("heading", { level: 1, name: "Record activity" }),

@@ -148,10 +148,15 @@ export function LoanPayModal({
           amountMinor,
         },
       });
-      await queryClient.invalidateQueries({ queryKey: loansKeys.all });
-      await invalidateMoneyWorkspaceQueries(queryClient);
+      // Toast + close first — do not gate success on cache refetch.
       notify.success("Payment recorded in Money");
       onClose();
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: loansKeys.all }),
+        invalidateMoneyWorkspaceQueries(queryClient),
+      ]).catch(() => {
+        // Write already succeeded; lists refresh on next visit.
+      });
     } catch (e) {
       notify.error(
         "Payment failed",

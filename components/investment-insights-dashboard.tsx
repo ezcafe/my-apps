@@ -1,7 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState, useTransition, useCallback } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { AboutDisclosure } from "@/components/ui/about-disclosure";
@@ -69,13 +76,46 @@ const InsightsDateRangeFiltersBar = dynamic(
   },
 );
 
+/**
+ * More-expand store — survives InvestmentInsightsDashboard remounts (late
+ * filter chunks / Suspense) so teasers do not come back after a successful click.
+ */
+let investmentInsightsMoreExpanded = false;
+const investmentInsightsMoreListeners = new Set<() => void>();
+
+function subscribeInvestmentInsightsMore(onStoreChange: () => void): () => void {
+  investmentInsightsMoreListeners.add(onStoreChange);
+  return () => {
+    investmentInsightsMoreListeners.delete(onStoreChange);
+  };
+}
+
+function getInvestmentInsightsMoreSnapshot(): boolean {
+  return investmentInsightsMoreExpanded;
+}
+
+function setInvestmentInsightsMoreExpanded(next: boolean): void {
+  if (investmentInsightsMoreExpanded === next) return;
+  investmentInsightsMoreExpanded = next;
+  for (const listener of investmentInsightsMoreListeners) listener();
+}
+
 export function InvestmentInsightsDashboard() {
   const { workspaceReady, defaultCurrency } = useInvestmentWorkspace();
   const pageDefault = useMemo(() => investmentInsightsDefaultRange(), []);
   const [draft, setDraft] = useState(pageDefault);
   const [applied, setApplied] = useState(pageDefault);
   const [isFilterPending, startFilterTransition] = useTransition();
-  const [moreInsights, setMoreInsights] = useState(false);
+  const moreInsights = useSyncExternalStore(
+    subscribeInvestmentInsightsMore,
+    getInvestmentInsightsMoreSnapshot,
+    () => false,
+  );
+  // Teasers only after mount so onClick is attached (click on SSR markup is a no-op).
+  const [teasersReady, setTeasersReady] = useState(false);
+  useEffect(() => {
+    setTeasersReady(true);
+  }, []);
   const [chartDrilldown, setChartDrilldown] =
     useState<InvestmentChartDrilldownPayload | null>(null);
 
@@ -188,8 +228,11 @@ export function InvestmentInsightsDashboard() {
             />
           </div>
 
-          {!moreInsights ? (
-            <div className="col-span-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 md:col-span-6 lg:col-span-12">
+          {!moreInsights && teasersReady ? (
+            <div
+              className="col-span-2 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 md:col-span-6 lg:col-span-12"
+              data-insights-more-teasers=""
+            >
               {(
                 [
                   {
@@ -209,7 +252,7 @@ export function InvestmentInsightsDashboard() {
                 <button
                   key={title}
                   type="button"
-                  onClick={() => setMoreInsights(true)}
+                  onClick={() => setInvestmentInsightsMoreExpanded(true)}
                   className="rounded-[var(--radius-md)] border border-border bg-surface px-4 py-3 text-left transition-colors duration-200 hover:bg-muted-surface fx-press"
                 >
                   <span className="block text-sm font-medium text-foreground">
@@ -219,7 +262,7 @@ export function InvestmentInsightsDashboard() {
                 </button>
               ))}
             </div>
-          ) : (
+          ) : moreInsights ? (
             <InvestmentMoreInsights
               more={moreQuery.data}
               moreReady={moreQuery.isSuccess}
@@ -227,7 +270,7 @@ export function InvestmentInsightsDashboard() {
               onRetryMore={() => void moreQuery.refetch()}
               currency={defaultCurrency}
             />
-          )}
+          ) : null}
         </section>
       ) : null}
 

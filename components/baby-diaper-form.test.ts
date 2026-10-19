@@ -16,7 +16,9 @@ describe("BabyDiaperForm source chrome", () => {
     assert.match(src, /BabyDiaperDetailSheet/);
     assert.match(src, /BabyCustomTimeChip/);
     assert.match(src, /babyLogDiaperMutationInput/);
-    assert.match(src, /fields="time\+diaperKind"/);
+    // Clock Custom only — kind is chosen on the Kind grid after Use closes.
+    assert.match(src, /fields="time"/);
+    assert.doesNotMatch(src, /fields="time\+diaperKind"/);
     assert.match(src, /planBabyDiaperKindTap/);
     assert.doesNotMatch(src, /baby-diaper-kind-chips/);
   });

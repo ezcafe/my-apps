@@ -141,9 +141,11 @@ export const investmentKeys = {
 export async function invalidateInvestmentWorkspaceQueries(
   queryClient: QueryClient,
 ) {
+  // Active-only — same contract as invalidateMoneyWorkspaceQueries (avoid
+  // inactive refetch storms that block write success toasts).
   await queryClient.invalidateQueries({
     queryKey: investmentKeys.all,
-    refetchType: "all",
+    refetchType: "active",
   });
 }
 

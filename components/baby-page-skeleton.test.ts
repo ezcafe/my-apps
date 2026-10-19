@@ -100,9 +100,10 @@ describe("BabyHomeSkeleton section headers + chips parity", () => {
     assert.match(html, /rounded-\[var\(--radius-sm\)\]/);
     const bottleChips = html.slice(
       html.indexOf('data-skeleton="bottle-ml-chips"'),
-      html.indexOf('data-skeleton="home-row-nap"'),
+      html.indexOf('data-skeleton="home-row-nap-diaper"'),
     );
     assert.match(bottleChips, /rounded-\[var\(--radius-md\)\]/);
+    assert.match(html, /data-skeleton="home-row-nap-diaper"/);
     assert.match(html, /data-skeleton="home-row-diaper"/);
     assert.match(html, /data-skeleton="section-diaper-custom-time"/);
     assert.match(html, /data-skeleton="section-nap-custom-time"/);
@@ -137,34 +138,26 @@ describe("BabyHomeSkeleton section headers + chips parity", () => {
     );
   });
 
-  it("shared col-span footers for nap/diaper; empty footer for tip-null pump-amount", () => {
+  it("footers under nap/diaper sections; empty footer for tip-null pump-amount", () => {
     const html = renderToStaticMarkup(createElement(BabyHomeSkeleton));
-    const napRow = html.slice(
-      html.indexOf('data-skeleton="home-row-nap"'),
-      html.indexOf('data-skeleton="home-row-diaper"'),
+    const napSection = html.slice(
+      html.indexOf('data-skeleton="section-nap"'),
+      html.indexOf('data-skeleton="section-nap-custom-time"'),
     );
     assert.match(
-      napRow,
-      /data-skeleton="section-footer"[^>]*col-span-full|col-span-full[^>]*data-skeleton="section-footer"/,
-      "nap row shared footer spans columns",
-    );
-    assert.doesNotMatch(
-      napRow.slice(
-        napRow.indexOf('data-skeleton="section-nap-custom-time"'),
-        napRow.indexOf('data-skeleton="section-footer"'),
-      ),
-      /data-skeleton-footer="empty"/,
-      "nap custom has no nested empty footer",
+      napSection,
+      /data-skeleton="section-footer"/,
+      "nap footer under nap section (under-owner recovery parity)",
     );
 
-    const diaperRow = html.slice(
-      html.indexOf('data-skeleton="home-row-diaper"'),
-      html.indexOf('data-skeleton="home-row-pump"'),
+    const diaperSection = html.slice(
+      html.indexOf('data-skeleton="section-diaper"'),
+      html.indexOf('data-skeleton="section-diaper-custom-time"'),
     );
     assert.match(
-      diaperRow,
-      /data-skeleton="section-footer"[^>]*col-span-full|col-span-full[^>]*data-skeleton="section-footer"/,
-      "diaper row shared footer spans columns",
+      diaperSection,
+      /data-skeleton="section-footer"/,
+      "diaper footer under diaper section",
     );
 
     const start = html.indexOf('data-skeleton="section-pump-amount"');

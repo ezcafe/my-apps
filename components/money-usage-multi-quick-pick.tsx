@@ -141,6 +141,7 @@ export function MoneyUsageMultiQuickPick({
             <button
               key={item.id}
               type="button"
+              aria-label={item.label}
               aria-pressed={active}
               onClick={() => toggle(item.id)}
               className={chipCls(active)}

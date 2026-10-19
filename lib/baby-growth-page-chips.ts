@@ -39,12 +39,15 @@ export const BABY_VACCINE_CAPTURE_HREF = "/baby/growth?kind=vaccine" as const;
 /**
  * Apply `?kind=` only when the param value changes (mount / navigation).
  * Same sticky param after a local Weight reset → null (do not re-apply).
+ * Clearing `?kind=` must not force Weight — that stomps a manual chip pick
+ * (e.g. Height → Head) when post-save `router.replace` lands.
  */
 export function babyGrowthChipWhenKindParamChanges(
   previousKindParam: string | null | undefined,
   nextKindParam: string | null,
 ): BabyGrowthPageChip | null {
   if (previousKindParam === nextKindParam) return null;
+  if (nextKindParam == null || nextKindParam === "") return null;
   return resolveBabyGrowthPageChipFromKindParam(nextKindParam);
 }
 

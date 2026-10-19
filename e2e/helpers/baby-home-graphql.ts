@@ -437,6 +437,7 @@ export function sectionOrder(page: Page) {
     nap: page.locator('[data-section="nap"]'),
     diaper: page.locator('[data-section="diaper"]'),
     pump: page.locator('[data-section="pump"]'),
+    napDiaperRow: page.locator('[data-layout="home-row-nap-diaper"]'),
     napRow: page.locator('[data-layout="home-row-nap"]'),
     diaperRow: page.locator('[data-layout="home-row-diaper"]'),
     pumpRow: page.locator('[data-layout="home-row-pump"]'),
@@ -455,7 +456,10 @@ export function diaperKindTile(
   page: Page,
   kind: "wet" | "dirty" | "mixed" | "dry",
 ) {
-  return page.locator(`[data-diaper-kind="${kind}"]`);
+  // Scope to home Kind grid — Custom modal also uses data-diaper-kind.
+  return page.locator(
+    `[data-section="diaper"] [data-diaper-kind="${kind}"], [data-layout="diaper-kind-2x2"] [data-diaper-kind="${kind}"]`,
+  ).first();
 }
 
 /** Wet tile — instant save (replaces old centre save on wet). */
