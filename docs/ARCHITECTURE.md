@@ -21,7 +21,7 @@ Every first-class module (Money today; Tasks, Notes, etc. later) **must**:
 
 Finance domains: **Investments** (`/investments`) and **Loans** (`/loans`) are top-level shell routes that still use `workspaceAppKey: "money"` for the Money cookie (loans GraphQL also uses `ctx_workspace_loans`). Investment activities live in `money_transaction` + `money_transaction_investment`; loan payments are `money_transaction` rows linked from installment status. Savings movements stay a Money module.
 
-**Core** routes (Kiosk, Settings) use `kind: "core"` and do not declare an app key; they must not depend on a feature’s bootstrap APIs.
+**Core** routes (Settings, Help) use `kind: "core"` and do not declare an app key; they must not depend on a feature’s bootstrap APIs. Retired `/kiosk` permanently redirects to `/money` (ADR-006).
 
 ## Money bootstrap (scoped)
 
@@ -66,7 +66,6 @@ These tables have **no workspace RLS**. Writers must keep `userSub` / membership
 |-------|-------------------|
 | `api_token` | `0007_api_token` — filter by `user_sub` |
 | `audit_event` | `0010_audit_event` |
-| `user_preferences` | `0035_user_preferences` — PK `user_sub` |
 | `workspace*` (`workspace`, `workspace_member`, grants, …) | membership / owner checks in app code |
 | `http_idempotency` | `0042_http_idempotency` — filter by `workspace_id` + `user_sub`; 24h TTL; do not log `response_body`; store redacted replay bodies (ids/counts; members omit email) |
 | `apple_wallet_channel_state` | `0047_apple_wallet` — workspace latest Wallet text; PassKit WS has no RLS session |

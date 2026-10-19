@@ -21,6 +21,7 @@ export function LoansInsightsStats({
   showActiveLoansCaption = true,
   variant = "grid",
   overdueCount,
+  compose,
 }: {
   atf: Pick<LoansInsightsAtf, "range" | "summary">;
   currency: string;
@@ -29,6 +30,14 @@ export function LoansInsightsStats({
   variant?: "grid" | "page";
   /** When set, replaces monthly obligation with an overdue-loan count (overview). */
   overdueCount?: number;
+  /** Kiosk Source compose: tuned hides APR; show only picked fields. */
+  compose?: {
+    tuned: boolean;
+    showRemaining: boolean;
+    showObligation: boolean;
+    showNextPayment: boolean;
+    showApr: boolean;
+  };
 }) {
   const { resolved, style } = useTheme();
   const { formatDate, formatPeriod } = useFormatDate();
@@ -40,6 +49,10 @@ export function LoansInsightsStats({
   const period = formatPeriod(atf.range.from, atf.range.to);
   const animationKey = `${atf.range.from}-${atf.range.to}`;
   const overviewMode = overdueCount != null;
+  const showRemaining = compose?.showRemaining ?? true;
+  const showObligation = compose?.showObligation ?? true;
+  const showNextPayment = compose?.showNextPayment ?? true;
+  const showApr = compose?.showApr ?? true;
 
   return (
     <div
@@ -65,20 +78,22 @@ export function LoansInsightsStats({
         className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
         aria-label="Summary metrics"
       >
-        <Card className="px-4 py-4">
-          <p className="text-sm font-medium text-muted">Remaining</p>
-          <p
-            title={formatMinor(atf.summary.remainingMinor, currency)}
-            className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
-          >
-            <AnimatedNumber
-              value={atf.summary.remainingMinor}
-              format={(n) => formatCompactMinor(Math.round(n), currency)}
-              style={{ color: remainingColor }}
-              animationKey={animationKey}
-            />
-          </p>
-        </Card>
+        {showRemaining ? (
+          <Card className="px-4 py-4">
+            <p className="text-sm font-medium text-muted">Remaining</p>
+            <p
+              title={formatMinor(atf.summary.remainingMinor, currency)}
+              className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl"
+            >
+              <AnimatedNumber
+                value={atf.summary.remainingMinor}
+                format={(n) => formatCompactMinor(Math.round(n), currency)}
+                style={{ color: remainingColor }}
+                animationKey={animationKey}
+              />
+            </p>
+          </Card>
+        ) : null}
         {overviewMode ? (
           <Card className="px-4 py-4">
             <p className="text-sm font-medium text-muted">Overdue</p>
@@ -90,7 +105,7 @@ export function LoansInsightsStats({
               />
             </p>
           </Card>
-        ) : (
+        ) : showObligation ? (
           <Card className="px-4 py-4">
             <p className="text-sm font-medium text-muted">Monthly obligation</p>
             <p
@@ -105,26 +120,30 @@ export function LoansInsightsStats({
               />
             </p>
           </Card>
-        )}
-        <Card className="px-4 py-4">
-          <p className="flex items-center gap-1 text-sm font-medium text-muted">
-            Weighted APR
-            <AboutDisclosure compact label="About weighted APR">
-              Remaining-balance-weighted average of each active loan&apos;s APR.
-            </AboutDisclosure>
-          </p>
-          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-            {aprLabel}
-          </p>
-        </Card>
-        <Card className="px-4 py-4">
-          <p className="text-sm font-medium text-muted">Next due</p>
-          <p className="mt-2 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            {atf.summary.nextDueDate
-              ? formatDate(atf.summary.nextDueDate, { omitYearIfCurrent: true })
-              : "—"}
-          </p>
-        </Card>
+        ) : null}
+        {showApr ? (
+          <Card className="px-4 py-4">
+            <p className="flex items-center gap-1 text-sm font-medium text-muted">
+              Weighted APR
+              <AboutDisclosure compact label="About weighted APR">
+                Remaining-balance-weighted average of each active loan&apos;s APR.
+              </AboutDisclosure>
+            </p>
+            <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+              {aprLabel}
+            </p>
+          </Card>
+        ) : null}
+        {showNextPayment ? (
+          <Card className="px-4 py-4">
+            <p className="text-sm font-medium text-muted">Next due</p>
+            <p className="mt-2 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+              {atf.summary.nextDueDate
+                ? formatDate(atf.summary.nextDueDate, { omitYearIfCurrent: true })
+                : "—"}
+            </p>
+          </Card>
+        ) : null}
       </div>
     </div>
   );

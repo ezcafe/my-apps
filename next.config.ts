@@ -25,6 +25,9 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // Kiosk retired — bookmarks land on Money home (ADR-006)
+      { source: "/kiosk", destination: "/money", permanent: true },
+      { source: "/kiosk/:path*", destination: "/money", permanent: true },
       { source: "/money/analytics", destination: "/money/insights", permanent: true },
       {
         source: "/money/analytics/:path*",

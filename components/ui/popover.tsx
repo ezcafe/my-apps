@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
+import { attachPopoverDocumentDismiss } from "@/components/ui/popover-dismiss";
 import { cn } from "@/lib/cn";
 
 const subscribeNoop = () => () => {};
@@ -137,22 +138,27 @@ export function Popover({
 
   useEffect(() => {
     if (!open || !triggerShown) return;
-    const onDoc = (e: MouseEvent) => {
-      if (Date.now() < ignoreOutsideUntilRef.current) return;
-      const target = e.target as Node;
-      if (rootRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
+    // Keep ignore window fresh for controlled open=true (no setOpen call).
+    ignoreOutsideUntilRef.current = Math.max(
+      ignoreOutsideUntilRef.current,
+      Date.now() + 400,
+    );
+    const close = () => {
       if (isControlled) onOpenChangeRef.current?.(false);
       else setUncontrolledOpen(false);
     };
-    // Defer so the opening click's mousedown cannot close immediately.
-    const timer = window.setTimeout(() => {
-      document.addEventListener("mousedown", onDoc);
-    }, 0);
-    return () => {
-      window.clearTimeout(timer);
-      document.removeEventListener("mousedown", onDoc);
-    };
+    // Escape binds synchronously — setTimeout(0) raced Playwright Escape
+    // after panel paint (e2e: heatmap menu stayed open).
+    return attachPopoverDocumentDismiss({
+      document,
+      onClose: close,
+      isInside: (target) =>
+        Boolean(
+          rootRef.current?.contains(target) ||
+            panelRef.current?.contains(target),
+        ),
+      shouldIgnoreOutside: () => Date.now() < ignoreOutsideUntilRef.current,
+    });
   }, [open, isControlled, triggerShown]);
 
   // Portal host ready on mount so controlled open=true remounts show the panel.

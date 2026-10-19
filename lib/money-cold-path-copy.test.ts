@@ -79,7 +79,7 @@ describe("money-cold-path-copy wiring", () => {
     assert.match(form, /money-cold-path-copy/);
   });
 
-  it("task1_kioskMeasuredAndBabyPrunePresent", () => {
+  it("task1_babyPrunePresentAndKioskRetiredFromPerf", () => {
     const root = process.cwd();
     const perf = readFileSync(join(root, "docs/PERFORMANCE.md"), "utf8");
     const prune = readFileSync(
@@ -87,8 +87,7 @@ describe("money-cold-path-copy wiring", () => {
       "utf8",
     );
     const house = readFileSync(join(root, "lib/db-housekeeping.ts"), "utf8");
-    assert.match(perf, /\/kiosk/);
-    assert.doesNotMatch(perf, /\|\s*`\/kiosk`\s*\|\s*\(measure after change\)/);
+    assert.doesNotMatch(perf, /`\/kiosk`/);
     assert.match(prune, /pruneExpiredBabyQuickCareRequests/);
     assert.match(house, /pruneExpiredBabyQuickCareRequests/);
   });

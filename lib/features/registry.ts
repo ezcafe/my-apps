@@ -2,7 +2,6 @@ import type { WorkspaceAppKey } from "@/db/schema/workspace";
 
 /** Icons resolved in the shell (`app-shell.tsx`) to avoid bundling React components into shared server modules. */
 export type ShellNavIconId =
-  | "home"
   | "money"
   | "savings"
   | "investment"
@@ -43,15 +42,6 @@ export type ShellNavItem = CoreShellNavItem | FeatureShellNavItem;
  * `workspaceAppKey` (see `WORKSPACE_APP_KEYS` in `db/schema/workspace.ts`).
  */
 const shellNavItemsSource: ShellNavItem[] = [
-  {
-    kind: "core",
-    id: "kiosk",
-    label: "Kiosk",
-    href: "/kiosk",
-    order: -1,
-    icon: "home",
-    activeMatch: "prefix",
-  },
   {
     kind: "feature",
     id: "money",

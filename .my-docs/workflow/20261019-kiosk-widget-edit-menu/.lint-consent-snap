@@ -1,0 +1,14 @@
+{
+  "build_armed": false,
+  "gate_b_approved": "option",
+  "gate_c_approved": "none",
+  "parent_consent_ack_count": 5,
+  "provenance_kinds": [
+    "card-override",
+    "gate-b-approved"
+  ],
+  "waivers": [
+    "card-override",
+    "smoke-pass-rerun"
+  ]
+}

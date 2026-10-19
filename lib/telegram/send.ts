@@ -40,10 +40,23 @@ export async function sendTelegramMessage(
   if (!token) return { ok: true, skipped: true };
 
   const timeoutMs = opts.timeoutMs ?? TELEGRAM_SEND_TIMEOUT_MS;
-  const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  const signal = opts.signal
-    ? AbortSignal.any([opts.signal, timeoutSignal])
-    : timeoutSignal;
+  // Prefer AbortController + ref'd setTimeout over AbortSignal.timeout:
+  // Node unrefs timeout() timers, so a hung fetch (or test mock) never aborts
+  // and the process/event loop can drain while the promise is still pending.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort(new DOMException("The operation timed out", "TimeoutError"));
+  }, timeoutMs);
+
+  let onExternalAbort: (() => void) | undefined;
+  if (opts.signal) {
+    if (opts.signal.aborted) {
+      controller.abort(opts.signal.reason);
+    } else {
+      onExternalAbort = () => controller.abort(opts.signal!.reason);
+      opts.signal.addEventListener("abort", onExternalAbort, { once: true });
+    }
+  }
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   try {
@@ -55,7 +68,7 @@ export async function sendTelegramMessage(
         text,
         disable_web_page_preview: true,
       }),
-      signal,
+      signal: controller.signal,
     });
     if (!res.ok) {
       return { ok: false, error: `telegram_http_${res.status}` };
@@ -66,5 +79,10 @@ export async function sendTelegramMessage(
       return { ok: false, error: "telegram_timeout" };
     }
     return { ok: false, error: "telegram_network" };
+  } finally {
+    clearTimeout(timeoutId);
+    if (opts.signal && onExternalAbort) {
+      opts.signal.removeEventListener("abort", onExternalAbort);
+    }
   }
 }

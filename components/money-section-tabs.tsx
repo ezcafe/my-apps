@@ -284,19 +284,6 @@ function IconHelp(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function IconHome(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
-      <path
-        d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V9.5Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function IconMoney(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
@@ -378,7 +365,6 @@ const shellMenuIcons: Record<
   ShellNavIconId,
   (props: SVGProps<SVGSVGElement>) => ReactNode
 > = {
-  home: IconHome,
   money: IconMoney,
   savings: IconSavings,
   investment: IconInvestments,
@@ -546,20 +532,11 @@ function MenuFooterLink({
   const Icon = shellMenuIcons[item.icon];
   const babyLabel = useBabyNavLabel(item.label);
   const label = shellItemLabel(item, babyLabel);
-  /** Soft nav from Money layout → /kiosk fails to commit (stays on Money); use full load. */
-  const hardNavigate = item.id === "kiosk";
 
   return (
     <Link
       href={item.href}
-      prefetch={hardNavigate ? false : undefined}
-      onClick={(event) => {
-        if (hardNavigate) {
-          onNavigate();
-          event.preventDefault();
-          window.location.assign(item.href);
-          return;
-        }
+      onClick={() => {
         deferMenuClose(onNavigate);
       }}
       aria-current={active ? "page" : undefined}

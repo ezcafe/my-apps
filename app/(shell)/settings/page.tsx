@@ -8,15 +8,11 @@ import { WatchPairingSettings } from "@/components/watch-pairing-settings";
 import { AppleWalletSettings } from "@/components/apple-wallet-settings";
 import { CoreShellPage } from "@/components/core-shell-page";
 import { DateFormatSettings } from "@/components/date-format-settings";
-import { WeatherCitySettings } from "@/components/kiosk/weather-city-settings";
-import { KioskWidgetSettings } from "@/components/kiosk/kiosk-widget-settings";
 import { ThemeSettings } from "@/components/theme-settings";
 import { WorkspaceSettings } from "@/components/workspace-settings";
 import { WorkspaceResetSettings } from "@/components/workspace-reset-settings";
 import { Alert } from "@/components/ui/alert";
 import { isDbUnreachable } from "@/lib/db-errors";
-import { DEFAULT_KIOSK_WIDGETS } from "@/lib/kiosk/widget-registry";
-import { getUserPreferences } from "@/lib/user-preferences-service";
 import { SettingsClientLayout } from "@/components/settings/settings-client-layout";
 import { diagnoseAppleWallet } from "@/lib/apple-wallet/config";
 import { loadAppleWalletSettingsProps } from "@/lib/apple-wallet/settings-loader";
@@ -34,23 +30,16 @@ function appleWalletFallbackProps() {
 
 async function loadSettingsDbData(userSub: string) {
   try {
-    const [
-      { workspaces, defaultWorkspaceId },
-      apiTokens,
-      preferences,
-      appleWallet,
-    ] = await Promise.all([
-      fetchWorkspacesForUser(userSub, "money"),
-      listApiTokensForUser(userSub),
-      getUserPreferences(userSub),
-      loadAppleWalletSettingsProps(userSub),
-    ]);
+    const [{ workspaces, defaultWorkspaceId }, apiTokens, appleWallet] =
+      await Promise.all([
+        fetchWorkspacesForUser(userSub, "money"),
+        listApiTokensForUser(userSub),
+        loadAppleWalletSettingsProps(userSub),
+      ]);
     return {
       workspaces,
       defaultWorkspaceId,
       apiTokens,
-      weatherCity: preferences.weatherCity,
-      kioskWidgets: preferences.kioskWidgets,
       appleWallet,
       dbUnavailable: false as const,
     };
@@ -60,8 +49,6 @@ async function loadSettingsDbData(userSub: string) {
         workspaces: [],
         defaultWorkspaceId: null,
         apiTokens: [],
-        weatherCity: null,
-        kioskWidgets: [...DEFAULT_KIOSK_WIDGETS],
         appleWallet: appleWalletFallbackProps(),
         dbUnavailable: true as const,
       };
@@ -77,8 +64,6 @@ export default async function SettingsPage() {
     workspaces,
     defaultWorkspaceId,
     apiTokens,
-    weatherCity,
-    kioskWidgets,
     appleWallet,
     dbUnavailable,
   } = userSub
@@ -87,8 +72,6 @@ export default async function SettingsPage() {
         workspaces: [],
         defaultWorkspaceId: null,
         apiTokens: [],
-        weatherCity: null,
-        kioskWidgets: [],
         appleWallet: appleWalletFallbackProps(),
         dbUnavailable: false as const,
       };
@@ -127,18 +110,6 @@ export default async function SettingsPage() {
                 </div>
                 <DateFormatSettings embedded />
               </div>
-            </div>
-          </SettingsSection>
-        }
-        kioskContent={
-          <SettingsSection
-            id="settings-kiosk"
-            title="Kiosk"
-            description="Widgets and weather for your kiosk dashboard."
-          >
-            <KioskWidgetSettings initialWidgets={kioskWidgets} />
-            <div className="mt-8 border-t border-border pt-8">
-              <WeatherCitySettings embedded initialCity={weatherCity} />
             </div>
           </SettingsSection>
         }

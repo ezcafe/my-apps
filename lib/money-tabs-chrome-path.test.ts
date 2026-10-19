@@ -9,7 +9,7 @@ import {
 } from "@/lib/money-tabs-chrome-path";
 
 describe("chrome paths", () => {
-  it("treats money, investments, loans, baby, kiosk, and core routes as in-page chrome", () => {
+  it("treats money, investments, loans, baby, and core routes as in-page chrome", () => {
     assert.equal(isMoneyTabsChromePath("/money"), true);
     assert.equal(isInvestmentsChromePath("/investments"), true);
     assert.equal(isInvestmentsChromePath("/investments/new"), true);
@@ -17,9 +17,6 @@ describe("chrome paths", () => {
     assert.equal(isLoansChromePath("/loans/new"), true);
     assert.equal(isBabyChromePath("/baby"), true);
     assert.equal(isBabyChromePath("/baby/settings"), true);
-    assert.equal(hidesShellRailChrome("/kiosk"), true);
-    assert.equal(hidesShellRailChrome("/kiosk/weather"), true);
-    assert.equal(hidesShellRailChrome("/kioskx"), false);
     assert.equal(hidesShellRailChrome("/money"), true);
     assert.equal(hidesShellRailChrome("/investments"), true);
     assert.equal(hidesShellRailChrome("/investments/instruments"), true);
@@ -30,4 +27,9 @@ describe("chrome paths", () => {
     assert.equal(hidesShellRailChrome("/settings"), true);
   });
 
+  it("chrome path ignores retired /kiosk", () => {
+    assert.equal(hidesShellRailChrome("/kiosk"), false);
+    assert.equal(hidesShellRailChrome("/kiosk/weather"), false);
+    assert.equal(hidesShellRailChrome("/kioskx"), false);
+  });
 });

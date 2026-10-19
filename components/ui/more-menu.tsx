@@ -1,6 +1,10 @@
 "use client";
 
-import { type ReactNode, type SVGProps } from "react";
+import {
+  type ButtonHTMLAttributes,
+  type ReactNode,
+  type SVGProps,
+} from "react";
 import { Popover } from "@/components/ui/popover";
 import { cn } from "@/lib/cn";
 
@@ -84,13 +88,17 @@ export function MoreMenuItem({
   variant = "default",
   disabled,
   className,
+  ...rest
 }: {
   children: ReactNode;
   onClick?: () => void;
   variant?: MoreMenuItemVariant;
   disabled?: boolean;
   className?: string;
-}) {
+} & Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "children" | "onClick" | "disabled" | "className" | "type"
+>) {
   return (
     <button
       type="button"
@@ -103,6 +111,7 @@ export function MoreMenuItem({
         className,
       )}
       onClick={onClick}
+      {...rest}
     >
       {children}
     </button>

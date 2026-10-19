@@ -29,6 +29,7 @@ import {
 import {
   calendarMonthDateRange,
   currentMonthSeriesEndDate,
+  fillDailyCumulativeExpense,
   fillDailyCumulativeNet,
   isoBoundsToLocalDates,
   isCurrentCalendarMonthRange,
@@ -627,6 +628,79 @@ async function buildNetLineSeries(
     line: mapRawLineToNet(raw),
     lineMode: "date",
   };
+}
+
+/** Cumulative expense by day for kiosk insights daily-spend charts. */
+export async function computeMoneyExpenseCumulativeSeries(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+  loaders?: MoneyServiceLoaders,
+): Promise<{ date: string; cumulativeExpense: number }[]> {
+  const { fromISO: from, toISO: to } = resolveAnalyticsDateBounds(filters);
+  const timezone = await loadWorkspaceTimezone(workspaceId, loaders);
+  const resolvedFilters = await resolveFiltersForQuery(
+    workspaceId,
+    filters,
+    loaders,
+  );
+  const conditions = moneyTransactionConditionsForReports(
+    workspaceId,
+    resolvedFilters,
+  );
+  const whereClause = and(...conditions);
+  const raw = await fetchCumulativeLine(whereClause, timezone);
+  const { fromDate, toDate } = isoBoundsToLocalDates(from, to);
+
+  if (isCurrentCalendarMonthRange(fromDate, toDate)) {
+    const [y, m] = fromDate.split("-").map(Number);
+    const { days } = calendarMonthDateRange(y!, m! - 1);
+    const seriesEnd = currentMonthSeriesEndDate(toDate);
+    return fillDailyCumulativeExpense(raw, days, seriesEnd);
+  }
+
+  return fillDailyCumulativeExpense(
+    raw,
+    raw.map((r) => r.date),
+  );
+}
+
+/** Daily transaction counts (all kinds) for kiosk insights heatmap. */
+export async function computeMoneyDailyTransactionCounts(
+  workspaceId: string,
+  filters: AnalyticsFiltersData,
+  loaders?: MoneyServiceLoaders,
+): Promise<{ date: string; txCount: number }[]> {
+  const timezone = await loadWorkspaceTimezone(workspaceId, loaders);
+  const resolvedFilters = await resolveFiltersForQuery(
+    workspaceId,
+    filters,
+    loaders,
+  );
+  const conditions = moneyTransactionConditionsForReports(
+    workspaceId,
+    resolvedFilters,
+  );
+  const whereClause = and(...conditions);
+
+  const exec = await db.execute(sql`
+      SELECT
+        to_char((occurred_at AT TIME ZONE ${timezone})::date, 'YYYY-MM-DD') AS date,
+        count(*)::int AS tx_count
+      FROM ${moneyTransaction}
+      WHERE ${whereClause}
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `);
+
+  const raw = exec as unknown as Iterable<{
+    date: string;
+    tx_count: string | number | null;
+  }>;
+
+  return Array.from(raw).map((row) => ({
+    date: String(row.date),
+    txCount: Number(row.tx_count ?? 0),
+  }));
 }
 
 export async function computeMoneyAnalyticsSummary(

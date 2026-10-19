@@ -115,6 +115,28 @@ export function fillDailyCumulativeNet(
   return result;
 }
 
+/** Forward-fill cumulative expense for each calendar day. */
+export function fillDailyCumulativeExpense(
+  raw: RawCumulativeLineRow[],
+  days: string[],
+  endDateInclusive?: string,
+): { date: string; cumulativeExpense: number }[] {
+  const byDate = new Map(raw.map((r) => [r.date, r]));
+  let lastExp = 0;
+  const result: { date: string; cumulativeExpense: number }[] = [];
+
+  for (const day of days) {
+    if (endDateInclusive && day > endDateInclusive) break;
+    const row = byDate.get(day);
+    if (row) {
+      lastExp = row.cumulativeExpense;
+    }
+    result.push({ date: day, cumulativeExpense: lastExp });
+  }
+
+  return result;
+}
+
 /** Map net points to day-of-month keys for overlay charts. */
 export function netPointsByDayOfMonth(points: NetFlowPoint[]): NetFlowPoint[] {
   return points.map((p) => ({

@@ -337,6 +337,20 @@
       "when": 1779900000000,
       "tag": "0047_apple_wallet",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1780000000000,
+      "tag": "0048_kiosk_layout",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1780100000000,
+      "tag": "0049_drop_user_preferences",
+      "breakpoints": true
     }
   ]
 }

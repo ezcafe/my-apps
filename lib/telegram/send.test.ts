@@ -73,9 +73,19 @@ describe("sendTelegramMessage", () => {
       (_url, init) => {
         sawSignal = Boolean(init?.signal);
         return new Promise((_, reject) => {
-          init?.signal?.addEventListener("abort", () => {
+          const signal = init?.signal;
+          if (!signal) {
+            reject(new Error("missing AbortSignal"));
+            return;
+          }
+          const onAbort = () => {
             reject(new DOMException("Aborted", "AbortError"));
-          });
+          };
+          if (signal.aborted) {
+            onAbort();
+            return;
+          }
+          signal.addEventListener("abort", onAbort, { once: true });
         });
       },
       {

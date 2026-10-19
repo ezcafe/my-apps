@@ -66,10 +66,26 @@ describe("Settings search and category filtering", () => {
     assert.equal(matchingCategories[0].id, "apple-wallet");
   });
 
-  it("filters by category keywords (e.g. weather -> kiosk)", () => {
-    const { matchingCategories } = filterSettingsCategories("weather", SETTINGS_CATEGORIES);
-    assert.equal(matchingCategories.length, 1);
-    assert.equal(matchingCategories[0].id, "kiosk");
+  it("settings has no kiosk category", () => {
+    assert.equal(
+      SETTINGS_CATEGORIES.some((c) => c.id === "kiosk"),
+      false,
+    );
+    for (const query of ["weather", "widgets", "kiosk"] as const) {
+      const { matchingCategories } = filterSettingsCategories(
+        query,
+        SETTINGS_CATEGORIES,
+      );
+      assert.equal(
+        matchingCategories.some((c) => c.id === "kiosk"),
+        false,
+        `expected no kiosk match for "${query}"`,
+      );
+    }
+    const appearance = filterSettingsCategories("appearance", SETTINGS_CATEGORIES);
+    assert.equal(appearance.matchingCategories[0]?.id, "appearance");
+    const theme = filterSettingsCategories("theme", SETTINGS_CATEGORIES);
+    assert.equal(theme.matchingCategories[0]?.id, "appearance");
   });
 
   it("returns empty matches when query matches nothing", () => {
