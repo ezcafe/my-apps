@@ -1,5 +1,4 @@
 import {
-  CHART_CARD_HEIGHT_FULL,
   CHART_CARD_HEIGHT_HALF,
   CHART_CARD_HEIGHT_TALL,
   CHART_CARD_HEIGHT_FILL,
@@ -7,6 +6,9 @@ import {
   ANALYTICS_HERO_ROW_GRID,
   ANALYTICS_HERO_SPEND_CLASS,
   ANALYTICS_HERO_SIDE_CLASS,
+  ANALYTICS_MORE_FLOW_ROW_GRID,
+  ANALYTICS_MORE_FLOW_PRIMARY_CLASS,
+  ANALYTICS_MORE_FLOW_SIDE_CLASS,
 } from "@/components/analytics-chart-layout";
 import { MoneyFilterToolbar } from "@/components/money-page-header";
 import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
@@ -174,8 +176,14 @@ function AnalyticsMoreInsightsTeasersSkeleton() {
   );
 }
 
+export type AnalyticsHeroVariant = "triad" | "duo";
+
 /** Default Insights body: primary chart row + teaser cards. */
-function AnalyticsCollapsedGridContent() {
+function AnalyticsCollapsedGridContent({
+  heroVariant = "triad",
+}: {
+  heroVariant?: AnalyticsHeroVariant;
+} = {}) {
   return (
     <>
       <div className={ANALYTICS_HERO_ROW_GRID}>
@@ -192,13 +200,15 @@ function AnalyticsCollapsedGridContent() {
           titleWidthClass="w-40"
           descriptionWidthClass="w-44"
         />
-        <AnalyticsChartCardSkeleton
-          className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-2")}
-          heightClass={CHART_CARD_HEIGHT_HALF}
-          titleWidthClass="w-48"
-          descriptionWidthClass="w-72 max-w-full"
-          showLegend
-        />
+        {heroVariant === "triad" ? (
+          <AnalyticsChartCardSkeleton
+            className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-2")}
+            heightClass={CHART_CARD_HEIGHT_HALF}
+            titleWidthClass="w-48"
+            descriptionWidthClass="w-72 max-w-full"
+            showLegend
+          />
+        ) : null}
       </div>
 
       <AnalyticsMoreInsightsTeasersSkeleton />
@@ -210,13 +220,6 @@ function AnalyticsCollapsedGridContent() {
 function AnalyticsExpandedGridContent() {
   return (
     <>
-      <AnalyticsChartCardSkeleton
-        className="col-span-2 w-full md:col-span-6 lg:col-span-12"
-        heightClass={CHART_CARD_HEIGHT_TALL}
-        titleWidthClass="w-36"
-        descriptionWidthClass="w-full max-w-[42rem]"
-      />
-
       <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:gap-3 lg:col-span-12 lg:grid-cols-3 lg:gap-3">
         <AnalyticsChartCardSkeleton
           heightClass={CHART_CARD_HEIGHT_HALF}
@@ -255,12 +258,20 @@ function AnalyticsExpandedGridContent() {
         />
       </div>
 
-      <AnalyticsChartCardSkeleton
-        className="col-span-2 w-full md:col-span-6 lg:col-span-12"
-        heightClass={CHART_CARD_HEIGHT_FULL}
-        titleWidthClass="w-36"
-        descriptionWidthClass="w-56 max-w-full"
-      />
+      <div className={ANALYTICS_MORE_FLOW_ROW_GRID}>
+        <AnalyticsChartCardSkeleton
+          className={ANALYTICS_MORE_FLOW_PRIMARY_CLASS}
+          heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
+          titleWidthClass="w-full max-w-[28rem]"
+          descriptionWidthClass="w-full max-w-[36rem]"
+        />
+        <AnalyticsChartCardSkeleton
+          className={ANALYTICS_MORE_FLOW_SIDE_CLASS}
+          heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
+          titleWidthClass="w-36"
+          descriptionWidthClass="w-56 max-w-full"
+        />
+      </div>
     </>
   );
 }
@@ -380,9 +391,12 @@ export function MoneyAnalyticsPageSkeleton() {
 /** Insights with date-range filter chrome (investments / loans). */
 export function FeatureInsightsPageSkeleton({
   showUrgencyStrip = false,
+  heroVariant = "duo",
 }: {
   /** Loans Insights: reserve space for overdue / due-this-week strip before KPIs. */
   showUrgencyStrip?: boolean;
+  /** Adapted duo ATF for feature Insights; money triad stays on MoneyAnalyticsPageSkeleton. */
+  heroVariant?: AnalyticsHeroVariant;
 } = {}) {
   return (
     <div
@@ -416,7 +430,7 @@ export function FeatureInsightsPageSkeleton({
       <section aria-label="Summary metrics">
         <AnalyticsStatsSkeleton showPeriodLine={false} />
       </section>
-      <MoneyAnalyticsChartsSkeleton />
+      <MoneyAnalyticsChartsSkeleton heroVariant={heroVariant} />
     </div>
   );
 }
@@ -457,9 +471,11 @@ export function MoneyLedgerPageSkeleton({
 /** Insights chart grid while summary/workspace resolve (collapsed default). */
 export function MoneyAnalyticsChartsSkeleton({
   expanded = false,
+  heroVariant = "triad",
 }: {
   expanded?: boolean;
-}) {
+  heroVariant?: AnalyticsHeroVariant;
+} = {}) {
   return (
     <div
       className={ANALYTICS_INNER_GRID}
@@ -470,11 +486,11 @@ export function MoneyAnalyticsChartsSkeleton({
     >
       {expanded ? (
         <>
-          <AnalyticsCollapsedGridContent />
+          <AnalyticsCollapsedGridContent heroVariant={heroVariant} />
           <AnalyticsExpandedGridContent />
         </>
       ) : (
-        <AnalyticsCollapsedGridContent />
+        <AnalyticsCollapsedGridContent heroVariant={heroVariant} />
       )}
     </div>
   );

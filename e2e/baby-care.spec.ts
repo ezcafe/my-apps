@@ -467,8 +467,11 @@ test.describe("Baby Care smoke", () => {
         name: /open activities|mở hoạt động/i,
       }),
     ).toHaveAttribute("href", "/baby/activities");
-    // KPI strips and legacy charts stay behind More insights.
-    await expect(page.getByTestId("baby-count-kpis")).toHaveCount(0);
+    // Count KPIs + insight metrics are ATF; pattern/growth charts stay behind More.
+    await expect(page.getByTestId("baby-count-kpis")).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: /insight metrics/i }),
+    ).toBeVisible();
     await expect(page.getByTestId("baby-insights-charts")).toHaveCount(0);
 
     // View-only: no Growth editors on Insights (writes live on /baby/growth).
@@ -2367,13 +2370,12 @@ test.describe("Baby Care insights charts", () => {
     await expect(page.getByTestId("baby-insights-activities-cue")).toBeVisible();
     await expect(page.getByTestId("baby-more-insights-panel")).toHaveCount(0);
     await expect(page.getByTestId("baby-activities-ledger")).toHaveCount(0);
-    await expect(page.getByTestId("baby-count-kpis")).toHaveCount(0);
+    await expect(page.getByTestId("baby-count-kpis")).toBeVisible();
     expect(timelineFetches).toBe(0);
     expect(growthFetches).toBe(0);
 
     await page.getByTestId("baby-more-insights").click();
     await expect(page.getByTestId("baby-more-insights-panel")).toBeVisible();
-    await expect(page.getByTestId("baby-count-kpis")).toBeVisible();
     await expect(page.getByTestId("baby-insights-charts")).toBeVisible();
     await expect(page.getByTestId("baby-pattern-finder-chart")).toBeVisible();
     await expect(page.getByTestId("baby-awake-trend-chart")).toBeVisible();
@@ -2388,7 +2390,7 @@ test.describe("Baby Care insights charts", () => {
     await expect.poll(() => timelineFetches).toBeGreaterThan(0);
   });
 
-  test("More insights shows insight KPI strip with Sleep Efficiency soft-empty", async ({
+  test("Insights ATF shows insight KPI strip with Sleep Efficiency soft-empty", async ({
     page,
   }) => {
     await page.route("**/api/graphql/baby", async (route) => {
@@ -2399,11 +2401,6 @@ test.describe("Baby Care insights charts", () => {
     await expect(page.getByTestId("baby-insights-default-charts")).toBeVisible({
       timeout: 15_000,
     });
-    await expect(
-      page.getByRole("region", { name: /insight metrics/i }),
-    ).toHaveCount(0);
-
-    await page.getByTestId("baby-more-insights").click();
     const insightKpis = page.getByRole("region", {
       name: /insight metrics/i,
     });

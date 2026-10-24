@@ -23,6 +23,7 @@ import {
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import { cn } from "@/lib/cn";
 
 const SankeyChart = dynamic(
   () =>
@@ -40,6 +41,8 @@ export const MoneyFlowSankeyCard = memo(function MoneyFlowSankeyCard({
   defaultCurrency,
   baseFilterQuery,
   onDrilldown,
+  className,
+  heightClass = CHART_CARD_HEIGHT_TALL,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
@@ -48,6 +51,8 @@ export const MoneyFlowSankeyCard = memo(function MoneyFlowSankeyCard({
   defaultCurrency: string;
   baseFilterQuery?: string;
   onDrilldown?: ChartDrilldownHandler;
+  className?: string;
+  heightClass?: string;
 }) {
   const handleSankeyClick = useMemo(() => {
     if (!baseFilterQuery || !onDrilldown) return undefined;
@@ -68,7 +73,12 @@ export const MoneyFlowSankeyCard = memo(function MoneyFlowSankeyCard({
 
   return (
     <Card
-      className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_TALL}`}
+      className={cn(
+        "w-full min-w-0 p-4",
+        CHART_CARD_LAYOUT,
+        heightClass,
+        className,
+      )}
       ref={cardRef}
     >
       <h2 className="mb-1 flex flex-wrap items-center gap-x-2 font-display text-lg font-medium">

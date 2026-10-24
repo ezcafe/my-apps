@@ -14,6 +14,7 @@ import {
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import { cn } from "@/lib/cn";
 
 import {
   loansDrilldownForPaidInRange,
@@ -37,6 +38,8 @@ export const LoansPaidPrincipalInterestCard = memo(
     periodFrom,
     periodTo,
     onDrilldown,
+    className,
+    heightClass,
   }: {
     ready: boolean;
     principalMinor: number;
@@ -45,6 +48,8 @@ export const LoansPaidPrincipalInterestCard = memo(
     periodFrom?: string;
     periodTo?: string;
     onDrilldown?: (payload: LoansChartDrilldownPayload) => void;
+    className?: string;
+    heightClass?: string;
   }) {
     const { formatPeriod } = useFormatDate();
     const hasData = principalMinor > 0 || interestMinor > 0;
@@ -52,7 +57,12 @@ export const LoansPaidPrincipalInterestCard = memo(
       periodFrom && periodTo ? formatPeriod(periodFrom, periodTo) : null;
     return (
       <Card
-        className={`w-full min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
+        className={cn(
+          "w-full min-w-0 p-4",
+          CHART_CARD_LAYOUT,
+          heightClass ?? CHART_CARD_HEIGHT_HALF,
+          className,
+        )}
       >
         <h2 className="mb-2 font-display text-lg font-medium">
           Paid principal vs interest

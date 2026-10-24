@@ -47,6 +47,8 @@ export function BabyHydrationChart({
   feedsLegendLabel,
   ready,
   onDrilldown,
+  className,
+  heightClass,
 }: {
   days: HydrationChartDay[];
   label: string;
@@ -56,6 +58,8 @@ export function BabyHydrationChart({
   feedsLegendLabel: string;
   ready: boolean;
   onDrilldown?: (payload: BabyChartDrilldownPayload) => void;
+  className?: string;
+  heightClass?: string;
 }) {
   const { resolved, style } = useTheme();
   const wetColor = chartExpenseColor(resolved, style);
@@ -85,7 +89,12 @@ export function BabyHydrationChart({
 
   return (
     <Card
-      className={cn(CHART_CARD_LAYOUT, CHART_CARD_HEIGHT_HALF, "min-w-0 p-4")}
+      className={cn(
+        CHART_CARD_LAYOUT,
+        heightClass ?? CHART_CARD_HEIGHT_HALF,
+        "min-w-0 p-4",
+        className,
+      )}
       data-testid="baby-hydration-chart"
     >
       <p className="mb-1 shrink-0 text-sm font-medium text-foreground">{label}</p>

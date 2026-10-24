@@ -18,6 +18,7 @@ import {
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import { cn } from "@/lib/cn";
 
 import {
   investmentDrilldownForKind,
@@ -39,6 +40,8 @@ export const InvestmentAllocationCard = memo(function InvestmentAllocationCard({
   rangeFrom,
   rangeTo,
   onDrilldown,
+  className,
+  heightClass,
 }: {
   ready: boolean;
   slices: Array<{ label: string; kind?: string | null; valueMinor: number }>;
@@ -46,6 +49,8 @@ export const InvestmentAllocationCard = memo(function InvestmentAllocationCard({
   rangeFrom?: string;
   rangeTo?: string;
   onDrilldown?: (payload: InvestmentChartDrilldownPayload) => void;
+  className?: string;
+  heightClass?: string;
 }) {
   const { resolved, style } = useTheme();
   const [hidden, setHidden] = useState(() => new Set<string>());
@@ -66,7 +71,12 @@ export const InvestmentAllocationCard = memo(function InvestmentAllocationCard({
 
   return (
     <Card
-      className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
+      className={cn(
+        "min-w-0 p-4",
+        CHART_CARD_LAYOUT,
+        heightClass ?? CHART_CARD_HEIGHT_HALF,
+        className,
+      )}
     >
       <h2 className="mb-2 font-display text-lg font-medium">Allocation</h2>
       <p className="mb-2 text-xs text-muted">Open notional by instrument kind.</p>

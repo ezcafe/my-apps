@@ -21,4 +21,20 @@ describe("Loans Insights skeleton urgency parity", () => {
     assert.match(src, /FeatureInsightsPageSkeleton showUrgencyStrip/);
     assert.match(src, /LoansInsightsUrgencyStrip/);
   });
+
+  it("loans/insights/loading.tsx enables urgency strip", () => {
+    const src = readFileSync(
+      join(process.cwd(), "app/(shell)/loans/insights/loading.tsx"),
+      "utf8",
+    );
+    assert.match(src, /FeatureInsightsPageSkeleton\s+showUrgencyStrip/);
+  });
+
+  it("loans/insights/page.tsx Suspense fallback enables urgency strip", () => {
+    const src = readFileSync(
+      join(process.cwd(), "app/(shell)/loans/insights/page.tsx"),
+      "utf8",
+    );
+    assert.match(src, /FeatureInsightsPageSkeleton\s+showUrgencyStrip/);
+  });
 });

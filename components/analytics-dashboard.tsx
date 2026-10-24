@@ -21,6 +21,9 @@ import {
   ANALYTICS_HERO_ROW_GRID,
   ANALYTICS_HERO_SPEND_CLASS,
   ANALYTICS_HERO_SIDE_CLASS,
+  ANALYTICS_MORE_FLOW_ROW_GRID,
+  ANALYTICS_MORE_FLOW_PRIMARY_CLASS,
+  ANALYTICS_MORE_FLOW_SIDE_CLASS,
 } from "@/components/analytics-chart-layout";
 import {
   AnalyticsStatsSkeleton,
@@ -607,25 +610,30 @@ function AnalyticsChartsView({
             />
           </div>
 
-          <MoneyFlowSankeyCard
-            cardRef={sankeyRef}
-            inView={sankeyInView}
-            sankeyPayload={sankeyPayload}
-            sankeyHasData={sankeyHasData}
-            defaultCurrency={defaultCurrency}
-            baseFilterQuery={filterQuery}
-            onDrilldown={onChartDrilldown}
-          />
-
-          <RecurringSpendCard
-            cardRef={recurringRef}
-            inView={recurringInView}
-            leaders={leaders}
-            recurringHasData={recurringHasData}
-            formatChartValue={formatChartValue}
-            baseFilterQuery={filterQuery}
-            onDrilldown={onChartDrilldown}
-          />
+          <div className={ANALYTICS_MORE_FLOW_ROW_GRID}>
+            <MoneyFlowSankeyCard
+              cardRef={sankeyRef}
+              inView={sankeyInView}
+              sankeyPayload={sankeyPayload}
+              sankeyHasData={sankeyHasData}
+              defaultCurrency={defaultCurrency}
+              baseFilterQuery={filterQuery}
+              onDrilldown={onChartDrilldown}
+              className={ANALYTICS_MORE_FLOW_PRIMARY_CLASS}
+              heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
+            />
+            <RecurringSpendCard
+              cardRef={recurringRef}
+              inView={recurringInView}
+              leaders={leaders}
+              recurringHasData={recurringHasData}
+              formatChartValue={formatChartValue}
+              baseFilterQuery={filterQuery}
+              onDrilldown={onChartDrilldown}
+              className={ANALYTICS_MORE_FLOW_SIDE_CLASS}
+              heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
+            />
+          </div>
         </>
       ) : null}
     </>

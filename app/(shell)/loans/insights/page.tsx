@@ -19,7 +19,7 @@ export default async function LoansInsightsPage() {
   return (
     <HydrationBoundary state={dehydrateLoansInsightsPageState(queryClient)}>
       <LoanErrorBoundary>
-        <Suspense fallback={<FeatureInsightsPageSkeleton />}>
+        <Suspense fallback={<FeatureInsightsPageSkeleton showUrgencyStrip />}>
           <LoansInsightsDashboard />
         </Suspense>
       </LoanErrorBoundary>

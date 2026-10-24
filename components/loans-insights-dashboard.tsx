@@ -13,6 +13,10 @@ import {
   DeferredChartLoading,
 } from "@/components/analytics-chart-card-shared";
 import {
+  ANALYTICS_HERO_ROW_GRID,
+  ANALYTICS_HERO_SIDE_CLASS,
+  ANALYTICS_HERO_SPEND_CLASS,
+  CHART_CARD_HEIGHT_FILL,
   CHART_CARD_HEIGHT_TALL,
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
@@ -181,7 +185,9 @@ export function LoansInsightsDashboard() {
         </section>
       ) : null}
 
-      {atfQuery.isLoading && !atf ? <MoneyAnalyticsChartsSkeleton /> : null}
+      {atfQuery.isLoading && !atf ? (
+        <MoneyAnalyticsChartsSkeleton heroVariant="duo" />
+      ) : null}
 
       {empty ? (
         <AnalyticsEmptyState
@@ -195,12 +201,14 @@ export function LoansInsightsDashboard() {
 
       {atf && !empty ? (
         <section aria-label="Insights dashboard" className={ANALYTICS_GRID_CLASS}>
-          <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:grid-cols-2 md:gap-3 lg:col-span-12">
+          <div className={ANALYTICS_HERO_ROW_GRID}>
             <LoansRemainingByLoanCard
               ready
               slices={atf.remainingByLoan}
               currency={currency}
               onDrilldown={setChartDrilldown}
+              className={ANALYTICS_HERO_SPEND_CLASS}
+              heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
             />
             <LoansPaidPrincipalInterestCard
               ready
@@ -210,6 +218,7 @@ export function LoansInsightsDashboard() {
               periodFrom={atf.range.from}
               periodTo={atf.range.to}
               onDrilldown={setChartDrilldown}
+              className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-1")}
             />
           </div>
 
