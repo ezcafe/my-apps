@@ -7,6 +7,7 @@ import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { MoneyAppMenu } from "@/components/money-section-tabs";
 import { IconBaby } from "@/components/icons/icon-baby";
+import { IconFoods } from "@/components/icons/icon-foods";
 import {
   shellItemLabel,
   useBabyNavLabel,
@@ -167,6 +168,7 @@ const shellNavIcons: Record<
   investment: IconInvestment,
   loans: IconLoans,
   baby: IconBaby,
+  foods: IconFoods,
   help: IconHelp,
   settings: IconSettings,
 };

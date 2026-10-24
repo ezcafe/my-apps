@@ -17,6 +17,7 @@ const MODULE_MOCK_FILES = new Set([
   "lib/api-investment-context.test.ts",
   "lib/investment-rest-hardening.test.ts",
   "lib/http-idempotency-route.test.ts",
+  "lib/api-foods-auth.test.ts",
 ]);
 
 function collectTests(dir, out = []) {

@@ -5,6 +5,7 @@ export * from "./investment";
 export * from "./api-token";
 export * from "./security";
 export * from "./baby";
+export * from "./foods";
 export * from "./http-idempotency";
 export * from "./watch-pairing-code";
 export * from "./apple-wallet";

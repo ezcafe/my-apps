@@ -41,6 +41,7 @@ import {
 } from "@/lib/money-section-tab-visibility";
 import { useMoneyMenuPageActions } from "@/lib/money-menu-page-actions";
 import { IconBaby } from "@/components/icons/icon-baby";
+import { IconFoods } from "@/components/icons/icon-foods";
 import {
   IconBabyActivities,
   IconBabyDiaper,
@@ -370,6 +371,7 @@ const shellMenuIcons: Record<
   investment: IconInvestments,
   loans: IconLoans,
   baby: IconBaby,
+  foods: IconFoods,
   help: IconHelp,
   settings: IconSettings,
 };

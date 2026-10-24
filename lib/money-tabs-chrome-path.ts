@@ -18,15 +18,21 @@ export function isBabyChromePath(pathname: string): boolean {
   return pathname === "/baby" || pathname.startsWith("/baby/");
 }
 
+/** True when Foods in-page chrome should replace shell nav. */
+export function isFoodsChromePath(pathname: string): boolean {
+  return pathname === "/foods" || pathname.startsWith("/foods/");
+}
+
 /**
  * True when the shell aside / fixed mobile menu should hide in favor of an
- * in-page button menu (Money, Investments, Loans, Baby, Help, Settings).
+ * in-page button menu (Money, Investments, Loans, Baby, Foods, Help, Settings).
  */
 export function hidesShellRailChrome(pathname: string): boolean {
   if (isMoneyTabsChromePath(pathname)) return true;
   if (isInvestmentsChromePath(pathname)) return true;
   if (isLoansChromePath(pathname)) return true;
   if (isBabyChromePath(pathname)) return true;
+  if (isFoodsChromePath(pathname)) return true;
   if (pathname === "/help" || pathname.startsWith("/help/")) return true;
   if (pathname === "/settings" || pathname.startsWith("/settings/")) return true;
   return false;

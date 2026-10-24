@@ -9,4 +9,11 @@ describe("WORKSPACE_APP_KEYS", () => {
       'expected WORKSPACE_APP_KEYS to include "baby"',
     );
   });
+
+  it("includes foods", () => {
+    assert.ok(
+      (WORKSPACE_APP_KEYS as readonly string[]).includes("foods"),
+      'expected WORKSPACE_APP_KEYS to include "foods"',
+    );
+  });
 });

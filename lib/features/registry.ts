@@ -7,6 +7,7 @@ export type ShellNavIconId =
   | "investment"
   | "loans"
   | "baby"
+  | "foods"
   | "help"
   | "settings";
 
@@ -81,6 +82,16 @@ const shellNavItemsSource: ShellNavItem[] = [
     order: 10,
     workspaceAppKey: "baby",
     icon: "baby",
+  },
+  {
+    kind: "feature",
+    id: "foods",
+    label: "Foods",
+    href: "/foods",
+    matchPrefix: "/foods",
+    order: 12,
+    workspaceAppKey: "foods",
+    icon: "foods",
   },
   {
     kind: "core",
