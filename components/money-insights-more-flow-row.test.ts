@@ -52,11 +52,33 @@ describe("money insights more=1 — flow + recurring row", () => {
     );
   });
 
-  it("expanded charts skeleton mirrors more-flow duo after the 3×2 grid", () => {
+  it("dashboard places more-flow row before the 3×2 grid (up 2 rows)", () => {
+    const block = moreInsightsBlock(dashSrc());
+    const flowAt = block.indexOf("ANALYTICS_MORE_FLOW_ROW_GRID");
+    const budgetAt = block.indexOf("BudgetVsActualCard");
+    assert.ok(flowAt >= 0 && budgetAt >= 0);
+    assert.ok(
+      flowAt < budgetAt,
+      "Sankey + Recurring must sit above the Budget/merchants 3×2 grid",
+    );
+  });
+
+  it("expanded charts skeleton mirrors more-flow duo before the 3×2 grid", () => {
     const src = skeletonSrc();
     assert.match(src, /ANALYTICS_MORE_FLOW_ROW_GRID/);
     assert.match(src, /ANALYTICS_MORE_FLOW_PRIMARY_CLASS/);
     assert.match(src, /ANALYTICS_MORE_FLOW_SIDE_CLASS/);
+
+    const expandedFn = src.indexOf("function AnalyticsExpandedGridContent");
+    assert.ok(expandedFn >= 0);
+    const expandedBody = src.slice(expandedFn, expandedFn + 2500);
+    const flowAt = expandedBody.indexOf("ANALYTICS_MORE_FLOW_ROW_GRID");
+    const grid3At = expandedBody.indexOf("lg:grid-cols-3");
+    assert.ok(flowAt >= 0 && grid3At >= 0);
+    assert.ok(
+      flowAt < grid3At,
+      "skeleton more-flow row must precede the 3-col card grid",
+    );
 
     const html = renderToStaticMarkup(
       createElement(MoneyAnalyticsChartsSkeleton, { expanded: true }),

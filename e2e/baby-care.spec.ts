@@ -2302,7 +2302,7 @@ test.describe("Baby Care capture navigate", () => {
 });
 
 test.describe("Baby Care insights charts", () => {
-  test("default Insights shows Hydration + Night Rest; More insights deferred; Activities owns lists", async ({
+  test("default Insights shows Night Rest + Hydration + Care over time; More insights deferred; Activities owns lists", async ({
     page,
   }) => {
     let timelineFetches = 0;
@@ -2330,6 +2330,7 @@ test.describe("Baby Care insights charts", () => {
     });
     await expect(page.getByTestId("baby-hydration-chart")).toBeVisible();
     await expect(page.getByTestId("baby-night-rest-chart")).toBeVisible();
+    await expect(page.getByTestId("baby-care-count-chart")).toBeVisible();
     await expect(
       page.getByText(/night rest|giấc ngủ đêm/i).first(),
     ).toBeVisible();
@@ -2380,7 +2381,11 @@ test.describe("Baby Care insights charts", () => {
     await expect(page.getByTestId("baby-pattern-finder-chart")).toBeVisible();
     await expect(page.getByTestId("baby-awake-trend-chart")).toBeVisible();
     await expect(page.getByTestId("baby-diaper-output-chart")).toBeVisible();
+    // Care over time stays on ATF (not inside More).
     await expect(page.getByTestId("baby-care-count-chart")).toBeVisible();
+    await expect(
+      page.getByTestId("baby-more-insights-panel").getByTestId("baby-care-count-chart"),
+    ).toHaveCount(0);
     // Decision 2 Option 2: growth enables with moreOpen; timeline stays off Insights.
     expect(timelineFetches).toBe(0);
     await expect.poll(() => growthFetches).toBeGreaterThan(0);
@@ -3702,12 +3707,14 @@ test.describe("Baby Care insights charts", () => {
     });
 
     await page.goto("/baby/insights");
+    // Care-count is ATF (hero triad) — visible without More.
+    await expect(page.getByTestId("baby-care-count-chart")).toBeVisible({
+      timeout: 15_000,
+    });
     await page.getByTestId("baby-more-insights").click();
     await expect(page.getByTestId("baby-insights-charts")).toBeVisible({
       timeout: 15_000,
     });
-    // Care-count card always mounts (empty or with series legend).
-    await expect(page.getByTestId("baby-care-count-chart")).toBeVisible();
     // Empty measures filter → all kinds; cards mount even with no points.
     await expect(page.getByTestId("baby-growth-chart-card").first()).toBeVisible();
   });

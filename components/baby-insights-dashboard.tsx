@@ -590,6 +590,19 @@ export function BabyInsightsDashboard() {
           onDrilldown={setChartDrilldown}
           className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-1")}
         />
+        <BabyCareCountChart
+          label={t("insights.careCountHeading")}
+          emptyLabel={careCountEmptyLabel}
+          partialNote={null}
+          days={careCountDays}
+          ready={!seriesQuery.isLoading && careCountFromSeries}
+          seriesLabels={{
+            feed: t("insights.chipFeed"),
+            sleep: t("insights.chipSleep"),
+            diaper: t("insights.chipDiaper"),
+          }}
+          className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-2")}
+        />
       </section>
 
       {series?.hydration.alert === "low_wet" &&
@@ -666,18 +679,6 @@ export function BabyInsightsDashboard() {
                   </ul>
                 )}
               </Card>
-              <BabyCareCountChart
-                label={t("insights.careCountHeading")}
-                emptyLabel={careCountEmptyLabel}
-                partialNote={null}
-                days={careCountDays}
-                ready={!seriesQuery.isLoading && careCountFromSeries}
-                seriesLabels={{
-                  feed: t("insights.chipFeed"),
-                  sleep: t("insights.chipSleep"),
-                  diaper: t("insights.chipDiaper"),
-                }}
-              />
               {showWeightChart ? (
                 <BabyGrowthChart
                   label={t("growth.weight")}

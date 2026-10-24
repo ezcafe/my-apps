@@ -32,6 +32,8 @@ export function BabyCareCountChart({
   partialNote = null,
   seriesLabels,
   ready,
+  className,
+  heightClass,
 }: {
   days: BabyCareCountDay[];
   label: string;
@@ -40,6 +42,8 @@ export function BabyCareCountChart({
   partialNote?: string | null;
   seriesLabels: Record<SeriesKey, string>;
   ready: boolean;
+  className?: string;
+  heightClass?: string;
 }) {
   const { resolved, style } = useTheme();
   // Skip adjacent near-duplicate teal (index 1) — same readable spread as money multi-series.
@@ -63,7 +67,12 @@ export function BabyCareCountChart({
 
   return (
     <Card
-      className={cn(CHART_CARD_LAYOUT, CHART_CARD_HEIGHT_HALF, "min-w-0 p-4")}
+      className={cn(
+        CHART_CARD_LAYOUT,
+        heightClass ?? CHART_CARD_HEIGHT_HALF,
+        "min-w-0 p-4",
+        className,
+      )}
       data-testid="baby-care-count-chart"
     >
       <p className="mb-2 shrink-0 text-sm font-medium text-foreground">{label}</p>

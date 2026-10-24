@@ -743,7 +743,7 @@ export function BabyInsightsListSkeleton({
 
 /**
  * Insights stack (CLS): cue → filters → period → KPI strip →
- * adapted duo (Night rest + Hydration) → collapsed More insights.
+ * hero triad (Night rest + Hydration + Care over time) → collapsed More insights.
  */
 export function BabyInsightsPageSkeleton() {
   return (
@@ -764,7 +764,7 @@ export function BabyInsightsPageSkeleton() {
         <AnalyticsStatsSkeleton showPeriodLine={false} />
       </section>
       <section
-        data-skeleton="insights-hero-duo"
+        data-skeleton="insights-hero-triad"
         className={ANALYTICS_HERO_ROW_GRID}
         aria-hidden
       >
@@ -792,6 +792,19 @@ export function BabyInsightsPageSkeleton() {
         >
           <Skeleton className="mb-2 h-6 w-36 rounded-[var(--radius-sm)]" />
           <Skeleton className="mb-2 h-4 w-44 rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-full min-h-0 w-full flex-1 rounded-[var(--radius-sm)]" />
+        </Card>
+        <Card
+          className={cn(
+            "min-w-0 p-4",
+            CHART_CARD_LAYOUT,
+            CHART_CARD_HEIGHT_HALF,
+            ANALYTICS_HERO_SIDE_CLASS,
+            "lg:row-start-2",
+          )}
+        >
+          <Skeleton className="mb-2 h-6 w-40 rounded-[var(--radius-sm)]" />
+          <Skeleton className="mb-2 h-4 w-48 max-w-full rounded-[var(--radius-sm)]" />
           <Skeleton className="h-full min-h-0 w-full flex-1 rounded-[var(--radius-sm)]" />
         </Card>
       </section>

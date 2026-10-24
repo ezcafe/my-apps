@@ -30,7 +30,7 @@ describe("Task 4 — Baby Insights hero + KPIs above charts", () => {
     );
   });
 
-  it("source: default charts use hero grid; Night rest before Hydration; spend + side", () => {
+  it("source: default charts hero triad — Night rest, Hydration, Care over time below Hydration", () => {
     const src = readFileSync(
       join(process.cwd(), "components/baby-insights-dashboard.tsx"),
       "utf8",
@@ -54,27 +54,44 @@ describe("Task 4 — Baby Insights hero + KPIs above charts", () => {
 
     const night = charts.indexOf("BabyNightRestChart");
     const hydration = charts.indexOf("BabyHydrationChart");
+    const care = charts.indexOf("BabyCareCountChart");
     assert.ok(night >= 0 && hydration > night, "Night rest before Hydration");
+    assert.ok(
+      care > hydration,
+      "Care over time must follow Hydration (below side slot)",
+    );
 
     assert.match(charts, /ANALYTICS_HERO_SPEND_CLASS/);
     assert.match(charts, /ANALYTICS_HERO_SIDE_CLASS/);
+    assert.match(charts, /lg:row-start-1/);
+    assert.match(charts, /lg:row-start-2/);
+
+    const morePanel = src.indexOf('data-testid="baby-more-insights-panel"');
+    assert.ok(morePanel > care);
+    assert.equal(
+      src.slice(morePanel).includes("BabyCareCountChart"),
+      false,
+      "Care over time must leave the More panel",
+    );
   });
 
-  it("BabyInsightsPageSkeleton: KPI strip before duo charts; no equal 2-up ATF", () => {
+  it("BabyInsightsPageSkeleton: KPI strip before triad charts; no equal 2-up ATF", () => {
     const html = renderToStaticMarkup(createElement(BabyInsightsPageSkeleton));
 
     const kpi = html.indexOf('data-skeleton="insights-kpi-strip"');
-    const duo = html.indexOf('data-skeleton="insights-hero-duo"');
+    const hero = html.indexOf('data-skeleton="insights-hero-triad"');
     assert.ok(kpi >= 0, "KPI strip skeleton present");
-    assert.ok(duo >= 0, "duo hero skeleton present");
-    assert.ok(kpi < duo, "KPI strip before duo charts");
+    assert.ok(hero >= 0, "triad hero skeleton present");
+    assert.ok(kpi < hero, "KPI strip before triad charts");
 
     assert.match(html, /lg:grid-cols-12 lg:grid-rows-\[280px_280px\]/);
     assert.equal(
       (html.match(/lg:col-span-4 lg:col-start-9/g) ?? []).length,
-      1,
-      "duo skeleton: one side slot",
+      2,
+      "triad skeleton: Hydration + Care over time side slots",
     );
+    assert.match(html, /lg:row-start-1/);
+    assert.match(html, /lg:row-start-2/);
     assert.doesNotMatch(
       html,
       /minmax\(min\(100%, 16rem\), 1fr\)/,
@@ -91,7 +108,7 @@ describe("Task 4 — Baby Insights hero + KPIs above charts", () => {
     );
   });
 
-  it("More panel still holds pattern/growth charts (ATF is night + hydration only)", () => {
+  it("More panel still holds pattern/growth charts (ATF is night + hydration + care)", () => {
     const src = readFileSync(
       join(process.cwd(), "components/baby-insights-dashboard.tsx"),
       "utf8",
@@ -102,12 +119,14 @@ describe("Task 4 — Baby Insights hero + KPIs above charts", () => {
       'data-testid="baby-insights-default-charts"',
     );
     const nightInAtf = src.indexOf("BabyNightRestChart", defaultCharts);
+    const careInAtf = src.indexOf("BabyCareCountChart", defaultCharts);
     const patternInAtfZone = src
       .slice(defaultCharts, morePanel)
       .includes("BabyPatternFinderChart");
 
     assert.ok(morePanel >= 0 && pattern > morePanel);
     assert.ok(nightInAtf >= 0 && nightInAtf < morePanel);
+    assert.ok(careInAtf >= 0 && careInAtf < morePanel);
     assert.equal(patternInAtfZone, false);
   });
 });

@@ -220,6 +220,21 @@ function AnalyticsCollapsedGridContent({
 function AnalyticsExpandedGridContent() {
   return (
     <>
+      <div className={ANALYTICS_MORE_FLOW_ROW_GRID}>
+        <AnalyticsChartCardSkeleton
+          className={ANALYTICS_MORE_FLOW_PRIMARY_CLASS}
+          heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
+          titleWidthClass="w-full max-w-[28rem]"
+          descriptionWidthClass="w-full max-w-[36rem]"
+        />
+        <AnalyticsChartCardSkeleton
+          className={ANALYTICS_MORE_FLOW_SIDE_CLASS}
+          heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
+          titleWidthClass="w-36"
+          descriptionWidthClass="w-56 max-w-full"
+        />
+      </div>
+
       <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:gap-3 lg:col-span-12 lg:grid-cols-3 lg:gap-3">
         <AnalyticsChartCardSkeleton
           heightClass={CHART_CARD_HEIGHT_HALF}
@@ -255,21 +270,6 @@ function AnalyticsExpandedGridContent() {
           heightClass={CHART_CARD_HEIGHT_HALF}
           titleWidthClass="w-36"
           descriptionWidthClass="w-52 max-w-full"
-        />
-      </div>
-
-      <div className={ANALYTICS_MORE_FLOW_ROW_GRID}>
-        <AnalyticsChartCardSkeleton
-          className={ANALYTICS_MORE_FLOW_PRIMARY_CLASS}
-          heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
-          titleWidthClass="w-full max-w-[28rem]"
-          descriptionWidthClass="w-full max-w-[36rem]"
-        />
-        <AnalyticsChartCardSkeleton
-          className={ANALYTICS_MORE_FLOW_SIDE_CLASS}
-          heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
-          titleWidthClass="w-36"
-          descriptionWidthClass="w-56 max-w-full"
         />
       </div>
     </>
