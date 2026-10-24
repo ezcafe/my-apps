@@ -21,6 +21,13 @@ import {
   MoneyAnalyticsFiltersBarSkeleton,
 } from "@/components/money-analytics-skeleton";
 import {
+  ANALYTICS_HERO_ROW_GRID,
+  ANALYTICS_HERO_SIDE_CLASS,
+  ANALYTICS_HERO_SPEND_CLASS,
+  CHART_CARD_HEIGHT_FILL,
+  CHART_CARD_HEIGHT_TALL,
+} from "@/components/analytics-chart-layout";
+import {
   babyInsightsFiltersDirty,
   emptyBabyInsightsChips,
   filterGrowthByKindChips,
@@ -452,14 +459,126 @@ export function BabyInsightsDashboard() {
       ) : null}
 
       <section
-        className="grid gap-4"
-        style={{
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(min(100%, 16rem), 1fr))",
-        }}
-        data-testid="baby-insights-default-charts"
-        aria-label={t("insights.hydrationTitle")}
+        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
+        aria-label="Summary metrics"
+        data-testid="baby-count-kpis"
       >
+        <Card className="px-4 py-4">
+          <p className="text-sm font-medium text-muted">
+            {t("insights.kpiFeeds")}
+          </p>
+          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+            <AnimatedNumber
+              value={kpis.feeds}
+              format={(n) => String(Math.round(n))}
+              animationKey={animationKey}
+            />
+          </p>
+        </Card>
+        <Card className="px-4 py-4">
+          <p className="text-sm font-medium text-muted">
+            {t("insights.kpiSleep")}
+          </p>
+          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+            <AnimatedNumber
+              value={kpis.sleep}
+              format={(n) => String(Math.round(n))}
+              animationKey={animationKey}
+            />
+          </p>
+        </Card>
+        <Card className="px-4 py-4">
+          <p className="text-sm font-medium text-muted">
+            {t("insights.kpiDiapers")}
+          </p>
+          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+            <AnimatedNumber
+              value={kpis.diapers}
+              format={(n) => String(Math.round(n))}
+              animationKey={animationKey}
+            />
+          </p>
+        </Card>
+        <Card className="px-4 py-4">
+          <p className="text-sm font-medium text-muted">
+            {t("insights.kpiLatestWeight")}
+          </p>
+          <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+            {kpis.latestWeight ? (
+              <>
+                <AnimatedNumber
+                  value={kpis.latestWeight.valueNum}
+                  format={(n) => n.toFixed(1)}
+                  animationKey={animationKey}
+                />
+                {kpis.latestWeight.unit ? (
+                  <span className="ms-1 text-base font-medium text-muted">
+                    {kpis.latestWeight.unit}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <span className="text-muted">—</span>
+            )}
+          </p>
+        </Card>
+      </section>
+
+      <section
+        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
+        aria-label="Insight metrics"
+      >
+        <Card className="px-4 py-4">
+          <p className="text-sm font-medium text-muted">
+            {t("insights.kpiWakeWindow")}
+          </p>
+          <p className="mt-2 text-lg font-semibold tabular-nums">
+            {seriesChartVisibleForCareChips(careTypes, ["sleep"]) &&
+            series?.wakeWindow.avgMinutes != null
+              ? `${Math.round(series.wakeWindow.avgMinutes)}m`
+              : series?.wakeWindow.emptyReason === "need_3_days"
+                ? t("insights.kpiNeed3Days")
+                : t("insights.kpiNeedMoreSleep")}
+          </p>
+        </Card>
+        <Card className="px-4 py-4">
+          <p className="text-sm font-medium text-muted">
+            {t("insights.kpiMilkDiaper")}
+          </p>
+          <p className="mt-2 text-lg font-semibold tabular-nums">
+            {seriesChartVisibleForCareChips(careTypes, [
+              "feed",
+              "diaper",
+            ]) && series?.milkToDiaper.avgLagMinutes != null
+              ? `${Math.round(series.milkToDiaper.avgLagMinutes)}m`
+              : t("insights.kpiNeedMoreLogs")}
+          </p>
+        </Card>
+        <Card className="px-4 py-4">
+          <p className="text-sm font-medium text-muted">
+            {t("insights.kpiSleepEfficiency")}
+          </p>
+          <p className="mt-2 text-sm text-muted">
+            {t("insights.kpiNeedWakings")}
+          </p>
+        </Card>
+      </section>
+
+      <section
+        className={ANALYTICS_HERO_ROW_GRID}
+        data-testid="baby-insights-default-charts"
+        aria-label={t("insights.nightRestTitle")}
+      >
+        <BabyNightRestChart
+          label={t("insights.nightRestTitle")}
+          purpose={t("insights.nightRestPurpose")}
+          emptyLabel={t("insights.nightRestEmpty")}
+          blocksLabel={t("insights.nightRestBlocks")}
+          days={nightRestDays}
+          ready={nightRestReady}
+          className={ANALYTICS_HERO_SPEND_CLASS}
+          heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
+        />
         <BabyHydrationChart
           label={t("insights.hydrationTitle")}
           purpose={t("insights.hydrationPurpose")}
@@ -469,14 +588,20 @@ export function BabyInsightsDashboard() {
           days={hydrationDays}
           ready={hydrationReady}
           onDrilldown={setChartDrilldown}
+          className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-1")}
         />
-        <BabyNightRestChart
-          label={t("insights.nightRestTitle")}
-          purpose={t("insights.nightRestPurpose")}
-          emptyLabel={t("insights.nightRestEmpty")}
-          blocksLabel={t("insights.nightRestBlocks")}
-          days={nightRestDays}
-          ready={nightRestReady}
+        <BabyCareCountChart
+          label={t("insights.careCountHeading")}
+          emptyLabel={careCountEmptyLabel}
+          partialNote={null}
+          days={careCountDays}
+          ready={!seriesQuery.isLoading && careCountFromSeries}
+          seriesLabels={{
+            feed: t("insights.chipFeed"),
+            sleep: t("insights.chipSleep"),
+            diaper: t("insights.chipDiaper"),
+          }}
+          className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-2")}
         />
       </section>
 
@@ -501,112 +626,6 @@ export function BabyInsightsDashboard() {
         </Button>
         {moreOpen ? (
           <div className="space-y-4" data-testid="baby-more-insights-panel">
-            <section
-              className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
-              aria-label="Insight metrics"
-            >
-              <Card className="px-4 py-4">
-                <p className="text-sm font-medium text-muted">
-                  {t("insights.kpiWakeWindow")}
-                </p>
-                <p className="mt-2 text-lg font-semibold tabular-nums">
-                  {seriesChartVisibleForCareChips(careTypes, ["sleep"]) &&
-                  series?.wakeWindow.avgMinutes != null
-                    ? `${Math.round(series.wakeWindow.avgMinutes)}m`
-                    : series?.wakeWindow.emptyReason === "need_3_days"
-                      ? t("insights.kpiNeed3Days")
-                      : t("insights.kpiNeedMoreSleep")}
-                </p>
-              </Card>
-              <Card className="px-4 py-4">
-                <p className="text-sm font-medium text-muted">
-                  {t("insights.kpiMilkDiaper")}
-                </p>
-                <p className="mt-2 text-lg font-semibold tabular-nums">
-                  {seriesChartVisibleForCareChips(careTypes, [
-                    "feed",
-                    "diaper",
-                  ]) && series?.milkToDiaper.avgLagMinutes != null
-                    ? `${Math.round(series.milkToDiaper.avgLagMinutes)}m`
-                    : t("insights.kpiNeedMoreLogs")}
-                </p>
-              </Card>
-              <Card className="px-4 py-4">
-                <p className="text-sm font-medium text-muted">
-                  {t("insights.kpiSleepEfficiency")}
-                </p>
-                <p className="mt-2 text-sm text-muted">
-                  {t("insights.kpiNeedWakings")}
-                </p>
-              </Card>
-            </section>
-
-            <section
-              className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3"
-              aria-label="Summary metrics"
-              data-testid="baby-count-kpis"
-            >
-              <Card className="px-4 py-4">
-                <p className="text-sm font-medium text-muted">
-                  {t("insights.kpiFeeds")}
-                </p>
-                <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-                  <AnimatedNumber
-                    value={kpis.feeds}
-                    format={(n) => String(Math.round(n))}
-                    animationKey={animationKey}
-                  />
-                </p>
-              </Card>
-              <Card className="px-4 py-4">
-                <p className="text-sm font-medium text-muted">
-                  {t("insights.kpiSleep")}
-                </p>
-                <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-                  <AnimatedNumber
-                    value={kpis.sleep}
-                    format={(n) => String(Math.round(n))}
-                    animationKey={animationKey}
-                  />
-                </p>
-              </Card>
-              <Card className="px-4 py-4">
-                <p className="text-sm font-medium text-muted">
-                  {t("insights.kpiDiapers")}
-                </p>
-                <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-                  <AnimatedNumber
-                    value={kpis.diapers}
-                    format={(n) => String(Math.round(n))}
-                    animationKey={animationKey}
-                  />
-                </p>
-              </Card>
-              <Card className="px-4 py-4">
-                <p className="text-sm font-medium text-muted">
-                  {t("insights.kpiLatestWeight")}
-                </p>
-                <p className="mt-2 font-display text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-                  {kpis.latestWeight ? (
-                    <>
-                      <AnimatedNumber
-                        value={kpis.latestWeight.valueNum}
-                        format={(n) => n.toFixed(1)}
-                        animationKey={animationKey}
-                      />
-                      {kpis.latestWeight.unit ? (
-                        <span className="ms-1 text-base font-medium text-muted">
-                          {kpis.latestWeight.unit}
-                        </span>
-                      ) : null}
-                    </>
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </p>
-              </Card>
-            </section>
-
             <div
               className="grid gap-4"
               style={{
@@ -660,18 +679,6 @@ export function BabyInsightsDashboard() {
                   </ul>
                 )}
               </Card>
-              <BabyCareCountChart
-                label={t("insights.careCountHeading")}
-                emptyLabel={careCountEmptyLabel}
-                partialNote={null}
-                days={careCountDays}
-                ready={!seriesQuery.isLoading && careCountFromSeries}
-                seriesLabels={{
-                  feed: t("insights.chipFeed"),
-                  sleep: t("insights.chipSleep"),
-                  diaper: t("insights.chipDiaper"),
-                }}
-              />
               {showWeightChart ? (
                 <BabyGrowthChart
                   label={t("growth.weight")}

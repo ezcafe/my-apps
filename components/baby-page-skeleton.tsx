@@ -1,7 +1,12 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import {
+  ANALYTICS_HERO_ROW_GRID,
+  ANALYTICS_HERO_SIDE_CLASS,
+  ANALYTICS_HERO_SPEND_CLASS,
+  CHART_CARD_HEIGHT_FILL,
   CHART_CARD_HEIGHT_HALF,
+  CHART_CARD_HEIGHT_TALL,
   CHART_CARD_LAYOUT,
 } from "@/components/analytics-chart-layout";
 import {
@@ -20,6 +25,7 @@ import {
 import { SHELL_DASHBOARD_STACK, SHELL_FULL_SPAN } from "@/lib/shell-layout";
 import {
   AnalyticsPeriodChipSkeleton,
+  AnalyticsStatsSkeleton,
   MoneyAnalyticsFiltersBarSkeleton,
 } from "@/components/money-analytics-skeleton";
 
@@ -736,8 +742,8 @@ export function BabyInsightsListSkeleton({
 }
 
 /**
- * Insights stack (CLS): cue → filters → period →
- * Hydration + Night Rest charts → collapsed More insights (no Activity log).
+ * Insights stack (CLS): cue → filters → period → KPI strip →
+ * hero triad (Night rest + Hydration + Care over time) → collapsed More insights.
  */
 export function BabyInsightsPageSkeleton() {
   return (
@@ -754,16 +760,53 @@ export function BabyInsightsPageSkeleton() {
       />
       <MoneyAnalyticsFiltersBarSkeleton triggerCount={3} />
       <AnalyticsPeriodChipSkeleton />
+      <section data-skeleton="insights-kpi-strip" aria-hidden>
+        <AnalyticsStatsSkeleton showPeriodLine={false} />
+      </section>
       <section
-        className="grid gap-4"
-        style={{
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(min(100%, 16rem), 1fr))",
-        }}
+        data-skeleton="insights-hero-triad"
+        className={ANALYTICS_HERO_ROW_GRID}
         aria-hidden
       >
-        <BabyGrowthChartSkeleton />
-        <BabyGrowthChartSkeleton />
+        <Card
+          className={cn(
+            "min-w-0 p-4",
+            CHART_CARD_LAYOUT,
+            CHART_CARD_HEIGHT_TALL,
+            CHART_CARD_HEIGHT_FILL,
+            ANALYTICS_HERO_SPEND_CLASS,
+          )}
+        >
+          <Skeleton className="mb-2 h-6 w-40 rounded-[var(--radius-sm)]" />
+          <Skeleton className="mb-2 h-4 w-56 max-w-full rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-full min-h-0 w-full flex-1 rounded-[var(--radius-sm)]" />
+        </Card>
+        <Card
+          className={cn(
+            "min-w-0 p-4",
+            CHART_CARD_LAYOUT,
+            CHART_CARD_HEIGHT_HALF,
+            ANALYTICS_HERO_SIDE_CLASS,
+            "lg:row-start-1",
+          )}
+        >
+          <Skeleton className="mb-2 h-6 w-36 rounded-[var(--radius-sm)]" />
+          <Skeleton className="mb-2 h-4 w-44 rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-full min-h-0 w-full flex-1 rounded-[var(--radius-sm)]" />
+        </Card>
+        <Card
+          className={cn(
+            "min-w-0 p-4",
+            CHART_CARD_LAYOUT,
+            CHART_CARD_HEIGHT_HALF,
+            ANALYTICS_HERO_SIDE_CLASS,
+            "lg:row-start-2",
+          )}
+        >
+          <Skeleton className="mb-2 h-6 w-40 rounded-[var(--radius-sm)]" />
+          <Skeleton className="mb-2 h-4 w-48 max-w-full rounded-[var(--radius-sm)]" />
+          <Skeleton className="h-full min-h-0 w-full flex-1 rounded-[var(--radius-sm)]" />
+        </Card>
       </section>
       <Skeleton className="h-12 w-40 rounded-[var(--radius-md)]" />
     </div>

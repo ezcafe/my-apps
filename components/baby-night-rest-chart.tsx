@@ -27,6 +27,8 @@ export function BabyNightRestChart({
   emptyLabel,
   blocksLabel,
   ready,
+  className,
+  heightClass,
 }: {
   days: NightRestChartDay[];
   label: string;
@@ -35,6 +37,8 @@ export function BabyNightRestChart({
   /** Shown with interval count when a day has more than one sleep block. */
   blocksLabel: string;
   ready: boolean;
+  className?: string;
+  heightClass?: string;
 }) {
   const { resolved, style } = useTheme();
   const color = colorByIndex(resolved, 0, style);
@@ -42,7 +46,12 @@ export function BabyNightRestChart({
 
   return (
     <Card
-      className={cn(CHART_CARD_LAYOUT, CHART_CARD_HEIGHT_HALF, "p-4")}
+      className={cn(
+        CHART_CARD_LAYOUT,
+        heightClass ?? CHART_CARD_HEIGHT_HALF,
+        "p-4",
+        className,
+      )}
       data-testid="baby-night-rest-chart"
     >
       <p className="mb-1 shrink-0 text-sm font-medium text-foreground">{label}</p>

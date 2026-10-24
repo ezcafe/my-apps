@@ -17,6 +17,7 @@ import {
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import { cn } from "@/lib/cn";
 
 const HorizontalBarChart = dynamic(
   () =>
@@ -34,6 +35,8 @@ export const RecurringSpendCard = memo(function RecurringSpendCard({
   formatChartValue,
   baseFilterQuery,
   onDrilldown,
+  className,
+  heightClass = CHART_CARD_HEIGHT_FULL,
 }: {
   cardRef: Ref<HTMLDivElement | null>;
   inView: boolean;
@@ -42,6 +45,8 @@ export const RecurringSpendCard = memo(function RecurringSpendCard({
   formatChartValue: (minor: number) => string;
   baseFilterQuery?: string;
   onDrilldown?: ChartDrilldownHandler;
+  className?: string;
+  heightClass?: string;
 }) {
   const recurringBarData = useMemo(
     () =>
@@ -71,7 +76,12 @@ export const RecurringSpendCard = memo(function RecurringSpendCard({
 
   return (
     <Card
-      className={`col-span-2 w-full min-w-0 p-4 md:col-span-6 lg:col-span-12 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_FULL}`}
+      className={cn(
+        "w-full min-w-0 p-4",
+        CHART_CARD_LAYOUT,
+        heightClass,
+        className,
+      )}
       ref={cardRef}
     >
       <h2 className="mb-2 font-display text-lg font-medium">Recurring spend</h2>

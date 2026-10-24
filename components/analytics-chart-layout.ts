@@ -16,3 +16,9 @@ export const ANALYTICS_HERO_SPEND_CLASS =
   "lg:col-span-8 lg:row-span-2 lg:col-start-1 lg:row-start-1";
 export const ANALYTICS_HERO_SIDE_CLASS =
   "lg:col-span-4 lg:col-start-9";
+
+/** More insights: money-flow sankey (2/3) + recurring spend (1/3) on one row. */
+export const ANALYTICS_MORE_FLOW_ROW_GRID =
+  "col-span-2 grid min-w-0 grid-cols-1 gap-3 md:col-span-6 lg:col-span-12 lg:grid-cols-12 lg:grid-rows-[360px]";
+export const ANALYTICS_MORE_FLOW_PRIMARY_CLASS = "lg:col-span-8";
+export const ANALYTICS_MORE_FLOW_SIDE_CLASS = "lg:col-span-4";

@@ -19,8 +19,13 @@ import {
   DeferredChartLoading,
 } from "@/components/analytics-chart-card-shared";
 import {
+  ANALYTICS_HERO_ROW_GRID,
+  ANALYTICS_HERO_SIDE_CLASS,
+  ANALYTICS_HERO_SPEND_CLASS,
+  CHART_CARD_HEIGHT_FILL,
   CHART_CARD_HEIGHT_FULL,
   CHART_CARD_HEIGHT_HALF,
+  CHART_CARD_HEIGHT_TALL,
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
@@ -197,7 +202,9 @@ export function InvestmentInsightsDashboard() {
         </section>
       ) : null}
 
-      {atfQuery.isLoading && !atf ? <MoneyAnalyticsChartsSkeleton /> : null}
+      {atfQuery.isLoading && !atf ? (
+        <MoneyAnalyticsChartsSkeleton heroVariant="duo" />
+      ) : null}
 
       {atf && empty ? (
         <AnalyticsEmptyState
@@ -211,12 +218,14 @@ export function InvestmentInsightsDashboard() {
 
       {atf && !empty ? (
         <section aria-label="Insights dashboard" className={ANALYTICS_GRID_CLASS}>
-          <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:grid-cols-2 md:gap-3 lg:col-span-12">
+          <div className={ANALYTICS_HERO_ROW_GRID}>
             <InvestmentResultsOverTimeCard
               ready
               series={atf.series}
               formatY={formatY}
               onDrilldown={setChartDrilldown}
+              className={ANALYTICS_HERO_SPEND_CLASS}
+              heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
             />
             <InvestmentAllocationCard
               ready
@@ -225,6 +234,7 @@ export function InvestmentInsightsDashboard() {
               rangeFrom={applied.from}
               rangeTo={applied.to}
               onDrilldown={setChartDrilldown}
+              className={cn(ANALYTICS_HERO_SIDE_CLASS, "lg:row-start-1")}
             />
           </div>
 

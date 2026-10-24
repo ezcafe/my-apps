@@ -18,6 +18,7 @@ import {
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import { cn } from "@/lib/cn";
 import {
   loansDrilldownForLoanRemaining,
   type LoansChartDrilldownPayload,
@@ -36,11 +37,15 @@ export const LoansRemainingByLoanCard = memo(function LoansRemainingByLoanCard({
   slices,
   currency,
   onDrilldown,
+  className,
+  heightClass,
 }: {
   ready: boolean;
   slices: Array<{ id: string; label: string; valueMinor: number }>;
   currency: string;
   onDrilldown?: (payload: LoansChartDrilldownPayload) => void;
+  className?: string;
+  heightClass?: string;
 }) {
   const { resolved, style } = useTheme();
   const [hidden, setHidden] = useState(() => new Set<string>());
@@ -61,7 +66,12 @@ export const LoansRemainingByLoanCard = memo(function LoansRemainingByLoanCard({
 
   return (
     <Card
-      className={`min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
+      className={cn(
+        "min-w-0 p-4",
+        CHART_CARD_LAYOUT,
+        heightClass ?? CHART_CARD_HEIGHT_HALF,
+        className,
+      )}
     >
       <h2 className="mb-2 font-display text-lg font-medium">Remaining by loan</h2>
       <p className="mb-2 text-xs text-muted">

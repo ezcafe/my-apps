@@ -21,6 +21,9 @@ import {
   ANALYTICS_HERO_ROW_GRID,
   ANALYTICS_HERO_SPEND_CLASS,
   ANALYTICS_HERO_SIDE_CLASS,
+  ANALYTICS_MORE_FLOW_ROW_GRID,
+  ANALYTICS_MORE_FLOW_PRIMARY_CLASS,
+  ANALYTICS_MORE_FLOW_SIDE_CLASS,
 } from "@/components/analytics-chart-layout";
 import {
   AnalyticsStatsSkeleton,
@@ -539,7 +542,32 @@ function AnalyticsChartsView({
 
       {moreInsights ? (
         <>
-          {/* First teaser → first expanded card so the heading is immediate. */}
+          {/* Flow + recurring first (above the 3×2 grid). */}
+          <div className={ANALYTICS_MORE_FLOW_ROW_GRID}>
+            <MoneyFlowSankeyCard
+              cardRef={sankeyRef}
+              inView={sankeyInView}
+              sankeyPayload={sankeyPayload}
+              sankeyHasData={sankeyHasData}
+              defaultCurrency={defaultCurrency}
+              baseFilterQuery={filterQuery}
+              onDrilldown={onChartDrilldown}
+              className={ANALYTICS_MORE_FLOW_PRIMARY_CLASS}
+              heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
+            />
+            <RecurringSpendCard
+              cardRef={recurringRef}
+              inView={recurringInView}
+              leaders={leaders}
+              recurringHasData={recurringHasData}
+              formatChartValue={formatChartValue}
+              baseFilterQuery={filterQuery}
+              onDrilldown={onChartDrilldown}
+              className={ANALYTICS_MORE_FLOW_SIDE_CLASS}
+              heightClass={cn(CHART_CARD_HEIGHT_TALL, CHART_CARD_HEIGHT_FILL)}
+            />
+          </div>
+
           <div className="col-span-2 grid min-w-0 grid-cols-1 gap-2 md:col-span-6 md:gap-3 lg:col-span-12 lg:grid-cols-3 lg:gap-3">
             <BudgetVsActualCard
               cardRef={budgetRef}
@@ -606,26 +634,6 @@ function AnalyticsChartsView({
               onDrilldown={onChartDrilldown}
             />
           </div>
-
-          <MoneyFlowSankeyCard
-            cardRef={sankeyRef}
-            inView={sankeyInView}
-            sankeyPayload={sankeyPayload}
-            sankeyHasData={sankeyHasData}
-            defaultCurrency={defaultCurrency}
-            baseFilterQuery={filterQuery}
-            onDrilldown={onChartDrilldown}
-          />
-
-          <RecurringSpendCard
-            cardRef={recurringRef}
-            inView={recurringInView}
-            leaders={leaders}
-            recurringHasData={recurringHasData}
-            formatChartValue={formatChartValue}
-            baseFilterQuery={filterQuery}
-            onDrilldown={onChartDrilldown}
-          />
         </>
       ) : null}
     </>

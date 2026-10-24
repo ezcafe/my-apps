@@ -467,8 +467,11 @@ test.describe("Baby Care smoke", () => {
         name: /open activities|mở hoạt động/i,
       }),
     ).toHaveAttribute("href", "/baby/activities");
-    // KPI strips and legacy charts stay behind More insights.
-    await expect(page.getByTestId("baby-count-kpis")).toHaveCount(0);
+    // Count KPIs + insight metrics are ATF; pattern/growth charts stay behind More.
+    await expect(page.getByTestId("baby-count-kpis")).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: /insight metrics/i }),
+    ).toBeVisible();
     await expect(page.getByTestId("baby-insights-charts")).toHaveCount(0);
 
     // View-only: no Growth editors on Insights (writes live on /baby/growth).
@@ -2299,7 +2302,7 @@ test.describe("Baby Care capture navigate", () => {
 });
 
 test.describe("Baby Care insights charts", () => {
-  test("default Insights shows Hydration + Night Rest; More insights deferred; Activities owns lists", async ({
+  test("default Insights shows Night Rest + Hydration + Care over time; More insights deferred; Activities owns lists", async ({
     page,
   }) => {
     let timelineFetches = 0;
@@ -2327,6 +2330,7 @@ test.describe("Baby Care insights charts", () => {
     });
     await expect(page.getByTestId("baby-hydration-chart")).toBeVisible();
     await expect(page.getByTestId("baby-night-rest-chart")).toBeVisible();
+    await expect(page.getByTestId("baby-care-count-chart")).toBeVisible();
     await expect(
       page.getByText(/night rest|giấc ngủ đêm/i).first(),
     ).toBeVisible();
@@ -2367,18 +2371,21 @@ test.describe("Baby Care insights charts", () => {
     await expect(page.getByTestId("baby-insights-activities-cue")).toBeVisible();
     await expect(page.getByTestId("baby-more-insights-panel")).toHaveCount(0);
     await expect(page.getByTestId("baby-activities-ledger")).toHaveCount(0);
-    await expect(page.getByTestId("baby-count-kpis")).toHaveCount(0);
+    await expect(page.getByTestId("baby-count-kpis")).toBeVisible();
     expect(timelineFetches).toBe(0);
     expect(growthFetches).toBe(0);
 
     await page.getByTestId("baby-more-insights").click();
     await expect(page.getByTestId("baby-more-insights-panel")).toBeVisible();
-    await expect(page.getByTestId("baby-count-kpis")).toBeVisible();
     await expect(page.getByTestId("baby-insights-charts")).toBeVisible();
     await expect(page.getByTestId("baby-pattern-finder-chart")).toBeVisible();
     await expect(page.getByTestId("baby-awake-trend-chart")).toBeVisible();
     await expect(page.getByTestId("baby-diaper-output-chart")).toBeVisible();
+    // Care over time stays on ATF (not inside More).
     await expect(page.getByTestId("baby-care-count-chart")).toBeVisible();
+    await expect(
+      page.getByTestId("baby-more-insights-panel").getByTestId("baby-care-count-chart"),
+    ).toHaveCount(0);
     // Decision 2 Option 2: growth enables with moreOpen; timeline stays off Insights.
     expect(timelineFetches).toBe(0);
     await expect.poll(() => growthFetches).toBeGreaterThan(0);
@@ -2388,7 +2395,7 @@ test.describe("Baby Care insights charts", () => {
     await expect.poll(() => timelineFetches).toBeGreaterThan(0);
   });
 
-  test("More insights shows insight KPI strip with Sleep Efficiency soft-empty", async ({
+  test("Insights ATF shows insight KPI strip with Sleep Efficiency soft-empty", async ({
     page,
   }) => {
     await page.route("**/api/graphql/baby", async (route) => {
@@ -2399,11 +2406,6 @@ test.describe("Baby Care insights charts", () => {
     await expect(page.getByTestId("baby-insights-default-charts")).toBeVisible({
       timeout: 15_000,
     });
-    await expect(
-      page.getByRole("region", { name: /insight metrics/i }),
-    ).toHaveCount(0);
-
-    await page.getByTestId("baby-more-insights").click();
     const insightKpis = page.getByRole("region", {
       name: /insight metrics/i,
     });
@@ -3705,12 +3707,14 @@ test.describe("Baby Care insights charts", () => {
     });
 
     await page.goto("/baby/insights");
+    // Care-count is ATF (hero triad) — visible without More.
+    await expect(page.getByTestId("baby-care-count-chart")).toBeVisible({
+      timeout: 15_000,
+    });
     await page.getByTestId("baby-more-insights").click();
     await expect(page.getByTestId("baby-insights-charts")).toBeVisible({
       timeout: 15_000,
     });
-    // Care-count card always mounts (empty or with series legend).
-    await expect(page.getByTestId("baby-care-count-chart")).toBeVisible();
     // Empty measures filter → all kinds; cards mount even with no points.
     await expect(page.getByTestId("baby-growth-chart-card").first()).toBeVisible();
   });

@@ -13,6 +13,7 @@ import {
   CHART_CARD_LAYOUT,
   CHART_SLOT_CLASS,
 } from "@/components/analytics-chart-layout";
+import { cn } from "@/lib/cn";
 import type { InvestmentPortfolioPoint } from "@/lib/investment-query-options";
 import {
   investmentDrilldownForDate,
@@ -33,18 +34,27 @@ export const InvestmentResultsOverTimeCard = memo(
     series,
     formatY,
     onDrilldown,
+    className,
+    heightClass,
   }: {
     ready: boolean;
     series: InvestmentPortfolioPoint[];
     formatY: (minor: number) => string;
     onDrilldown?: (payload: InvestmentChartDrilldownPayload) => void;
+    className?: string;
+    heightClass?: string;
   }) {
     const hasData = series.some((p) => p.totalMinor !== 0);
     const lineData = series.map((p) => ({ date: p.date, netMinor: p.totalMinor }));
 
     return (
       <Card
-        className={`w-full min-w-0 p-4 ${CHART_CARD_LAYOUT} ${CHART_CARD_HEIGHT_HALF}`}
+        className={cn(
+          "w-full min-w-0 p-4",
+          CHART_CARD_LAYOUT,
+          heightClass ?? CHART_CARD_HEIGHT_HALF,
+          className,
+        )}
       >
         <h2 className="mb-2 font-display text-lg font-medium">Results over time</h2>
         <p className="mb-2 text-xs text-muted">
