@@ -4,6 +4,16 @@ import { GraphQLError } from "graphql";
 import { mapServiceError } from "@/lib/graphql/map-service-error";
 
 describe("mapServiceError", () => {
+  it("throws GraphQLError with code extension", () => {
+    assert.throws(
+      () => mapServiceError(new Error("UNAUTHORIZED")),
+      (e: unknown) =>
+        e instanceof GraphQLError &&
+        e.extensions?.code === "UNAUTHORIZED" &&
+        typeof e.toJSON === "function",
+    );
+  });
+
   it("maps allowlisted codes", () => {
     assert.throws(
       () => mapServiceError(new Error("UNAUTHORIZED")),

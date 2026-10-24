@@ -3,8 +3,9 @@ import { randomUUID } from "node:crypto";
 import { maxAliasesPlugin } from "@escape.tech/graphql-armor-max-aliases";
 import { maxDepthPlugin } from "@escape.tech/graphql-armor-max-depth";
 import { maxTokensPlugin } from "@escape.tech/graphql-armor-max-tokens";
+import { makeExecutableSchema } from "@graphql-tools/schema";
 import { GraphQLError, visit } from "graphql";
-import { createSchema, createYoga, type Plugin } from "graphql-yoga";
+import { createYoga, type Plugin } from "graphql-yoga";
 import type { ResolvedRequestAuth } from "@/lib/api-auth";
 import {
   createBabyGraphQLContext,
@@ -13,7 +14,8 @@ import {
 import { babyResolvers } from "@/lib/graphql/baby-resolvers";
 import { babyTypeDefs } from "@/lib/graphql/baby-typeDefs";
 
-const schema = createSchema({
+/** Prefer @graphql-tools/schema over yoga's createSchema so tsx/unit tests share one graphql ESM instance (graphql@17 dual CJS/ESM hazard). */
+const schema = makeExecutableSchema({
   typeDefs: babyTypeDefs,
   resolvers: babyResolvers,
 });
@@ -80,7 +82,7 @@ const yoga = createYoga({
       preAuth,
     );
   },
-  maskedErrors: process.env.NODE_ENV !== "development",
+  maskedErrors: process.env.NODE_ENV === "production",
   plugins: [
     maxDepthPlugin({ n: 10 }),
     maxTokensPlugin({ n: 1000 }),
@@ -107,12 +109,25 @@ export function handleBabyGraphQL(
 
 export { schema as babyGraphQLSchema };
 
+/**
+ * Test helpers use yoga.getEnveloped() so parse/validate/execute share Yoga's
+ * graphql instance (graphql@17 CJS/ESM dual-package hazard under tsx).
+ */
+function babyEnveloped() {
+  return yoga.getEnveloped({});
+}
+
+/** Validate a document against the baby schema (test-only). */
+export function validateBabyGraphQLForTest(document: string) {
+  const { parse, validate, schema: envelopedSchema } = babyEnveloped();
+  return validate(envelopedSchema, parse(document));
+}
+
 /** Test helper: execute a document against the baby schema with a mock context. */
 export async function executeBabyGraphQLForTest(
   document: string,
   ctx: Partial<BabyGraphQLContext>,
 ) {
-  const { graphql } = await import("graphql");
   const userSub =
     "userSub" in ctx ? (ctx.userSub ?? null) : "user-1";
   const workspaceMembershipVerified =
@@ -153,9 +168,10 @@ export async function executeBabyGraphQLForTest(
     scopes: ctx.scopes ?? null,
     loaders: ctx.loaders ?? new Map(),
   };
-  return graphql({
-    schema,
-    source: document,
+  const { parse, execute, schema: envelopedSchema } = babyEnveloped();
+  return execute({
+    schema: envelopedSchema,
+    document: parse(document),
     contextValue,
   });
 }

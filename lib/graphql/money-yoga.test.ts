@@ -3,6 +3,13 @@ import { describe, it } from "node:test";
 import { sql } from "drizzle-orm";
 import { responseCacheSessionKey } from "@/lib/graphql/money-yoga";
 
+describe("money yoga createYoga module", () => {
+  it("imports cleanly", async () => {
+    const mod = await import("@/lib/graphql/money-yoga");
+    assert.equal(typeof mod.responseCacheSessionKey, "function");
+  });
+});
+
 describe("responseCacheSessionKey", () => {
   it("keys api tokens by token fingerprint", () => {
     const request = new Request("http://localhost/api/graphql", {

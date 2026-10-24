@@ -4,8 +4,9 @@ import { randomUUID } from "node:crypto";
 import { useResponseCache } from "@graphql-yoga/plugin-response-cache";
 import { maxDepthPlugin } from "@escape.tech/graphql-armor-max-depth";
 import { maxTokensPlugin } from "@escape.tech/graphql-armor-max-tokens";
+import { makeExecutableSchema } from "@graphql-tools/schema";
 import { GraphQLError, visit } from "graphql";
-import { createSchema, createYoga, type Plugin } from "graphql-yoga";
+import { createYoga, type Plugin } from "graphql-yoga";
 import { moneyTypeDefs } from "@/lib/graphql/money-typeDefs";
 import { moneyResolvers } from "@/lib/graphql/money-resolvers";
 import { apiTokenLogFingerprint, isApiTokenSecret } from "@/lib/api-auth";
@@ -16,7 +17,8 @@ import {
 } from "@/lib/graphql/context";
 import { maxAliasesPlugin } from "@escape.tech/graphql-armor-max-aliases";
 
-const schema = createSchema({
+/** Prefer @graphql-tools/schema over yoga's createSchema so tsx/unit tests share one graphql ESM instance (graphql@17 dual CJS/ESM hazard). */
+const schema = makeExecutableSchema({
   typeDefs: moneyTypeDefs,
   resolvers: moneyResolvers,
 });
@@ -144,7 +146,7 @@ const yoga = createYoga({
       preAuth,
     );
   },
-  maskedErrors: process.env.NODE_ENV !== "development",
+  maskedErrors: process.env.NODE_ENV === "production",
   plugins: [
     useResponseCache({
       session: responseCacheSessionKey,

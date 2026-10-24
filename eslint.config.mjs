@@ -16,6 +16,16 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    // Next 16.4 / eslint-plugin-react-hooks compiler rules are new errors on
+    // existing patterns; keep them visible as warnings until a dedicated cleanup.
+    rules: {
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
+    },
+  },
+  {
     files: ["app/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}", "db/**/*.ts"],
     rules: {
       "no-restricted-syntax": [

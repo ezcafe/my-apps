@@ -3091,7 +3091,7 @@ test.describe("Baby Care insights charts", () => {
   }) => {
     const deletes: string[] = [];
     let feedGone = false;
-    let growthGone = false;
+    const growthGone = false;
 
     await page.route("**/api/graphql/baby", async (route) => {
       const body = route.request().postData() ?? "";

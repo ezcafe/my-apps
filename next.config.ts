@@ -19,7 +19,6 @@ const nextConfig: NextConfig = {
       "@visx/scale",
       "@visx/sankey",
       "@visx/shape",
-      "d3-shape",
       "next-auth/react",
     ],
   },

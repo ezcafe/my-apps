@@ -3,7 +3,10 @@ import { afterEach, describe, it } from "node:test";
 import {
   babyProfileQuery,
 } from "@/lib/graphql/baby-resolvers";
-import { executeBabyGraphQLForTest } from "@/lib/graphql/baby-yoga";
+import {
+  executeBabyGraphQLForTest,
+  validateBabyGraphQLForTest,
+} from "@/lib/graphql/baby-yoga";
 import {
   requireBabyAuth,
   requireBabyWorkspace,
@@ -131,31 +134,22 @@ describe("baby GraphQL schema (real resolvers)", () => {
 });
 
 describe("babyGrowthEntries schema from/to", () => {
-  it("accepts from/to args on babyGrowthEntries (validate only)", async () => {
-    const { parse, validate } = await import("graphql");
-    const { babyGraphQLSchema } = await import("@/lib/graphql/baby-yoga");
-    const errors = validate(
-      babyGraphQLSchema,
-      parse(`
+  it("accepts from/to args on babyGrowthEntries (validate only)", () => {
+    const errors = validateBabyGraphQLForTest(`
         query BabyGrowth($from: String, $to: String) {
           babyGrowthEntries(from: $from, to: $to) {
             items { id recordedAt }
             nextCursor
           }
         }
-      `),
-    );
+      `);
     assert.deepEqual(errors, []);
   });
 });
 
 describe("babyInsightsSeries schema", () => {
-  it("accepts babyInsightsSeries query (validate only)", async () => {
-    const { parse, validate } = await import("graphql");
-    const { babyGraphQLSchema } = await import("@/lib/graphql/baby-yoga");
-    const errors = validate(
-      babyGraphQLSchema,
-      parse(`
+  it("accepts babyInsightsSeries query (validate only)", () => {
+    const errors = validateBabyGraphQLForTest(`
         query BabyInsightsSeries($from: String!, $to: String!) {
           babyInsightsSeries(from: $from, to: $to) {
             hydration { days { date wetCount feedCount } alert emptyReason }
@@ -165,65 +159,46 @@ describe("babyInsightsSeries schema", () => {
             careCountDays { day feed sleep diaper }
           }
         }
-      `),
-    );
+      `);
     assert.deepEqual(errors, []);
   });
 });
 
 describe("babyVaccines schema", () => {
-  it("accepts babyVaccines query and create/update/delete vaccine mutations", async () => {
-    const { parse, validate } = await import("graphql");
-    const { babyGraphQLSchema } = await import("@/lib/graphql/baby-yoga");
-    const qErrors = validate(
-      babyGraphQLSchema,
-      parse(`
+  it("accepts babyVaccines query and create/update/delete vaccine mutations", () => {
+    const qErrors = validateBabyGraphQLForTest(`
         query BabyVaccines($from: String, $to: String) {
           babyVaccines(from: $from, to: $to) {
             items { id name dose administeredAt }
             nextCursor
           }
         }
-      `),
-    );
+      `);
     assert.deepEqual(qErrors, []);
-    const createErrors = validate(
-      babyGraphQLSchema,
-      parse(`
+    const createErrors = validateBabyGraphQLForTest(`
         mutation CreateBabyVaccine($input: CreateBabyVaccineInput!) {
           createBabyVaccine(input: $input) { id name dose }
         }
-      `),
-    );
+      `);
     assert.deepEqual(createErrors, []);
-    const updateErrors = validate(
-      babyGraphQLSchema,
-      parse(`
+    const updateErrors = validateBabyGraphQLForTest(`
         mutation UpdateBabyVaccine($input: UpdateBabyVaccineInput!) {
           updateBabyVaccine(input: $input) { id name dose }
         }
-      `),
-    );
+      `);
     assert.deepEqual(updateErrors, []);
-    const deleteErrors = validate(
-      babyGraphQLSchema,
-      parse(`
+    const deleteErrors = validateBabyGraphQLForTest(`
         mutation DeleteBabyVaccine($id: ID!) {
           deleteBabyVaccine(id: $id) { id }
         }
-      `),
-    );
+      `);
     assert.deepEqual(deleteErrors, []);
   });
 });
 
 describe("babyOpenSleep schema", () => {
-  it("accepts babyOpenSleep query (validate only)", async () => {
-    const { parse, validate } = await import("graphql");
-    const { babyGraphQLSchema } = await import("@/lib/graphql/baby-yoga");
-    const errors = validate(
-      babyGraphQLSchema,
-      parse(`
+  it("accepts babyOpenSleep query (validate only)", () => {
+    const errors = validateBabyGraphQLForTest(`
         query BabyOpenSleep {
           babyOpenSleep {
             id
@@ -231,8 +206,7 @@ describe("babyOpenSleep schema", () => {
             endedAt
           }
         }
-      `),
-    );
+      `);
     assert.deepEqual(errors, []);
   });
 });
