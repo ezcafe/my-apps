@@ -125,6 +125,12 @@ export const accountCreateSchema = z.object({
   archived: z.boolean().optional(),
 });
 
+/** CSV / ZIP import only — optional systemKey / sourceId for reset round-trip. */
+export const accountImportSchema = accountCreateSchema.extend({
+  systemKey: z.enum(["credit", "savings", "investment", "loan"]).optional(),
+  sourceId: z.string().uuid().optional(),
+});
+
 export const categoryCreateSchema = z.object({
   name: z.string().min(1).max(200),
   kind: categoryKindSchema,

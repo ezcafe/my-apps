@@ -72,7 +72,7 @@ In Postman: **New → GraphQL**, import `docs/money.graphql`, set Authorization 
 
 ### Database roles (production)
 
-Migrations create `money_app` (no `BYPASSRLS`) and `money_cron` (`BYPASSRLS`). Point `DATABASE_URL` at `money_app` in production so RLS is real defense-in-depth. Cron routes use `SET LOCAL ROLE money_cron` for cross-tenant scans. Local Compose may still use the owner role through PgBouncer.
+Migrations create `money_app` (no `BYPASSRLS`) and `money_cron` (`BYPASSRLS` + table DML grants in `0052`). Point `DATABASE_URL` at `money_app` in production so RLS is real defense-in-depth. Cron routes use `SET LOCAL ROLE money_cron` for cross-tenant scans. Local Compose may still use the owner role through PgBouncer.
 
 ## REST
 
@@ -80,9 +80,30 @@ Migrations create `money_app` (no `BYPASSRLS`) and `money_cron` (`BYPASSRLS`). P
 |--------|------|------|-------|
 | `GET` | `/api/workspace/list?app=money` | Session or Bearer | List workspaces (session typical) |
 | `POST` | `/api/money/import/preview` | Bearer + write | Multipart CSV preview |
-| `POST` | `/api/money/import/commit` | Bearer + write | Commit import |
+| `POST` | `/api/money/import/commit` | Bearer + write | Commit import. Optional `Idempotency-Key` |
 | `POST` | `/api/money/import/abandon` | Bearer + write | Discard preview |
 | `POST` | `/api/money/import/{kind}` | Bearer + write | Direct CSV row import |
+| `GET` | `/api/money/export/{kind}` | Bearer + read | Buffered CSV export (path kind only). Oversize → `413` / `export_too_large` |
+| `GET` | `/api/money/export/all` | Bearer + read | ZIP of all Money kind CSVs. Any kind over cap → whole `413` / `export_too_large` |
+| `POST` | `/api/money/import/all/preview` | Bearer + write | Multipart ZIP preview (`file`). Missing kind = skip+warn; unknown filename = reject |
+| `POST` | `/api/money/import/all/commit` | Bearer + write | Ordered multi-kind commit. Optional `Idempotency-Key`. Stop on first hard-fail; earlier kinds stay |
+| `POST` | `/api/baby/import/preview` | Bearer + write | Stash Baby import preview. Body: `{ type, rows }` **or** `{ type, csv }` (header keys = field defs). Validates rows; max 50k |
+| `POST` | `/api/baby/import/commit` | Bearer + write | Commit Baby import. Optional `Idempotency-Key` |
+| `POST` | `/api/baby/import/abandon` | Bearer + write | Discard Baby preview |
+| `GET` | `/api/baby/export/{kind}` | Bearer + read | Baby CSV export (path kind only). Oversize → `413` / `export_too_large` |
+| `GET` | `/api/baby/export/all` | Bearer + read | ZIP of all Baby kind CSVs |
+| `POST` | `/api/baby/import/all/preview` | Bearer + write | Multipart ZIP preview |
+| `POST` | `/api/baby/import/all/commit` | Bearer + write | Ordered multi-kind commit. Optional `Idempotency-Key` |
+| `POST` | `/api/loans/import/preview` | Bearer + write | Stash Loans import preview. Body: `{ type, rows }` **or** `{ type, csv }`. Validates rows; max 50k |
+| `POST` | `/api/loans/import/commit` | Bearer + write | Commit Loans import. Optional `Idempotency-Key` |
+| `POST` | `/api/loans/import/abandon` | Bearer + write | Discard Loans preview |
+| `GET` | `/api/loans/export/{kind}` | Bearer + read | Loans CSV export (path kind only). Oversize → `413` / `export_too_large` |
+| `GET` | `/api/loans/export/all` | Bearer + read | ZIP of all Loans kind CSVs |
+| `POST` | `/api/loans/import/all/preview` | Bearer + write | Multipart ZIP preview |
+| `POST` | `/api/loans/import/all/commit` | Bearer + write | Ordered multi-kind commit. Optional `Idempotency-Key` |
+| `GET` | `/api/investment/export/instruments` | Bearer + read | Instruments CSV (no quote cache) |
+| `GET` | `/api/investment/export/trade-journal` | Bearer + read | Trade journal CSV |
+| `GET` | `/api/investment/export/all` | Bearer + read | ZIP of `instruments.csv` + `trade-journal.csv` (Import all = statement wizard UI only) |
 | `POST` | `/api/cron/money-recurrence` | `Bearer $CRON_SECRET` (required all envs) | Process due recurrence templates |
 | `POST` | `/api/cron/loan-reminders` | `Bearer $CRON_SECRET` (required all envs) | Due loan push reminders |
 | `GET` | `/api/savings/activities` | Bearer `sav_` + read | List savings activities |
@@ -92,7 +113,7 @@ Migrations create `money_app` (no `BYPASSRLS`) and `money_cron` (`BYPASSRLS`). P
 | `POST` | `/api/investment/activities` | Bearer `inv_` + write | Create investment activity (session: same-origin). Optional `Idempotency-Key` |
 | `GET/PATCH/DELETE` | `/api/investment/activities/{id}` | Bearer `inv_` | Read/update/delete (session: same-origin) |
 | `POST` | `/api/cron/investment-quotes` | `Bearer $CRON_SECRET` (required all envs) | Refresh Yahoo quotes for all instruments |
-| `POST` | `/api/cron/db-housekeeping` | `Bearer $CRON_SECRET` (required all envs) | Prune rate-limit rows, expired import previews, old baby quick-care replays |
+| `POST` | `/api/cron/db-housekeeping` | `Bearer $CRON_SECRET` (required all envs) | Prune rate-limit rows, expired Money/Baby/Loans import previews, old baby quick-care replays |
 | `GET` | `/api/tokens` | Session only | List your tokens |
 | `POST` | `/api/tokens` | Session only | Create token |
 | `DELETE` | `/api/tokens/{id}` | Session only | Revoke token |
@@ -107,7 +128,7 @@ REST errors use JSON:
 { "error": "Human message", "code": "unauthorized" }
 ```
 
-Common codes: `unauthorized`, `forbidden`, `bad_request`, `not_found`, `db_unavailable`.
+Common codes: `unauthorized`, `forbidden`, `bad_request`, `not_found`, `db_unavailable`, `export_too_large` (`413`).
 
 GraphQL errors use standard `errors[].message` with `extensions.code` (e.g. `UNAUTHORIZED`, `FORBIDDEN`).
 

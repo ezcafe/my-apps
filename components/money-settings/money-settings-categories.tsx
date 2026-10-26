@@ -101,6 +101,13 @@ export function MoneySettingsCategoriesSection() {
           >
             Import from CSV
           </Link>
+          <span className="mx-2 text-border">·</span>
+          <a
+            href="/api/money/export/categories"
+            className="font-medium text-accent underline-offset-2 hover:underline"
+          >
+            Export
+          </a>
         </p>
         <Tabs
           name="money-settings-category-kind"

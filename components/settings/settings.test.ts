@@ -129,8 +129,10 @@ describe("Settings search and category filtering", () => {
     assert.equal(resPush.matchingCategories[0].id, "notifications");
 
     const resInstallments = filterSettingsCategories("installment", LOANS_SETTINGS_CATEGORIES);
-    assert.equal(resInstallments.matchingCategories.length, 1);
-    assert.equal(resInstallments.matchingCategories[0].id, "notifications");
+    // notifications keywords + import-export description ("installment schedules")
+    assert.equal(resInstallments.matchingCategories.length, 2);
+    assert.ok(resInstallments.matchingCategories.some((c) => c.id === "notifications"));
+    assert.ok(resInstallments.matchingCategories.some((c) => c.id === "import-export"));
   });
 
   it("filters Baby settings categories by keywords (e.g. birthday, telegram)", () => {

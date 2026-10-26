@@ -25,6 +25,7 @@ export type MoneyNamedEntitySettingsConfig = {
   addButtonLabel: string;
   namePlaceholder: string;
   importHref: string;
+  exportHref: string;
   errorScope: string;
   listQuery: string;
   listKey: string;
@@ -184,6 +185,13 @@ export function MoneyNamedEntitySettingsSection({
           >
             Import from CSV
           </Link>
+          <span className="mx-2 text-border">·</span>
+          <a
+            href={config.exportHref}
+            className="font-medium text-accent underline-offset-2 hover:underline"
+          >
+            Export
+          </a>
         </p>
         {rows.length > 0 ? (
           <>

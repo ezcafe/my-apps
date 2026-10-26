@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import { db, withBypassRls } from "@/db";
 import { pruneExpiredImportPreviews } from "@/lib/money-import-preview-store";
+import { pruneExpiredBabyImportPreviews } from "@/lib/baby-import-preview-store";
+import { pruneExpiredLoansImportPreviews } from "@/lib/loans-import-preview-store";
 import { pruneExpiredBabyQuickCareRequests } from "@/lib/baby-quick-care-prune";
 import { getAppleWalletStore } from "@/lib/apple-wallet/services";
 
@@ -30,10 +32,12 @@ export type DbHousekeepingResult = {
   appleWalletIssueTokensDeleted: number;
 };
 
-/** Cron entry: rate-limit rows, expired import previews, old baby quick-care replays, Apple issue tokens. */
+/** Cron entry: rate-limit rows, expired import previews (Money/Baby/Loans), old baby quick-care replays, Apple issue tokens. */
 export async function runDbHousekeeping(): Promise<DbHousekeepingResult> {
   const rateLimitDeleted = await pruneStaleSecurityRateLimits();
   await pruneExpiredImportPreviews();
+  await pruneExpiredBabyImportPreviews();
+  await pruneExpiredLoansImportPreviews();
   const babyQuickCareDeleted = await pruneExpiredBabyQuickCareRequests();
   const appleWalletIssueTokensDeleted = await pruneAppleWalletIssueTokens();
   return {

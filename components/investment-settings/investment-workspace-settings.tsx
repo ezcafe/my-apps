@@ -177,6 +177,67 @@ export function InvestmentWorkspaceSettings() {
             </div>
           </SettingsSection>
         ),
+        "import-export": (
+          <SettingsSection
+            id="investment-settings-import-export"
+            title="Import / Export"
+            description="Statement import and CSV export for instruments and trade journal. Quote cache is never exported."
+          >
+            <div
+              className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2.5 text-sm"
+              aria-label="Investment export all and import all"
+            >
+              <span className="font-medium text-foreground">All kinds</span>
+              <span className="flex flex-wrap gap-3">
+                <Link
+                  href="/investments/import"
+                  className="font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  Import all
+                </Link>
+                <a
+                  href="/api/investment/export/all"
+                  className="font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  Export all
+                </a>
+              </span>
+            </div>
+            <ul
+              role="list"
+              className="divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm"
+              aria-label="Investment import and export"
+            >
+              <li className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+                <span className="font-medium text-foreground">Statement import</span>
+                <Link
+                  href="/investments/import"
+                  className="font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  Open wizard
+                </Link>
+              </li>
+              <li className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+                <span className="font-medium text-foreground">Instruments</span>
+                <a
+                  href="/api/investment/export/instruments"
+                  className="font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  Export CSV
+                </a>
+              </li>
+              <li className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+                <span className="font-medium text-foreground">Trade journal</span>
+                <a
+                  href="/api/investment/export/trade-journal"
+                  className="font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  Export CSV
+                </a>
+              </li>
+            </ul>
+          </SettingsSection>
+        ),
       }}
     />
   );

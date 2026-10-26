@@ -25,7 +25,7 @@ import {
   splitList,
 } from "@/lib/money-import-resolve";
 import {
-  accountCreateSchema,
+  accountImportSchema,
   budgetCreateSchema,
   categoryCreateSchema,
   merchantCreateSchema,
@@ -517,7 +517,7 @@ function validateBuiltRow(
 ): { ok: true; value: unknown } | { ok: false; message: string } {
   switch (kind) {
     case "accounts": {
-      const p = accountCreateSchema.safeParse(built);
+      const p = accountImportSchema.safeParse(built);
       return p.success ? { ok: true, value: p.data } : { ok: false, message: p.error.message };
     }
     case "categories": {

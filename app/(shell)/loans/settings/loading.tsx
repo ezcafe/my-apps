@@ -14,10 +14,12 @@ export default function LoansSettingsLoading() {
           {/* Mobile horizontal category chips skeleton (< md) */}
           <div className="flex md:hidden w-full overflow-x-auto pb-1 gap-1.5">
             <Skeleton className="h-7 w-36 shrink-0 rounded-[var(--radius-sm)]" />
+            <Skeleton className="h-7 w-28 shrink-0 rounded-[var(--radius-sm)]" />
           </div>
 
           {/* Desktop vertical sidebar skeleton (md+) */}
           <div className="hidden md:flex flex-col gap-1 w-full">
+            <Skeleton className="h-9 w-full rounded-[var(--radius-sm)]" />
             <Skeleton className="h-9 w-full rounded-[var(--radius-sm)]" />
           </div>
         </aside>

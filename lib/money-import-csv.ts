@@ -1,7 +1,7 @@
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
 import {
-  accountCreateSchema,
+  accountImportSchema,
   budgetCreateSchema,
   recurrentCreateSchema,
   ruleCreateSchema,
@@ -114,7 +114,13 @@ function normalizeRow(
   const unknownKeys: string[] = [];
 
   for (const [k, val] of Object.entries(raw)) {
-    const key = headerToCamel(k);
+    const trimmed = String(k).trim();
+    // Prefer exact field keys (export CSVs use sourceId, parentId, …).
+    // headerToCamel lowercases and drops camelCase boundaries.
+    let key = trimmed && allowed.has(trimmed) ? trimmed : "";
+    if (!key) {
+      key = headerToCamel(trimmed);
+    }
     if (!key) continue;
     if (!allowed.has(key)) {
       unknownKeys.push(k);
@@ -241,6 +247,20 @@ function mapAccountRow(row: Record<string, unknown>): unknown {
   if (sortOrder !== undefined) out.sortOrder = sortOrder;
   const archived = coerceBool(row.archived);
   if (archived !== undefined) out.archived = archived;
+  const systemKeyRaw = coerceOptionalString(row.systemKey);
+  if (systemKeyRaw !== undefined) {
+    const sk = systemKeyRaw.toLowerCase();
+    if (
+      sk === "credit" ||
+      sk === "savings" ||
+      sk === "investment" ||
+      sk === "loan"
+    ) {
+      out.systemKey = sk;
+    }
+  }
+  const sourceId = coerceOptionalString(row.sourceId);
+  if (sourceId !== undefined && UUID_RE.test(sourceId)) out.sourceId = sourceId;
   return out;
 }
 
@@ -248,6 +268,11 @@ function mapCategoryRow(row: Record<string, unknown>): unknown {
   const out: Record<string, unknown> = {};
   const name = coerceRequiredString(row.name);
   if (name !== undefined) out.name = name;
+  const kindRaw = coerceOptionalString(row.kind);
+  if (kindRaw !== undefined) {
+    const k = kindRaw.toLowerCase();
+    if (k === "expense" || k === "income") out.kind = k;
+  }
   const parentId = coerceOptionalString(row.parentId);
   if (parentId !== undefined) out.parentId = parentId;
   const parentSourceId = coerceOptionalString(row.parentSourceId);
@@ -338,6 +363,12 @@ function mapRuleRow(row: Record<string, unknown>): unknown {
   const a = coerceBool(row.active);
   if (a !== undefined) out.active = a;
 
+  const kindRaw = coerceOptionalString(row.kind);
+  if (kindRaw !== undefined) {
+    const k = kindRaw.toLowerCase();
+    if (k === "expense" || k === "income") out.kind = k;
+  }
+
   const match: Record<string, unknown> = {};
   const ma = coerceOptionalString(row.matchAccountId);
   if (ma && UUID_RE.test(ma)) match.accountId = ma;
@@ -346,9 +377,11 @@ function mapRuleRow(row: Record<string, unknown>): unknown {
   out.match = match;
 
   const action: Record<string, unknown> = {};
-  const sc = coerceOptionalString(row.actionSetCategoryId);
+  const sc = coerceOptionalString(
+    row.actionSetCategoryId ?? row.setCategoryId,
+  );
   if (sc && UUID_RE.test(sc)) action.setCategoryId = sc;
-  const tags = coerceOptionalString(row.actionTagIds);
+  const tags = coerceOptionalString(row.actionTagIds ?? row.tagIds);
   if (tags) {
     const ids = splitCommaUuids(tags);
     if (ids.length) action.tagIds = ids;
@@ -464,7 +497,7 @@ function validateMappedRow(
 
   switch (type) {
     case "accounts": {
-      const p = accountCreateSchema.safeParse(mapped);
+      const p = accountImportSchema.safeParse(mapped);
       return p.success
         ? { ok: true, data: p.data }
         : { ok: false, message: p.error.issues.map((i) => i.message).join("; ") };
@@ -611,6 +644,46 @@ export function parseMoneyImportCsv(
       },
     },
   };
+}
+
+/**
+ * Map flat ZIP/CSV records into commit shapes (rules/recurrence nested, etc.).
+ * Merchants/tags are left as plain objects (not MoneyImportType).
+ */
+export function mapFlatRecordsForMoneyImportKind(
+  kind: string,
+  records: Record<string, string>[],
+): { ok: true; rows: unknown[] } | { ok: false; message: string } {
+  if (kind === "merchants" || kind === "tags") {
+    return { ok: true, rows: records };
+  }
+  const typeParsed = moneyImportTypeSchema.safeParse(kind);
+  if (!typeParsed.success) {
+    return { ok: false, message: `Unknown import kind: ${kind}` };
+  }
+  const importType = typeParsed.data;
+  const out: unknown[] = [];
+  for (let i = 0; i < records.length; i++) {
+    const normalized = normalizeRow(records[i] as Record<string, unknown>, importType);
+    const mapped = mapRowForType(normalized.row, importType);
+    const validated = validateMappedRow(mapped, importType);
+    if (!validated.ok) {
+      return {
+        ok: false,
+        message: `Row ${i + 1}: ${validated.message}`,
+      };
+    }
+    out.push(validated.data);
+  }
+  if (importType === "categories" && out.length) {
+    const refs = out.map((r) => {
+      const x = r as z.infer<typeof categoryImportRowSchema>;
+      return { sourceId: x.sourceId, parentSourceId: x.parentSourceId };
+    });
+    const ref = validateCategoryParentRefs(refs);
+    if (!ref.ok) return { ok: false, message: ref.message };
+  }
+  return { ok: true, rows: out };
 }
 
 /** Re-validate rows for commit (same shapes as preview output). */

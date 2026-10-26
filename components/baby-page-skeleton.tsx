@@ -557,7 +557,7 @@ export function BabySettingsSkeleton({
 }: {
   telegramEnabled?: boolean;
 }) {
-  const navCount = telegramEnabled ? 3 : 2;
+  const navCount = telegramEnabled ? 4 : 3;
   return (
     <div
       className={cn(SHELL_FULL_SPAN, "space-y-6", "fx-fade-in")}

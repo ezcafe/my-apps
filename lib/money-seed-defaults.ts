@@ -270,16 +270,21 @@ export async function ensureDefaultSystemAccounts(
   const toCreate = systemAccountSeedsToCreate(existingKeys);
   if (toCreate.length === 0) return;
 
-  await tx.insert(moneyAccount).values(
-    toCreate.map((seed) => ({
-      workspaceId,
-      name: seed.name,
-      type: seed.type,
-      currency,
-      sortOrder: seed.sortOrder,
-      systemKey: seed.systemKey,
-    })),
-  );
+  // Concurrent MoneyBootstrap after reset can race on
+  // money_account_workspace_system_key_uq — ignore losers.
+  await tx
+    .insert(moneyAccount)
+    .values(
+      toCreate.map((seed) => ({
+        workspaceId,
+        name: seed.name,
+        type: seed.type,
+        currency,
+        sortOrder: seed.sortOrder,
+        systemKey: seed.systemKey,
+      })),
+    )
+    .onConflictDoNothing();
 }
 
 export async function ensureDefaultSystemAccountsForWorkspace(

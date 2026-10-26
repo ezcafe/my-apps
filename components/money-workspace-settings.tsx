@@ -27,6 +27,7 @@ import {
   MONEY_SETTINGS_CATEGORIES,
   type MoneySettingsCategoryId,
 } from "@/components/settings/settings-types";
+import { moneyImportSectionTitle } from "@/lib/money-import-kinds";
 
 type WorkspaceRow = {
   id: string;
@@ -201,6 +202,67 @@ export function MoneyWorkspaceSettings() {
                   </li>
                 );
               })}
+            </ul>
+          </SettingsSection>
+        ),
+        "import-export": (
+          <SettingsSection
+            id="money-settings-import-export"
+            title="Import / Export"
+            description="CSV import wizards and downloads for Money ledger kinds."
+          >
+            <div
+              className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2.5 text-sm"
+              aria-label="Money export all and import all"
+            >
+              <span className="font-medium text-foreground">All kinds</span>
+              <span className="flex flex-wrap gap-3">
+                <Link
+                  href="/money/import/all"
+                  className="font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  Import all
+                </Link>
+                <a
+                  href="/api/money/export/all"
+                  className="font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  Export all
+                </a>
+              </span>
+            </div>
+            <ul
+              role="list"
+              className="divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm"
+              aria-label="Money import and export"
+            >
+              {(
+                Object.entries(moneyImportSectionTitle) as [
+                  keyof typeof moneyImportSectionTitle,
+                  string,
+                ][]
+              ).map(([kind, label]) => (
+                <li
+                  key={kind}
+                  className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
+                >
+                  <span className="font-medium text-foreground">{label}</span>
+                  <span className="flex flex-wrap gap-3">
+                    <Link
+                      href={`/money/import/${kind}`}
+                      className="font-medium text-accent underline-offset-2 hover:underline"
+                    >
+                      Import
+                    </Link>
+                    <a
+                      href={`/api/money/export/${kind}`}
+                      className="font-medium text-accent underline-offset-2 hover:underline"
+                    >
+                      Export
+                    </a>
+                  </span>
+                </li>
+              ))}
             </ul>
           </SettingsSection>
         ),

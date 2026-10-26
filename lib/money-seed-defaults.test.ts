@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { describe, it } from "node:test";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { moneyAccount } from "@/db/schema/money";
+import { workspace } from "@/db/schema/workspace";
 import {
+  ensureDefaultSystemAccountsForWorkspace,
   findSeedBillsCategoryId,
   findSeedFinancialFreedomCategoryId,
   findSeedLoansCategoryId,
@@ -151,4 +157,90 @@ describe("MONEY_SYSTEM_ACCOUNT_SEEDS", () => {
     // Name collisions do not count — only systemKey
     assert.equal(systemAccountSeedsToCreate(new Set()).length, 4);
   });
+});
+
+describe("ensureDefaultSystemAccounts concurrent", () => {
+  const hasDb = Boolean(process.env.DATABASE_URL);
+
+  it(
+    "survives two parallel seeds after empty workspace (race on system_key)",
+    { skip: !hasDb },
+    async () => {
+      const workspaceId = randomUUID();
+      const userSub = `test-sys-seed-${workspaceId}`;
+      await db.insert(workspace).values({
+        id: workspaceId,
+        name: "Test System Seed Race",
+        kind: "personal",
+        ownedByUserSub: userSub,
+        defaultCurrency: "USD",
+      });
+      try {
+        const results = await Promise.allSettled(
+          Array.from({ length: 12 }, () =>
+            ensureDefaultSystemAccountsForWorkspace(db, workspaceId, "USD"),
+          ),
+        );
+        const rejected = results.filter((r) => r.status === "rejected");
+        assert.equal(
+          rejected.length,
+          0,
+          rejected
+            .map((r) =>
+              r.status === "rejected"
+                ? String((r.reason as Error)?.message ?? r.reason)
+                : "",
+            )
+            .join(" | "),
+        );
+        const rows = await db
+          .select({ systemKey: moneyAccount.systemKey })
+          .from(moneyAccount)
+          .where(eq(moneyAccount.workspaceId, workspaceId));
+        const keys = rows
+          .map((r) => r.systemKey)
+          .filter((k): k is string => k != null)
+          .sort();
+        assert.deepEqual(keys, [...MONEY_SYSTEM_ACCOUNT_KEYS].sort());
+
+        // Deterministic: re-insert same system keys with ON CONFLICT DO NOTHING.
+        const conflictResults = await Promise.allSettled(
+          Array.from({ length: 8 }, () =>
+            db
+              .insert(moneyAccount)
+              .values(
+                MONEY_SYSTEM_ACCOUNT_SEEDS.map((seed) => ({
+                  workspaceId,
+                  name: seed.name,
+                  type: seed.type,
+                  currency: "USD",
+                  sortOrder: seed.sortOrder,
+                  systemKey: seed.systemKey,
+                })),
+              )
+              .onConflictDoNothing(),
+          ),
+        );
+        assert.equal(
+          conflictResults.filter((r) => r.status === "rejected").length,
+          0,
+          conflictResults
+            .filter((r) => r.status === "rejected")
+            .map((r) =>
+              r.status === "rejected"
+                ? String((r.reason as Error)?.message ?? r.reason)
+                : "",
+            )
+            .join(" | "),
+        );
+        const after = await db
+          .select({ systemKey: moneyAccount.systemKey })
+          .from(moneyAccount)
+          .where(eq(moneyAccount.workspaceId, workspaceId));
+        assert.equal(after.length, 4);
+      } finally {
+        await db.delete(workspace).where(eq(workspace.id, workspaceId));
+      }
+    },
+  );
 });

@@ -100,6 +100,7 @@ export const SETTINGS_CATEGORIES: SettingsCategoryMeta<SettingsCategoryId>[] = [
 export type MoneySettingsCategoryId =
   | "ledger"
   | "menu"
+  | "import-export"
   | "clone";
 
 export const MONEY_SETTINGS_CATEGORIES: SettingsCategoryMeta<MoneySettingsCategoryId>[] = [
@@ -144,6 +145,20 @@ export const MONEY_SETTINGS_CATEGORIES: SettingsCategoryMeta<MoneySettingsCatego
     ],
   },
   {
+    id: "import-export",
+    label: "Import / Export",
+    description: "CSV import wizards and downloads for Money ledger kinds.",
+    keywords: [
+      "import",
+      "export",
+      "csv",
+      "backup",
+      "download",
+      "upload",
+      "spreadsheet",
+    ],
+  },
+  {
     id: "clone",
     label: "Clone structure",
     description: "Copy accounts, categories, merchants, rules, recurrence, and budgets into another workspace.",
@@ -154,7 +169,6 @@ export const MONEY_SETTINGS_CATEGORIES: SettingsCategoryMeta<MoneySettingsCatego
       "structure",
       "duplicate",
       "transfer",
-      "export",
       "seed",
       "target",
     ],
@@ -167,7 +181,8 @@ export const MONEY_SETTINGS_CATEGORIES: SettingsCategoryMeta<MoneySettingsCatego
 
 export type InvestmentSettingsCategoryId =
   | "instruments"
-  | "ledger";
+  | "ledger"
+  | "import-export";
 
 export const INVESTMENT_SETTINGS_CATEGORIES: SettingsCategoryMeta<InvestmentSettingsCategoryId>[] = [
   {
@@ -213,13 +228,28 @@ export const INVESTMENT_SETTINGS_CATEGORIES: SettingsCategoryMeta<InvestmentSett
       "loss",
     ],
   },
+  {
+    id: "import-export",
+    label: "Import / Export",
+    description: "Statement import and CSV export for instruments and trade journal.",
+    keywords: [
+      "import",
+      "export",
+      "csv",
+      "backup",
+      "statement",
+      "download",
+      "upload",
+      "journal",
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------
 // Loans Settings
 // ---------------------------------------------------------------------------
 
-export type LoansSettingsCategoryId = "notifications";
+export type LoansSettingsCategoryId = "notifications" | "import-export";
 
 export const LOANS_SETTINGS_CATEGORIES: SettingsCategoryMeta<LoansSettingsCategoryId>[] = [
   {
@@ -243,13 +273,32 @@ export const LOANS_SETTINGS_CATEGORIES: SettingsCategoryMeta<LoansSettingsCatego
       "schedule",
     ],
   },
+  {
+    id: "import-export",
+    label: "Import / Export",
+    description: "CSV import and download for loans and installment schedules.",
+    keywords: [
+      "import",
+      "export",
+      "csv",
+      "backup",
+      "download",
+      "upload",
+      "loan",
+      "schedule",
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------
 // Baby Settings
 // ---------------------------------------------------------------------------
 
-export type BabySettingsCategoryId = "profile" | "language" | "telegram";
+export type BabySettingsCategoryId =
+  | "profile"
+  | "language"
+  | "telegram"
+  | "import-export";
 
 export const BABY_SETTINGS_CATEGORIES: SettingsCategoryMeta<BabySettingsCategoryId>[] = [
   {
@@ -292,6 +341,22 @@ export const BABY_SETTINGS_CATEGORIES: SettingsCategoryMeta<BabySettingsCategory
       "unlink",
       "family",
       "notify",
+    ],
+  },
+  {
+    id: "import-export",
+    label: "Import / Export",
+    description: "CSV import and download for profile, care, growth, and vaccines.",
+    keywords: [
+      "import",
+      "export",
+      "csv",
+      "backup",
+      "download",
+      "upload",
+      "care",
+      "growth",
+      "vaccine",
     ],
   },
 ];

@@ -23,6 +23,7 @@ export function MoneySettingsTagsSection() {
         addButtonLabel: "Add tag",
         namePlaceholder: "vacation",
         importHref: "/money/import/tags",
+        exportHref: "/api/money/export/tags",
         errorScope: "money-settings-tags",
         listQuery: MONEY_LIST_TAGS_QUERY,
         listKey: "moneyTags",

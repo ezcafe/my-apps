@@ -13,7 +13,7 @@ export default function InvestmentSettingsLoading() {
         <aside className="w-full md:w-52 lg:w-56 shrink-0 md:sticky md:top-6 md:self-start">
           {/* Mobile horizontal category chips skeleton (< md) */}
           <div className="flex md:hidden w-full overflow-x-auto pb-1 gap-1.5">
-            {Array.from({ length: 2 }, (_, i) => (
+            {Array.from({ length: 3 }, (_, i) => (
               <Skeleton
                 key={`cat-pill-${i}`}
                 className="h-7 w-28 shrink-0 rounded-[var(--radius-sm)]"
@@ -23,7 +23,7 @@ export default function InvestmentSettingsLoading() {
 
           {/* Desktop vertical sidebar skeleton (md+) */}
           <div className="hidden md:flex flex-col gap-1 w-full">
-            {Array.from({ length: 2 }, (_, i) => (
+            {Array.from({ length: 3 }, (_, i) => (
               <Skeleton
                 key={`cat-item-${i}`}
                 className="h-9 w-full rounded-[var(--radius-sm)]"

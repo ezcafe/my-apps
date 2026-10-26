@@ -85,12 +85,12 @@ export function BabySettingsPage({
   const linked = linkQuery.data?.babyTelegramLink;
 
   const categories = useMemo(() => {
-    const labels: Record<BabySettingsCategoryId, string> = {
+    const labels: Partial<Record<BabySettingsCategoryId, string>> = {
       profile: t("settings.babyProfile"),
       language: t("settings.language"),
       telegram: t("telegram.link"),
     };
-    const descriptions: Record<BabySettingsCategoryId, string> = {
+    const descriptions: Partial<Record<BabySettingsCategoryId, string>> = {
       profile: t("settings.birthDateHint"),
       language: t("settings.language"),
       telegram: t("settings.modelB"),
@@ -99,8 +99,8 @@ export function BabySettingsPage({
       (cat) => telegramEnabled || cat.id !== "telegram",
     ).map((cat) => ({
       ...cat,
-      label: labels[cat.id],
-      description: descriptions[cat.id],
+      label: labels[cat.id] ?? cat.label,
+      description: descriptions[cat.id] ?? cat.description,
     }));
   }, [t, telegramEnabled]);
 
@@ -277,6 +277,69 @@ export function BabySettingsPage({
             )}
           </SettingsSection>
         ) : null,
+        "import-export": (
+          <SettingsSection
+            id="baby-settings-import-export"
+            title="Import / Export"
+            description="Download CSV for profile, care, growth, and vaccines. Import uses preview then confirm."
+          >
+            <div
+              className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-border bg-background px-3 py-2.5 text-sm"
+              aria-label="Baby export all and import all"
+            >
+              <span className="font-medium text-foreground">All kinds</span>
+              <span className="flex flex-wrap gap-3">
+                <a
+                  href="/baby/import/all"
+                  className="font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  Import all
+                </a>
+                <a
+                  href="/api/baby/export/all"
+                  className="font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  Export all
+                </a>
+              </span>
+            </div>
+            <ul
+              role="list"
+              className="divide-y divide-border rounded-[var(--radius-sm)] bg-background text-sm"
+              aria-label="Baby import and export"
+            >
+              {(
+                [
+                  ["profile", "Profile"],
+                  ["care", "Care events"],
+                  ["growth", "Growth"],
+                  ["vaccines", "Vaccines"],
+                ] as const
+              ).map(([kind, label]) => (
+                <li
+                  key={kind}
+                  className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
+                >
+                  <span className="font-medium text-foreground">{label}</span>
+                  <span className="flex flex-wrap gap-3">
+                    <a
+                      href={`/baby/import/${kind}`}
+                      className="font-medium text-accent underline-offset-2 hover:underline"
+                    >
+                      Import
+                    </a>
+                    <a
+                      href={`/api/baby/export/${kind}`}
+                      className="font-medium text-accent underline-offset-2 hover:underline"
+                    >
+                      Export
+                    </a>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </SettingsSection>
+        ),
       }}
     />
   );

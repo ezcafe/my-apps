@@ -20,10 +20,13 @@ const ACCOUNT_KEYS = new Set([
   "balanceMinor",
   "sortOrder",
   "archived",
+  "systemKey",
+  "sourceId",
 ]);
 
 const CATEGORY_KEYS = new Set([
   "name",
+  "kind",
   "parentId",
   "parentSourceId",
   "sourceId",
@@ -52,11 +55,14 @@ const TRANSACTION_KEYS = new Set([
 
 const RULE_KEYS = new Set([
   "name",
+  "kind",
   "priority",
   "active",
   "matchAccountId",
   "matchMerchantId",
+  "setCategoryId",
   "actionSetCategoryId",
+  "tagIds",
   "actionTagIds",
   "matchJson",
   "actionJson",

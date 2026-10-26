@@ -19,6 +19,7 @@ BEGIN
 END
 $$;
 GRANT USAGE ON SCHEMA public TO money_app;
+GRANT USAGE ON SCHEMA public TO money_cron;
 GRANT money_cron TO money_app;
 DO $$
 BEGIN

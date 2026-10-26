@@ -200,6 +200,13 @@ export function MoneySettingsAccountsSection() {
           >
             Import from CSV
           </Link>
+          <span className="mx-2 text-border">·</span>
+          <a
+            href="/api/money/export/accounts"
+            className="font-medium text-accent underline-offset-2 hover:underline"
+          >
+            Export
+          </a>
         </p>
 
         {visibleAccounts.length > 0 ? (

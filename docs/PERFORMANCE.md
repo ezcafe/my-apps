@@ -118,7 +118,7 @@ curl -sS -X POST "$AUTH_URL/api/cron/db-housekeeping" \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-That route deletes stale `security_rate_limit` rows, expired `money_import_preview` rows, and old `baby_quick_care_request` rows (TTL via `BABY_QUICK_CARE_TTL_HOURS`, default 168).
+That route deletes stale `security_rate_limit` rows, expired `money_import_preview` / `baby_import_preview` / `loans_import_preview` rows, and old `baby_quick_care_request` rows (TTL via `BABY_QUICK_CARE_TTL_HOURS`, default 168).
 
 Equivalent SQL (manual / `pg_cron`):
 
@@ -127,6 +127,12 @@ DELETE FROM security_rate_limit
 WHERE bucket_start < now() - interval '1 hour';
 
 DELETE FROM money_import_preview
+WHERE expires_at < now();
+
+DELETE FROM baby_import_preview
+WHERE expires_at < now();
+
+DELETE FROM loans_import_preview
 WHERE expires_at < now();
 ```
 

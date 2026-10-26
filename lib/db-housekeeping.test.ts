@@ -48,6 +48,8 @@ describe("db housekeeping cron", () => {
     const src = readFileSync(join(process.cwd(), "lib/db-housekeeping.ts"), "utf8");
     assert.match(src, /DELETE FROM security_rate_limit/);
     assert.match(src, /pruneExpiredImportPreviews/);
+    assert.match(src, /pruneExpiredBabyImportPreviews/);
+    assert.match(src, /pruneExpiredLoansImportPreviews/);
     assert.match(src, /pruneExpiredBabyQuickCareRequests/);
     assert.match(src, /pruneAppleWalletIssueTokens/);
     assert.match(src, /runDbHousekeeping/);

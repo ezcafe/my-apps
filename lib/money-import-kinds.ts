@@ -44,6 +44,18 @@ const MONEY_IMPORT_KIND_LIST = [
   "recurrence",
 ] as const;
 
+/** Dependency order for Import all / Export all ZIP members. */
+export const MONEY_IMPORT_ALL_ORDER = [
+  "accounts",
+  "categories",
+  "merchants",
+  "tags",
+  "budgets",
+  "rules",
+  "recurrence",
+  "transactions",
+] as const satisfies readonly MoneyImportKind[];
+
 /** Account types accepted by CSV import and `POST /api/money/accounts`. */
 export const MONEY_IMPORT_ACCOUNT_TYPES = [
   "checking",
@@ -88,6 +100,19 @@ export function moneyImportFieldDefs(kind: MoneyImportKind): MoneyImportFieldDef
         },
         { key: "sortOrder", label: "Sort order", required: false, valueKind: "int" },
         { key: "archived", label: "Archived", required: false, valueKind: "bool" },
+        {
+          key: "systemKey",
+          label: "System key (credit/savings/investment/loan)",
+          required: false,
+          valueKind: "enum",
+          enumValues: ["credit", "savings", "investment", "loan"],
+        },
+        {
+          key: "sourceId",
+          label: "Source ID (batch)",
+          required: false,
+          valueKind: "text",
+        },
       ];
     case "categories":
       return [
@@ -98,6 +123,18 @@ export function moneyImportFieldDefs(kind: MoneyImportKind): MoneyImportFieldDef
           required: false,
           valueKind: "enum",
           enumValues: CATEGORY_KINDS,
+        },
+        {
+          key: "sourceId",
+          label: "Source ID (batch)",
+          required: false,
+          valueKind: "text",
+        },
+        {
+          key: "parentSourceId",
+          label: "Parent source ID (batch)",
+          required: false,
+          valueKind: "text",
         },
         {
           key: "parentId",
@@ -117,6 +154,12 @@ export function moneyImportFieldDefs(kind: MoneyImportKind): MoneyImportFieldDef
           required: false,
           valueKind: "text",
         },
+        {
+          key: "sourceId",
+          label: "Source ID (batch)",
+          required: false,
+          valueKind: "text",
+        },
       ];
     case "tags":
       return [
@@ -124,6 +167,12 @@ export function moneyImportFieldDefs(kind: MoneyImportKind): MoneyImportFieldDef
         {
           key: "color",
           label: "Color (#RRGGBB)",
+          required: false,
+          valueKind: "text",
+        },
+        {
+          key: "sourceId",
+          label: "Source ID (batch)",
           required: false,
           valueKind: "text",
         },

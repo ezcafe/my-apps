@@ -27,18 +27,19 @@ import type {
 } from "@/lib/money-import-types";
 import type { z } from "zod";
 import type {
-  accountCreateSchema,
+  accountImportSchema,
   budgetCreateSchema,
   recurrentCreateSchema,
   ruleCreateSchema,
 } from "@/lib/validators/money";
+import type { MoneyImportIdMaps } from "@/lib/money-import-id-maps";
 import { getWorkspaceDefaultCurrency } from "@/lib/workspace";
 
 type MoneyCtx = { userSub: string; workspaceId: string };
 
 type MoneyTx = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
 
-type AccountRow = z.infer<typeof accountCreateSchema>;
+type AccountRow = z.infer<typeof accountImportSchema>;
 type BudgetRow = z.infer<typeof budgetCreateSchema>;
 type RuleRow = z.infer<typeof ruleCreateSchema>;
 type RecurrenceRow = z.infer<typeof recurrentCreateSchema>;
@@ -183,25 +184,78 @@ async function assertTagsInWorkspaceTx(
   }
 }
 
-async function importAccounts(tx: MoneyTx, ctx: MoneyCtx, rows: AccountRow[]) {
+async function importAccounts(
+  tx: MoneyTx,
+  ctx: MoneyCtx,
+  rows: AccountRow[],
+  idMaps?: MoneyImportIdMaps,
+) {
   if (rows.length === 0) return;
   const workspaceCurrency =
     (await getWorkspaceDefaultCurrency(ctx.workspaceId)) ?? "USD";
+
+  const existingSystem = await tx
+    .select({
+      id: moneyAccount.id,
+      systemKey: moneyAccount.systemKey,
+    })
+    .from(moneyAccount)
+    .where(eq(moneyAccount.workspaceId, ctx.workspaceId));
+  const systemIdByKey = new Map<string, string>();
+  for (const row of existingSystem) {
+    if (row.systemKey) systemIdByKey.set(row.systemKey, row.id);
+  }
+
+  const toInsert: AccountRow[] = [];
+  for (const r of rows) {
+    const sk = r.systemKey;
+    if (sk && systemIdByKey.has(sk)) {
+      const id = systemIdByKey.get(sk)!;
+      await tx
+        .update(moneyAccount)
+        .set({
+          name: r.name,
+          type: r.type ?? "checking",
+          currency: workspaceCurrency,
+          institution: r.institution ?? null,
+          balanceMinor: r.balanceMinor ?? 0,
+          sortOrder: r.sortOrder ?? 0,
+          archived: r.archived ?? false,
+        })
+        .where(eq(moneyAccount.id, id));
+      if (r.sourceId && idMaps) idMaps.accounts.set(r.sourceId, id);
+      continue;
+    }
+    toInsert.push(r);
+  }
+
   const chunkSize = 200;
-  for (let i = 0; i < rows.length; i += chunkSize) {
-    const chunk = rows.slice(i, i + chunkSize);
-    await tx.insert(moneyAccount).values(
-      chunk.map((r) => ({
-        workspaceId: ctx.workspaceId,
-        name: r.name,
-        type: r.type ?? "checking",
-        currency: workspaceCurrency,
-        institution: r.institution ?? null,
-        balanceMinor: r.balanceMinor ?? 0,
-        sortOrder: r.sortOrder ?? 0,
-        archived: r.archived ?? false,
-      })),
-    );
+  for (let i = 0; i < toInsert.length; i += chunkSize) {
+    const chunk = toInsert.slice(i, i + chunkSize);
+    const inserted = await tx
+      .insert(moneyAccount)
+      .values(
+        chunk.map((r) => ({
+          workspaceId: ctx.workspaceId,
+          name: r.name,
+          type: r.type ?? "checking",
+          currency: workspaceCurrency,
+          institution: r.institution ?? null,
+          balanceMinor: r.balanceMinor ?? 0,
+          sortOrder: r.sortOrder ?? 0,
+          archived: r.archived ?? false,
+          systemKey: r.systemKey ?? null,
+        })),
+      )
+      .returning({ id: moneyAccount.id });
+
+    if (idMaps) {
+      for (let j = 0; j < chunk.length; j++) {
+        const sourceId = chunk[j]?.sourceId;
+        const newId = inserted[j]?.id;
+        if (sourceId && newId) idMaps.accounts.set(sourceId, newId);
+      }
+    }
   }
 }
 
@@ -209,6 +263,7 @@ async function importCategories(
   tx: MoneyTx,
   ctx: MoneyCtx,
   rows: CategoryImportRow[],
+  idMaps?: MoneyImportIdMaps,
 ) {
   const sourceIdMap = new Map<string, string>();
   const pending = new Map<number, CategoryImportRow>();
@@ -278,7 +333,10 @@ async function importCategories(
         })
         .returning({ id: moneyCategory.id });
 
-      if (c.sourceId) sourceIdMap.set(c.sourceId, ins.id);
+      if (c.sourceId) {
+        sourceIdMap.set(c.sourceId, ins.id);
+        idMaps?.categories.set(c.sourceId, ins.id);
+      }
       pending.delete(idx);
     }
   }
@@ -686,16 +744,17 @@ async function commitMoneyImportInTx(
   ctx: MoneyCtx,
   type: MoneyImportType,
   rows: unknown[],
+  idMaps?: MoneyImportIdMaps,
 ): Promise<number> {
   switch (type) {
     case "accounts": {
       const list = rows as AccountRow[];
-      await importAccounts(tx, ctx, list);
+      await importAccounts(tx, ctx, list, idMaps);
       return list.length;
     }
     case "categories": {
       const list = rows as CategoryImportRow[];
-      await importCategories(tx, ctx, list);
+      await importCategories(tx, ctx, list, idMaps);
       return list.length;
     }
     case "budgets": {
@@ -733,11 +792,12 @@ export async function commitMoneyImport(
   ctx: MoneyCtx,
   type: MoneyImportType,
   rows: unknown[],
+  idMaps?: MoneyImportIdMaps,
 ): Promise<number> {
   if (isDbTransactionBound()) {
-    return commitMoneyImportInTx(db as MoneyTx, ctx, type, rows);
+    return commitMoneyImportInTx(db as MoneyTx, ctx, type, rows, idMaps);
   }
   return withDbTransaction(() =>
-    commitMoneyImportInTx(db as MoneyTx, ctx, type, rows),
+    commitMoneyImportInTx(db as MoneyTx, ctx, type, rows, idMaps),
   );
 }

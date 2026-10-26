@@ -22,6 +22,7 @@ export function MoneySettingsMerchantsSection() {
         addButtonLabel: "Add merchant",
         namePlaceholder: "Coffee shop",
         importHref: "/money/import/merchants",
+        exportHref: "/api/money/export/merchants",
         errorScope: "money-settings-merchants",
         listQuery: MONEY_LIST_MERCHANTS_QUERY,
         listKey: "moneyMerchants",
