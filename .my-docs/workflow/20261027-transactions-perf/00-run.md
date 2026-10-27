@@ -22,7 +22,7 @@
 
 ## Run log
 
-- **12:48** · Gate B approved — gen:0 · Next build
 - **13:01** · build verify-pass · finalize-lens-plan api|db
 - **13:02** · code-review + lenses + merge-findings clean
 - **13:08** · test-lite success · Prefer gate-c · paused
+- **13:20** · sibling run started · 20261027-investments-loans-list-perf (Option A)

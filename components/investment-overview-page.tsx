@@ -73,6 +73,7 @@ export function InvestmentOverviewPage({
         preset={MONEY_LEDGER_INVESTMENT}
         variant="section"
         showSummaryStats
+        deferLedgerFetchUntilVisible={false}
       />
     </div>
   );

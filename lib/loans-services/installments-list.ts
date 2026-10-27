@@ -1,10 +1,15 @@
-import { and, asc, eq, gt, gte, lte, type SQL } from "drizzle-orm";
+import { and, asc, eq, gt, gte, lte, or, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   loan,
   loanInstallmentStatus,
   loanScheduleInstallment,
 } from "@/db/schema/loans";
+import {
+  decodeLoansInstallmentCursor,
+  encodeLoansInstallmentCursor,
+  type LoansInstallmentKeyset,
+} from "@/lib/loans-installment-cursor";
 import {
   loansInstallmentsQuerySchema,
   type LoansInstallmentsQueryInput,
@@ -23,6 +28,7 @@ export type LoansInstallmentListRow = {
   status: string;
   paidAt: string | null;
   currency: string;
+  paidWithoutTransaction: boolean;
 };
 
 export type LoansInstallmentsConnection = {
@@ -30,13 +36,24 @@ export type LoansInstallmentsConnection = {
   nextCursor: string | null;
 };
 
-/** Pure filter for unit tests — mirrors DB where clauses on dueDate/status/loanId. */
+/** Pure: row is strictly after keyset (installmentNumber ASC, id ASC). */
+export function loansInstallmentKeysetAfter(
+  row: LoansInstallmentKeyset,
+  cursor: LoansInstallmentKeyset,
+): boolean {
+  if (row.installmentNumber > cursor.installmentNumber) return true;
+  if (row.installmentNumber < cursor.installmentNumber) return false;
+  return row.id > cursor.id;
+}
+
+/** Pure filter for unit tests — mirrors DB where clauses. */
 export function installmentRowMatchesQuery(
   row: {
     loanId: string;
     dueDate: string;
     status: string;
     scheduleInstallmentId: string;
+    installmentNumber?: number;
   },
   query: Pick<
     LoansInstallmentsQueryInput,
@@ -47,8 +64,26 @@ export function installmentRowMatchesQuery(
   if (query.from && row.dueDate < query.from) return false;
   if (query.to && row.dueDate > query.to) return false;
   if (query.status && row.status !== query.status) return false;
-  if (query.cursor && row.scheduleInstallmentId <= query.cursor) return false;
+  if (query.cursor) {
+    const key = decodeLoansInstallmentCursor(query.cursor);
+    if (!key) return false;
+    if (row.installmentNumber == null) return false;
+    return loansInstallmentKeysetAfter(
+      { installmentNumber: row.installmentNumber, id: row.scheduleInstallmentId },
+      key,
+    );
+  }
   return true;
+}
+
+function keysetSql(cursor: LoansInstallmentKeyset): SQL {
+  return or(
+    gt(loanScheduleInstallment.installmentNumber, cursor.installmentNumber),
+    and(
+      eq(loanScheduleInstallment.installmentNumber, cursor.installmentNumber),
+      gt(loanScheduleInstallment.id, cursor.id),
+    ),
+  )!;
 }
 
 export async function listLoansInstallments(
@@ -72,7 +107,11 @@ export async function listLoansInstallments(
     conditions.push(eq(loanInstallmentStatus.status, query.status));
   }
   if (query.cursor) {
-    conditions.push(gt(loanScheduleInstallment.id, query.cursor));
+    const key = decodeLoansInstallmentCursor(query.cursor);
+    if (key) {
+      conditions.push(keysetSql(key));
+    }
+    // Legacy / malformed cursor → treat as start of list (no keyset filter).
   }
 
   const rows = await db
@@ -89,6 +128,7 @@ export async function listLoansInstallments(
       status: loanInstallmentStatus.status,
       paidAt: loanInstallmentStatus.paidAt,
       currency: loan.currency,
+      paidWithoutTransaction: loanInstallmentStatus.paidWithoutTransaction,
     })
     .from(loanScheduleInstallment)
     .innerJoin(
@@ -100,7 +140,10 @@ export async function listLoansInstallments(
     )
     .innerJoin(loan, eq(loanScheduleInstallment.loanId, loan.id))
     .where(and(...conditions))
-    .orderBy(asc(loanScheduleInstallment.id))
+    .orderBy(
+      asc(loanScheduleInstallment.installmentNumber),
+      asc(loanScheduleInstallment.id),
+    )
     .limit(limit + 1);
 
   const hasMore = rows.length > limit;
@@ -109,8 +152,13 @@ export async function listLoansInstallments(
     ...row,
     paidAt: row.paidAt ? row.paidAt.toISOString() : null,
   }));
-  const nextCursor = hasMore
-    ? (items[items.length - 1]?.scheduleInstallmentId ?? null)
-    : null;
+  const last = items[items.length - 1];
+  const nextCursor =
+    hasMore && last
+      ? encodeLoansInstallmentCursor({
+          installmentNumber: last.installmentNumber,
+          id: last.scheduleInstallmentId,
+        })
+      : null;
   return { items, nextCursor };
 }

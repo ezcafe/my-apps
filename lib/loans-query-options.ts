@@ -67,7 +67,8 @@ export type LoanDetail = LoanListItem & {
     actualCumulativeMinor: number;
     projectedCumulativeMinor: number;
   }>;
-  installments: Array<{
+  /** Slim client path may omit; table loads via loansInstallments. */
+  installments?: Array<{
     scheduleInstallmentId: string;
     installmentNumber: number;
     dueDate: string;
@@ -80,6 +81,10 @@ export type LoanDetail = LoanListItem & {
     moneyTransactionId: string | null;
     paidWithoutTransaction: boolean;
   }>;
+  installmentCount: number;
+  paidInstallmentCount: number;
+  overdueInstallmentCount: number;
+  nextPaymentMinor: number | null;
 };
 
 export type DueInstallment = {
@@ -167,11 +172,21 @@ export function loanDetailQueryOptions(id: string) {
   return queryOptions({
     queryKey: loansKeys.detail(id),
     queryFn: async () => {
-      const data = await loansGraphQLRequest<{ loan: LoanDetail }>(
-        LOAN_DETAIL_QUERY,
-        { id },
-      );
-      return data.loan;
+      const data = await loansGraphQLRequest<{
+        loan: Omit<LoanDetail, "nextPaymentMinor" | "installments"> & {
+          nextPaymentMinor: unknown;
+          installments?: LoanDetail["installments"];
+        };
+      }>(LOAN_DETAIL_QUERY, { id });
+      const loan = data.loan;
+      return {
+        ...loan,
+        installments: loan.installments ?? [],
+        nextPaymentMinor:
+          loan.nextPaymentMinor == null
+            ? null
+            : gqlMinor(loan.nextPaymentMinor),
+      } satisfies LoanDetail;
     },
   });
 }
@@ -201,6 +216,7 @@ export type LoansInstallmentListItem = {
   status: string;
   paidAt: string | null;
   currency: string;
+  paidWithoutTransaction: boolean;
 };
 
 export function loansInstallmentsQueryOptions(
@@ -212,11 +228,18 @@ export function loansInstallmentsQueryOptions(
       const data = await loansGraphQLRequest<{
         loansInstallments: {
           items: Array<
-            Omit<LoansInstallmentListItem, "paymentMinor" | "principalMinor" | "interestMinor" | "balanceAfterMinor"> & {
+            Omit<
+              LoansInstallmentListItem,
+              | "paymentMinor"
+              | "principalMinor"
+              | "interestMinor"
+              | "balanceAfterMinor"
+            > & {
               paymentMinor: unknown;
               principalMinor: unknown;
               interestMinor: unknown;
               balanceAfterMinor: unknown;
+              paidWithoutTransaction: boolean;
             }
           >;
           nextCursor: string | null;
@@ -229,6 +252,7 @@ export function loansInstallmentsQueryOptions(
           principalMinor: gqlMinor(row.principalMinor),
           interestMinor: gqlMinor(row.interestMinor),
           balanceAfterMinor: gqlMinor(row.balanceAfterMinor),
+          paidWithoutTransaction: Boolean(row.paidWithoutTransaction),
         })),
         nextCursor: data.loansInstallments.nextCursor,
       };

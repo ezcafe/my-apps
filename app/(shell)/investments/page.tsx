@@ -2,6 +2,7 @@ import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { InvestmentOverviewPage } from "@/components/investment-overview-page";
 import { auth } from "@/auth";
 import { getQueryClient } from "@/lib/get-query-client";
+import { moneyLedgerSsrIncludeSummary } from "@/lib/money-ledger-list-options";
 import {
   prefetchInvestmentOverview,
   prefetchMoneyLedger,
@@ -15,7 +16,7 @@ export default async function InvestmentsPage() {
   if (userSub) {
     await Promise.all([
       prefetchMoneyLedger(queryClient, MONEY_LEDGER_INVESTMENT, userSub, {
-        includeSummary: true,
+        includeSummary: moneyLedgerSsrIncludeSummary(),
       }),
       prefetchInvestmentOverview(queryClient, userSub),
     ]);

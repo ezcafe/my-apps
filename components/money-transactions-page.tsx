@@ -72,6 +72,7 @@ export function MoneyTransactionsPage({
   viewNav,
   variant = "page",
   showSummaryStats = false,
+  deferLedgerFetchUntilVisible,
 }: {
   userSub?: string;
   authenticated: boolean;
@@ -90,11 +91,18 @@ export function MoneyTransactionsPage({
   variant?: "page" | "section";
   /** Income / Expenses / Net / Savings rate strip (Analytics-style). */
   showSummaryStats?: boolean;
+  /**
+   * When set, overrides section default (defer until visible).
+   * Investments SSR-seeded section passes false to use warm cache immediately.
+   */
+  deferLedgerFetchUntilVisible?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isSection = variant === "section";
   const showStats = !isSection && showSummaryStats;
+  const deferFetchUntilVisible =
+    deferLedgerFetchUntilVisible ?? isSection;
   const statCardOrder = useMemo(
     () => moneyLedgerStatCardOrder(preset),
     [preset],
@@ -479,7 +487,7 @@ export function MoneyTransactionsPage({
           categories={categories}
           tags={tags}
           currency={defaultCurrency}
-          deferFetchUntilVisible={isSection}
+          deferFetchUntilVisible={deferFetchUntilVisible}
           variant="standalone"
           emptyState={preset?.emptyState}
         />

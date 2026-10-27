@@ -677,7 +677,7 @@ console.log("Created Loan ID:", data.loanCreate.id);`,
       title: "Query Repayment Schedule & Due Installments",
       summary: "Inspect amortization breakdown or retrieve upcoming due items across all loans.",
       explanation:
-        "Call `loansDueInstallments` to find installments due soon, or `loan(id: $id)` to retrieve the complete breakdown of every scheduled payment (principal, interest, balance remaining).",
+        "Call `loansDueInstallments` to find installments due soon, or `loan(id: $id)` for header/summary/chart plus count fields (`installmentCount`, `paidInstallmentCount`, `overdueInstallmentCount`, `nextPaymentMinor`). Page the schedule with `loansInstallments` (limit + cursor) — detail no longer embeds the full installment list for the client table.",
       codeSamples: [
         {
           id: "loan-step2-due-curl",
@@ -1246,10 +1246,10 @@ export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
     category: "loans",
     tabLabel: "loan(id)",
     operationKind: "query",
-    summary: "Detailed loan view with full amortization installment schedule and summary stats.",
-    purpose: "Retrieve complete breakdown of every scheduled payment, interest split, and payoff projection.",
+    summary: "Detailed loan view with summary, chart, next-payment fields, and installment counts.",
+    purpose: "Retrieve payoff projection and schedule counts; page installments via loansInstallments.",
     whenToUse: "Use for loan detail screens, schedule verification, or payment tracking.",
-    returns: "LoanDetail object with installments and chart points.",
+    returns: "LoanDetail with summary/chart/count fields; installments may be empty on the client table path.",
     query: `query($id: ID!) {
   loan(id: $id) {
     id
@@ -1258,22 +1258,18 @@ export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
     principalMinor
     remainingMinor
     percentComplete
+    nextDueDate
+    nextScheduleInstallmentId
+    nextInstallmentNumber
+    nextPaymentMinor
+    installmentCount
+    paidInstallmentCount
+    overdueInstallmentCount
     summary {
       totalPaidMinor
       remainingMinor
       monthsAheadBehind
       projectedPayoffDate
-    }
-    installments {
-      scheduleInstallmentId
-      installmentNumber
-      dueDate
-      paymentMinor
-      principalMinor
-      interestMinor
-      balanceAfterMinor
-      status
-      paidAt
     }
   }
 }`,

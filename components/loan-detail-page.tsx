@@ -230,7 +230,18 @@ function LoanDetailInner({ loanId }: { loanId: string }) {
   }
 
   const today = todayIso();
-  const nextPending = loan.installments.find((i) => i.status === "pending");
+  const nextPending =
+    loan.nextScheduleInstallmentId &&
+    loan.nextDueDate &&
+    loan.nextInstallmentNumber != null &&
+    loan.nextPaymentMinor != null
+      ? {
+          scheduleInstallmentId: loan.nextScheduleInstallmentId,
+          dueDate: loan.nextDueDate,
+          installmentNumber: loan.nextInstallmentNumber,
+          paymentMinor: loan.nextPaymentMinor,
+        }
+      : null;
   const dueDays = nextPending ? daysUntilDue(nextPending.dueDate, today) : null;
   const nextOverdue = dueDays != null && dueDays < 0;
   const nextDueSoon = dueDays != null && dueDays >= 0 && dueDays <= 7;

@@ -107,6 +107,10 @@ export const loansTypeDefs = /* GraphQL */ `
     summary: LoanSummary!
     chart: [LoanChartPoint!]!
     installments: [LoanInstallment!]!
+    installmentCount: Int!
+    paidInstallmentCount: Int!
+    overdueInstallmentCount: Int!
+    nextPaymentMinor: BigInt
   }
 
   type LoanDueInstallment {
@@ -143,6 +147,7 @@ export const loansTypeDefs = /* GraphQL */ `
     status: String!
     paidAt: String
     currency: String!
+    paidWithoutTransaction: Boolean!
   }
 
   type LoansInstallmentsConnection {

@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -16,28 +19,34 @@ import { cn } from "@/lib/cn";
 import { moneyQuickPickChipCls, moneyQuickPickGroupCls } from "@/lib/money-quick-pick-chip-cls";
 import { formatMinor } from "@/lib/format-money";
 import { useFormatDate } from "@/lib/format-date";
-import type { LoanDetail } from "@/lib/loans-query-options";
+import { loanInstallmentsFilterToStatus } from "@/lib/loans-installment-filter-map";
+import {
+  loansInstallmentsQueryOptions,
+  type LoanDetail,
+  type LoansInstallmentListItem,
+} from "@/lib/loans-query-options";
 
-type InstallmentRow = LoanDetail["installments"][number];
 type Filter = "all" | "upcoming" | "paid";
+
+const PAGE_SIZE = 50;
 
 function todayIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function isOverdue(row: InstallmentRow): boolean {
+function isOverdue(row: Pick<LoansInstallmentListItem, "status" | "dueDate">): boolean {
   return row.status === "pending" && row.dueDate < todayIso();
 }
 
-function statusLabel(row: InstallmentRow): string {
+function statusLabel(row: Pick<LoansInstallmentListItem, "status" | "dueDate">): string {
   if (row.status === "paid") return "Paid";
   if (row.status === "skipped") return "Skipped";
   if (isOverdue(row)) return "Overdue";
   return "Pending";
 }
 
-function statusTagClass(row: InstallmentRow): string {
+function statusTagClass(row: Pick<LoansInstallmentListItem, "status" | "dueDate">): string {
   if (row.status === "paid") {
     return "border-accent/30 bg-[color-mix(in_oklab,var(--accent)_10%,transparent)] text-accent";
   }
@@ -73,6 +82,20 @@ function emptyCopy(filter: Filter): { title: string; description: string } {
   };
 }
 
+function LoanInstallmentsTableSkeleton() {
+  return (
+    <div className="space-y-2" aria-busy="true" aria-label="Loading installments">
+      {Array.from({ length: 5 }, (_, i) => (
+        <Skeleton
+          key={`inst-skel-${i}`}
+          className="h-12 w-full rounded-[var(--radius-sm)]"
+        />
+      ))}
+      <Skeleton className="mt-2 h-10 w-28 rounded-[var(--radius-sm)]" />
+    </div>
+  );
+}
+
 export function LoanInstallmentsTable({
   loan,
   nextPendingId,
@@ -82,17 +105,27 @@ export function LoanInstallmentsTable({
 }) {
   const { formatDate } = useFormatDate();
   const [filter, setFilter] = useState<Filter>("upcoming");
+  const pageKey = `${loan.id}:${filter}`;
+  const [pageState, setPageState] = useState({
+    key: pageKey,
+    cursor: null as string | null,
+  });
+  if (pageState.key !== pageKey) {
+    setPageState({ key: pageKey, cursor: null });
+  }
 
-  const rows = useMemo(() => {
-    const all = loan.installments;
-    if (filter === "paid") {
-      return all.filter((row) => row.status === "paid");
-    }
-    if (filter === "upcoming") {
-      return all.filter((row) => row.status === "pending");
-    }
-    return all;
-  }, [filter, loan.installments]);
+  const status = loanInstallmentsFilterToStatus(filter);
+  const listQuery = useQuery({
+    ...loansInstallmentsQueryOptions({
+      loanId: loan.id,
+      status,
+      limit: PAGE_SIZE,
+      cursor: pageState.cursor ?? undefined,
+    }),
+  });
+
+  const rows = listQuery.data?.items ?? [];
+  const nextCursor = listQuery.data?.nextCursor ?? null;
 
   /** Multi-year views must keep the year — omitYearIfCurrent hides e.g. 2026 next to 2025/2027. */
   const multiYearView = useMemo(() => {
@@ -107,11 +140,19 @@ export function LoanInstallmentsTable({
     );
   }
 
-  const paidCount = loan.installments.filter((i) => i.status === "paid").length;
-  const overdueCount = loan.installments.filter(isOverdue).length;
-  const empty = emptyCopy(filter);
+  function onFilterChange(next: Filter) {
+    setFilter(next);
+  }
 
-  function renderRow(row: InstallmentRow) {
+  function onNextPage() {
+    if (!nextCursor) return;
+    setPageState({ key: pageKey, cursor: nextCursor });
+  }
+
+  const empty = emptyCopy(filter);
+  const showLoading = listQuery.isPending;
+
+  function renderRow(row: LoansInstallmentListItem) {
     const isNext = row.scheduleInstallmentId === nextPendingId;
     return (
       <TableRow key={row.scheduleInstallmentId} accent={isNext}>
@@ -151,7 +192,7 @@ export function LoanInstallmentsTable({
     );
   }
 
-  function renderMobileCard(row: InstallmentRow) {
+  function renderMobileCard(row: LoansInstallmentListItem) {
     const isNext = row.scheduleInstallmentId === nextPendingId;
     const dateLabel = formatDueDate(row.dueDate);
     const paymentLabel = formatMinor(row.paymentMinor, loan.currency);
@@ -208,8 +249,11 @@ export function LoanInstallmentsTable({
             Payment schedule
           </h2>
           <p className="mt-1 text-sm text-muted">
-            {paidCount} of {loan.installments.length} installments paid
-            {overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}
+            {loan.paidInstallmentCount} of {loan.installmentCount} installments
+            paid
+            {loan.overdueInstallmentCount > 0
+              ? ` · ${loan.overdueInstallmentCount} overdue`
+              : ""}
           </p>
         </div>
         <div
@@ -224,7 +268,7 @@ export function LoanInstallmentsTable({
                 key={value}
                 type="button"
                 role="radio"
-                onClick={() => setFilter(value)}
+                onClick={() => onFilterChange(value)}
                 className={moneyQuickPickChipCls(active)}
                 aria-checked={active}
               >
@@ -235,7 +279,9 @@ export function LoanInstallmentsTable({
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {showLoading ? (
+        <LoanInstallmentsTableSkeleton />
+      ) : rows.length === 0 ? (
         <AnalyticsEmptyState
           icon="loan"
           title={empty.title}
@@ -264,6 +310,19 @@ export function LoanInstallmentsTable({
             </Table>
           </div>
           <div className="space-y-2 @md:hidden">{rows.map(renderMobileCard)}</div>
+          {nextCursor ? (
+            <div className="mt-3">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={onNextPage}
+                disabled={listQuery.isFetching}
+              >
+                Next
+              </Button>
+            </div>
+          ) : null}
         </>
       )}
     </section>

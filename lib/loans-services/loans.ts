@@ -22,6 +22,11 @@ import {
   weightedAprBps,
 } from "@/lib/loans-insights";
 import type { LoansWorkspaceCtx } from "@/lib/loans-services/types";
+import {
+  countLoanInstallmentsForDetail,
+  nextPendingInstallment,
+  todayIsoDate,
+} from "@/lib/loans-detail-client-contract";
 import { payInstallmentMoneyAtomic } from "@/lib/loans-services/pay";
 import { planLoanScheduleRebuild } from "@/lib/loans-services/loan-schedule-rebuild";
 import {
@@ -94,6 +99,7 @@ export type SerializedLoanDetail = SerializedLoanListItem & {
     monthsAheadBehind: number;
   };
   chart: ReturnType<typeof buildProgressChartSeries>;
+  /** Client table path returns []; server still loads schedule for summary/chart. */
   installments: Array<{
     scheduleInstallmentId: string;
     installmentNumber: number;
@@ -107,6 +113,11 @@ export type SerializedLoanDetail = SerializedLoanListItem & {
     moneyTransactionId: string | null;
     paidWithoutTransaction: boolean;
   }>;
+  installmentCount: number;
+  paidInstallmentCount: number;
+  overdueInstallmentCount: number;
+  /** Nullable when no next pending installment. */
+  nextPaymentMinor: number | null;
 };
 
 async function validateMoneyLinks(
@@ -509,7 +520,11 @@ export async function getLoanDetail(
     principalMinor: row.principalMinor,
   });
 
-  const nextPending = installments.find((i) => i.status === "pending");
+  const nextPending = nextPendingInstallment(installments);
+  const counts = countLoanInstallmentsForDetail(
+    installments,
+    todayIsoDate(),
+  );
   const base = serializeListItem(
     row,
     summary,
@@ -538,19 +553,12 @@ export async function getLoanDetail(
       monthsAheadBehind: summary.monthsAheadBehind,
     },
     chart,
-    installments: installments.map((i) => ({
-      scheduleInstallmentId: i.scheduleInstallmentId,
-      installmentNumber: i.installmentNumber,
-      dueDate: i.dueDate,
-      paymentMinor: i.paymentMinor,
-      principalMinor: i.principalMinor,
-      interestMinor: i.interestMinor,
-      balanceAfterMinor: i.balanceAfterMinor,
-      status: i.status,
-      paidAt: i.paidAt?.toISOString() ?? null,
-      moneyTransactionId: i.moneyTransactionId,
-      paidWithoutTransaction: i.paidWithoutTransaction,
-    })),
+    // Slim client-table path: keep field, return empty; table uses listLoansInstallments.
+    installments: [],
+    installmentCount: counts.installmentCount,
+    paidInstallmentCount: counts.paidInstallmentCount,
+    overdueInstallmentCount: counts.overdueInstallmentCount,
+    nextPaymentMinor: nextPending?.paymentMinor ?? null,
   };
 }
 

@@ -56,7 +56,7 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
   const remainingColor = colorByIndex(resolved, 1, style);
   const paidColor = colorByIndex(resolved, 3, style);
   const schedule = scheduleHint(loan.summary.monthsAheadBehind);
-  const paidCount = loan.installments.filter((i) => i.status === "paid").length;
+  const paidCount = loan.paidInstallmentCount;
   const animationKey = loan.id;
 
   const contextParts = [
@@ -134,7 +134,7 @@ export function LoanDetailStats({ loan }: { loan: LoanDetail }) {
             />
           </p>
           <p className="mt-1 text-sm text-muted">
-            {paidCount} of {loan.installments.length} installments paid
+            {paidCount} of {loan.installmentCount} installments paid
           </p>
         </Card>
 

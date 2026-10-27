@@ -133,6 +133,7 @@ function LoanDetailTableSkeleton() {
           </div>
         ))}
       </div>
+      <Skeleton className="mt-3 h-10 w-28 rounded-[var(--radius-sm)]" />
     </section>
   );
 }

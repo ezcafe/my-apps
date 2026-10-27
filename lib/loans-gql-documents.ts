@@ -79,19 +79,10 @@ export const LOAN_DETAIL_QUERY = /* GraphQL */ `
         actualCumulativeMinor
         projectedCumulativeMinor
       }
-      installments {
-        scheduleInstallmentId
-        installmentNumber
-        dueDate
-        paymentMinor
-        principalMinor
-        interestMinor
-        balanceAfterMinor
-        status
-        paidAt
-        moneyTransactionId
-        paidWithoutTransaction
-      }
+      installmentCount
+      paidInstallmentCount
+      overdueInstallmentCount
+      nextPaymentMinor
     }
   }
 `;
@@ -128,6 +119,7 @@ export const LOANS_INSTALLMENTS_QUERY = /* GraphQL */ `
         status
         paidAt
         currency
+        paidWithoutTransaction
       }
       nextCursor
     }
