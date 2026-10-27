@@ -1,5 +1,6 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { MoneyTransactionsPage } from "@/components/money-transactions-page";
+import { moneyLedgerSsrIncludeSummary } from "@/lib/money-ledger-list-options";
 import { MONEY_LEDGER_SPENDING } from "@/lib/money-ledger-presets";
 import { auth } from "@/auth";
 import { getQueryClient } from "@/lib/get-query-client";
@@ -11,7 +12,7 @@ export default async function MoneyPage() {
   const queryClient = getQueryClient();
   if (userSub) {
     await prefetchMoneyLedger(queryClient, MONEY_LEDGER_SPENDING, userSub, {
-      includeSummary: true,
+      includeSummary: moneyLedgerSsrIncludeSummary(),
     });
   }
 

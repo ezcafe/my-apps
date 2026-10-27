@@ -33,6 +33,7 @@ import {
   type LoansBootstrapData,
   type LoansInsightsAtf,
 } from "@/lib/loans-query-options";
+import { moneyLedgerListIncludeTotal } from "@/lib/money-ledger-list-options";
 import type { MoneyLedgerPreset } from "@/lib/money-ledger-presets";
 import {
   computeMoneyAnalyticsAtf,
@@ -242,7 +243,7 @@ export async function seedMoneyLedgerPage(
   queryClient: QueryClient,
   userSub: string,
   preset: MoneyLedgerPreset,
-  options?: { includeSummary?: boolean },
+  options?: { includeSummary?: boolean; includeTotal?: boolean },
 ): Promise<void> {
   const boot = await seedMoneyBootstrap(queryClient, userSub);
   if (!boot?.workspaceId) return;
@@ -252,12 +253,15 @@ export async function seedMoneyLedgerPage(
     boot.accounts,
     boot.categories,
   );
+  const includeTotal =
+    options?.includeTotal ?? moneyLedgerListIncludeTotal();
   const listInput = moneyTransactionsListQueryInput(
     filterQuery,
     1,
     TRANSACTIONS_PAGE_SIZE,
     "occurredAt",
     "desc",
+    includeTotal,
   );
 
   try {
@@ -272,6 +276,7 @@ export async function seedMoneyLedgerPage(
         TRANSACTIONS_PAGE_SIZE,
         "occurredAt",
         "desc",
+        includeTotal,
       ).queryKey,
       {
         data: list.data.map((row) => ({
@@ -287,6 +292,7 @@ export async function seedMoneyLedgerPage(
           excludeFromAnalyticsAndBudget: row.excludeFromAnalyticsAndBudget,
         })),
         total: list.total,
+        hasMore: list.hasMore,
         page: list.page,
         pageSize: list.pageSize,
       },

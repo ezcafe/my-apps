@@ -197,6 +197,7 @@ export const MONEY_TRANSACTIONS_QUERY = /* GraphQL */ `
     moneyTransactions(query: $query) {
       data
       total
+      hasMore
       page
       pageSize
     }

@@ -299,6 +299,7 @@ console.log("Accounts:", data.moneyBootstrap.accounts);`,
   moneyTransactions(query: $query) {
     data
     total
+    hasMore
     page
     pageSize
     nextCursor
@@ -312,6 +313,7 @@ console.log("Accounts:", data.moneyBootstrap.accounts);`,
                 pageSize: 25,
                 sort: "occurredAt",
                 dir: "desc",
+                includeTotal: true,
                 accountIds: ["00000000-0000-0000-0000-000000000101"],
                 kinds: ["expense", "income"],
               },
@@ -1039,19 +1041,22 @@ export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
     whenToUse:
       "Use this for transaction tables, exports, drill-downs from analytics, or any workflow that needs individual records.",
     returns:
-      "A paginated object containing data, total, page, and pageSize.",
+      "A paginated object containing data, total (nullable), hasMore, page, and pageSize.",
     inputNotes: [
       "query.from and query.to must be ISO datetimes with timezone offsets.",
       "query.page, query.pageSize, query.sort, and query.dir control pagination and ordering.",
+      "query.includeTotal defaults to true (exact COUNT). Set false to skip COUNT; total is then null and hasMore comes from LIMIT pageSize+1.",
       "query.accountIds, categoryIds, merchantIds, tagIds, kinds, recurrence, and recurrenceSourceIds are optional filters.",
     ],
     usageNotes: [
       "A good pattern is to call moneyTransactions after moneyBootstrap so you can filter using known ids.",
+      "Keep includeTotal true for analytics / chart drilldown exact totals; ledger may pass false after measure.",
     ],
     query: `query($query: JSONObject!) {
   moneyTransactions(query: $query) {
     data
     total
+    hasMore
     page
     pageSize
   }
@@ -1064,6 +1069,7 @@ export const apiHelpGraphqlQueryExamples: ApiHelpGraphqlQueryExample[] = [
         pageSize: 50,
         sort: "occurredAt",
         dir: "desc",
+        includeTotal: true,
       },
     },
   },

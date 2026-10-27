@@ -329,6 +329,11 @@ export const transactionListQuerySchema = analyticsFiltersObjectSchema
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
     sort: transactionListSortSchema.default("occurredAt"),
     dir: z.enum(["asc", "desc"]).default("desc"),
+    /**
+     * When false, skip COUNT(*); total is null; hasMore from LIMIT pageSize+1.
+     * Default true preserves exact totals for analytics / drilldown.
+     */
+    includeTotal: z.coerce.boolean().default(true),
     /** Keyset cursor: base64url(`${occurredAt}|${id}`) for occurredAt sort. */
     cursor: z.string().min(1).max(512).optional(),
   })

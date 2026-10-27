@@ -50,7 +50,10 @@ export const moneyTypeDefs = /* GraphQL */ `
 
   type MoneyTransactionConnection {
     data: [JSONObject!]!
-    total: Int!
+    """Exact COUNT when includeTotal is true; null when includeTotal is false. Never -1."""
+    total: Int
+    """Continuation signal; skip-total path uses LIMIT pageSize+1."""
+    hasMore: Boolean!
     page: Int!
     pageSize: Int!
     nextCursor: String

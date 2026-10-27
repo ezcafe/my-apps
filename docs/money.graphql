@@ -36,7 +36,8 @@ scalar JSONObject
 
   type MoneyTransactionConnection {
     data: [JSONObject!]!
-    total: Int!
+    total: Int
+    hasMore: Boolean!
     page: Int!
     pageSize: Int!
     nextCursor: String

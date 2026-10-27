@@ -100,7 +100,9 @@ export type MoneyTransactionListRow = {
 
 export type MoneyTransactionsListResponse = {
   data: MoneyTransactionListRow[];
-  total: number;
+  /** Null when includeTotal was false (skip COUNT). Never -1. */
+  total: number | null;
+  hasMore: boolean;
   page: number;
   pageSize: number;
 };
@@ -589,6 +591,7 @@ export function moneyTransactionsListQueryInput(
   pageSize: number,
   sort: TransactionListSortKey,
   dir: "asc" | "desc",
+  includeTotal: boolean = true,
 ): Record<string, unknown> {
   const params = new URLSearchParams(filterQuery);
   const query: Record<string, unknown> = {
@@ -596,6 +599,7 @@ export function moneyTransactionsListQueryInput(
     pageSize,
     sort,
     dir,
+    includeTotal,
   };
   const from = params.get("from");
   const to = params.get("to");
@@ -628,6 +632,7 @@ export function moneyTransactionsQueryOptions(
   pageSize: number,
   sort: TransactionListSortKey,
   dir: "asc" | "desc",
+  includeTotal: boolean = true,
 ) {
   return queryOptions({
     queryKey: [
@@ -639,6 +644,7 @@ export function moneyTransactionsQueryOptions(
       pageSize,
       sort,
       dir,
+      includeTotal,
     ] as const,
     queryFn: async () => {
       const res = await moneyGraphQLRequest<{
@@ -650,6 +656,7 @@ export function moneyTransactionsQueryOptions(
           pageSize,
           sort,
           dir,
+          includeTotal,
         ),
       });
       return res.moneyTransactions;

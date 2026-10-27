@@ -43,7 +43,14 @@ import {
   moneyTransactionsQueryOptions,
   type MoneyTransactionListRow,
 } from "@/lib/money-query-options";
+import { moneyLedgerListIncludeTotal } from "@/lib/money-ledger-list-options";
 import type { MoneyLedgerEmptyState } from "@/lib/money-ledger-presets";
+import {
+  moneyListCanPageNext,
+  moneyListPagerLabel,
+  moneyListShowPager,
+  moneyListTotalPages,
+} from "@/lib/money-list-pager";
 import { useInViewOnce } from "@/lib/use-in-view-once";
 import type { TransactionListSortKey } from "@/lib/validators/money";
 import dynamic from "next/dynamic";
@@ -79,6 +86,7 @@ export function AnalyticsTransactionsTable({
   deferFetchUntilVisible = true,
   variant = "analytics",
   emptyState,
+  includeTotal,
 }: {
   filterQuery: string;
   activeWorkspaceId: string;
@@ -90,9 +98,17 @@ export function AnalyticsTransactionsTable({
   deferFetchUntilVisible?: boolean;
   variant?: "analytics" | "standalone";
   emptyState?: MoneyLedgerEmptyState;
+  /**
+   * When omitted: standalone ledger skips COUNT; analytics keeps exact total.
+   * Must match SSR seed for the same surface.
+   */
+  includeTotal?: boolean;
 }) {
   const queryClient = useQueryClient();
   const selectable = variant === "standalone";
+  const listIncludeTotal =
+    includeTotal ??
+    (variant === "standalone" ? moneyLedgerListIncludeTotal() : true);
   const { ref: viewportRef, isInView } = useInViewOnce();
   const { formatDate } = useFormatDate();
   const { resolved, style } = useTheme();
@@ -146,6 +162,7 @@ export function AnalyticsTransactionsTable({
       PAGE_SIZE,
       sort,
       dir,
+      listIncludeTotal,
     ),
     enabled:
       Boolean(activeWorkspaceId) &&
@@ -158,11 +175,16 @@ export function AnalyticsTransactionsTable({
 
   const totalPages = useMemo(() => {
     if (!payload) return 1;
-    return Math.max(1, Math.ceil(payload.total / payload.pageSize));
-  }, [payload]);
+    return moneyListTotalPages({
+      total: payload.total,
+      pageSize: payload.pageSize,
+    }) ?? Math.max(page, 1);
+  }, [payload, page]);
 
   const effectivePage = Number.isFinite(page)
-    ? Math.min(Math.max(page, 1), totalPages)
+    ? payload?.total != null
+      ? Math.min(Math.max(page, 1), totalPages)
+      : Math.max(page, 1)
     : 1;
   if (effectivePage !== page) {
     setPage(effectivePage);
@@ -282,7 +304,9 @@ export function AnalyticsTransactionsTable({
     !awaitingViewport &&
     !loading &&
     payload != null &&
-    payload.total === 0;
+    payload.data.length === 0 &&
+    (payload.total === 0 ||
+      (payload.total == null && !payload.hasMore && page === 1));
 
   function renderRow(tx: MoneyTransactionListRow) {
     const acc = accountById.get(tx.accountId);
@@ -596,11 +620,20 @@ export function AnalyticsTransactionsTable({
             </>
           )}
 
-          {payload && payload.total > 0 ? (
+          {payload &&
+          moneyListShowPager({
+            total: payload.total,
+            hasMore: payload.hasMore,
+            rowCount: pageRows.length,
+          }) ? (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-base">
               <p className="text-muted">
-                Page {payload.page} of {totalPages} (
-                {payload.total.toLocaleString()} total)
+                {moneyListPagerLabel({
+                  page: payload.page,
+                  pageSize: payload.pageSize,
+                  total: payload.total,
+                  hasMore: payload.hasMore,
+                })}
               </p>
               <div className="flex gap-2">
                 <Button
@@ -614,7 +647,14 @@ export function AnalyticsTransactionsTable({
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={page >= totalPages || fetching}
+                  disabled={
+                    !moneyListCanPageNext({
+                      page,
+                      pageSize: payload.pageSize,
+                      total: payload.total,
+                      hasMore: payload.hasMore,
+                    }) || fetching
+                  }
                   onClick={() => setPage((p) => p + 1)}
                 >
                   Next

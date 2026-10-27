@@ -35,6 +35,7 @@ import {
   deleteJournalLotsForLedgerTransaction,
   syncJournalLotsForLedgerTransaction,
 } from "@/lib/investment-services/journal-ledger-sync";
+import { fetchMoneyTransactionListParts } from "@/lib/money-list-total-policy";
 import type { MoneyWorkspaceCtx } from "@/lib/money-services/types";
 
 const TOP_AMOUNTS_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
@@ -196,7 +197,8 @@ export async function listMoneyTransactions(
   legacy?: { accountId?: string | null; categoryId?: string | null },
 ): Promise<{
   data: SerializedMoneyTransaction[];
-  total: number;
+  total: number | null;
+  hasMore: boolean;
   page: number;
   pageSize: number;
   nextCursor: string | null;
@@ -287,22 +289,31 @@ export async function listMoneyTransactions(
 
   const listWhere = and(...conditions);
   const offset = useKeyset ? 0 : (q.page - 1) * q.pageSize;
+  const includeTotal = q.includeTotal;
 
-  const [[{ value: total }], rows] = await Promise.all([
-    db
-      .select({ value: count() })
-      .from(moneyTransaction)
-      .where(whereClause),
-    db
-      .select()
-      .from(moneyTransaction)
-      .where(listWhere)
-      .orderBy(orderExpr, idOrder)
-      .limit(q.pageSize)
-      .offset(offset),
-  ]);
+  const { data: rawRows, total, hasMore } =
+    await fetchMoneyTransactionListParts({
+      includeTotal,
+      page: q.page,
+      pageSize: q.pageSize,
+      runCount: async () => {
+        const [{ value }] = await db
+          .select({ value: count() })
+          .from(moneyTransaction)
+          .where(whereClause);
+        return value;
+      },
+      runRows: async (limit) =>
+        db
+          .select()
+          .from(moneyTransaction)
+          .where(listWhere)
+          .orderBy(orderExpr, idOrder)
+          .limit(limit)
+          .offset(offset),
+    });
 
-  const ids = rows.map((r) => r.id);
+  const ids = rawRows.map((r) => r.id);
   const tagLinks =
     ids.length === 0
       ? []
@@ -321,13 +332,14 @@ export async function listMoneyTransactions(
     tagIdsByTx.set(link.transactionId, cur);
   }
 
-  const data = rows.map((r) =>
+  const data = rawRows.map((r) =>
     serializeRow(r, tagIdsByTx.get(r.id) ?? []),
   );
 
   return {
     data,
     total,
+    hasMore,
     page: q.page,
     pageSize: q.pageSize,
     nextCursor:

@@ -71,6 +71,28 @@ test.describe("Money e2e", () => {
     throw lastError;
   });
 
+  test("ledger first load shows transactions without waiting on summary", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await gotoAppPath(page, "/money");
+    await expectMoneyWorkspaceReady(page);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Spending" }),
+    ).toBeVisible();
+    // Grill Q1 structural bar: list chrome ready; do not wait for KPI numbers.
+    await expect(
+      page.getByRole("status", { name: /Loading transactions/i }),
+    ).toHaveCount(0, { timeout: 60_000 });
+    const table = page.getByRole("table");
+    const emptyHeading = page.getByRole("heading", {
+      name: /No (transactions|spending)/i,
+    });
+    await expect(table.or(emptyHeading).first()).toBeVisible({
+      timeout: 30_000,
+    });
+  });
+
   test("add transaction with unique note", async ({ page }) => {
     test.setTimeout(180_000);
     await gotoAppPath(page, "/money/new");
